@@ -318,9 +318,10 @@
         var counter = 0;
         var ul = document.getElementById('latest-attacks-list');
 
-        for (var key in jsonResp.attacks) {
-            var obj = jsonResp.attacks[key];
-            //var obj = jsonResp[key];
+        debugger;
+        var keys = Object.keys(jsonResp.attacks).reverse();
+        for (var i = 0; i < keys.length; i++) {
+            var obj = jsonResp.attacks[keys[i]];
             var span = document.createElement('span');
             var li = createLi(span);
 
@@ -335,6 +336,7 @@
             a2.setAttribute('href', 'profiles.php?XID=' + obj.attacker_id);
             a2.innerHTML = obj.attacker_name ? obj.attacker_name : 'someone';
             if (!offense && obj.attacker_name) {
+                a2.innerHTML += ' [' + obj.attacker_id + ']';
                 a2.innerHTML += ' (' + obj.attacker_factionname + ')';
             }
             span.appendChild(a2);
