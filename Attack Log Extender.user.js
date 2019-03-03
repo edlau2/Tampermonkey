@@ -417,7 +417,7 @@
             //
             // Query and append elements (last 100 attacks) to the list
             // Move all this to 2 separate functions
-            // One to perform the query to the Torn API (https://api.torn.com/user/2100735?selections=attacks&key=4ZMAvIBON4zZLrd9)
+            // One to perform the query to the Torn API (https://api.torn.com/user/2100735?selections=attacks&key=<API key>)
             // One to populate the list
             //
             getLatestAttacksList();
