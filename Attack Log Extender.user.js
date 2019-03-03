@@ -26,8 +26,9 @@
     {
         var regex=/^[0-9]+$/;
         if (x.match(regex)) {
-            return false;
+            return true;
         }
+        return false;
     }
 
     function createExtendedDiv() {
@@ -95,6 +96,7 @@
         var apikeyInput = document.getElementById('apikey');
         var maxInput = document.getElementById('maxinput');
 
+        debugger;
         if (maxInput.value > 100 || !isaNumber(maxInput.value) || maxInput.value < 0) {
             maxInput.value = 100;
         }
@@ -404,7 +406,8 @@
             extendedDiv.appendChild(headerDiv);
             headerDiv.appendChild(arrowDiv);
             headerDiv.appendChild(moveDiv);
-            headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous 100)'));
+            var hdrTitle = document.createTextNode('Latest Attacks (Previous 100');
+            headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('gm_max_values') + ')'));
 
             // Bottom (content) divs
             extendedDiv.appendChild(bodyDiv);
@@ -438,13 +441,16 @@
     var currentPage = window.location.href;
 
     if (currentPage.indexOf('torn.com/index.php') !== -1) {
+        // Note: this is done first so that the title of the dialog is correct
+        if (config.max_values === 'undefined') {
+            config.max_values = 100;
+            GM_setValue('gm_max_values', '100');// Default
+        }
         LatestAttacksExtender.extendLatestAttacks();
         queryProfileInfo();
 
         // If not properly configured, extend the config dialog.
-        if (typeof config.api_key === 'undefined' || config.max_values === 'undefined') {
-            config.max_values = 100;
-            GM_setValue('gm_max_values', '100');// Default
+        if (typeof config.api_key === 'undefined') {
             createConfigDiv();
         }
     }
