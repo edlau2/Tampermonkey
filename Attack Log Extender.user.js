@@ -91,15 +91,18 @@
     }
 
     function saveConfig() {
+        var userIdInput = document.getElementById('userid');
         var apikeyInput = document.getElementById('apikey');
         var maxInput = document.getElementById('maxinput');
 
         if (maxInput.value > 100 || !isaNumber(maxInput.value) || maxInput.value < 0) {
             maxInput.value = 100;
         }
+        GM_setValue('gm_user_id', userIdInput.value);
         GM_setValue('gm_api_key', apikeyInput.value);
         GM_setValue('gm_max_values', maxInput.value);
 
+        config.user_id = GM_getValue('gm_user_id');
         config.api_key = GM_getValue('gm_api_key');
         config.max_values = GM_getValue('gm_max_values');
 
@@ -116,11 +119,21 @@
         configDiv.className = 'cont-gray bottom-round';
         configDiv.setAttribute('style', 'text-align: center');
 
+        var userIdInput = document.createElement('input');
+        userIdInput.type = 'text';
+        userIdInput.id = 'userid';
+        userIdInput.value = GM_getValue('gm_user_id');
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createTextNode('User ID: '));
+        configDiv.appendChild(userIdInput);
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
         var apikeyInput = document.createElement('input');
         apikeyInput.type = 'text';
         apikeyInput.id = 'apikey';
         apikeyInput.value = GM_getValue('gm_api_key');
-        configDiv.appendChild(document.createElement('br'));
+        //configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createTextNode('API Key: '));
         configDiv.appendChild(apikeyInput);
         configDiv.appendChild(document.createElement('br'));
@@ -177,6 +190,50 @@
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Configuration helpers
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    var config = {
+        'user_id' : GM_getValue('gm_user_id'),
+        'user_name' : GM_getValue('gm_user_name'),
+        'api_key': GM_getValue('gm_api_key'),
+        'max_values': GM_getValue('gm_max_values')
+    };
+
+    function queryProfileInfo() {
+        GM_xmlhttpRequest ( {
+            url: 'https://api.torn.com/user/?selections=profile&key=' + config.api_key,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                populateUserConfig(response.responseText);
+            },
+            onerror: function(response) {
+                handleUserConfigError(response);
+            }
+        });
+    }
+
+    // TBD...
+    function handleUserConfigError(response) {
+        alert('An unknown error has occurred querying profile information.' +
+              '/nPress OK to continue.');
+    }
+
+    function populateUserConfig(responseText) {
+        var jsonResp = JSON.parse(responseText);
+
+        config.user_id = jsonResp.player_id;
+        config.user_name = jsonResp.name;
+
+        GM_setValue('gm_user_id', config.user_id);
+        GM_setValue('gm_user_name', config.user_name);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Functions to query the Torn API, fill list of recent attacks, and other related stuff
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -198,8 +255,10 @@
         });
     }
 
+    // TBD...
     function handleAttackListError(response) {
-        alert(response.responseText);
+        alert('An unknown error has occurred querying attack information.' +
+              '/nPress OK to continue.');
     }
 
     function createLi(span) {
@@ -211,6 +270,37 @@
         return li;
     }
 
+    //
+    // This is where all the formatting of the latest attacks dialog takes place...
+    // Any additional data from the response can be added here.
+    // Sample response data:
+    //
+    /*
+    "66290614": {
+			"timestamp_started": 1551448810,
+			"timestamp_ended": 1551448827,
+			"attacker_id": 2100735,
+			"attacker_name": "xedx",
+			"attacker_faction": 7835,
+			"attacker_factionname": "Mentos and Cola",
+			"defender_id": 2125197,
+			"defender_name": "b97yqq",
+			"defender_faction": 15120,
+			"defender_factionname": "Wolf Pack Next Generation",
+			"result": "Lost",
+			"stealthed": 0,
+			"respect_gain": 0,
+			"chain": 0,
+			"modifiers": {
+				"fairFight": 1,
+				"war": 1,
+				"retaliation": 1,
+				"groupAttack": 1,
+				"overseas": 1,
+				"chainBonus": 1
+			}
+		},
+    */
     function populateLatestAttacksList(responseText) {
         var jsonResp = JSON.parse(responseText);
         var count = Object.keys(jsonResp.attacks).length;
@@ -240,8 +330,7 @@
             li.setAttribute("title", d);
 
             // Attacker name, either myself or opponent
-            // If respect_gain > 0, it's us attacking them
-            var offense = (obj.respect_gain > 0);
+            var offense = (obj.attacker_id == config.user_id);
             var a2 = document.createElement('a');
             a2.setAttribute('href', 'profiles.php?XID=' + obj.attacker_id);
             a2.innerHTML = obj.attacker_name ? obj.attacker_name : 'someone';
@@ -345,13 +434,10 @@
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     var currentPage = window.location.href;
-    var config = {
-        'api_key': GM_getValue('gm_api_key'),
-        'max_values': GM_getValue('gm_max_values')
-    };
 
     if (currentPage.indexOf('torn.com/index.php') !== -1) {
         LatestAttacksExtender.extendLatestAttacks();
+        queryProfileInfo();
 
         // If not properly configured, extend the config dialog.
         if (typeof config.api_key === 'undefined' || config.max_values === 'undefined') {
