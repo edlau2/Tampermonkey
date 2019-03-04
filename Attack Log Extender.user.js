@@ -40,6 +40,7 @@
 
     function createHeaderDiv() {
         var headerDiv = document.createElement('div');
+        headerDiv.id = 'header_div';
         headerDiv.className = 'title main-title title-black active top-round';
         headerDiv.setAttribute('role', 'heading');
         headerDiv.setAttribute('aria-level', '5');
@@ -96,7 +97,6 @@
         var apikeyInput = document.getElementById('apikey');
         var maxInput = document.getElementById('maxinput');
 
-        debugger;
         if (maxInput.value > 100 || !isaNumber(maxInput.value) || maxInput.value < 0) {
             maxInput.value = 100;
         }
@@ -108,9 +108,17 @@
         config.api_key = GM_getValue('gm_api_key');
         config.max_values = GM_getValue('gm_max_values');
 
+        // Note that this assumes the text was the last element appended!
+        var headerDiv = document.getElementById('header_div');
+        headerDiv.removeChild(headerDiv.lastChild);
+        headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('gm_max_values') + ')'));
+
         cancelConfig();
     }
 
+    //
+    // A bunch of code to build the simple configuration dialog.
+    //
     function createConfigDiv() {
         // Don't do this more than once.
         if (document.getElementById('config-div')) return;
@@ -320,7 +328,6 @@
         var counter = 0;
         var ul = document.getElementById('latest-attacks-list');
 
-        debugger;
         var keys = Object.keys(jsonResp.attacks).reverse();
         for (var i = 0; i < keys.length; i++) {
             var obj = jsonResp.attacks[keys[i]];
@@ -406,7 +413,6 @@
             extendedDiv.appendChild(headerDiv);
             headerDiv.appendChild(arrowDiv);
             headerDiv.appendChild(moveDiv);
-            var hdrTitle = document.createTextNode('Latest Attacks (Previous 100');
             headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('gm_max_values') + ')'));
 
             // Bottom (content) divs
