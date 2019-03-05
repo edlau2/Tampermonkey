@@ -16,21 +16,18 @@ xedx-torn-config is distributed under the terms of the GNU Lesser General Public
 
 // ==UserScript==
 // @exclude       *
-// @author        edlau
+// @author        Ed Lau (xedx [2100735])
 
 // ==UserLibrary==
 // @name          xedx-torn-common
-// @author        edlau
+// @author        Ed Lau (xedx [2100735])
 // @description   A collection of utilities and structures for inclusion in Torn user scripts.
-// @copyright     2019+, xedx [2100735]
+// @copyright     2019+, Ed Lau (xedx [2100735])
 // @license       LGPL-3.0-or-later; http://www.gnu.org/licenses
+// @version       0.1
 
 // ==/UserScript==
 // ==/UserLibrary==
-
-// ==OpenUserJS==
-// @author edlau
-// ==/OpenUserJS==
 
 
 // Create a timestamp string for current time (YY-MM-DD HH:MM:SS)
