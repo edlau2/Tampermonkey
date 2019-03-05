@@ -75,7 +75,6 @@
     // the cache to get the values we need.
     //////////////////////////////////////////////////////////////////////
 
-    console.log("User List Extender script started!");
     var totalResponses = 0;
     function updateUserLevelsCB(responseText, index, ID) {
         //console.log("Response: " + responseText);
@@ -267,6 +266,8 @@
     // that this is likely triggered at the addition of each <li>,
     // and we'll need to keep track of what has already been edited.
     //////////////////////////////////////////////////////////////////////
+
+    console.log("User List Extender script started!");
 
     // Make sure we have an API key
     var api_key = GM_getValue('gm_api_key');
