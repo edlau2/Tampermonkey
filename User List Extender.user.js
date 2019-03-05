@@ -77,7 +77,7 @@
 
     var totalResponses = 0;
     function updateUserLevelsCB(responseText, index, ID) {
-        console.log("Response: " + responseText);
+        //console.log("Response: " + responseText);
         totalResponses++;
         var jsonResp = JSON.parse(responseText);
 
@@ -92,7 +92,7 @@
             (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
             rank = rank + ' ' + parts[1];
         }
-        console.log('Rank: ' + rank);
+        //console.log('Rank: ' + rank);
 
         // Lookup name in our table (array) to convert to number
         var numeric_rank = 0;
@@ -106,8 +106,8 @@
         var cacheEntry = [ID, numeric_rank];
         rank_cache.push(cacheEntry);
 
-        console.log("Cached entry: " + ID + " is rank " + numeric_rank);
-        console.log("Total Requests: " + totalRequests + " Total Responses: " + totalResponses);
+        //console.log("Cached entry: " + ID + " is rank " + numeric_rank);
+        //console.log("Total Requests: " + totalRequests + " Total Responses: " + totalResponses);
 
         // If we have received all responses, we can trigger the
         // actual UI update.
@@ -187,7 +187,7 @@
 
         // We seem to be called twice, the first call always has a length of 1.
         // It seems we can ignore this call.
-        console.log("<LI> Items detected: " + items.length);
+        //console.log("<LI> Items detected: " + items.length);
         if (items.length == 1) {
             return;
         }
@@ -220,7 +220,7 @@
             }
         }
 
-        console.log("Finished iterating: Total Requests: " + totalRequests +" Total Responses: " + totalResponses);
+        //console.log("Finished iterating: Total Requests: " + totalRequests +" Total Responses: " + totalResponses);
 
         // We're done iterating. We can disconnect the observer now, since
         // we don't want to be called while updating the <li>'s.
@@ -279,8 +279,8 @@
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        console.log('Mutation observer triggered.');
-        console.log('mutation.type = ' + mutationsList[0].type);
+        //console.log('Mutation observer triggered.');
+        //console.log('mutation.type = ' + mutationsList[0].type);
         updateUserLevels();
     };
     var observer = new MutationObserver(callback);
