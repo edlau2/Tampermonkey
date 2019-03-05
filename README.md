@@ -33,4 +33,5 @@ This script adds rank next to the level in the User List, as seen when searching
 - [War List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/War%20List%20Extender.user.js)
 - [War List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/War%20List%20Extender.png)
 
-Similar to the above script, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. There is a glitch in that when a wall page is opened the first time, sometimes a refresh is required for the script to execute properly. 
+*** beta ***
+Similar to the above script, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. There is a glitch in that when a wall page is opened the first time, sometimes a refresh is required for the script to execute properly. Also, this script has a tendency to perform too many requests, the result of which is that only the level may be displayed if there is heavy wall activity.
