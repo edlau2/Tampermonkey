@@ -53,8 +53,11 @@
     function addNumericRank() {
         var elemList = document.getElementsByClassName('two-row');
         var element = elemList[0];
+        if (element == 'undefined' || typeof element == 'undefined') {
+            return;
+        }
         var rank = element.firstChild;
-        var html = rank.innerHTML;// For debugging
+        var html = rank.innerHTML;
         for (var i = 0; i < ranks.length; i++) {
             if (html == ranks[i][0]) {
                 while(rank.attributes.length > 0) {
