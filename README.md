@@ -20,8 +20,8 @@ Note that the PNG files are not part of the installation, they are simple screen
 
 This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
-- [Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Numeric%20Rank%20Display.user.js)
-- [Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/Numeric%20Rank%20Display.png)
+- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.user.js)
+- [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.png)
 
 This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section. This script also highlights using the MutationObserver object, so that chages are made only when the relevant DOM has been loaded.
 
