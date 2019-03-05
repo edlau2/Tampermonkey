@@ -75,6 +75,7 @@
     // the cache to get the values we need.
     //////////////////////////////////////////////////////////////////////
 
+    console.log("User List Extender script started!");
     var totalResponses = 0;
     function updateUserLevelsCB(responseText, index, ID) {
         //console.log("Response: " + responseText);

@@ -70,12 +70,13 @@
         }
     }
 
-    //
+    //////////////////////////////////////////////////////////////////
     // Main. Using a MutationObserver allows us to be notified
     // whenever the root of the 'User Profile' section (the
     // <div id="profileroot"> section) changes/updates. It is
     // probably over-aggressive to trigger on all 3 actions...
-    //
+    //////////////////////////////////////////////////////////////////
+    console.log("Numeric Rank Display script started!");
     var targetNode = document.getElementById('profileroot');
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
