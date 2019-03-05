@@ -26,8 +26,12 @@ xedx-torn-config is distributed under the terms of the GNU Lesser General Public
 // @license       LGPL-3.0-or-later; http://www.gnu.org/licenses
 
 // ==/UserScript==
-
 // ==/UserLibrary==
+
+// ==OpenUserJS==
+// @author edlau
+// ==/OpenUserJS==
+
 
 // Create a timestamp string for current time (YY-MM-DD HH:MM:SS)
 function timestamp() {
