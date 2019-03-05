@@ -1,34 +1,20 @@
-/*
-Copyright 2019+, Ed Lau, xedx [2100735]
-
-xedx-torn-config is distributed under the terms of the GNU Lesser General Public License.
-    GM_config is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 // ==UserScript==
 // @exclude       *
 // @author        Ed Lau (xedx [2100735])
-
+// @namespace     http://tampermonkey.net/
 // ==UserLibrary==
 // @name          xedx-torn-common
 // @author        Ed Lau (xedx [2100735])
 // @description   A collection of utilities and structures for inclusion in Torn user scripts.
 // @copyright     2019+, Ed Lau (xedx [2100735])
-// @license       LGPL-3.0-or-later; http://www.gnu.org/licenses
+// @license       LGPL-3.0-or-later; http://www.gnu.org/copyleft/lgpl.html
 // @version       0.1
-
-// ==/UserScript==
 // ==/UserLibrary==
-
+// @include       *
+// @grant         GM_addStyle
+// @grant         GM_getValue
+// @grant         GM_setValue
+// ==/UserScript==
 
 // Create a timestamp string for current time (YY-MM-DD HH:MM:SS)
 function timestamp() {
@@ -78,4 +64,3 @@ var ranks = ['Absolute beginner',
              'Legendary',
              'Elite',
              'Invincible'];
-
