@@ -15,8 +15,8 @@ Repository for TamperMonkey scripts
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run.
 
-- [Attack Log Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Attack%20Log%20Extender.user.js)
-- [Attack Log Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Attack%20Log%20Extender.png)
+- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.user.js)
+- [Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.png)
 
 This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
