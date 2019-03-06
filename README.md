@@ -30,8 +30,8 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
-- [Torn War List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20List%20Extender.user.js)
-- [Torn War List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20List%20Extender.png)
+- [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Wall%20List%20Extender.user.js)
+- [Torn War Wall List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Wall%20List%20Extender.png)
 
 *** beta ***
 Similar to the above script, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. There is a glitch in that when a wall page is opened the first time, sometimes a refresh is required for the script to execute properly. Also, this script has a tendency to perform too many requests to the Torn api - there is a limit on requests per minute - , the result of which is that only the level may be displayed for certain users (new users getting on the wall) if there is heavy wall activity. This clears itself up in time.
