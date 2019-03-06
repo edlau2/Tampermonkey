@@ -48,6 +48,8 @@
     // Query profile information based on ID
     //////////////////////////////////////////////////////////////////////
 
+    // Access-Control-Allow-Origin
+
     var totalRequests = 0;
     function getRankFromId(ID, index) {
         var rank = getCachedRankFromId(ID);
@@ -75,22 +77,27 @@
 
     var errorLogged = false;
     function handleRankError(responseText) {
-        if (!errorLogged) {
-            var jsonResp = JSON.parse(responseText);
-            var errorText = 'An error has occurred querying rank information.\n' +
-                '\nCode: ' + jsonResp.error.code +
-                '\nError: ' + jsonResp.error.error;
 
-            if (jsonResp.error.code == 5) {
-                errorText += '\n\n The Torn API only allows so many requests per minute. ' +
-                    'If this limit is exceeded, this error will occur. It will clear itself' +
-                    'up shortly, or you may try refreshing the page.\n';
+        if (responseText != "") {
+            if (!errorLogged) {
+                var jsonResp = JSON.parse(responseText);
+                var errorText = 'An error has occurred querying rank information.\n' +
+                    '\nCode: ' + jsonResp.error.code +
+                    '\nError: ' + jsonResp.error.error;
+
+                if (jsonResp.error.code == 5) {
+                    errorText += '\n\n The Torn API only allows so many requests per minute. ' +
+                        'If this limit is exceeded, this error will occur. It will clear itself' +
+                        'up shortly, or you may try refreshing the page.\n';
+                }
+
+                errorText += '\nPress OK to continue.';
+                alert(errorText);
+                console.log(errorText);
+                errorLogged = true;
             }
-
-            errorText += '\nPress OK to continue.';
-            alert(errorText);
-            console.log(errorText);
-            errorLogged = true;
+        } else {
+            // Unknown error.
         }
     }
 
@@ -262,31 +269,31 @@
     //////////////////////////////////////////////////////////////////////
 
     var tornRanks = ['Absolute beginner',
-                 'Beginner',
-                 'Inexperienced',
-                 'Rookie',
-                 'Novice',
-                 'Below Average',
-                 'Average',
-                 'Reasonable',
-                 'Above Average',
-                 'Competent',
-                 'Highly competent',
-                 'Veteran',
-                 'Distinguished',
-                 'Highly distinguished',
-                 'Professional',
-                 'Star',
-                 'Master',
-                 'Outstanding',
-                 'Celebrity',
-                 'Supreme',
-                 'Idolised',
-                 'Champion',
-                 'Heroic',
-                 'Legendary',
-                 'Elite',
-                 'Invincible'];
+                     'Beginner',
+                     'Inexperienced',
+                     'Rookie',
+                     'Novice',
+                     'Below average',
+                     'Average',
+                     'Reasonable',
+                     'Above average',
+                     'Competent',
+                     'Highly competent',
+                     'Veteran',
+                     'Distinguished',
+                     'Highly distinguished',
+                     'Professional',
+                     'Star',
+                     'Master',
+                     'Outstanding',
+                     'Celebrity',
+                     'Supreme',
+                     'Idolised',
+                     'Champion',
+                     'Heroic',
+                     'Legendary',
+                     'Elite',
+                     'Invincible'];
 
     //////////////////////////////////////////////////////////////////////
     // Main. Using a MutationObserver allows us to be notified
