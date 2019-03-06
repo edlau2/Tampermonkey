@@ -144,11 +144,7 @@
             }
         }
 
-        var cacheEntry = [ID, numeric_rank];
-        rank_cache.push(cacheEntry);
-
-        //console.log("Cached entry: " + ID + " is rank " + numeric_rank);
-        //console.log("Total Requests: " + totalRequests + " Total Responses: " + totalResponses);
+        cacheIdRank(ID, numeric_rank);
 
         // If we have received all responses, we can trigger the
         // actual UI update.
@@ -158,13 +154,44 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Find a rank from our cache, based on ID
+    // Cache utilities
     //////////////////////////////////////////////////////////////////////
 
+    // Time an entry may be cached, in hours
+    var expire_time = 24;
+
+    function hoursBetween(date1, date2) {
+        var one_hour = 1000*60*60;
+        var date1_ms = date1.getTime();
+        var date2_ms = date2.getTime();
+        var difference_ms = date2_ms - date1_ms;
+
+        return Math.round(difference_ms/one_hour);
+    }
+
+    // Add a cache entry: [ID, rank, added_date]
+    function cacheIdRank(ID, numeric_rank) {
+        var cacheDate = new Date().toString();
+        var cacheEntry = [ID, numeric_rank, cacheDate];
+        rank_cache.push(cacheEntry);
+    }
+
+    // See if a cached entry should be expired, and if so, remove it
+    function expireCache(index) {
+        var now = new Date()
+        var cacheDate = new Date(rank_cache[index][2]);
+        if (hoursBetween(cacheDate, now) > expire_time) {
+            logEvent("cache entry expired: ID " + rank_cache[index][0]);
+            rank_cache.splice(index, 1);
+        }
+    }
+
+    // Find a rank from our cache, based on ID
     function getCachedRankFromId(ID) {
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i][0] == ID) {
                 logEvent("cache hit: ID " + ID + " ==> Rank:" + rank_cache[i][1]);
+                expireCache(i);
                 return rank_cache[i][1];
             }
         }
@@ -318,27 +345,27 @@
     //////////////////////////////////////////////////////////////////////
 
     //if (document.URL.includes('/war/')) {
-        console.log("Torn War Other Fac Extender script started!");
+    console.log("Torn War Other Fac Extender script started!");
 
-        // Make sure we have an API key
-        api_key = GM_getValue('gm_api_key');
-        if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-            api_key = prompt("Please enter your API key.\n" +
-                             "Your key will be saved locally so you won't have to be asked again.\n" +
-                             "Your key is kept private and not shared with anyone.", "");
-            GM_setValue('gm_api_key', api_key);
-        }
+    // Make sure we have an API key
+    api_key = GM_getValue('gm_api_key');
+    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
+        api_key = prompt("Please enter your API key.\n" +
+                         "Your key will be saved locally so you won't have to be asked again.\n" +
+                         "Your key is kept private and not shared with anyone.", "");
+        GM_setValue('gm_api_key', api_key);
+    }
 
-        var targetNodes = document.getElementsByClassName('faction-info-wrap another-faction');
-        var config = { attributes: true, childList: true, subtree: true };
-        if (targetNodes == 'undefined' || typeof targetNodes == 'undefined') {
-            return;
-        }
+    var targetNodes = document.getElementsByClassName('faction-info-wrap another-faction');
+    var config = { attributes: true, childList: true, subtree: true };
+    if (targetNodes == 'undefined' || typeof targetNodes == 'undefined') {
+        return;
+    }
+    updateUserLevels();
+    var callback = function(mutationsList, observer) {
         updateUserLevels();
-        var callback = function(mutationsList, observer) {
-            updateUserLevels();
-        };
-        var observer = new MutationObserver(callback);
-        observer.observe(targetNodes[1], config);
+    };
+    var observer = new MutationObserver(callback);
+    observer.observe(targetNodes[1], config);
     //}
 })();
