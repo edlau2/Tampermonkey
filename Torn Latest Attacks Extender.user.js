@@ -437,6 +437,9 @@
             if (result === 'Escape') {
                 result = 'Escaped from';
             }
+            if (result === 'Assist') {
+                result = 'Assisted in attacking';
+            }
             span.appendChild(document.createTextNode(' ' + result + ' '));
 
             // Defender name, either myself or opponent
