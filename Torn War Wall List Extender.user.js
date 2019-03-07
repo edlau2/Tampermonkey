@@ -23,9 +23,16 @@
     // Utilities
     //////////////////////////////////////////////////////////////////////
 
-    // Create a timestamp string for current time (YY-MM-DD HH:MM:SS)
-    function timestamp() {
-        var dateobj = new Date();
+    var date_formats = ["YYYY-MM-DD",
+                        "YYYY-MONTH-DD DDD",
+                        "YYYY-MM-DD HH:MM:SS",
+                        "DAY MONTH DD YYYY HH:MM:SS",
+                        "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)"];
+
+    var months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+    var days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+    function dateConverter(dateobj, format){
         var year = dateobj.getFullYear();
         var month= ("0" + (dateobj.getMonth()+1)).slice(-2);
         var date = ("0" + dateobj.getDate()).slice(-2);
@@ -33,25 +40,51 @@
         var minutes = ("0" + dateobj.getMinutes()).slice(-2);
         var seconds = ("0" + dateobj.getSeconds()).slice(-2);
         var day = dateobj.getDay();
+        var converted_date = dateobj.toString();
 
-        var converted_date = year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds;
+        switch(format){
+            case "YYYY-MM-DD":
+                converted_date = year + "-" + month + "-" + date;
+                break;
+            case "YYYY-MONTH-DD DDD":
+                converted_date = year + "-" + months[parseInt(month)-1] + "-" + date + " " + days[parseInt(day)];
+                break;
+            case "YYYY-MM-DD HH:MM:SS":
+                converted_date = year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds;
+                break;
+            case "DAY MONTH DD YYYY HH:MM:SS":
+                converted_date = days[parseInt(day)] + " " + months[parseInt(month)-1] + " " + date + " " + year + " " +
+                    hours + ":" + minutes + ":" + seconds;
+                break;
+            case "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)":
+                converted_date = dateobj.toString();
+                break;
+        }
 
         return converted_date;
     }
 
+    // Create a timestamp string for current time (YY-MM-DD HH:MM:SS)
+    function timestamp() {
+        return dateConverter(new Date(), "YYYY-MM-DD HH:MM:SS");
+    }
+
     // Log an event to the console, prepended with a timestamp
     function logEvent(event) {
-        console.log(timestamp() + "- " + event);
+        console.log(timestamp() + " - " + event);
     }
 
     //////////////////////////////////////////////////////////////////////
     // Query profile information based on ID
+    //
+    // ID: User ID to query
+    // index: index into the <UL> array
+    // hint: length of requests to be made rapidly.
+    //
     //////////////////////////////////////////////////////////////////////
 
-    // Access-Control-Allow-Origin
-
     var totalRequests = 0;
-    function getRankFromId(ID, index) {
+    function getRankFromId(ID, index, hint) {
         var rank = getCachedRankFromId(ID);
         logEvent("Querying Torn, ID = " + ID + " Rank = " + rank);
         totalRequests++;
@@ -193,7 +226,8 @@
     function getCachedRankFromId(ID) {
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i][0] == ID) {
-                logEvent("cache hit: ID " + ID + " ==> Rank:" + rank_cache[i][1]);
+                logEvent("cache hit: ID " + ID + " ==> Rank:" + rank_cache[i][1] + " Expires: " +
+                         dateConverter(new Date(rank_cache[i][2]), "YYYY-MM-DD HH:MM:SS"));
                 expireCache(i);
                 return rank_cache[i][1];
             }
@@ -272,6 +306,8 @@
             return;
         }
 
+        logEvent("Estimated requests required: " + items.length);
+        var pendingReqQueue = [];
         for (var i = 0; i < items.length; ++i) {
             // Get user ID, to look up rank
             var li = items[i];
@@ -296,9 +332,19 @@
             // just index into the <ul> array, no need for the loop
             // anymore.
             if (!getCachedRankFromId(ID)) {
-                getRankFromId(ID, i);
+                var queueObj = [ID, i];
+                pendingReqQueue.push(queueObj);
+                //getRankFromId(ID, i);
             }
-        }
+        } // End 'for' loop
+
+        // Now we have an idea about how many requests we'll be making.
+        // We can use this as a 'hint' to getRankFromId() to defer
+        // requests as needed to prevent the 100 reqs/min limit.
+        logEvent("Pending requests queued: " + pendingReqQueue.length);
+        pendingReqQueue.forEach(function(element) {
+            getRankFromId(element[0], element[1], pendingReqQueue.length);
+        });
     }
 
     //////////////////////////////////////////////////////////////////////
