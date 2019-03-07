@@ -79,14 +79,14 @@
     // ID.
     //
     // If the user is in a company, attempt to close the current tab.
-    // This may or may not work.
+    //
     //////////////////////////////////////////////////////////////////
 
     function applyJobFilter(responseText, ID) {
         var jsonResp = JSON.parse(responseText);
-        if (!jsonResp.job.company_id) {
-            console.log("Closing tab for user ID " + ID + ", user has no company info.");
-            alert("User has no job! The bum...\n\nPress OK and tab will close.");
+        if (jsonResp.job.company_id) {
+            console.log("Closing tab for user ID " + ID + ", user employed at " + jsonResp.job.company_name);
+            alert("User already has a job!\n\nPress OK and tab will close.");
             setTimeout (window.close, 0);
         }
     }
