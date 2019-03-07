@@ -39,6 +39,6 @@ Similar to the above script, this extends the user list on the territory wall pa
 - [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Other%20Fac%20Extender.user.js)
 - [Torn War Other Fac Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Other%20Fac%20Extender.png)
 
-*** beta ***
+*** alpha - don't use yet ***
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
 
