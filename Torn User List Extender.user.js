@@ -77,7 +77,6 @@
 
     var totalResponses = 0;
     function updateUserLevelsCB(responseText, index, ID) {
-        //console.log("Response: " + responseText);
         totalResponses++;
         var jsonResp = JSON.parse(responseText);
 
@@ -92,7 +91,6 @@
             (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
             rank = rank + ' ' + parts[1];
         }
-        //console.log('Rank: ' + rank);
 
         // Lookup name in our table (array) to convert to number
         var numeric_rank = 0;
@@ -105,9 +103,6 @@
 
         var cacheEntry = [ID, numeric_rank];
         rank_cache.push(cacheEntry);
-
-        //console.log("Cached entry: " + ID + " is rank " + numeric_rank);
-        //console.log("Total Requests: " + totalRequests + " Total Responses: " + totalResponses);
 
         // If we have received all responses, we can trigger the
         // actual UI update.
@@ -141,24 +136,23 @@
 
         for (var i = 0; i < items.length; ++i) {
             var li = items[i];
-            var userNames = li.getElementsByClassName('user name');
-            if (userNames == 'undefined' || userNames[0] == 'undefined' ||
-                typeof userNames === 'undefined' || typeof userNames[0] === 'undefined') {
+            var ID;
+
+            try {
+                ID = items[i].getElementsByClassName('user name')[0].getAttribute("href").split("=")[1];
+            } catch(err) {
                 continue;
             }
 
-            var href = userNames[0].getAttribute("href");
-            if (href == 'undefined') {
+            var level;
+            try {
+                level = items[i].getElementsByClassName('level')[0].getElementsByClassName('value')[0];
+            } catch(err) {
                 continue;
             }
-
-            var parts = href.split("=");
-            var ID = parts[1];
-            var levelSpan = li.getElementsByClassName('level');
-            var level = levelSpan[0].getElementsByClassName('value');
 
             var numeric_rank = getCachedRankFromId(ID);
-            level[0].innerHTML = level[0].innerHTML + '/' + (numeric_rank ? numeric_rank : '?');
+            level.innerHTML = level.innerHTML + '/' + (numeric_rank ? numeric_rank : '?');
         }
 
         // Re-connect our observer, in preparation for going to another page.
@@ -174,53 +168,33 @@
     function updateUserLevels() {
         // Get the <UL>
         var elemList = document.getElementsByClassName('user-info-list-wrap bottom-round cont-gray');
-        var ul = elemList[0];
-        if (ul == 'undefined') {
-            return;
-        }
-
-        // Iterate each <LI>
-        var items = ul.getElementsByTagName("li");
-        if (items == 'undefined') {
+        var items;
+        try {
+            items = elemList[0].getElementsByTagName("li")
+        } catch(err) {
             return;
         }
 
         // We seem to be called twice, the first call always has a length of 1.
         // It seems we can ignore this call.
         //console.log("<LI> Items detected: " + items.length);
-        if (items.length == 1) {
+        if (items.length <= 1) {
             return;
         }
 
         for (var i = 0; i < items.length; ++i) {
             // Get user ID, to look up rank
-            var li = items[i];
-            var userNames = li.getElementsByClassName('user name');
-            if (userNames == 'undefined' || userNames[0] == 'undefined' ||
-                typeof userNames === 'undefined' || typeof userNames[0] === 'undefined') {
+            var ID;
+            try {
+                ID = items[i].getElementsByClassName('user name')[0].getAttribute("href").split("=")[1];
+            } catch(err) {
                 continue;
             }
 
-            var href = userNames[0].getAttribute("href");
-            if (href == 'undefined') {
-                return;
-            }
-
-            // Get ID from href, and rank from ID
-            var parts = href.split("=");
-            var ID = parts[1];
-
-            // At this point, 'i' is the index into the <ul> 'array'.
-            // We'll need to get the rank from the ID, async, so
-            // the callback will have to repeat the above but can
-            // just index into the <ul> array, no need for the loop
-            // anymore.
             if (!getCachedRankFromId(ID)) {
                 getRankFromId(ID, i);
             }
         }
-
-        //console.log("Finished iterating: Total Requests: " + totalRequests +" Total Responses: " + totalResponses);
 
         // We're done iterating. We can disconnect the observer now, since
         // we don't want to be called while updating the <li>'s.
