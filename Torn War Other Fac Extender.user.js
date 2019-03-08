@@ -180,7 +180,6 @@
             (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
             rank = rank + ' ' + parts[1];
         }
-        //console.log('Rank: ' + rank);
 
         // Lookup name in our table (array) to convert to number
         var numeric_rank = 0;
@@ -265,26 +264,21 @@
 
         for (var i = 0; i < items.length; ++i) {
             var li = items[i];
-            var userNames = li.getElementsByClassName('user name');
-            if (userNames == 'undefined' || userNames[0] == 'undefined' ||
-                typeof userNames === 'undefined' || typeof userNames[0] === 'undefined') {
+            var ID;
+            try {
+                ID = li.getElementsByClassName('user name')[0].getAttribute("href").split("=")[1];
+            } catch(err) {
                 continue;
             }
 
-            var href = userNames[0].getAttribute("href");
-            if (href == 'undefined') {
+            var lvlTextVal;
+            try {
+                lvlTextVal = li.getElementsByClassName('lvl')[0].firstChild.nextSibling.nextSibling;
+            } catch (err) {
                 continue;
             }
 
-            var parts = href.split("=");
-            var ID = parts[1];
             var numeric_rank = getCachedRankFromId(ID);
-
-            // Drill down to the "lvl" div
-            var levelDivs = li.getElementsByClassName('lvl');
-            var span = levelDivs[0].firstChild;
-            var lvlText = span.nextSibling;
-            var lvlTextVal = lvlText.nextSibling;
             var text = lvlTextVal.textContent;
 
             if (!text.includes('/')) {
@@ -303,56 +297,35 @@
     //////////////////////////////////////////////////////////////////////
 
     function updateUserLevels() {
-        // Get the <UL>
         var targetNodes = document.getElementsByClassName('faction-info-wrap another-faction');
         var ulList = targetNodes[1].getElementsByClassName('member-list info-members bottom-round t-blue-cont h');
-        var ul = ulList[0];
-        if (ul == 'undefined' || typeof ul == 'undefined') {
-            return;
-        }
-
-        // Iterate each <LI>
-        var items = ul.getElementsByTagName("li");
-        if (items == 'undefined') {
+        var items;
+        try {
+            items = ulList[0].getElementsByTagName("li");
+        } catch(err) {
             return;
         }
 
         // We seem to be called twice, the first call always has a length of 1.
         // It seems we can ignore this call.
         //console.log("<LI> Items detected: " + items.length);
-        if (items.length == 1) {
+        if (items.length <= 1) {
             return;
         }
 
         logEvent("Estimated requests required: " + items.length);
         var pendingReqQueue = [];
         for (var i = 0; i < items.length; ++i) {
-            // Get user ID, to look up rank
-            var li = items[i];
-            var userNames = li.getElementsByClassName('user name');
-            if (userNames == 'undefined' || userNames[0] == 'undefined' ||
-                typeof userNames === 'undefined' || typeof userNames[0] === 'undefined') {
+            var ID;
+            try {
+                ID = items[i].getElementsByClassName('user name')[0].getAttribute("href").split("=")[1];
+            } catch (err) {
                 continue;
             }
 
-            var href = userNames[0].getAttribute("href");
-            if (href == 'undefined') {
-                return;
-            }
-
-            // Get ID from href, and rank from ID
-            var parts = href.split("=");
-            var ID = parts[1];
-
-            // At this point, 'i' is the index into the <ul> 'array'.
-            // We'll need to get the rank from the ID, async, so
-            // the callback will have to repeat the above but can
-            // just index into the <ul> array, no need for the loop
-            // anymore.
             if (!getCachedRankFromId(ID)) {
                 var queueObj = [ID, i];
                 pendingReqQueue.push(queueObj);
-                //getRankFromId(ID, i);
             }
         } // End 'for' loop
 
@@ -404,7 +377,6 @@
     // and we'll need to keep track of what has already been edited.
     //////////////////////////////////////////////////////////////////////
 
-    //if (document.URL.includes('/war/')) {
     console.log("Torn War Other Fac Extender script started!");
 
     // Make sure we have an API key
@@ -427,5 +399,4 @@
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNodes[1], config);
-    //}
 })();

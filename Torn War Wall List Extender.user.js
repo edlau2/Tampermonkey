@@ -89,7 +89,7 @@
         logEvent("Querying Torn, ID = " + ID + " Rank = " + rank);
         totalRequests++;
         if (!rank) {
-            var details = GM_xmlhttpRequest({
+            GM_xmlhttpRequest({
                 method:"POST",
                 url:"https://api.torn.com/user/" + ID + "?selections=profile&key=" + api_key,
                 headers: {
@@ -116,15 +116,24 @@
     //////////////////////////////////////////////////////////////////////
 
     var errorLogged = false;
+    var lastError = 0;
     function handleRankError(responseText) {
 
+        var jsonResp = null;
         if (responseText != "") {
-            if (!errorLogged) {
-                var jsonResp = JSON.parse(responseText);
+            jsonResp = JSON.parse(responseText);
+        } else {
+            // Unknown error
+            return;
+        }
+
+        if (responseText != "") {
+            if (!errorLogged || jsonResp.error.code != lastError) {
                 var errorText = 'An error has occurred querying rank information.\n' +
                     '\nCode: ' + jsonResp.error.code +
                     '\nError: ' + jsonResp.error.error;
 
+                lastError = jsonResp.error.code;
                 if (jsonResp.error.code == 5) {
                     errorText += '\n\n The Torn API only allows so many requests per minute. ' +
                         'If this limit is exceeded, this error will occur. It will clear itself' +
@@ -166,7 +175,6 @@
             (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
             rank = rank + ' ' + parts[1];
         }
-        //console.log('Rank: ' + rank);
 
         // Lookup name in our table (array) to convert to number
         var numeric_rank = 0;
@@ -178,9 +186,6 @@
         }
 
         cacheIdRank(ID, numeric_rank);
-
-        //console.log("Cached entry: " + ID + " is rank " + numeric_rank);
-        //console.log("Total Requests: " + totalRequests + " Total Responses: " + totalResponses);
 
         // If we have received all responses, we can trigger the
         // actual UI update.
@@ -253,24 +258,17 @@
         }
 
         for (var i = 0; i < items.length; ++i) {
-            var li = items[i];
-            var userNames = li.getElementsByClassName('user name');
-            if (userNames == 'undefined' || userNames[0] == 'undefined' ||
-                typeof userNames === 'undefined' || typeof userNames[0] === 'undefined') {
+            var ID;
+            try {
+                ID = items[i].getElementsByClassName('user name')[0].getAttribute("href").split("=")[1];
+            } catch(err) {
                 continue;
-            }
+                }
 
-            var href = userNames[0].getAttribute("href");
-            if (href == 'undefined') {
-                continue;
-            }
-
-            var parts = href.split("=");
-            var ID = parts[1];
-            var levelLeftDiv = li.getElementsByClassName('level left');
+            var level = items[i].getElementsByClassName('level left')[0];
             var numeric_rank = getCachedRankFromId(ID);
-            if (!levelLeftDiv[0].innerHTML.includes('/')) {
-                levelLeftDiv[0].innerHTML = levelLeftDiv[0].innerHTML + '/' + (numeric_rank ? numeric_rank : '?');
+            if (!level.innerHTML.includes('/')) {
+                level.innerHTML = level.innerHTML + '/' + (numeric_rank ? numeric_rank : '?');
             }
         }
 
@@ -301,7 +299,6 @@
 
         // We seem to be called twice, the first call always has a length of 1.
         // It seems we can ignore this call.
-        //console.log("<LI> Items detected: " + items.length);
         if (items.length == 1) {
             return;
         }
@@ -326,15 +323,9 @@
             var parts = href.split("=");
             var ID = parts[1];
 
-            // At this point, 'i' is the index into the <ul> 'array'.
-            // We'll need to get the rank from the ID, async, so
-            // the callback will have to repeat the above but can
-            // just index into the <ul> array, no need for the loop
-            // anymore.
             if (!getCachedRankFromId(ID)) {
                 var queueObj = [ID, i];
                 pendingReqQueue.push(queueObj);
-                //getRankFromId(ID, i);
             }
         } // End 'for' loop
 
