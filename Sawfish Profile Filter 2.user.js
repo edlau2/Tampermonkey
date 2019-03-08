@@ -248,6 +248,8 @@
         totalProfileRequests = totalProfileResponses = 0;
         totalCompanyRequests = totalCompanyResponses = 0;
         observer.observe(targetNode, config);
+
+        console.log("Sawfish Profile Filter: done updating, reconnecting observer.");
     }
 
     // See if ID is in the indexQueue
@@ -317,7 +319,7 @@
         } // End 'for' loop
 
         // Now we have all requests in a local queue, submit them all.
-        console.log("Pending requests queued: " + pendingReqQueue.length);
+        console.log("Sawfish Profile Filter: " + pendingReqQueue.length + " requests queued." );
         pendingReqQueue.forEach(function(element) {
             queryProfileInfo(element[0], element[1]);
         });
@@ -326,6 +328,49 @@
         // we don't want to be called while updating the <li>'s.
         // We are expecting 'totalQueries' responses.
         observer.disconnect();
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Insert a 'configuration' bar on the page, beneath the paginator bar
+    //////////////////////////////////////////////////////////////////////
+
+    // Helper to do the actual insertion
+    function insertAfter(el, referenceNode) {
+        referenceNode.parentNode.insertBefore(el, referenceNode.nextSibling);
+    }
+
+    function insertConfigurationBar() {
+        var aboveDivs = document.getElementsByClassName('pagination-wrap');
+        var newDiv = document.createElement('div');
+
+        var btn1 = document.createElement('button');
+        btn1.style.margin = "10px 10px 10px 0px";
+        var t1 = document.createTextNode('Configure');
+        btn1.appendChild(t1);
+        newDiv.appendChild(btn1);
+        btn1.addEventListener('click',function () {
+            configHandler();
+        });
+
+        var btn2 = document.createElement('button');
+        btn1.style.margin = "10px 10px 10px 0px";
+        var t2 = document.createTextNode('Send Messages');
+        btn2.appendChild(t2);
+        newDiv.appendChild(btn2);
+        btn2.addEventListener('click',function () {
+            messageHandler();
+        });
+
+        insertAfter(newDiv, aboveDivs[0]);
+    }
+
+    // Handlers for above buttons, TBD
+    function configHandler() {
+        alert("Not Yet Implemented");
+    }
+
+    function messageHandler() {
+        alert("Not Yet Implemented");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -347,6 +392,10 @@
         GM_setValue('gm_api_key', api_key);
     }
 
+    // Add a new UI element to configure and send a message
+    insertConfigurationBar();
+
+    // Set up an observer to modify the found user's list.
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
