@@ -16,35 +16,6 @@
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
-    // The following filters are applied to the user list. The values here
-    // can be edited as desired. Refresh the user list page after saving
-    // the changes for them to be applied.
-    //
-    // If in job for greater than this many days, remove from display.
-    // In other words, contact users who have been in their current job
-    // for less than this many days. This is currently the only filter
-    // that is applied to the user list.
-    //
-    var days_in_job_filter = 5;
-    //
-    // The following are suggestions for what we may add in the future:
-    //
-    // If working at one of these jobs, remove from list (TBD)
-    //
-    var not_allowed_job_ids = [3, 5, 8];
-    //
-    // And the converse, if in this type of job, keep in user list
-    // regardless (TBD).
-    // Takes precedence over other filters.
-    //
-    var allowed_job_ids = [7, 31, 42];
-    //
-    // Anything else we can think of (TBD)
-    // ...
-    //
-    //////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////
     // Query profile information based on user ID
     // The index is the index of the <li> of the user in the user <ul>
     //////////////////////////////////////////////////////////////////////
@@ -167,15 +138,28 @@
     //////////////////////////////////////////////////////////////////////
     // This callback handles the response for the comapny info query.
     //
-    // The following filters are applied:
+    // The following filters are applied to the user list. The values here
+    // can be edited as desired. Refresh the user list page after saving
+    // the changes for them to be applied.
     //
     // If in job for greater than this many days, remove from display.
     // In other words, contact users who have been in their current job
-    // for less than this many days.
+    // for less than this many days. This is currently the only filter
+    // that is applied to the user list.
+    //
     var days_in_job_filter = 5;
     //
+    // The following are suggestions for what we may add in the future:
+    //
     // If working at one of these jobs, remove from list (TBD)
-    // ....
+    //
+    var not_allowed_job_ids = [3, 5, 8];
+    //
+    // And the converse, if in this type of job, keep in user list
+    // regardless (TBD).
+    // Takes precedence over other filters.
+    //
+    var allowed_job_ids = [7, 31, 42];
     //
     // Anything else we can think of (TBD)
     // ...
