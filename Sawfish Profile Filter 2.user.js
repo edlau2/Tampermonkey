@@ -223,6 +223,7 @@
             var node = ul.children[i-1];
             var ID = node.childNodes[1].children[2].search.split("=")[1];
             if (queueContainsId(ID)) {
+                console.log("Sawfish: removing ID " + ID);
                 ul.removeChild(node);
             }
         }
@@ -252,7 +253,7 @@
     // and the index of the <li> in the <ul>.
     //////////////////////////////////////////////////////////////////////
 
-    function updateUserLevels() {
+    function updateUserList() {
         // Get the <UL>
         var elemList = document.getElementsByClassName('user-info-list-wrap bottom-round cont-gray');
         var ul = elemList[0];
@@ -383,7 +384,7 @@
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        updateUserLevels();
+        updateUserList();
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
