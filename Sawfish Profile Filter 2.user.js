@@ -191,6 +191,7 @@
 
         var employees = jsonResp.company.employees;
         var companyType = jsonResp.company.company_type;
+        var filtered = false;
         for (var employee in employees) {
             if (employees[employee].name == name) {
                 var days = employees[employee].days_in_company;
@@ -201,6 +202,7 @@
 
                 // Always allowed company filter (if in this type of co, keep in list)
                 if (main_config.allowed_companies.includes(companyType)) {
+                    filtered = true;
                     console.log("Sawfish: Leaving " + name + " [" + user_ID + "] in list: company " + company_types[companyType] +
                                 " [" + companyType + "] is allowed.");
                     if (totalProfileRequests == totalProfileResponses &&
@@ -212,6 +214,7 @@
 
                 // Always dis-allowed company filter (if in this type of co, remove from list)
                 if (main_config.not_allowed_companies.includes(companyType)) {
+                    filtered = true;
                     var reason = "company";
                     var queueObj = {index, user_ID, name, days, companyType, reason};
                     indexQueue.push(queueObj);
@@ -224,6 +227,7 @@
 
                 // Days in Company filter
                 if (days > main_config.max_days) {
+                    filtered = true;
                     reason = "days";
                     queueObj = {index, user_ID, name, days, companyType, reason};
                     indexQueue.push(queueObj);
@@ -238,6 +242,11 @@
 
                 // Doesn't match any filter (or any filter we may add later),
                 // leave in the UI. Fall through to see if we can process the indexQueue yet.
+                console.log("Sawfish: not filtering " +
+                            name + " [" + user_ID + "]." +
+                            " Days in company: " + days + " days" +
+                            " Company type: " + company_types[companyType] + " [" + companyType + "]"
+                           );
             }
         }
 
