@@ -140,40 +140,39 @@
     // This callback handles the response for the comapny info query.
     //
     // The following filters are applied to the user list. The values here
-    // can be edited as desired. Refresh the user list page after saving
+    // can be edited as desired via th 'config' UI. Refresh the user list page after saving
     // the changes for them to be applied. The filters are applpied in this,
     // but moving them here does not affect the ordering, it is done in the code below.
     //
-    // Job IDs, which are the numbers in the 'allowed_job_ids' and
-    // 'not_allowed_job_ids' lists are mapped in the "company_types" array, below.
-    // Use that array to determine the number (type) for a given name, to put
-    // into the following lists.
+    // 1. 'allowed_companies'
     //
-    // If in this type of job, keep in user list regardless.
-    // Takes precedence over other filters; no further filtering is done.
+    //     If in this type of job, keep in user list regardless.
+    //     Takes precedence over other filters; no further filtering is done.
     //
-    var allowed_job_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15];
+    // 2. 'not_allowed_companies'
     //
-    // If working at one of these jobs, remove from list. No further
-    // filtering is done.
+    //     If working at one of these jobs, remove from list. No further
+    //     filtering is done.
     //
-    var not_allowed_job_ids = [16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
+    // 3. 'max_days'
     //
-    // If in job for greater than this many days, remove from display.
-    // In other words, contact users who have been in their current job
-    // for less than this many days. This is currently the only filter
-    // that is applied to the user list.
-    //
-    var days_in_job_filter = 5;
+    //     If in job for greater than this many days, remove from display.
+    //     In other words, contact users who have been in their current job
+    //     for less than this many days. This is currently the only filter
+    //     that is applied to the user list.
     //
     // Anything else we can think of (TBD)
     // ...
     //
     //////////////////////////////////////////////////////////////////////
 
+    var allowed_co_prefix = 'allowed_companies';
+    var not_allowed_co_prefix = 'not_allowed_companies';
     var main_config = {
         'api_key': GM_getValue('gm_api_key'),
-        'max_days': GM_getValue('gm_max_days') // Will later be changed to 'days_in_job_filter'
+        'max_days': GM_getValue('gm_max_days'),
+        'allowed_companies': (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || {}),
+        'not_allowed_companies' : (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || {})
     };
 
     var indexQueue = [];
@@ -201,7 +200,7 @@
                 ////////////////////////////////////
 
                 // Always allowed company filter (if in this type of co, keep in list)
-                if (not_allowed_job_ids.includes(companyType)) {
+                if (main_config.allowed_companies.includes(companyType)) {
                     console.log("Sawfish: Leaving " + name + " [" + user_ID + "] in list: company " + company_types[companyType] +
                                 " [" + companyType + "] is allowed.");
                     if (totalProfileRequests == totalProfileResponses &&
@@ -212,7 +211,7 @@
                 }
 
                 // Always dis-allowed company filter (if in this type of co, remove from list)
-                if (allowed_job_ids.includes(companyType)) {
+                if (main_config.not_allowed_companies.includes(companyType)) {
                     var reason = "company";
                     var queueObj = {index, user_ID, name, days, companyType, reason};
                     indexQueue.push(queueObj);
@@ -224,7 +223,6 @@
                 }
 
                 // Days in Company filter
-                //if (days > days_in_job_filter) {
                 if (days > main_config.max_days) {
                     reason = "days";
                     queueObj = {index, user_ID, name, days, companyType, reason};
@@ -238,7 +236,7 @@
                 // Add any other filters here ...
                 // ... TBD
 
-                // Doesn't match the days_in_job_filter filter (or any filter we may add later),
+                // Doesn't match any filter (or any filter we may add later),
                 // leave in the UI. Fall through to see if we can process the indexQueue yet.
             }
         }
@@ -490,7 +488,32 @@
         main_config.api_key = GM_getValue('gm_api_key');
         main_config.max_days = GM_getValue('gm_max_days');
 
+        enumerateCheckboxes(allowed_co_prefix);
+        enumerateCheckboxes(not_allowed_co_prefix);
+
         cancelConfig();
+    }
+
+    // Iterate a checkbox div, building a list of selected elements
+    // Prefix is either 'allowed_companies' or 'not_allowed_companies'
+    function enumerateCheckboxes(prefix) {
+        var selected = [];
+        var id = prefix + '_chkdiv';
+        var chkDiv = document.getElementById(id);
+        var checkboxes = chkDiv.getElementsByClassName('xedx-chkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            if (checkboxes[i].checked) {
+                selected.push(i);
+            }
+        }
+
+        GM_setValue ('gm_' + prefix, JSON.stringify(selected));
+
+        if (prefix == allowed_co_prefix) {
+            main_config.allowed_companies = (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || {});
+        } else if (prefix == not_allowed_co_prefix) {
+            main_config.not_allowed_companies = (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || {});
+        }
     }
 
     //
@@ -501,43 +524,59 @@
 
     GM_addStyle ('.xedx-container { border:2px solid #ccc; width:300px; height: 50px; overflow: auto');
 
-    /*
-    contentDiv.className = 'cont-gray bottom-round';
-        contentDiv.setAttribute('style', 'width: 386px; height: 179px; overflow: auto');
-    */
     function createCompanyCheckboxList(prefix) {
         var chkboxContDiv = document.createElement('div');
         //chkboxDiv.class = 'xedx-container';
         chkboxContDiv.className = 'cont-gray bottom-round';
         chkboxContDiv.setAttribute('style', 'width: 200px; height: 179px; overflow: auto; border: 1px solid black; display: inline-block');
 
+        // These two divs hold the text (left div) and checkboxes (right div)
+        // to help align correctly.
         var txtDiv = document.createElement('div');
         txtDiv.setAttribute('style', 'width: 175px; height: 179px; float: left');
         chkboxContDiv.appendChild(txtDiv);
 
         var chkDiv = document.createElement('div');
+        chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
         chkDiv.setAttribute('style', 'width: 25px; height: 179px; float: right');
         chkboxContDiv.appendChild(chkDiv);
 
+        // Dynamically create all the checkboxes and their labels.
         var counter = 0;
         for (var obj in company_types) {
             if (counter == 0) {
                 counter++;
                 continue;
             }
+
+            var chkList;
+            if (prefix == allowed_co_prefix) {
+                chkList = JSON.parse(GM_getValue ('gm_' + allowed_co_prefix, null)) || {};
+            } else if (prefix == not_allowed_co_prefix) {
+                chkList = JSON.parse(GM_getValue ('gm_' + not_allowed_co_prefix, null)) || {};
+            }
+
             if (company_types.hasOwnProperty(obj)) {
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.setAttribute('style', 'margin-left:auto; margin-right:0;');
+                checkbox.className = 'xedx-chkbox';
+                checkbox.setAttribute('style', 'margin-left:auto; margin-right:20px;');
 
-                var textNode = document.createTextNode(company_types[counter++] + '  ');
-                //chkboxDiv.appendChild(textNode);
+                var text = company_types[counter];
+                if (text === '') text = '(unused)';
+                var textNode = document.createTextNode(text);
+
+                if (chkList.includes(counter)) {
+                    checkbox.checked = true;
+                }
+
                 txtDiv.appendChild(textNode);
                 txtDiv.appendChild(document.createElement('br'));
 
                 chkDiv.appendChild(checkbox);
                 chkDiv.appendChild(document.createElement('br'));
             }
+            counter++;
         }
         return chkboxContDiv;
     }
@@ -603,7 +642,7 @@
                                                       'they will remain in the list.'));
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
-        var companies = createCompanyCheckboxList('allowed_companies');
+        var companies = createCompanyCheckboxList(allowed_co_prefix);
         configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
@@ -614,7 +653,7 @@
                                                       'they will be removed from the list.'));
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
-        companies = createCompanyCheckboxList('not_allowed_companies');
+        companies = createCompanyCheckboxList(not_allowed_co_prefix);
         configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
