@@ -424,6 +424,9 @@
                 a2.innerHTML += ' [' + obj.attacker_id + ']';
                 a2.innerHTML += ' (' + obj.attacker_factionname + ')';
             }
+            if (offense && obj.stealthed) {
+                a2.innerHTML += ' (stealth)';
+            }
             span.appendChild(a2);
 
             // Sanitize the Action
