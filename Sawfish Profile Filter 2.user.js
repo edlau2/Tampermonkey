@@ -33,7 +33,7 @@
                 updateUserListCB(response.responseText, index, ID);
             },
             onerror: function(response) {
-                handleRequestError(response.responseText);
+                handleRequestError(response.responseText, 'profile');
             }
         });
         totalProfileRequests++;
@@ -56,7 +56,7 @@
                 handleCompanyResponseCB(response.responseText, user_ID, name, index);
             },
             onerror: function(response) {
-                handleRequestError(response.responseText);
+                handleRequestError(response.responseText, 'company');
             }
         });
         totalCompanyRequests++;
@@ -68,7 +68,7 @@
 
     var errorLogged = false;
     var lastError = 0;
-    function handleRequestError(responseText) {
+    function handleRequestError(responseText, type) {
 
         var jsonResp = null;
         if (responseText != "") {
@@ -80,7 +80,7 @@
 
         if (responseText != "") {
             if (!errorLogged || jsonResp.error.code != lastError) {
-                var errorText = 'An error has occurred querying rank information.\n' +
+                var errorText = 'An error has occurred querying ' + type + ' information.\n' +
                     '\nCode: ' + jsonResp.error.code +
                     '\nError: ' + jsonResp.error.error;
 
@@ -170,6 +170,11 @@
     //
     //////////////////////////////////////////////////////////////////////
 
+    var main_config = {
+        'api_key': GM_getValue('gm_api_key'),
+        'max_days': GM_getValue('gm_max_days') // Will later be changed to 'days_in_job_filter'
+    };
+
     var indexQueue = [];
     var totalCompanyResponses = 0;
     function handleCompanyResponseCB(responseText, user_ID, name, index) {
@@ -218,7 +223,8 @@
                 }
 
                 // Days in Company filter
-                if (days > days_in_job_filter) {
+                //if (days > days_in_job_filter) {
+                if (days > main_config.max_days) {
                     reason = "days";
                     queueObj = {index, user_ID, name, days, companyType, reason};
                     indexQueue.push(queueObj);
@@ -417,6 +423,7 @@
     function insertConfigurationBar() {
         var aboveDivs = document.getElementsByClassName('pagination-wrap');
         var newDiv = document.createElement('div');
+        newDiv.id = 'config-buttons-div';
 
         var btn1 = document.createElement('button');
         btn1.style.margin = "10px 10px 10px 0px";
@@ -439,13 +446,154 @@
         insertAfter(newDiv, aboveDivs[0]);
     }
 
-    // Handlers for above buttons, TBD
+    // Handlers for above buttons
     function configHandler() {
-        alert("Not Yet Implemented");
+        createConfigDiv();
     }
 
     function messageHandler() {
         alert("Not Yet Implemented");
+    }
+
+    // Handlers and helpers for the config screen
+    function isaNumber(x)
+    {
+        var regex=/^[0-9]+$/;
+        if (x.match(regex)) {
+            return true;
+        }
+        return false;
+    }
+
+    function cancelConfig() {
+        var header = document.getElementById('header_div');
+        var element = document.getElementById('config-div');
+        header.parentNode.removeChild(header);
+        element.parentNode.removeChild(element);
+    }
+
+    function saveConfig() {
+        var apikeyInput = document.getElementById('apikey');
+        var maxdays = document.getElementById('maxdays');
+
+        if (!isaNumber(maxdays.value)) {
+            alert('Max Days filter must be numeric');
+            maxdays.style.border="1px solid red";
+            return;
+        }
+        maxdays.style.border="1px solid black";
+
+        GM_setValue('gm_api_key', apikeyInput.value);
+        GM_setValue('gm_max_days', maxdays.value);
+
+        main_config.api_key = GM_getValue('gm_api_key');
+        main_config.max_days = GM_getValue('gm_max_days');
+
+        cancelConfig();
+    }
+
+    //
+    // A bunch of code to build the simple configuration dialog.
+    // Should be an easier/better way to do this, rather than doing
+    // it long hand.
+    //
+
+    // Header (the title bar)
+    function createHeaderDiv() {
+        var headerDiv = document.createElement('div');
+        headerDiv.id = 'header_div';
+        headerDiv.className = 'title main-title title-black active top-round';
+        headerDiv.setAttribute('role', 'heading');
+        headerDiv.setAttribute('aria-level', '5');
+        headerDiv.appendChild(document.createTextNode('Configuration Options'));
+
+        return headerDiv;
+    }
+
+    // Main body
+    function createConfigDiv() {
+        // Don't do this more than once.
+        if (document.getElementById('config-div')) return;
+
+        // Create a header
+        var headerDiv = createHeaderDiv();
+
+        // Should be using GM_addStyle in here instead of this ugly formatting.
+        var configDiv = document.createElement('div');
+        configDiv.id = 'config-div';
+        configDiv.className = 'cont-gray bottom-round';
+        configDiv.setAttribute('style', 'text-align: center');
+
+        // API key inut box
+        var apikeyInput = document.createElement('input');
+        apikeyInput.type = 'text';
+        apikeyInput.id = 'apikey';
+        apikeyInput.style.border="1px solid black";
+        configDiv.appendChild(document.createElement('br'));
+        apikeyInput.value = GM_getValue('gm_api_key');
+        configDiv.appendChild(document.createTextNode('API Key: '));
+        configDiv.appendChild(apikeyInput);
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
+        // Days in job. If greater than this, remove from list
+        configDiv.appendChild(document.createTextNode('Days in job: ' +
+                                                      'If the user has been in their job for more than ' +
+                                                      'this number of days, they will be removed from the list.'));
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
+        var maxDays = document.createElement('input');
+        maxDays.type = 'text';
+        maxDays.id = 'maxdays';
+        maxDays.style.border="1px solid black";
+        maxDays.value = GM_getValue('gm_max_days');
+        configDiv.appendChild(document.createTextNode('Days in job filter: '));
+        configDiv.appendChild(maxDays);
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
+        // Allowed job list
+        configDiv.appendChild(document.createTextNode('Allowed job list: ' +
+                                                      'If the user has a job in one of these companies, ' +
+                                                      'they will remain in the list.'));
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createTextNode('--- TBD ---'));
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
+        // Not allowed job list
+        configDiv.appendChild(document.createTextNode('Not allowed job list: ' +
+                                                      'If the user has a job in one of these companies, ' +
+                                                      'they will be removed from the list.'));
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createTextNode('--- TBD ---'));
+        configDiv.appendChild(document.createElement('br'));
+        configDiv.appendChild(document.createElement('br'));
+
+        var btn1 = document.createElement('button');
+        btn1.style.margin = "0px 10px 10px 0px";
+        var t1 = document.createTextNode('Cancel');
+        btn1.appendChild(t1);
+        configDiv.appendChild(btn1);
+        btn1.addEventListener('click',function () {
+            cancelConfig();
+        });
+
+        var btn2 = document.createElement('button');
+        btn2.style.margin = "0px 10px 10px 0px";
+        var t2 = document.createTextNode('Save');
+        btn2.appendChild(t2);
+        btn2.onClick = function(){saveConfig()};
+        configDiv.appendChild(btn2);
+        btn2.addEventListener('click',function () {
+            saveConfig();
+        });
+
+        // Find and append to our extendedDiv
+        var parentDiv = document.getElementById('config-buttons-div');
+        parentDiv.appendChild(headerDiv);
+        parentDiv.appendChild(configDiv);
     }
 
     //////////////////////////////////////////////////////////////////////
