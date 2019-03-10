@@ -125,7 +125,7 @@
         // User has no job or not in company - leave them in list.
         if (!jsonResp.job.company_id) {
             console.log("Sawfish: not filtering (no job)" +
-                            jsonResp.name + " [" + user_ID + "].");
+                        jsonResp.name + " [" + user_ID + "].");
             if (totalProfileRequests == totalProfileResponses &&
                 totalCompanyRequests == totalCompanyResponses) {
                 processIndexQueue();
@@ -173,8 +173,8 @@
     var main_config = {
         'api_key': GM_getValue('gm_api_key'),
         'max_days': GM_getValue('gm_max_days'),
-        'allowed_companies': (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || {}),
-        'not_allowed_companies' : (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || {})
+        'allowed_companies': (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || []),
+        'not_allowed_companies' : (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || [])
     };
 
     var indexQueue = [];
@@ -552,19 +552,19 @@
         chkDiv.setAttribute('style', 'width: 25px; height: 179px; float: right');
         chkboxContDiv.appendChild(chkDiv);
 
+        var chkList = [];
+        if (prefix == allowed_co_prefix) {
+            chkList = JSON.parse(GM_getValue ('gm_' + allowed_co_prefix, null)) || [];
+        } else if (prefix == not_allowed_co_prefix) {
+            chkList = JSON.parse(GM_getValue ('gm_' + not_allowed_co_prefix, null)) || [];
+        }
+
         // Dynamically create all the checkboxes and their labels.
         var counter = 0;
         for (var obj in company_types) {
             if (counter == 0) {
                 counter++;
                 continue;
-            }
-
-            var chkList;
-            if (prefix == allowed_co_prefix) {
-                chkList = JSON.parse(GM_getValue ('gm_' + allowed_co_prefix, null)) || {};
-            } else if (prefix == not_allowed_co_prefix) {
-                chkList = JSON.parse(GM_getValue ('gm_' + not_allowed_co_prefix, null)) || {};
             }
 
             if (company_types.hasOwnProperty(obj)) {
@@ -708,7 +708,7 @@
 
     // Make sure we have an API key
     var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
+    if (api_key == null || api_key == 'undefined' || typeof api_key == 'undefined' || api_key == '') {
         api_key = prompt("Please enter your API key.\n" +
                          "Your key will be saved locally so you won't have to be asked again.\n" +
                          "Your key is kept private and not shared with anyone.", "");
