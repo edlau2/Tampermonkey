@@ -506,11 +506,19 @@
         contentDiv.setAttribute('style', 'width: 386px; height: 179px; overflow: auto');
     */
     function createCompanyCheckboxList(prefix) {
-        var chkboxDiv = document.createElement('div');
+        var chkboxContDiv = document.createElement('div');
         //chkboxDiv.class = 'xedx-container';
-        chkboxDiv.className = 'cont-gray bottom-round';
-        chkboxDiv.setAttribute('style', 'width: 150px; height: 179px; overflow: auto; border: 1px solid black; display: inline-block');
-                               //+ 'text-align: left');
+        chkboxContDiv.className = 'cont-gray bottom-round';
+        chkboxContDiv.setAttribute('style', 'width: 200px; height: 179px; overflow: auto; border: 1px solid black; display: inline-block');
+
+        var txtDiv = document.createElement('div');
+        txtDiv.setAttribute('style', 'width: 175px; height: 179px; float: left');
+        chkboxContDiv.appendChild(txtDiv);
+
+        var chkDiv = document.createElement('div');
+        chkDiv.setAttribute('style', 'width: 25px; height: 179px; float: right');
+        chkboxContDiv.appendChild(chkDiv);
+
         var counter = 0;
         for (var obj in company_types) {
             if (counter == 0) {
@@ -518,14 +526,20 @@
                 continue;
             }
             if (company_types.hasOwnProperty(obj)) {
-                var element = document.createElement('input');
-                element.type = 'checkbox';
-                chkboxDiv.appendChild(document.createTextNode(company_types[counter++] + '  '));
-                chkboxDiv.appendChild(element);
-                chkboxDiv.appendChild(document.createElement('br'));
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.setAttribute('style', 'margin-left:auto; margin-right:0;');
+
+                var textNode = document.createTextNode(company_types[counter++] + '  ');
+                //chkboxDiv.appendChild(textNode);
+                txtDiv.appendChild(textNode);
+                txtDiv.appendChild(document.createElement('br'));
+
+                chkDiv.appendChild(checkbox);
+                chkDiv.appendChild(document.createElement('br'));
             }
         }
-        return chkboxDiv;
+        return chkboxContDiv;
     }
 
     // Header (the title bar)
