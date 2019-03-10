@@ -7,6 +7,7 @@
 // @include      https://www.torn.com/userlist.php*
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
@@ -207,7 +208,7 @@
                         totalCompanyRequests == totalCompanyResponses) {
                         processIndexQueue();
                     }
-                return; // Don't process more filters
+                    return; // Don't process more filters
                 }
 
                 // Always dis-allowed company filter (if in this type of co, remove from list)
@@ -271,9 +272,9 @@
                 var reason = indexQueue[qIndex].reason;
                 console.log("Sawfish: removing " +
                             name + " [" + ID + "] from list." +
-                           " Days in company: " + days + " days" +
-                           " Company type: " + company_types[type] + " [" + type + "]" +
-                           " Reason: " + reason
+                            " Days in company: " + days + " days" +
+                            " Company type: " + company_types[type] + " [" + type + "]" +
+                            " Reason: " + reason
                            );
                 ul.removeChild(node);
             }
@@ -498,6 +499,35 @@
     // it long hand.
     //
 
+    GM_addStyle ('.xedx-container { border:2px solid #ccc; width:300px; height: 50px; overflow: auto');
+
+    /*
+    contentDiv.className = 'cont-gray bottom-round';
+        contentDiv.setAttribute('style', 'width: 386px; height: 179px; overflow: auto');
+    */
+    function createCompanyCheckboxList(prefix) {
+        var chkboxDiv = document.createElement('div');
+        //chkboxDiv.class = 'xedx-container';
+        chkboxDiv.className = 'cont-gray bottom-round';
+        chkboxDiv.setAttribute('style', 'width: 150px; height: 179px; overflow: auto; border: 1px solid black; display: inline-block');
+                               //+ 'text-align: left');
+        var counter = 0;
+        for (var obj in company_types) {
+            if (counter == 0) {
+                counter++;
+                continue;
+            }
+            if (company_types.hasOwnProperty(obj)) {
+                var element = document.createElement('input');
+                element.type = 'checkbox';
+                chkboxDiv.appendChild(document.createTextNode(company_types[counter++] + '  '));
+                chkboxDiv.appendChild(element);
+                chkboxDiv.appendChild(document.createElement('br'));
+            }
+        }
+        return chkboxDiv;
+    }
+
     // Header (the title bar)
     function createHeaderDiv() {
         var headerDiv = document.createElement('div');
@@ -528,7 +558,7 @@
         var apikeyInput = document.createElement('input');
         apikeyInput.type = 'text';
         apikeyInput.id = 'apikey';
-        apikeyInput.style.border="1px solid black";
+        apikeyInput.style.border="1px solid black"; // Add a GM_addStyle for this
         configDiv.appendChild(document.createElement('br'));
         apikeyInput.value = GM_getValue('gm_api_key');
         configDiv.appendChild(document.createTextNode('API Key: '));
@@ -558,7 +588,9 @@
                                                       'If the user has a job in one of these companies, ' +
                                                       'they will remain in the list.'));
         configDiv.appendChild(document.createElement('br'));
-        configDiv.appendChild(document.createTextNode('--- TBD ---'));
+        configDiv.appendChild(document.createElement('br'));
+        var companies = createCompanyCheckboxList('allowed_companies');
+        configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
 
@@ -567,7 +599,9 @@
                                                       'If the user has a job in one of these companies, ' +
                                                       'they will be removed from the list.'));
         configDiv.appendChild(document.createElement('br'));
-        configDiv.appendChild(document.createTextNode('--- TBD ---'));
+        configDiv.appendChild(document.createElement('br'));
+        companies = createCompanyCheckboxList('not_allowed_companies');
+        configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
 
