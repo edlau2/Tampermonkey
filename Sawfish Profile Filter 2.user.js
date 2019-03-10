@@ -124,6 +124,8 @@
 
         // User has no job or not in company - leave them in list.
         if (!jsonResp.job.company_id) {
+            console.log("Sawfish: not filtering (no job)" +
+                            jsonResp.name + " [" + user_ID + "].");
             if (totalProfileRequests == totalProfileResponses &&
                 totalCompanyRequests == totalCompanyResponses) {
                 processIndexQueue();
