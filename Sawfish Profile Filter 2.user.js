@@ -140,7 +140,23 @@
     //
     // The following filters are applied to the user list. The values here
     // can be edited as desired. Refresh the user list page after saving
-    // the changes for them to be applied.
+    // the changes for them to be applied. The filters are applpied in this,
+    // but moving them here does not affect the ordering, it is done in the code below.
+    //
+    // Job IDs, which are the numbers in the 'allowed_job_ids' and
+    // 'not_allowed_job_ids' lists are mapped in the "company_types" array, below.
+    // Use that array to determine the number (type) for a given name, to put
+    // into the following lists.
+    //
+    // If in this type of job, keep in user list regardless.
+    // Takes precedence over other filters; no further filtering is done.
+    //
+    var allowed_job_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15];
+    //
+    // If working at one of these jobs, remove from list. No further
+    // filtering is done.
+    //
+    var not_allowed_job_ids = [16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
     //
     // If in job for greater than this many days, remove from display.
     // In other words, contact users who have been in their current job
@@ -148,18 +164,6 @@
     // that is applied to the user list.
     //
     var days_in_job_filter = 5;
-    //
-    // The following are suggestions for what we may add in the future:
-    //
-    // If working at one of these jobs, remove from list (TBD)
-    //
-    var not_allowed_job_ids = [3, 5, 8];
-    //
-    // And the converse, if in this type of job, keep in user list
-    // regardless (TBD).
-    // Takes precedence over other filters.
-    //
-    var allowed_job_ids = [7, 31, 42];
     //
     // Anything else we can think of (TBD)
     // ...
@@ -181,11 +185,42 @@
         }
 
         var employees = jsonResp.company.employees;
+        var companyType = jsonResp.company.company_type;
         for (var employee in employees) {
             if (employees[employee].name == name) {
+                var days = employees[employee].days_in_company;
+
+                ////////////////////////////////////
                 // Found the employee: apply filters
-                if (employees[employee].days_in_company > days_in_job_filter) {
-                    var queueObj = {index, user_ID, name};
+                ////////////////////////////////////
+
+                // Always allowed company filter (if in this type of co, keep in list)
+                if (not_allowed_job_ids.includes(companyType)) {
+                    console.log("Sawfish: Leaving " + name + " [" + user_ID + "] in list: company " + company_types[companyType] +
+                                " [" + companyType + "] is allowed.");
+                    if (totalProfileRequests == totalProfileResponses &&
+                        totalCompanyRequests == totalCompanyResponses) {
+                        processIndexQueue();
+                    }
+                return; // Don't process more filters
+                }
+
+                // Always dis-allowed company filter (if in this type of co, remove from list)
+                if (allowed_job_ids.includes(companyType)) {
+                    var reason = "company";
+                    var queueObj = {index, user_ID, name, days, companyType, reason};
+                    indexQueue.push(queueObj);
+                    if (totalProfileRequests == totalProfileResponses &&
+                        totalCompanyRequests == totalCompanyResponses) {
+                        processIndexQueue();
+                    }
+                    return; // Don't process more filters
+                }
+
+                // Days in Company filter
+                if (days > days_in_job_filter) {
+                    reason = "days";
+                    queueObj = {index, user_ID, name, days, companyType, reason};
                     indexQueue.push(queueObj);
                     if (totalProfileRequests == totalProfileResponses &&
                         totalCompanyRequests == totalCompanyResponses) {
@@ -222,8 +257,18 @@
         for (var i = ul.childElementCount; i > 0; i--) {
             var node = ul.children[i-1];
             var ID = node.childNodes[1].children[2].search.split("=")[1];
-            if (queueContainsId(ID)) {
-                console.log("Sawfish: removing ID " + ID);
+            var qIndex = 0;
+            if ((qIndex = queueContainsId(ID)) > -1) {
+                var name = indexQueue[qIndex].name;
+                var days = indexQueue[qIndex].days;
+                var type = indexQueue[qIndex].companyType;
+                var reason = indexQueue[qIndex].reason;
+                console.log("Sawfish: removing " +
+                            name + " [" + ID + "] from list." +
+                           " Days in company: " + days + " days" +
+                           " Company type: " + company_types[type] + " [" + type + "]" +
+                           " Reason: " + reason
+                           );
                 ul.removeChild(node);
             }
         }
@@ -241,11 +286,11 @@
     function queueContainsId(ID) {
         for (var i = 0; i < indexQueue.length; i++) {
             if (indexQueue[i].user_ID == ID) {
-                return true;
+                return i;
             }
         }
 
-        return false;
+        return -1;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -314,6 +359,51 @@
         // We are expecting 'totalQueries' responses.
         observer.disconnect();
     }
+
+    //////////////////////////////////////////////////////////////////////
+    // Map company type number to company type name. Should be 38 types.
+    //////////////////////////////////////////////////////////////////////
+
+    var company_types = ['', // 0, not used - we won't have to worry about shifting the index into this array.
+                         'Hair Salon', // 1
+                         'Law Firm', // 2
+                         'Flower Shop', // 3
+                         'Car Dealership', // 4
+                         'Clothing Store', // 5
+                         'Gun Shop', // 6
+                         'Game Shop', // 7
+                         'Candle Shop', // 8
+                         'Toy Shop', // 9
+                         'Adult Novelties', // 10
+                         'Cyber Cafe', // 11
+                         'Grocery Store', // 12
+                         'Theater', // 13
+                         'Sweet Shop', // 14
+                         'Cruise Line', // 15
+                         'Television Network', // 16
+                         '', // 17 (unused)
+                         'Zoo', // 18
+                         'Firework Stand', // 19
+                         'Property Broker', // 20
+                         'Furniture Store', // 21
+                         'Gas Station', // 22
+                         'Music Store', // 23
+                         'Nightclub', // 24
+                         'Pub', // 25
+                         'Gents Strip Club', // 26
+                         'Restaurant', // 27
+                         'Oil Rig', // 28
+                         'Fitness Center', // 29
+                         'Mechanic Shop', // 30
+                         'Amusement Park', // 31
+                         'Lingerie Store', // 32
+                         'Meat Warehouse', // 33
+                         'Farm', // 34
+                         'Software Corporation', // 35
+                         'Ladies Strip Club', // 36
+                         'Private Security Firm', // 37
+                         'Mining Corporation', // 38
+                         'Detective Agency']; // 39 (or null terminator)
 
     //////////////////////////////////////////////////////////////////////
     // Insert a 'configuration' bar on the page, beneath the paginator bar
