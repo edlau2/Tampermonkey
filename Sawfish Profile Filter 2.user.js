@@ -577,8 +577,10 @@
                 if (text === '') text = '(unused)';
                 var textNode = document.createTextNode(text);
 
-                if (chkList.includes(counter)) {
-                    checkbox.checked = true;
+                if (chkList != 'undefined' && typeof chkList != 'undefined' && chkList != null) {
+                    if (chkList.includes(counter)) {
+                        checkbox.checked = true;
+                    }
                 }
 
                 txtDiv.appendChild(textNode);
