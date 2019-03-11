@@ -547,6 +547,7 @@
 
         // These two divs hold the text (left div) and checkboxes (right div)
         // to help align correctly.
+        /*
         var txtDiv = document.createElement('div');
         txtDiv.setAttribute('style', 'width: 175px; height: 179px; float: left');
         chkboxContDiv.appendChild(txtDiv);
@@ -555,6 +556,7 @@
         chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
         chkDiv.setAttribute('style', 'width: 25px; height: 179px; float: right');
         chkboxContDiv.appendChild(chkDiv);
+        */
 
         var chkList = [];
         if (prefix == allowed_co_prefix) {
@@ -573,11 +575,22 @@
 
             var height = '30px';
             if (company_types.hasOwnProperty(obj)) {
+                // These two divs hold the text (left div) and checkboxes (right div)
+                // to help align correctly.
+                var txtDiv = document.createElement('div');
+                txtDiv.setAttribute('style', 'width: 175px; height: 20px; float: left');
+                chkboxContDiv.appendChild(txtDiv);
+
+                var chkDiv = document.createElement('div');
+                chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
+                chkDiv.setAttribute('style', 'width: 25px; height: 20px; float: right');
+                chkboxContDiv.appendChild(chkDiv);
+
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.className = 'xedx-chkbox';
                 checkbox.setAttribute('style', 'margin-left:auto; margin-right:20px; height=' + height + ';');
-                                      // + 'margin-top: 5px; margin-botton: 5px');
+                // + 'margin-top: 5px; margin-botton: 5px');
 
                 var text = company_types[counter];
                 if (text === '') text = '(unused)';
@@ -591,9 +604,8 @@
 
                 // Wrap the text in a span, so we can set the height to match the
                 // height of the checkboxes.
-                var span = document.createElement('div');
+                var span = document.createElement('span');
                 span.setAttribute('style', 'display: inline-block; height=' + height + ';');
-                                  //'; margin-top=5px; margin-bottom=5px');
                 span.appendChild(textNode);
                 txtDiv.appendChild(span);
                 txtDiv.appendChild(document.createElement('br'));
