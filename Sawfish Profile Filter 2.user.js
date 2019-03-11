@@ -573,17 +573,17 @@
                 continue;
             }
 
-            var height = '15px';
+            //var height = '15px';
             if (company_types.hasOwnProperty(obj)) {
                 // These two divs hold the text (left div) and checkboxes (right div)
                 // to help align correctly.
                 var txtDiv = document.createElement('div');
-                txtDiv.setAttribute('style', 'width: 175px; height: ' + height + '; float: left');
+                txtDiv.setAttribute('style', 'width: 175px; float: left');
                 chkboxContDiv.appendChild(txtDiv);
 
                 var chkDiv = document.createElement('div');
                 chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
-                chkDiv.setAttribute('style', 'width: 25px; height: ' + height + '; float: right');
+                chkDiv.setAttribute('style', 'width: 25px; float: right');
                 chkboxContDiv.appendChild(chkDiv);
 
                 var checkbox = document.createElement('input');
@@ -604,7 +604,7 @@
                 // Wrap the text in a span, so we can set the height to match the
                 // height of the checkboxes.
                 var span = document.createElement('span');
-                span.setAttribute('style', 'display: inline-block; height=' + height + ';'); // line-height: ' + height + ';');
+                span.setAttribute('style', 'display: inline-block;'); // height=' + height + ';'); // line-height: ' + height + ';');
                 span.appendChild(textNode);
                 txtDiv.appendChild(span);
                 txtDiv.appendChild(document.createElement('br'));
