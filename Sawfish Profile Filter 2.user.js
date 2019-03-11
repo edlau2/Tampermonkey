@@ -603,8 +603,8 @@
 
                 // Wrap the text in a span, so we can set the height to match the
                 // height of the checkboxes.
-                var span = document.createElement('span');
-                span.setAttribute('style', 'display: inline-block;'); // height=' + height + ';'); // line-height: ' + height + ';');
+                var span = document.createElement('div');
+                span.setAttribute('style', 'position:relative; top:50%;'); // display: inline-block;'); // height=' + height + ';'); // line-height: ' + height + ';');
                 span.appendChild(textNode);
                 txtDiv.appendChild(span);
                 txtDiv.appendChild(document.createElement('br'));
