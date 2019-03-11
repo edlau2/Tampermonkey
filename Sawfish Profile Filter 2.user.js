@@ -591,7 +591,11 @@
 
                 var text = company_types[counter];
                 if (text === '') text = '(unused)';
-                var textNode = document.createTextNode(text);
+
+                //var textNode = document.createTextNode(text);
+                var textNode = document.createElement('input');
+                textNode.setAttribute('readonly', true);
+                textNode.value = text;
 
                 if (chkList != 'undefined' && typeof chkList != 'undefined' && chkList != null) {
                     if (chkList.includes(counter)) {
