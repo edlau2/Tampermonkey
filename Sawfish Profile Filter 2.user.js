@@ -571,11 +571,13 @@
                 continue;
             }
 
+            var height = '30px';
             if (company_types.hasOwnProperty(obj)) {
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.className = 'xedx-chkbox';
-                checkbox.setAttribute('style', 'margin-left:auto; margin-right:20px;');
+                checkbox.setAttribute('style', 'margin-left:auto; margin-right:20px; height=' + height + ';');
+                                      // + 'margin-top: 5px; margin-botton: 5px');
 
                 var text = company_types[counter];
                 if (text === '') text = '(unused)';
@@ -587,8 +589,17 @@
                     }
                 }
 
-                txtDiv.appendChild(textNode);
+                // Wrap the text in a span, so we can set the height to match the
+                // height of the checkboxes.
+                var span = document.createElement('div');
+                span.setAttribute('style', 'display: inline-block; height=' + height + ';');
+                                  //'; margin-top=5px; margin-bottom=5px');
+                span.appendChild(textNode);
+                txtDiv.appendChild(span);
                 txtDiv.appendChild(document.createElement('br'));
+
+                //txtDiv.appendChild(textNode);
+                //txtDiv.appendChild(document.createElement('br'));
 
                 chkDiv.appendChild(checkbox);
                 chkDiv.appendChild(document.createElement('br'));
