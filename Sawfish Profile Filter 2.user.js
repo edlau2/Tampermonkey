@@ -578,11 +578,11 @@
                 // to help align correctly.
                 var txtDiv = document.createElement('div');
                 txtDiv.id = prefix + '_txtdiv';
-                txtDiv.setAttribute('style', 'width: 175px; height: 14px; float: left; line-height: 14px;');
+                txtDiv.setAttribute('style', 'width: 150px; height: 14px; float: left; line-height: 14px;');
 
                 var chkDiv = document.createElement('div');
                 chkDiv.id = prefix + '_chkdiv';
-                chkDiv.setAttribute('style', 'width: 25px; height: 14px; float: right; line-height: 14px;');
+                chkDiv.setAttribute('style', 'width: 20px; height: 14px; float: right; line-height: 14px;');
 
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
