@@ -573,7 +573,7 @@
                 continue;
             }
 
-            var height = '30px';
+            var height = '15px';
             if (company_types.hasOwnProperty(obj)) {
                 // These two divs hold the text (left div) and checkboxes (right div)
                 // to help align correctly.
