@@ -547,16 +547,14 @@
 
         // These two divs hold the text (left div) and checkboxes (right div)
         // to help align correctly.
-        /*
         var txtDiv = document.createElement('div');
-        txtDiv.setAttribute('style', 'width: 175px; height: 179px; float: left');
+        txtDiv.setAttribute('style', 'width: 150px; height: 179px; float: left');
         chkboxContDiv.appendChild(txtDiv);
 
         var chkDiv = document.createElement('div');
         chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
-        chkDiv.setAttribute('style', 'width: 25px; height: 179px; float: right');
+        chkDiv.setAttribute('style', 'width: 20px; height: 179px; float: right');
         chkboxContDiv.appendChild(chkDiv);
-        */
 
         var chkList = [];
         if (prefix == allowed_co_prefix) {
@@ -576,6 +574,7 @@
             if (company_types.hasOwnProperty(obj)) {
                 // These two divs hold the text (left div) and checkboxes (right div)
                 // to help align correctly.
+                /*
                 var txtDiv = document.createElement('div');
                 txtDiv.id = prefix + '_txtdiv';
                 txtDiv.setAttribute('style', 'width: 150px; height: 14px; float: left; line-height: 14px;');
@@ -583,6 +582,7 @@
                 var chkDiv = document.createElement('div');
                 chkDiv.id = prefix + '_chkdiv';
                 chkDiv.setAttribute('style', 'width: 20px; height: 14px; float: right; line-height: 14px;');
+                */
 
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
@@ -603,25 +603,19 @@
                     }
                 }
 
-                // Wrap the text in a span, so we can set the height to match the
-                // height of the checkboxes.
-                //var span = document.createElement('div');
-                //span.appendChild(textNode);
-                //txtDiv.appendChild(span);
-
                 txtDiv.appendChild(textNode);
                 txtDiv.appendChild(document.createElement('br'));
 
                 chkDiv.appendChild(checkbox);
                 chkDiv.appendChild(document.createElement('br'));
 
-                //chkboxContDiv.appendChild(txtDiv);
-                //chkboxContDiv.appendChild(chkDiv);
+                chkboxContDiv.appendChild(txtDiv);
+                chkboxContDiv.appendChild(chkDiv);
 
-                var masterDiv = document.createElement('div');
-                masterDiv.appendChild(txtDiv);
-                masterDiv.appendChild(chkDiv);
-                chkboxContDiv.appendChild(masterDiv);
+                //var masterDiv = document.createElement('div');
+                //masterDiv.appendChild(txtDiv);
+                //masterDiv.appendChild(chkDiv);
+                //chkboxContDiv.appendChild(masterDiv);
             }
             counter++;
         }
