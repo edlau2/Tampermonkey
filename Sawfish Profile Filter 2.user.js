@@ -509,7 +509,7 @@
     // Prefix is either 'allowed_companies' or 'not_allowed_companies'
     function enumerateCheckboxes(prefix) {
         var selected = [];
-        var id = prefix + '_chkdiv';
+        var id = prefix + 'chkboxContDiv'
         var chkDiv = document.getElementById(id);
         var checkboxes = chkDiv.getElementsByClassName('xedx-chkbox');
         console.log('Sawfish: Selected items for the ' + prefix + ' list:');
@@ -541,20 +541,9 @@
 
     function createCompanyCheckboxList(prefix) {
         var chkboxContDiv = document.createElement('div');
-        //chkboxDiv.class = 'xedx-container';
+        chkboxContDiv.id = prefix + 'chkboxContDiv';
         chkboxContDiv.className = 'cont-gray bottom-round';
         chkboxContDiv.setAttribute('style', 'width: 200px; height: 179px; overflow: auto; border: 1px solid black; display: inline-block');
-
-        // These two divs hold the text (left div) and checkboxes (right div)
-        // to help align correctly.
-        var txtDiv = document.createElement('div');
-        txtDiv.setAttribute('style', 'width: 150px; height: 179px; float: left');
-        chkboxContDiv.appendChild(txtDiv);
-
-        var chkDiv = document.createElement('div');
-        chkDiv.id = prefix + '_chkdiv'; // Use when querying set value
-        chkDiv.setAttribute('style', 'width: 20px; height: 179px; float: right');
-        chkboxContDiv.appendChild(chkDiv);
 
         var chkList = [];
         if (prefix == allowed_co_prefix) {
@@ -574,7 +563,6 @@
             if (company_types.hasOwnProperty(obj)) {
                 // These two divs hold the text (left div) and checkboxes (right div)
                 // to help align correctly.
-                /*
                 var txtDiv = document.createElement('div');
                 txtDiv.id = prefix + '_txtdiv';
                 txtDiv.setAttribute('style', 'width: 150px; height: 14px; float: left; line-height: 14px;');
@@ -582,7 +570,6 @@
                 var chkDiv = document.createElement('div');
                 chkDiv.id = prefix + '_chkdiv';
                 chkDiv.setAttribute('style', 'width: 20px; height: 14px; float: right; line-height: 14px;');
-                */
 
                 var checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
@@ -592,7 +579,8 @@
                 var text = company_types[counter];
                 if (text === '') text = '(unused)';
 
-                //var textNode = document.createTextNode(text);
+                // Again, for alignment: store the label in a read-only
+                // input field so it behaves just like a checkbox field.
                 var textNode = document.createElement('input');
                 textNode.setAttribute('readonly', true);
                 textNode.value = text;
@@ -609,13 +597,11 @@
                 chkDiv.appendChild(checkbox);
                 chkDiv.appendChild(document.createElement('br'));
 
-                chkboxContDiv.appendChild(txtDiv);
-                chkboxContDiv.appendChild(chkDiv);
-
-                //var masterDiv = document.createElement('div');
-                //masterDiv.appendChild(txtDiv);
-                //masterDiv.appendChild(chkDiv);
-                //chkboxContDiv.appendChild(masterDiv);
+                var masterDiv = document.createElement('div');
+                masterDiv.className = 'xedx-master-div';
+                masterDiv.appendChild(txtDiv);
+                masterDiv.appendChild(chkDiv);
+                chkboxContDiv.appendChild(masterDiv);
             }
             counter++;
         }
