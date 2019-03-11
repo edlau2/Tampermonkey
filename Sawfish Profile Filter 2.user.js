@@ -512,9 +512,13 @@
         var id = prefix + '_chkdiv';
         var chkDiv = document.getElementById(id);
         var checkboxes = chkDiv.getElementsByClassName('xedx-chkbox');
+        console.log('Sawfish: Selected items for the ' + prefix + ' list:');
         for (var i = 0; i < checkboxes.length; i++) {
             if (checkboxes[i].checked) {
+                console.log('Sawfish: ' + company_types[i] + ' [' + i + '] selected.');
                 selected.push(i);
+            } else {
+                console.log('Sawfish: ' + company_types[i] + ' [' + i + '] NOT selected.');
             }
         }
 
