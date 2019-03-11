@@ -590,7 +590,6 @@
                 checkbox.type = 'checkbox';
                 checkbox.className = 'xedx-chkbox';
                 checkbox.setAttribute('style', 'margin-left:auto; margin-right:20px; height=' + height + ';');
-                // + 'margin-top: 5px; margin-botton: 5px');
 
                 var text = company_types[counter];
                 if (text === '') text = '(unused)';
@@ -605,13 +604,10 @@
                 // Wrap the text in a span, so we can set the height to match the
                 // height of the checkboxes.
                 var span = document.createElement('span');
-                span.setAttribute('style', 'display: inline-block; height=' + height + ';');
+                span.setAttribute('style', 'display: inline-block; height=' + height + '; line-height: ' + height + ';');
                 span.appendChild(textNode);
                 txtDiv.appendChild(span);
                 txtDiv.appendChild(document.createElement('br'));
-
-                //txtDiv.appendChild(textNode);
-                //txtDiv.appendChild(document.createElement('br'));
 
                 chkDiv.appendChild(checkbox);
                 chkDiv.appendChild(document.createElement('br'));
