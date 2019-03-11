@@ -514,11 +514,12 @@
         var checkboxes = chkDiv.getElementsByClassName('xedx-chkbox');
         console.log('Sawfish: Selected items for the ' + prefix + ' list:');
         for (var i = 0; i < checkboxes.length; i++) {
+            var index = i + 1;
             if (checkboxes[i].checked) {
-                console.log('Sawfish: ' + company_types[i] + ' [' + i + '] selected.');
-                selected.push(i);
+                console.log('Sawfish: ' + company_types[index] + ' [' + index + '] selected.');
+                selected.push(index);
             } else {
-                console.log('Sawfish: ' + company_types[i] + ' [' + i + '] NOT selected.');
+                console.log('Sawfish: ' + company_types[i+1] + ' [' + index + '] NOT selected.');
             }
         }
 
