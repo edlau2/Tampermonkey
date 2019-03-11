@@ -17,11 +17,95 @@
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
+    // Global variables
+    //////////////////////////////////////////////////////////////////////
+
+    var api_key = GM_getValue('gm_api_key');
+
+    // Keep track of pending requests/responses
+    var totalCompanyRequests = 0;
+    var totalProfileRequests = 0;
+    var totalProfileResponses = 0;
+    var totalCompanyResponses = 0;
+
+    // Error logging and display
+    var errorLogged = false;
+    var lastError = 0;
+
+    // Configuration
+    var allowed_co_prefix = 'allowed_companies';
+    var not_allowed_co_prefix = 'not_allowed_companies';
+    var main_config = {
+        'api_key': GM_getValue('gm_api_key'),
+        'max_days': GM_getValue('gm_max_days'),
+        'allowed_companies': (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || []),
+        'not_allowed_companies' : (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || [])
+    };
+
+    // Queue of entries to be removed from the UI
+    var indexQueue = [];
+
+    // Variables used by the main MutationObserver
+    var targetNode = document.getElementById('mainContainer');
+    var config = { attributes: false, childList: true, subtree: true };
+    var observer = null;
+
+    // Map company type number to company type name. Should be 38 types.
+    var company_types = ['', // 0, not used - we won't have to worry about shifting the index into this array.
+                         'Hair Salon', // 1
+                         'Law Firm', // 2
+                         'Flower Shop', // 3
+                         'Car Dealership', // 4
+                         'Clothing Store', // 5
+                         'Gun Shop', // 6
+                         'Game Shop', // 7
+                         'Candle Shop', // 8
+                         'Toy Shop', // 9
+                         'Adult Novelties', // 10
+                         'Cyber Cafe', // 11
+                         'Grocery Store', // 12
+                         'Theater', // 13
+                         'Sweet Shop', // 14
+                         'Cruise Line', // 15
+                         'Television Network', // 16
+                         '', // 17 (unused)
+                         'Zoo', // 18
+                         'Firework Stand', // 19
+                         'Property Broker', // 20
+                         'Furniture Store', // 21
+                         'Gas Station', // 22
+                         'Music Store', // 23
+                         'Nightclub', // 24
+                         'Pub', // 25
+                         'Gents Strip Club', // 26
+                         'Restaurant', // 27
+                         'Oil Rig', // 28
+                         'Fitness Center', // 29
+                         'Mechanic Shop', // 30
+                         'Amusement Park', // 31
+                         'Lingerie Store', // 32
+                         'Meat Warehouse', // 33
+                         'Farm', // 34
+                         'Software Corporation', // 35
+                         'Ladies Strip Club', // 36
+                         'Private Security Firm', // 37
+                         'Mining Corporation', // 38
+                         'Detective Agency']; // 39 (or null terminator)
+
+    //////////////////////////////////////////////////////////////////////
+    // Kick off the whole shebang. Everything beneath this call is
+    // functions required to do the actual processing.
+    //
+    // 'go()' is at the very bottom of this file.
+    //////////////////////////////////////////////////////////////////////
+
+    go();
+
+    //////////////////////////////////////////////////////////////////////
     // Query profile information based on user ID
     // The index is the index of the <li> of the user in the user <ul>
     //////////////////////////////////////////////////////////////////////
 
-    var totalProfileRequests = 0;
     function queryProfileInfo(ID, index) {
         var details = GM_xmlhttpRequest({
             method:"POST",
@@ -44,7 +128,6 @@
     // Query company profile information based on comapny ID
     //////////////////////////////////////////////////////////////////////
 
-    var totalCompanyRequests = 0;
     function queryCompanyInfo(co_ID, user_ID, name, index) {
         var details = GM_xmlhttpRequest({
             method:"POST",
@@ -67,8 +150,6 @@
     // Very simple error handler; only displayed (and logged) once
     //////////////////////////////////////////////////////////////////////
 
-    var errorLogged = false;
-    var lastError = 0;
     function handleRequestError(responseText, type) {
 
         var jsonResp = null;
@@ -108,7 +189,6 @@
     // a job.
     //////////////////////////////////////////////////////////////////////
 
-    var totalProfileResponses = 0;
     function updateUserListCB(responseText, index, user_ID) {
         //console.log("Response: " + responseText);
         totalProfileResponses++;
@@ -168,17 +248,6 @@
     //
     //////////////////////////////////////////////////////////////////////
 
-    var allowed_co_prefix = 'allowed_companies';
-    var not_allowed_co_prefix = 'not_allowed_companies';
-    var main_config = {
-        'api_key': GM_getValue('gm_api_key'),
-        'max_days': GM_getValue('gm_max_days'),
-        'allowed_companies': (JSON.parse (GM_getValue ('gm_' + allowed_co_prefix, null)) || []),
-        'not_allowed_companies' : (JSON.parse (GM_getValue ('gm_' + not_allowed_co_prefix, null)) || [])
-    };
-
-    var indexQueue = [];
-    var totalCompanyResponses = 0;
     function handleCompanyResponseCB(responseText, user_ID, name, index) {
         totalCompanyResponses++;
         var jsonResp = JSON.parse(responseText);
@@ -198,57 +267,35 @@
             if (employees[employee].name == name) {
                 var days = employees[employee].days_in_company;
 
-                ////////////////////////////////////
-                // Found the employee: apply filters
-                ////////////////////////////////////
+                /////////////////////////////////////////////////////////////////////////////
+                // Found the employee: apply filters (move these to individual functions)
+                /////////////////////////////////////////////////////////////////////////////
 
                 // Always allowed company filter (if in this type of co, keep in list)
-                if (main_config.allowed_companies.includes(companyType)) {
-                    filtered = true;
-                    console.log("Sawfish: Leaving " + name + " [" + user_ID + "] in list: company " + company_types[companyType] +
-                                " [" + companyType + "] is allowed.");
-                    if (totalProfileRequests == totalProfileResponses &&
-                        totalCompanyRequests == totalCompanyResponses) {
-                        processIndexQueue();
-                    }
+                if ((filtered = filterAllowedCompanies(companyType, name, user_ID))) {
                     return; // Don't process more filters
                 }
 
                 // Always dis-allowed company filter (if in this type of co, remove from list)
-                if (main_config.not_allowed_companies.includes(companyType)) {
-                    filtered = true;
-                    var reason = "company";
-                    var queueObj = {index, user_ID, name, days, companyType, reason};
-                    indexQueue.push(queueObj);
-                    if (totalProfileRequests == totalProfileResponses &&
-                        totalCompanyRequests == totalCompanyResponses) {
-                        processIndexQueue();
-                    }
+                if ((filtered = filterNotAllowedCompanies(companyType, name, user_ID, days, index))) {
                     return; // Don't process more filters
                 }
 
                 // Days in Company filter
-                if (days > main_config.max_days) {
-                    filtered = true;
-                    reason = "days";
-                    queueObj = {index, user_ID, name, days, companyType, reason};
-                    indexQueue.push(queueObj);
-                    if (totalProfileRequests == totalProfileResponses &&
-                        totalCompanyRequests == totalCompanyResponses) {
-                        processIndexQueue();
-                        return;
-                    }
-                }
+                filtered = filterCompanyDays(companyType, name, user_ID, days, index);
+
                 // Add any other filters here ...
                 // ... TBD
 
                 // Doesn't match any filter (or any filter we may add later),
                 // leave in the UI. Fall through to see if we can process the indexQueue yet.
-                console.log("Sawfish: not filtering " +
-                            name + " [" + user_ID + "]." +
-                            " Days in company: " + days + " days" +
-                            " Company type: " + company_types[companyType] + " [" + companyType + "]"
-                           );
+                if (!filtered) {
+                    console.log("Sawfish: not filtering " +
+                                name + " [" + user_ID + "]." +
+                                " Days in company: " + days + " days" +
+                                " Company type: " + company_types[companyType] + " [" + companyType + "]"
+                               );
+                }
             }
         }
 
@@ -260,8 +307,49 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // This actually updates the UI
+    // Filter functions
     //////////////////////////////////////////////////////////////////////
+
+    function filterAllowedCompanies(companyType, name, user_ID) {
+        if (main_config.allowed_companies.includes(companyType)) {
+            console.log("Sawfish: Leaving " + name + " [" + user_ID + "] in list: company " + company_types[companyType] +
+                        " [" + companyType + "] is allowed.");
+            if (totalProfileRequests == totalProfileResponses &&
+                totalCompanyRequests == totalCompanyResponses) {
+                processIndexQueue();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function filterNotAllowedCompanies(companyType, name, user_ID, days, index) {
+        if (main_config.not_allowed_companies.includes(companyType)) {
+            var reason = "company";
+            var queueObj = {index, user_ID, name, days, companyType, reason};
+            indexQueue.push(queueObj);
+            if (totalProfileRequests == totalProfileResponses &&
+                totalCompanyRequests == totalCompanyResponses) {
+                processIndexQueue();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function filterCompanyDays(companyType, name, user_ID, days, index) {
+        if (days > main_config.max_days) {
+            var reason = "days";
+            var queueObj = {index, user_ID, name, days, companyType, reason};
+            indexQueue.push(queueObj);
+            return true;
+        }
+        return false;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // This actually updates the UI, by removing entries in the indexQueue
+    //////////////////////////////////////////////////////////////////////////
 
     function processIndexQueue() {
         if (!indexQueue.length) {
@@ -377,51 +465,6 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Map company type number to company type name. Should be 38 types.
-    //////////////////////////////////////////////////////////////////////
-
-    var company_types = ['', // 0, not used - we won't have to worry about shifting the index into this array.
-                         'Hair Salon', // 1
-                         'Law Firm', // 2
-                         'Flower Shop', // 3
-                         'Car Dealership', // 4
-                         'Clothing Store', // 5
-                         'Gun Shop', // 6
-                         'Game Shop', // 7
-                         'Candle Shop', // 8
-                         'Toy Shop', // 9
-                         'Adult Novelties', // 10
-                         'Cyber Cafe', // 11
-                         'Grocery Store', // 12
-                         'Theater', // 13
-                         'Sweet Shop', // 14
-                         'Cruise Line', // 15
-                         'Television Network', // 16
-                         '', // 17 (unused)
-                         'Zoo', // 18
-                         'Firework Stand', // 19
-                         'Property Broker', // 20
-                         'Furniture Store', // 21
-                         'Gas Station', // 22
-                         'Music Store', // 23
-                         'Nightclub', // 24
-                         'Pub', // 25
-                         'Gents Strip Club', // 26
-                         'Restaurant', // 27
-                         'Oil Rig', // 28
-                         'Fitness Center', // 29
-                         'Mechanic Shop', // 30
-                         'Amusement Park', // 31
-                         'Lingerie Store', // 32
-                         'Meat Warehouse', // 33
-                         'Farm', // 34
-                         'Software Corporation', // 35
-                         'Ladies Strip Club', // 36
-                         'Private Security Firm', // 37
-                         'Mining Corporation', // 38
-                         'Detective Agency']; // 39 (or null terminator)
-
-    //////////////////////////////////////////////////////////////////////
     // Insert a 'configuration' bar on the page, beneath the paginator bar
     //////////////////////////////////////////////////////////////////////
 
@@ -430,42 +473,41 @@
         referenceNode.parentNode.insertBefore(el, referenceNode.nextSibling);
     }
 
+    // Create and insert the bar itself
     function insertConfigurationBar() {
         var aboveDivs = document.getElementsByClassName('pagination-wrap');
         var newDiv = document.createElement('div');
         newDiv.id = 'config-buttons-div';
 
-        var btn1 = document.createElement('button');
-        btn1.style.margin = "10px 10px 10px 0px";
-        var t1 = document.createTextNode('Configure');
-        btn1.appendChild(t1);
-        newDiv.appendChild(btn1);
-        btn1.addEventListener('click',function () {
+        var btn = createButton(newDiv, 'Configure');
+        btn.addEventListener('click',function () {
             configHandler();
         });
 
-        var btn2 = document.createElement('button');
-        btn1.style.margin = "10px 10px 10px 0px";
-        var t2 = document.createTextNode('Send Messages');
-        btn2.appendChild(t2);
-        newDiv.appendChild(btn2);
-        btn2.addEventListener('click',function () {
+        btn = createButton(newDiv, 'Send Messages');
+        btn.addEventListener('click',function () {
             messageHandler();
         });
 
         insertAfter(newDiv, aboveDivs[0]);
     }
 
-    // Handlers for above buttons
+    // Handler for the 'Config' button, create the configuration dialog.
     function configHandler() {
         createConfigDiv();
     }
 
+    // Handler for the 'Message' button, send a message to those remaining
+    // in the filterd list. ...TBD...
     function messageHandler() {
         alert("Not Yet Implemented");
     }
 
+    /////////////////////////////////////////////////////////////
     // Handlers and helpers for the config screen
+    /////////////////////////////////////////////////////////////
+
+    // Determine if a value is a number or not.
     function isaNumber(x)
     {
         var regex=/^[0-9]+$/;
@@ -475,6 +517,7 @@
         return false;
     }
 
+    // Handler for the 'Cancel' button
     function cancelConfig() {
         var header = document.getElementById('header_div');
         var element = document.getElementById('config-div');
@@ -482,6 +525,7 @@
         element.parentNode.removeChild(element);
     }
 
+    // Handler for the 'Save' button
     function saveConfig() {
         var apikeyInput = document.getElementById('apikey');
         var maxdays = document.getElementById('maxdays');
@@ -532,14 +576,13 @@
         }
     }
 
-    //
+    /////////////////////////////////////////////////////////////////////////
     // A bunch of code to build the simple configuration dialog.
     // Should be an easier/better way to do this, rather than doing
     // it long hand.
-    //
+    /////////////////////////////////////////////////////////////////////////
 
-    GM_addStyle ('.xedx-container { border:2px solid #ccc; width:300px; height: 50px; overflow: auto');
-
+    // Create the list of checkboxes/lebels, scrolling, for the allowed/disallowed companies lists.
     function createCompanyCheckboxList(prefix) {
         var chkboxContDiv = document.createElement('div');
         chkboxContDiv.id = prefix + 'chkboxContDiv';
@@ -609,7 +652,7 @@
         return chkboxContDiv;
     }
 
-    // Header (the title bar)
+    // Create the configuration dialog header (the title bar)
     function createHeaderDiv() {
         var headerDiv = document.createElement('div');
         headerDiv.id = 'header_div';
@@ -621,21 +664,8 @@
         return headerDiv;
     }
 
-    // Main body
-    function createConfigDiv() {
-        // Don't do this more than once.
-        if (document.getElementById('config-div')) return;
-
-        // Create a header
-        var headerDiv = createHeaderDiv();
-
-        // Should be using GM_addStyle in here instead of this ugly formatting.
-        var configDiv = document.createElement('div');
-        configDiv.id = 'config-div';
-        configDiv.className = 'cont-gray bottom-round';
-        configDiv.setAttribute('style', 'text-align: center');
-
-        // API key inut box
+    // Create the API key input
+    function createApiKeyInput(configDiv) {
         var apikeyInput = document.createElement('input');
         apikeyInput.type = 'text';
         apikeyInput.id = 'apikey';
@@ -646,8 +676,10 @@
         configDiv.appendChild(apikeyInput);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
+    }
 
-        // Days in job. If greater than this, remove from list
+    // Create the 'max days in job' input
+    function createDaysInJobInput(configDiv) {
         configDiv.appendChild(document.createTextNode('Days in job: ' +
                                                       'If the user has been in their job for more than ' +
                                                       'this number of days, they will be removed from the list.'));
@@ -663,8 +695,10 @@
         configDiv.appendChild(maxDays);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
+    }
 
-        // Allowed job list
+    // Create the list of checkboxes for always allowed jobs
+    function createAllowedJobsList(configDiv) {
         configDiv.appendChild(document.createTextNode('Allowed job list: ' +
                                                       'If the user has a job in one of these companies, ' +
                                                       'they will remain in the list.'));
@@ -674,34 +708,60 @@
         configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
+    }
 
-        // Not allowed job list
+    // Same as above, but for not allowed jobs
+    function createNotAllowedJobList(configDiv) {
         configDiv.appendChild(document.createTextNode('Not allowed job list: ' +
                                                       'If the user has a job in one of these companies, ' +
                                                       'they will be removed from the list.'));
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
-        companies = createCompanyCheckboxList(not_allowed_co_prefix);
+        var companies = createCompanyCheckboxList(not_allowed_co_prefix);
         configDiv.appendChild(companies);
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
+    }
 
-        var btn1 = document.createElement('button');
-        btn1.style.margin = "0px 10px 10px 0px";
-        var t1 = document.createTextNode('Cancel');
-        btn1.appendChild(t1);
-        configDiv.appendChild(btn1);
-        btn1.addEventListener('click',function () {
+    // Create a generic button
+    function createButton(configDiv, label) {
+
+        var btn = document.createElement('button');
+        btn.style.margin = "0px 10px 10px 0px";
+        var t1 = document.createTextNode(label);
+        btn.appendChild(t1);
+        configDiv.appendChild(btn);
+        return btn;
+    }
+
+    //////////////////////////////////////////////////////////////////
+    // Create the configuration dialog main body, and populate it.
+    //////////////////////////////////////////////////////////////////
+    
+    function createConfigDiv() {
+        if (document.getElementById('config-div')) return;
+
+        // Main container
+        var configDiv = document.createElement('div');
+        configDiv.id = 'config-div';
+        configDiv.className = 'cont-gray bottom-round';
+        configDiv.setAttribute('style', 'text-align: center');
+
+        // Other elements: header and body content.
+        // API Key, and filters: days in job, allowed jobs, disallowed jobs.
+        var headerDiv = createHeaderDiv();
+        createApiKeyInput(configDiv);
+        createDaysInJobInput(configDiv);
+        createAllowedJobsList(configDiv);
+        createNotAllowedJobList(configDiv);
+
+        var btn = createButton(configDiv, 'Cancel');
+        btn.addEventListener('click',function () {
             cancelConfig();
         });
 
-        var btn2 = document.createElement('button');
-        btn2.style.margin = "0px 10px 10px 0px";
-        var t2 = document.createTextNode('Save');
-        btn2.appendChild(t2);
-        btn2.onClick = function(){saveConfig()};
-        configDiv.appendChild(btn2);
-        btn2.addEventListener('click',function () {
+        btn = createButton(configDiv, 'Save');
+        btn.addEventListener('click',function () {
             saveConfig();
         });
 
@@ -712,34 +772,33 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Main. Using a MutationObserver allows us to be notified
+    // Main (erm, 'go()'). Using a MutationObserver allows us to be notified
     // whenever the root of the 'User List' section (the
     // <div id="mainContainer"> section) changes/updates. Note
     // that this is likely triggered at the addition of each <li>,
     // and we'll need to keep track of what has already been edited.
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Sawfish Profile Filter 2 script started!");
+    function go() {
+        console.log("'Sawfish Profile Filter 2' script started!");
 
-    // Make sure we have an API key
-    var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key == 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
+        // Make sure we have an API key
+        if (api_key == null || api_key == 'undefined' || typeof api_key == 'undefined' || api_key == '') {
+            api_key = prompt("Please enter your API key.\n" +
+                             "Your key will be saved locally so you won't have to be asked again.\n" +
+                             "Your key is kept private and not shared with anyone.", "");
+            GM_setValue('gm_api_key', api_key);
+        }
+
+        // Add a new UI element to configure and send a message
+        insertConfigurationBar();
+
+        // Set up an observer to modify the found user's list.
+        var callback = function(mutationsList, observer) {
+            updateUserList();
+        };
+        observer = new MutationObserver(callback);
+        observer.observe(targetNode, config);
     }
-
-    // Add a new UI element to configure and send a message
-    insertConfigurationBar();
-
-    // Set up an observer to modify the found user's list.
-    var targetNode = document.getElementById('mainContainer');
-    var config = { attributes: false, childList: true, subtree: true };
-    var callback = function(mutationsList, observer) {
-        updateUserList();
-    };
-    var observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
 
 })();
