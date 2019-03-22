@@ -92,6 +92,10 @@
                          'Mining Corporation', // 38
                          'Detective Agency']; // 39 (or null terminator)
 
+    // Some default crap to prevent scoping issues
+    var defCoType = 'unknown';
+    var defDays = '0';
+
     //////////////////////////////////////////////////////////////////////
     // Kick off the whole shebang. Everything beneath this call is
     // functions required to do the actual processing.
@@ -193,6 +197,7 @@
         //console.log("Response: " + responseText);
         totalProfileResponses++;
         var jsonResp = JSON.parse(responseText);
+        var name = jsonResp.name;
 
         if (jsonResp.error) {
             if (totalProfileRequests == totalProfileResponses &&
@@ -214,12 +219,27 @@
             return;
         }
 
+        // Filter out Directors
+        if (jsonResp.job.position == 'Director') {
+            console.log("Sawfish: filtering, Director " +
+                        jsonResp.name + " [" + user_ID + "].");
+            var reason = 'Director';
+            var queueObj = {index, user_ID, name, defDays, defCoType, reason};
+            indexQueue.push(queueObj);
+            if (totalProfileRequests == totalProfileResponses &&
+                totalCompanyRequests == totalCompanyResponses) {
+                processIndexQueue();
+                return;
+            }
+            return;
+        }
+
         // Query their company info. We need name, ID and index in the callback.
         queryCompanyInfo(jsonResp.job.company_id, user_ID, jsonResp.name, index);
     }
 
     //////////////////////////////////////////////////////////////////////
-    // This callback handles the response for the comapny info query.
+    // This callback handles the response for the company info query.
     //
     // The following filters are applied to the user list. The values here
     // can be edited as desired via th 'config' UI. Refresh the user list page after saving
@@ -284,6 +304,11 @@
                 // Days in Company filter
                 filtered = filterCompanyDays(companyType, name, user_ID, days, index);
 
+                // Filter out directors.
+                if (!filtered) {
+                    filtered = filterDirectors(companyType, name, user_ID, days, index);
+                }
+
                 // Add any other filters here ...
                 // ... TBD
 
@@ -344,6 +369,12 @@
             indexQueue.push(queueObj);
             return true;
         }
+        return false;
+    }
+
+    function filterDirectors(companyType, name, user_ID, days, index) {
+
+        // TBD....
         return false;
     }
 
@@ -737,7 +768,7 @@
     //////////////////////////////////////////////////////////////////
     // Create the configuration dialog main body, and populate it.
     //////////////////////////////////////////////////////////////////
-    
+
     function createConfigDiv() {
         if (document.getElementById('config-div')) return;
 
