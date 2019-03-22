@@ -722,6 +722,10 @@
         maxDays.id = 'maxdays';
         maxDays.style.border="1px solid black";
         maxDays.value = GM_getValue('gm_max_days');
+        if (maxDays.value == 'undefined') {
+            maxDays.value = 5000;
+            GM_setValue('gm_max_days', 5000);
+        }
         configDiv.appendChild(document.createTextNode('Days in job filter: '));
         configDiv.appendChild(maxDays);
         configDiv.appendChild(document.createElement('br'));
