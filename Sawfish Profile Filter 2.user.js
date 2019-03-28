@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sawfish Profile Filter 2
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  Filters a returned user list (fro madvanced search) based on custom filter criteria
+// @version      0.2
+// @description  Filters a returned user list (from advanced search) based on custom filter criteria
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
 // @connect      api.torn.com
@@ -741,6 +741,17 @@
         configDiv.appendChild(document.createElement('br'));
         var companies = createCompanyCheckboxList(allowed_co_prefix);
         configDiv.appendChild(companies);
+
+        configDiv.appendChild(document.createElement('br'));
+        var btn = createButton(configDiv, 'Select All');
+        btn.addEventListener('click',function () {
+            allowedJobsSelectAll();
+        });
+        btn = createButton(configDiv, 'Clear All');
+        btn.addEventListener('click',function () {
+            allowedJobsClearAll();
+        });
+
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
     }
@@ -754,6 +765,18 @@
         configDiv.appendChild(document.createElement('br'));
         var companies = createCompanyCheckboxList(not_allowed_co_prefix);
         configDiv.appendChild(companies);
+
+        configDiv.appendChild(document.createElement('br'));
+        var btn = createButton(configDiv, 'Select All');
+        btn.addEventListener('click',function () {
+            notAllowedJobsSelectAll();
+        });
+        btn = createButton(configDiv, 'Clear All');
+        btn.addEventListener('click',function () {
+            notAllowedJobsClearAll();
+        });
+
+        configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
         configDiv.appendChild(document.createElement('br'));
     }
@@ -804,6 +827,33 @@
         var parentDiv = document.getElementById('config-buttons-div');
         parentDiv.appendChild(headerDiv);
         parentDiv.appendChild(configDiv);
+    }
+
+    // Handlers for select/clear all buttons
+    function select_clear_all(prefix, select) {
+        var id = prefix + 'chkboxContDiv'
+        var chkDiv = document.getElementById(id);
+        var checkboxes = chkDiv.getElementsByClassName('xedx-chkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            var index = i + 1;
+            checkboxes[i].checked = select;
+        }
+    }
+
+    function allowedJobsSelectAll() {
+        select_clear_all(allowed_co_prefix, true);
+    }
+
+    function allowedJobsClearAll() {
+        select_clear_all(allowed_co_prefix, false);
+    }
+
+    function notAllowedJobsSelectAll() {
+        select_clear_all(not_allowed_co_prefix, true);
+    }
+
+    function notAllowedJobsClearAll() {
+        select_clear_all(not_allowed_co_prefix, false);
     }
 
     //////////////////////////////////////////////////////////////////////
