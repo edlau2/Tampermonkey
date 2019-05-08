@@ -73,7 +73,6 @@ Similar to the above script, this extends the user list of another faction, typi
 
 These scripts aren't mine, just here for easy access by fac mates
 
-- [TORN- High-Low Helper.user.js]
-(https://github.com/edlau2/Tampermonkey/blob/master/TORN-%20High-Low%20Helper.user.js)
+- [TORN- High-Low Helper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/TORN-%20High-Low%20Helper.user.js)
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it.
