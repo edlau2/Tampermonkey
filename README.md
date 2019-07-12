@@ -47,6 +47,17 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
+**Torn Jail Scores**
+
+- [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Scores.user.js)
+
+Images:
+
+- [Torn Jail Scores.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Scores.png)
+
+This script adds the "score" of a person in jail, which is used to determine the difficulty (or your chance of success) of busting that person out of jail. Some iformation, mostly speculative, can be found in this guide: https://www.tornstats.com/guides.php?id=22
+
+
 **Torn War Wall List Extender**
 
 - [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Wall%20List%20Extender.user.js)
