@@ -5,9 +5,6 @@
 // @description  Add 'score' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -96,19 +93,11 @@
 
     //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
-    // actually get to the
+    // actually get to the page(s) - technically, when the page(s) change.
+    // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
     console.log("Torn Jail Scores script started!");
-
-    // Make sure we have an API key
-    var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
-    }
 
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
