@@ -15,6 +15,8 @@ Repository for TamperMonkey scripts
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run.
 
+** Torn Latest Attacks Extender**
+
 - [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.user.js)
 
 Images:
