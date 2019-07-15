@@ -15,17 +15,30 @@ Repository for TamperMonkey scripts
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run.
 
-**Torn Latest Attacks Extender**
+**COMING SOON: Torn Get Naked**
 
-- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.user.js)
+- [Torn Get Naked.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.user.js)
 
 Images:
 
-- [Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.png)
-- [Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender%202.png)
-- [Torn Latest Attacks Extender 3.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender%203.png)
+- [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.png)
 
-This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
+This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Pressing the Un-equip button will un-equip all equipped weapons and armor - Primary, Secondary, Melee, Temporary and Armor. The items that were equipped are saved in local storage, so that when the Re-equip button is pressed, the same items will then be equipped. If you change your choices of weapons and/or armor, pressing the Reset button, while equipped, will erase what is saved so that the next time Un-equip is pressed, the new choices of weaponry will be saved instead of using the old ones.
+
+Still to be implemented:
+  1. Weapons mods are not saved, so those need to be manually re-added upon re-equipping.
+  2. If you decide to equip alternate weapons, such as a plastic sword after un-equipping, this is not currently honored automatically, and I haven't yet tested what happens upon re-equipping - there is normally a warning displayed telling you that your DBK will replace your plastic sword, for example.
+  3. Only weapons are affected - if you want to equip masks or clothing such as a thong when unequipping, this isn't supported nor is it planned to be supported (#2, alternate weapons, will be).
+
+**Torn Numeric Rank Display**
+
+- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.user.js)
+
+Images:
+
+- [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.png)
+
+This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section. This script also highlights using the MutationObserver object, so that chages are made only when the relevant DOM has been loaded.
 
 **Torn Numeric Rank Display**
 
