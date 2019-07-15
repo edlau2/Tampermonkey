@@ -43,6 +43,8 @@ Still to be implemented/Known issues:
   3. Only weapons are affected - if you want to equip masks or clothing such as a thong when unequipping, this isn't supported nor is it planned to be supported (#2, alternate weapons, will be).
   4. The 'collapse' arrow is not working.
   5. The confirmation dialogs displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
+  
+Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save, Resore, and Reset buttons. So one click would save the current config, one click to restore that config, and the reset button in case things get screwed up or mods change, to be able to re-save. Of course, I could eliminate the Reset button and Save would just always save the present config.
 
 **Torn Numeric Rank Display**
 
