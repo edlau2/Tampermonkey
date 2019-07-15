@@ -102,3 +102,7 @@ These scripts aren't mine, just here for easy access by fac mates
 - [TORN- High-Low Helper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/TORN-%20High-Low%20Helper.user.js)
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it.
+
+- [Dibs.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Dibs.user.js)
+
+Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted e.
