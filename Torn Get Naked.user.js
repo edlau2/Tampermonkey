@@ -87,8 +87,9 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // addMainButtons() function: Adds two buttons to the page, one
+    // addMainButtons() function: Adds three buttons to the page, one
     // to equip and one to unequip defined armor/weapons in one click.
+    // The third resets the saved data in case weapons selection changes.
     //////////////////////////////////////////////////////////////////////
 
     function addMainButtons() {
@@ -289,6 +290,46 @@
         }
     }
 
+    function saveWeaponMods(itemId) {
+        var modsDiv;
+        var weaponsDiv = document.getElementsByClassName('player-weapon')[0];
+        if (itemId == 'primary-items') {
+            modsDiv = weaponsDiv.children[0];
+        } else {
+            modsDiv = weaponsDiv.children[1];
+        }
+        if (!validPointer(modsDiv, true)) {
+            return;
+        }
+
+        var mods = modsDiv.getAttribute('data-upgrades');
+        var keyArray = JSON.parse(mods);
+        var modsArray = [];
+        for (var i=0; i<keyArray.length; i++) {
+            if (keyArray[i].state == 'equipped') {
+                modsArray.push(keyArray[i].title);
+            }
+        }
+
+        // Now we have the names of 0, 1, or 2 mods, attached to the itemId (primary or secondary)
+        if (validPointer(modsArray[0]) && modsArray[0] != '') {
+            dialogText += '\n' + itemId + ' equipped mods:\n';
+            dialogText += '\t' + modsArray[0] + '\n';
+        }
+        if (validPointer(modsArray[1]) && modsArray[1] != '') {
+            dialogText += '\t' + modsArray[1] + '\n';
+        }
+
+        // Check flag idicating items already saved. If true, return.
+        var saved = GM_getValue('xedx-getnaked-datasaved-' + itemId);
+        if (saved == 'true') {
+            return;
+        }
+
+        var modsKey = itemId + '-mods';
+        GM_setValue(modsKey, JSON.stringify(modsArray));
+    }
+
     // Once an equipped item has been found, this actually presses
     // the 'un-equp' button.
     function realUnequip(node, name, id) {
@@ -327,6 +368,11 @@
                 var id = itemDiv.children[i].getAttribute('data-armoryid');
                 var arrayElement = 'id: ' + id + ' name: ' + name;
                 itemArray.push(arrayElement);
+
+                // If this is a primary or secondary, save equipped mods.
+                if (itemId == 'primary-items' || itemId == 'secondary-items') {
+                    saveWeaponMods(itemId);
+                }
 
                 // Perform the real button press to unequip the item
                 realUnequip(itemDiv.children[i], name, id);
