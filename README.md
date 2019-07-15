@@ -30,7 +30,7 @@ Still to be implemented/Known issues:
   2. If you decide to equip alternate weapons, such as a plastic sword after un-equipping, this is not currently honored automatically, and I haven't yet tested what happens upon re-equipping - there is normally a warning displayed telling you that your DBK will replace your plastic sword, for example.
   3. Only weapons are affected - if you want to equip masks or clothing such as a thong when unequipping, this isn't supported nor is it planned to be supported (#2, alternate weapons, will be).
   4. The 'collapse' arrow is not working.
-  5. The confirmation dialogs displayed after an action could use a 'Do not show this again' checkbox.
+  5. The confirmation dialogs displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
 
 **Torn Numeric Rank Display**
 
