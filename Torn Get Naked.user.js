@@ -188,7 +188,7 @@
 
     function setBtnAttributes(btn) {
         btn.setAttribute('style', 'font-size: 14px; height: 24px; text-align: center;' +
-                        'border-radius: 5px; margin: 15px 40px;');
+                        'border-radius: 5px; margin: 15px 40px; background: LightGrey; border: 1px solid black;');
     }
 
     function createButtons() {
@@ -482,6 +482,8 @@
 
     function resetFunction() {
         GM_setValue('xedx-getnaked-lastaction', 'reset');
+        disableEquip(false);
+        disableUnequip(false);
 
         // Clear storage
         var keyArray = GM_listValues();
