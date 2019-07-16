@@ -38,11 +38,11 @@ Images:
 This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Pressing the Un-equip button will un-equip all equipped weapons and armor - Primary, Secondary, Melee, Temporary and Armor. The items that were equipped are saved in local storage, so that when the Re-equip button is pressed, the same items will then be equipped. If you change your choices of weapons and/or armor, pressing the Reset button, while equipped, will erase what is saved so that the next time Un-equip is pressed, the new choices of weaponry will be saved instead of using the old ones.
 
 Still to be implemented/Known issues:
-  1. Weapon mods are not saved, so those need to be manually re-added upon re-equipping.
+  1. Weapon mods are not saved, so those need to be manually re-added upon re-equipping. The currently equipped mods are displayed on the results summary dialog.
   2. If you decide to equip alternate weapons, such as a plastic sword after un-equipping, this is not currently honored automatically, and I haven't yet tested what happens upon re-equipping - there is normally a warning displayed telling you that your DBK will replace your plastic sword, for example.
   3. Only weapons are affected - if you want to equip masks or clothing such as a thong when unequipping, this isn't supported nor is it planned to be supported (#2, alternate weapons, will be).
   4. The 'collapse' arrow is not working.
-  5. The confirmation dialogs displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
+  5. The confirmation dialogs (results summary dialogs) displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
   
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save, Resore, and Reset buttons. So one click would save the current config, one click to restore that config, and the reset button in case things get screwed up or mods change, to be able to re-save. Of course, I could eliminate the Reset button and Save would just always save the present config.
 
