@@ -13,7 +13,7 @@ Repository for TamperMonkey scripts
 
 # Scripts 
 
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run.
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: xedx [2100735]
 
 **Torn Latest Attacks Extender**
 
