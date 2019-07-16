@@ -413,7 +413,7 @@
             // This will equip the alternate weapons
             altText = equip(itemId, true);
             if (altText != null && altText != '') {
-                dialogText += altText;
+                dialogText += '\n' + altText + '\n';
             }
         }
 
@@ -421,7 +421,8 @@
             classesProcessed++;
         }
         if (classesProcessed == 5 && !fromEquip) {
-            alert(dialogText);
+            var displayText = dialogText.replace(/\n\n/g, '\n'); // Hack!
+            alert(displayText);
             disableUnequip();
         }
 
@@ -531,7 +532,7 @@
         } else {
             dialogText += "\n";
             if (altText != null && altText != '') {
-                dialogText += altText;
+                dialogText += '\n' + altText + '\n';
             }
         }
 
@@ -539,8 +540,9 @@
             classesProcessed++;
         }
         if (classesProcessed == 5 && !fromUnequip) {
-            dialogText += "Don't forget to re-equip weapons mods!";
-            alert(dialogText);
+            var displayText = dialogText.replace(/\n\n/g, '\n');
+            displayText += "\nDon't forget to re-equip weapons mods!";
+            alert(displayText);
             disableEquip();
         } else {
             return altText;
