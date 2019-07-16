@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Get Naked
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Equip/Unequio items (armor and weapons) with one click
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php
@@ -349,22 +349,37 @@
     // This locates equipped items for a given class of items (the itemId),
     // equipped items are saved in storage for later re-equipping.
     // The actual un-equip is performed by the realUnequip() fn.
-    function unequip(itemId) {
+    function unequip(itemId, fromEquip = false) {
         var itemDiv = document.getElementById(itemId);
         var len = itemDiv.childElementCount;
+        var altText = '';
+        var altTitleSet = false;
 
         // Iterate each <li>; if equipped, create a string to save in an array.
         // The string has the syntax "id: <id> name: <name>"
         // These are pushed onto an array which is saved in storage.
         // Only armour-items will have multiple array elements.
-        dialogText += itemId + " Un-equipped:\n";
+        if (fromEquip) {
+            //altText += 'Alternate ' + itemId + ' found:\n';
+        } else {
+            dialogText += itemId + " Un-equipped:\n";
+        }
+
         var itemArray = [];
         for (var i=0; i<len; i++) {
             var equipped = itemDiv.children[i].getAttribute('data-equipped');
             if (equipped == 'true') {
                 // Equipped: save ID and name in storage, and unequip.
                 var name = nameFromParentNode(itemDiv.children[i]);
-                dialogText += "\t" + name + "\n";
+                if (fromEquip) {
+                    if (!altTitleSet) {
+                        altText = 'Alternate ' + itemId + ' found:\n';
+                        altTitleSet = true;
+                    }
+                    altText += "\t" + name + "\n";
+                } else {
+                    dialogText += "\t" + name + "\n";
+                }
                 var id = itemDiv.children[i].getAttribute('data-armoryid');
                 var arrayElement = 'id: ' + id + ' name: ' + name;
                 itemArray.push(arrayElement);
@@ -378,15 +393,39 @@
                 realUnequip(itemDiv.children[i], name, id);
             }
         }
-        dialogText += "\n";
 
-        classesProcessed++;
-        if (classesProcessed == 5) {
+        if (fromEquip && altText != '' && altText != null) {
+            altText += '\n';
+        } else {
+            dialogText += "\n";
+        }
+
+        // If called from the re-equip function, save any weapons as alternatives,
+        // to equip later when un-equipping.
+        if (fromEquip) {
+            GM_setValue('alt-' + itemId, JSON.stringify(itemArray));
+            if (itemArray.length > 0) {
+                return altText;
+            } else {
+                return null;
+            }
+        } else {
+            // This will equip the alternate weapons
+            altText = equip(itemId, true);
+            if (altText != null && altText != '') {
+                dialogText += altText;
+            }
+        }
+
+        if (!fromEquip) {
+            classesProcessed++;
+        }
+        if (classesProcessed == 5 && !fromEquip) {
             alert(dialogText);
             disableUnequip();
         }
 
-        // Check flag idicating items already saved. If true, return.
+        // Check flag indicating items already saved. If true, return.
         var saved = GM_getValue('xedx-getnaked-datasaved-' + itemId);
         if (saved == 'true') {
             return;
@@ -411,9 +450,6 @@
         dialogText = '';
         classesProcessed = 0;
         loadItemData(unequip);
-
-        // Set flag indicating item ID's saved.
-        //GM_setValue('xedx-getnaked-datasaved', 'true');
     }
 
     function realEquip(node, name, id) {
@@ -430,12 +466,27 @@
         equipBtn.click();
     }
 
-    function equip(itemId) {
+    function equip(itemId, fromUnequip = false) {
+        // First, we need to un-equip any weapons that may have been added
+        // since the last un-equip. These will be saved as alternate weapons
+        // to equip at the next un-equip.
+        var altText = '';
+        var altTitleAdded = false;
+        if (!fromUnequip) {
+            altText = unequip(itemId, true);
+        }
+
+        // Now we can go ahead and re-equip.
         var itemDiv = document.getElementById(itemId);
         var len = itemDiv.childElementCount;
         var itemArray = [];
         var matchName = false;
-        dialogText += itemId + " equipped:\n";
+
+        if (fromUnequip) {
+            //altText += 'Alternate ' + itemId + ' equipped:\n';
+        } else {
+            dialogText += itemId + " equipped:\n";
+        }
         for (var i=0; i<len; i++) {
             var name = nameFromParentNode(itemDiv.children[i]);
             var id = itemDiv.children[i].getAttribute('data-armoryid');
@@ -448,24 +499,51 @@
                 matchName = true;
             }
 
-            var keyArray = JSON.parse(GM_getValue(itemId));
+            var key;
+            if (fromUnequip) {
+                key = 'alt-' + itemId;
+            } else {
+                key = itemId;
+            }
+
+            var keyArray = JSON.parse(GM_getValue(key));
             for (var j = 0; j < keyArray.length; j++) {
                 var savedName = parseSavedName(keyArray[j]);
                 var savedId = parseSavedId(keyArray[j]);
                 if (matchName ? savedName == name : savedId == id) {
                     // Press the 'equip' button
-                    dialogText += "\t" + name + "\n";
+                    if (fromUnequip) {
+                        if (!altTitleAdded) {
+                            altText += 'Alternate ' + itemId + ' equipped:\n';
+                            altTitleAdded = true;
+                        }
+                        altText += "\t" + name + "\n";
+                    } else {
+                        dialogText += "\t" + name + "\n";
+                    }
                     realEquip(itemDiv.children[i], name, id);
                 }
             }
         }
-        dialogText += "\n";
 
-        classesProcessed++;
-        if (classesProcessed == 5) {
+        if (fromUnequip && altText != '') {
+            altText += '\n';
+        } else {
+            dialogText += "\n";
+            if (altText != null && altText != '') {
+                dialogText += altText;
+            }
+        }
+
+        if (!fromUnequip) {
+            classesProcessed++;
+        }
+        if (classesProcessed == 5 && !fromUnequip) {
             dialogText += "Don't forget to re-equip weapons mods!";
             alert(dialogText);
             disableEquip();
+        } else {
+            return altText;
         }
     }
 
