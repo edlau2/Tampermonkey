@@ -58,6 +58,16 @@ Images:
 
 This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section. This script also highlights using the MutationObserver object, so that chages are made only when the relevant DOM has been loaded.
 
+**Torn One-Click Daily Dime**
+
+- [Torn One-Click Daily Dime.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)
+
+Images:
+
+- [Torn One-Click Daily Dime.png](Coming Soon - when I have more tokens)
+
+This script lets you click the Daily Dime 'buy' button with one click - up to the number of casino tokens you have available. I used it to get the 'Win a lottery' merit, you can easily bet 75 times, refill, and bet 75 more times quickly. Or, as many tokens as you may have. 
+
 **Torn User List Extender**
 
 - [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20User%20List%20Extender.user.js)
