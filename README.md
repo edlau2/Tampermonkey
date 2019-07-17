@@ -13,7 +13,7 @@ Repository for TamperMonkey scripts
 
 # Scripts 
 
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: xedx [2100735]
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
 
 **Torn Latest Attacks Extender**
 
@@ -60,7 +60,9 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 **Torn One-Click Daily Dime**
 
-- [Torn One-Click Daily Dime.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)
+Note: I've removed this for now, as I'm not sure if it breaks the rules or not. The 'rules' link seems to have been removed, and I'm not sure how to check without asking staff, and not sure I want to do that. If anyone knows where the rules regarding scripting can be found, please let me know.
+
+- [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
 Images:
 
