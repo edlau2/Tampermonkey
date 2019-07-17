@@ -121,12 +121,17 @@ Similar to the above script, this extends the user list of another faction, typi
 
 # 3rd Party Scripts
 
-These scripts aren't mine, just here for easy access by fac mates
+These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
 
-- [TORN- High-Low Helper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/TORN-%20High-Low%20Helper.user.js)
+- [TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)
 
-Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it.
+Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
 
-- [Dibs.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Dibs.user.js)
+<!--(https://github.com/edlau2/Tampermonkey/blob/master/Dibs.user.js)-->
+- [Dibs.user.js](https://greasyfork.org/nb/scripts/371859-dibs)
 
-Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted e.
+Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted energy. Written by sullengenie [1946152]
+
+- [Stock Block Price.user.js](https://github.com/Nepherius/userscrips/raw/master/stock_block_price.user.js)
+
+Displays the cost of a BB of stock on the Stock Exchange page, beneath the share price. Useful to quickly see the price of a BB without having to 'fake' buying it or use a calculator. Written by nepherius [2009878]
