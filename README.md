@@ -40,8 +40,8 @@ This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Press
 Still to be implemented/Known Issues:
   1. Weapon mods are not saved, so those need to be manually re-added upon re-equipping. The currently equipped mods are displayed on the results summary dialog.
   2. ~~If you decide to equip alternate weapons, such as a plastic sword after un-equipping, this is not currently honored automatically, and I haven't yet tested what happens upon re-equipping - there is normally a warning displayed telling you that your DBK will replace your plastic sword, for example.~~ 
-  *Added 7/16/2019, version 0.2*
-  After un-equipping, if you then equip another weapon, say a plastic sword, when you later re-equip using the script, it will save the plastic sword as an 'alternate' weapon, and will automatically equip that in place of your normal weapon when you next un-equip using the script. This also prevents the warning about your normal weapon replacing whatever you have equipped since the last un-equip.
+  <br>*Added 7/16/2019, version 0.2*
+  <br>After un-equipping, if you then equip another weapon, say a plastic sword, when you later re-equip using the script, it will save the plastic sword as an 'alternate' weapon, and will automatically equip that in place of your normal weapon when you next un-equip using the script. This also prevents the warning about your normal weapon replacing whatever you have equipped since the last un-equip.
   3. Only weapons are affected - if you want to equip masks or clothing such as a thong when un-equipping, this isn't supported nor is it planned to be supported, unless enough people ask for it.
   4. The 'collapse' arrow is not working.
   5. The confirmation dialogs (results summary dialogs) displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
