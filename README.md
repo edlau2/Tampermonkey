@@ -60,7 +60,13 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 **Torn One-Click Daily Dime**
 
-Note: I've removed this for now, as I'm not sure if it breaks the rules or not. The 'rules' link seems to have been removed, and I'm not sure how to check without asking staff, and not sure I want to do that. If anyone knows where the rules regarding scripting can be found, please let me know.
+Note: I've removed this for now, as I'm not sure if it breaks the rules or not. The 'rules' link seems to have been removed, and I'm not sure how to check without asking staff, and not sure I want to do that. ~~If anyone knows where the rules regarding scripting can be found, please let me know.~~
+
+Found the rules (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0):
+
+"The use of scripts, extensions, applications or any other kind of software is allowed only if it uses data from our API or a page you (or your users) have loaded manually and are currently viewing. They cannot make additional non-API requests to Torn, scrape pages that you're not currently viewing, or attempt to bypass the captcha. If the software you're using makes non-API requests that are not manually triggered by you, it is not allowed and can be tracked."
+
+So it does *not* sound like this script breaks the rules, as you have to be on the page to press the button that presses the button; it happens so fast you could not possibly leave the page before it completes. If anyone disagrees let me know, I'll wait a bit before re-enabling the link below.
 
 - [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
