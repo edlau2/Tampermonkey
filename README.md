@@ -29,11 +29,13 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 **Torn Get Naked**
 
-- [Torn Get Naked.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.user.js)
+- [Torn Get Naked.user.js] <!-- (https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.user.js) -->
 
 Images:
 
 - [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.png)
+
+Note: Removed for now, same reason as the Daily Dime script below.
 
 This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Pressing the Un-equip button will un-equip all equipped weapons and armor - Primary, Secondary, Melee, Temporary and Armor. The items that were equipped are saved in local storage, so that when the Re-equip button is pressed, the same items will then be equipped. If you change your choices of weapons and/or armor, pressing the Reset button, while equipped, will erase what is saved so that the next time Un-equip is pressed, the new choices of weaponry and armor will be saved instead of using the old ones. After each action, a results summary dialog is displayed.
 
@@ -60,7 +62,7 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 **Torn One-Click Daily Dime**
 
-Note: I've removed this for now, as I'm not sure if it breaks the rules or not. The 'rules' link seems to have been removed, and I'm not sure how to check without asking staff, and not sure I want to do that. ~~If anyone knows where the rules regarding scripting can be found, please let me know.~~
+Note: I've removed this for now, as I'm not sure if it breaks the rules or not. ~~The 'rules' link seems to have been removed, and~~ I'm not sure how to check without asking staff, and not sure I want to do that. ~~If anyone knows where the rules regarding scripting can be found, please let me know.~~
 
 Found the rules (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0):
 
@@ -135,3 +137,7 @@ Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basic
 - [Stock Block Price.user.js](https://github.com/Nepherius/userscrips/raw/master/stock_block_price.user.js)
 
 Displays the cost of a BB of stock on the Stock Exchange page, beneath the share price. Useful to quickly see the price of a BB without having to 'fake' buying it or use a calculator. Written by nepherius [2009878]
+
+- [Stock Market Helper.user.js](https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js)
+
+Torn Stock Helper that calculates your profit/loss in your portfolio, highlights forecasts that are poor, very poor, good and very good in the Stock Exchange, and lists the amount of $$ you have invested in stocks you have shares in. Also marks the stock's worth, as ($) 0 < 20b < 50b < 100b. And gets new data everytime stock profile reexpanded in Stock Exchange or your portfolio. Written by Mafia [610357]
