@@ -3,7 +3,7 @@ Repository for TamperMonkey scripts
 
 # Installation
 
-1. Install Tampermonkey.
+1. Install - [Tampermonkey] (https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en)
 2. Select a script in this repo that you wish to use. The script is the link ending in .user.js. The .png file is a screenshot showing what the script does.
 3. View the file and click the Raw button at the top of the file to view its source.
 4. Copy the source.
