@@ -11,10 +11,6 @@ Repository for TamperMonkey scripts
 6. Paste the source into the script window and select file->save.
 7. Viola!
 
-# Scripts 
-
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
-
 # Scripting Rules
 
 The rules for scripting, from the "Tools and Userscripts" forum (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0), are as follows:
@@ -47,6 +43,10 @@ xedx: Got it. Thanks!
 </details>
 
 So that script has been modified to have 5 buttons, on one simple bar, to rapidly click through to equip/un-equip each category. The modified script has not yet been uploaded.
+
+# Scripts 
+
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
 
 **Torn Latest Attacks Extender**
 
