@@ -15,6 +15,39 @@ Repository for TamperMonkey scripts
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
 
+# Scripting Rules
+
+The rules for scripting, from the "Tools and Userscripts" forum (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0), are as follows:
+
+"The use of scripts, extensions, applications or any other kind of software is allowed only if it uses data from our API or a page you (or your users) have loaded manually and are currently viewing. They cannot make additional non-API requests to Torn, scrape pages that you're not currently viewing, or attempt to bypass the captcha. If the software you're using makes non-API requests that are not manually triggered by you, it is not allowed and can be tracked.
+
+Assuming this rule is followed, go wild!"
+
+This is somewhat vague, so I consulted with Bogie on some of the scripts I was unsure of. For instance, here is a snippet of our conversation regarding the 'Torn Get Naked' script:
+
+<details>
+  <summary>Click to see conversation...</summary>
+  
+xedx: If I have a script that loads only when a user visits the page the script runs on, can the script use the Javascript         click() function to click more than one button/link in succession? In particular, I 'get naked' often when wall             sitting, so would like to un-equip with a single click. Is something like that legal, or illegal?
+
+bogie: That wouldn't be legal, sorry.
+
+xedx: Would having 5 separate buttons on the items page - one to un-equip primary, one for secondary, one melee, etc. be           legit? What exactly is the rule for this situation?
+
+bogie: thats fine
+
+bogie: As it wouldn't be performing server side actions for you, you'd be doing the main actions
+
+xedx: OK, thank you very much! That's a big help
+
+bogie: But having one button do it all for you would be illegal
+
+xedx: Got it. Thanks!
+
+</details>
+
+So that script has been modified to have 5 buttons, on one simple bar, to rapidly click through to equip/un-equip each category. The modified script has not yet been uploaded.
+
 **Torn Latest Attacks Extender**
 
 - [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.user.js)
@@ -35,11 +68,15 @@ Images:
 
 - [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.png)
 
-Note: Removed for now, same reason as the Daily Dime script below.
+Note: Removed for now, see the comments in the Scripting Rules section, above.
+
+Per Bogie's reply to my questions regarding this script, it has since been modified so that there are now 5 buttons, not one, hence the following paragraph is slightly outdated.
 
 This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Pressing the Un-equip button will un-equip all equipped weapons and armor - Primary, Secondary, Melee, Temporary and Armor. The items that were equipped are saved in local storage, so that when the Re-equip button is pressed, the same items will then be equipped. If you change your choices of weapons and/or armor, pressing the Reset button, while equipped, will erase what is saved so that the next time Un-equip is pressed, the new choices of weaponry and armor will be saved instead of using the old ones. After each action, a results summary dialog is displayed.
 
-Still to be implemented/Known Issues:
+<details>
+  <summary>Click to see 'Still to be implemented/Known Issues'...</summary>
+  
   1. Weapon mods are not saved, so those need to be manually re-added upon re-equipping. The currently equipped mods are displayed on the results summary dialog.
   2. ~~If you decide to equip alternate weapons, such as a plastic sword after un-equipping, this is not currently honored automatically, and I haven't yet tested what happens upon re-equipping - there is normally a warning displayed telling you that your DBK will replace your plastic sword, for example.~~ 
   <br>*Added 7/16/2019, version 0.2*
@@ -49,6 +86,8 @@ Still to be implemented/Known Issues:
   5. The confirmation dialogs (results summary dialogs) displayed after an action could use a 'Do not show this again' checkbox. This will likey require adding JQuery library support, which should also allow for HTML style formatting, such as bold, italics, etc.
   
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save and Restore buttons. So one click would save the current config, and one click to restore that config. The current script *does* display what mods you have in place currently on un-equip, but *does not* yet restore them.
+
+</details>
 
 **Torn Numeric Rank Display**
 
@@ -62,13 +101,7 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 **Torn One-Click Daily Dime**
 
-Note: I've removed this for now, as I'm not sure if it breaks the rules or not. ~~The 'rules' link seems to have been removed, and~~ I'm not sure how to check without asking staff, and not sure I want to do that. ~~If anyone knows where the rules regarding scripting can be found, please let me know.~~
-
-Found the rules (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0):
-
-"The use of scripts, extensions, applications or any other kind of software is allowed only if it uses data from our API or a page you (or your users) have loaded manually and are currently viewing. They cannot make additional non-API requests to Torn, scrape pages that you're not currently viewing, or attempt to bypass the captcha. If the software you're using makes non-API requests that are not manually triggered by you, it is not allowed and can be tracked."
-
-So it does *not* sound like this script breaks the rules, as you have to be on the page to press the button that presses the button; it happens so fast you could not possibly leave the page before it completes. If anyone disagrees let me know, I'll wait a bit before re-enabling the link below.
+Note: I've removed this for now, as I'm not sure if it breaks the rules or not (see the 'Scripting Rules' section, above). I'll have to confer with Bogie again to verify.
 
 - [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
