@@ -69,6 +69,10 @@ Images:
 
 - [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.png)
 
+Sneak Peak at v2, that follows the rules:
+
+- [Torn Get Naked v2.png](https://i.imgur.com/bPzcYJF.png)
+
 Note: Removed for now, see the comments in the Scripting Rules section, above.
 
 Per Bogie's reply to my questions regarding this script, it has since been modified so that there are now 5 buttons, not one, hence the following paragraph is slightly outdated.
