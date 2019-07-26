@@ -176,6 +176,8 @@ Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basic
 
 Displays the cost of a BB of stock on the Stock Exchange page, beneath the share price. Useful to quickly see the price of a BB without having to 'fake' buying it or use a calculator. Written by nepherius [2009878]
 
+Note: It appears that this does not work well with the 'Stock Market Helper', below. It causes the display of the values of shares you own, on the Stock Exchange page, to appear as $NaN. Since version 1.8 of Stock Market Helper, the block price is displayed as the 'Benefist Price' on the Info page of a stock in the Stock xchange.
+
 - [Stock Market Helper.user.js](https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js)
 
 Torn Stock Helper that calculates your profit/loss in your portfolio, highlights forecasts that are poor, very poor, good and very good in the Stock Exchange, and lists the amount of $$ you have invested in stocks you have shares in. Also marks the stock's worth, as ($) 0 < 20b < 50b < 100b. And gets new data everytime stock profile reexpanded in Stock Exchange or your portfolio. Written by Mafia [610357]
