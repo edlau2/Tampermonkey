@@ -126,6 +126,16 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
+**Torn Jail Stats**
+
+- [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Stats.user.js)
+
+Images:
+
+- [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Stats.png)
+
+This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying you bust progress - bust successes, fails, and jails. Bail stats are hopefully forthcoming. Can be used towards monitoring your progress towards those merits.
+
 **Torn Jail Scores**
 
 - [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Scores.user.js)
