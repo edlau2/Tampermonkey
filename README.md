@@ -181,3 +181,7 @@ Note: It appears that this does not work well with the 'Stock Market Helper', be
 - [Stock Market Helper.user.js](https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js)
 
 Torn Stock Helper that calculates your profit/loss in your portfolio, highlights forecasts that are poor, very poor, good and very good in the Stock Exchange, and lists the amount of $$ you have invested in stocks you have shares in. Also marks the stock's worth, as ($) 0 < 20b < 50b < 100b. And gets new data everytime stock profile reexpanded in Stock Exchange or your portfolio. Written by Mafia [610357]
+
+- [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
+
+Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
