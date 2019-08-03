@@ -43,21 +43,22 @@
             return;
         }
 
-        // Disconnect the observer to prevent looping
-        observer.disconnect();
+        var mainDiv = document.getElementById('column0');
+        if (!validPointer(mainDiv)) {
+            return;
+        }
 
         // Piece everything together.
         var extDiv = createExtendedDiv();
         var hdrDiv = createHeaderDiv();
         var bodyDiv = createBodyDiv();
-        var contentDiv = createContentDiv();
+        var contentDiv = createContentDiv(); // This call also queries the Torn API...
 
         extDiv.appendChild(hdrDiv);
         hdrDiv.appendChild(document.createTextNode('Jail Stats'));
         extDiv.appendChild(bodyDiv);
         bodyDiv.appendChild(contentDiv);
 
-        var mainDiv = document.getElementById('column0');
         if (validPointer(mainDiv)) {
             mainDiv.appendChild(extDiv);
         }
@@ -184,12 +185,12 @@
         if (name != 'peoplebusted' && name != 'failedbusts' && name != 'jailed') {
             return 'N/A';
         }
-        realQuery(name); //Callback will set the correct value.
+        realStatsQuery(name); // Callback will set the correct value.
 
         return 'Please wait...';
     }
 
-    function realQuery(name) {
+    function realStatsQuery(name) {
         var details = GM_xmlhttpRequest({
             method:"POST",
             url:"https://api.torn.com/user/?selections=personalstats&key=" + api_key,
@@ -198,7 +199,7 @@
                 'Accept': 'application/json'
             },
             onload: function(response) {
-                realQueryCB(response.responseText, name);
+                realStatsQueryCB(response.responseText, name);
             },
             onerror: function(response) {
                 handleError(response.responseText);
@@ -226,17 +227,22 @@
     }
 
     // Callback to parse returned JSON
-    function realQueryCB(responseText, name) {
+    function realStatsQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
 
         if (jsonResp.error) {
             return handleError(responseText);
         }
 
-        var valSpan = document.getElementById('xedx-val-span-' + name);
+        var searchName = 'xedx-val-span-' + name;
+        var valSpan = document.getElementById(searchName);
         var stats = jsonResp.personalstats;
+        if (!validPointer(valSpan)) {
+            console.log('Unable to find proper span: ' + searchName + ' at ' + document.URL);
+            return;
+        }
 
-        console.log('Torn Jail Stats, realQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
+        console.log('Torn Jail Stats, realStatsQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
                     ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed);
         switch (name) {
             case 'peoplebusted':
@@ -254,6 +260,82 @@
                 return 'N/A';
                 break;
         }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Functions to query the Torn API for travel stats.
+    //////////////////////////////////////////////////////////////////////
+
+    // See if we are travelling. If we are, we need to wait until we
+    // land before turning the observer back on. Otherwise, we will
+    // re-call for personal stats too frequently, as the page changes
+    // all the time while flying.
+    function checkTravelling() {
+        queryTravelStats();
+    }
+
+    function queryTravelStats() {
+        var details = GM_xmlhttpRequest({
+            method:"POST",
+            url:"https://api.torn.com/user/?selections=travel&key=" + api_key,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                realBasicQueryCB(response.responseText, name);
+            },
+            onerror: function(response) {
+                handleError(response.responseText);
+            }
+        });
+    }
+
+    // Callback to parse returned JSON
+    function realBasicQueryCB(responseText, name) {
+        var jsonResp = JSON.parse(responseText);
+
+        if (jsonResp.error) {
+            console.log('Torn Jail Stats: re-enabling observer');
+            observer.observe(targetNode, config);
+            return handleError(responseText);
+        }
+
+        console.log('Torn Jail Stats, realBasicQueryCB');
+
+        // Sample responses:
+        /*
+        "travel": {
+		  "destination": "Switzerland",
+		  "timestamp": 1564855026,
+		  "departed": 1564847826,
+		  "time_left": 6185 // Seconds
+	    }
+
+        {
+	    "travel": {
+		  "destination": "Torn",
+		  "timestamp": 1564823178,
+		  "departed": 1564819938,
+		  "time_left": 0
+	    }
+        */
+
+        var stats = jsonResp.travel;
+        console.log('  Destination: ' + stats.destination +
+                    '\n  time_left: ' + stats.time_left + ' seconds.');
+        if (stats.time_left == 0 && stats.destination == 'Torn') {
+            console.log('Torn Jail Stats: re-enabling observer');
+            observer.observe(targetNode, config);
+        } else {
+            // If travelling, set timeout to re-connect the observer
+            // when we are scheduled to land.
+            setTimeout(function(){
+                console.log('Torn Jail Stats: re-enabling observer');
+                observer.observe(targetNode, config); },
+                       stats.time_left * 1000);
+        }
+
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -302,9 +384,23 @@
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
+
+        // debugger;
+
+        // Disconnect the observer to prevent looping before
+        // we start modifying the page.
+        console.log('Torn Jail Stats: disconnecting observer');
+        observer.disconnect();
         buildJailStatsDiv();
-        observer.observe(targetNode, config);
+
+        // This call either immediately re-connects the observer,
+        // or else sets a timeout to re-connect when we land, if
+        // we are travelling.
+        checkTravelling();
+
+        //observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
+    console.log('Torn Jail Stats: starting observer');
     observer.observe(targetNode, config);
 })();
