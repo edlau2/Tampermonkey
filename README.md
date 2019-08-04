@@ -169,6 +169,24 @@ Images:
 *** alpha - don't use yet ***
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
 
+# Extensions
+
+Extensions allow for things that aren't neccesarily page-specific, although these are Torn specific. They can be installed in two ways. When still in testing, or I haven't yet bothered to publish to the Chrome App Store, I'll distribute as a .zip file of all the required files. From chrome://extension, enable "developer mode". You will then see an option, "Load Unpacked". Browse from there to the directory containg the files extracted from the .zip file. My extensions all have an Options page which can be accessed via the "Details" menu of the extension. 
+
+Once in the Chrome App Store, the link will point there instead, and should install from there.
+
+**_Torn Loot Level Notifier_**
+
+- [Loot Level Notifier.zip](coming soon)
+
+Images:
+
+- [Loot Level Options.png](https://github.com/edlau2/Tampermonkey/blob/master/Loot%20Level%20Options.png)
+- [Loot Level Notification1.png]
+- [Loot Level Notification2.png]
+
+This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu.
+
 # 3rd Party Scripts
 
 These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
