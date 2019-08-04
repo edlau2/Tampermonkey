@@ -51,13 +51,13 @@ Note that the PNG files are not part of the installation, they are simple screen
 
 **_Torn Latest Attacks Extender_**
 
-- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.user.js)
+- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
 
 Images:
 
-- [Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender.png)
-- [Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender%202.png)
-- [Torn Latest Attacks Extender 3.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Latest%20Attacks%20Extender%203.png)
+- [Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.png)
+- [Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%202.png)
+- [Torn Latest Attacks Extender 3.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%203.png)
 
 This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
@@ -67,7 +67,7 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 Images:
 
-- [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.png)
+- [Torn Get Naked.png](https://github.com/edlau2/Tampermonkey/blob/master/GetNaked/Torn%20Get%20Naked.png)
 
 Sneak Peak at v2, that follows the rules:
 
@@ -96,11 +96,11 @@ Note: The ability to restore weapons modes may wind up being a separate script, 
 
 **_Torn Numeric Rank Display_**
 
-- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.user.js)
+- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js)
 
 Images:
 
-- [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Numeric%20Rank%20Display.png)
+- [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.png)
 
 This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section. This script also highlights using the MutationObserver object, so that chages are made only when the relevant DOM has been loaded.
 
@@ -108,7 +108,7 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 Note: I've removed this for now, as I'm not sure if it breaks the rules or not (see the 'Scripting Rules' section, above). I'll have to confer with Bogie again to verify.
 
-- [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
+- [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/DailyDime/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
 Images:
 
