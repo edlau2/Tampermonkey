@@ -63,7 +63,7 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 **_Torn Get Naked_**
 
-- [Torn Get Naked.user.js] <!-- (https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Get%20Naked.user.js) -->
+- [Torn Get Naked.user.js] <!-- (https://github.com/edlau2/Tampermonkey/blob/master/GetNaked/Torn%20Get%20Naked.user.js) -->
 
 Images:
 
@@ -118,21 +118,21 @@ This script lets you click the Daily Dime 'buy' button with one click - up to th
 
 **_Torn User List Extender_**
 
-- [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20User%20List%20Extender.user.js)
+- [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
 
 Images:
 
-- [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20User%20List%20Extender.png)
+- [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.png)
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
 **_Torn Jail Stats_**
 
-- [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Stats.user.js)
+- [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js)
 
 Images:
 
-- [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Stats.png)
+- [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
 
 This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying you bust progress - bust successes, fails, and jails. Bail stats are hopefully forthcoming. Can be used towards monitoring your progress towards those merits.
 
@@ -149,22 +149,22 @@ This script adds the "score" of a user in jail, which is used to determine the d
 
 **_Torn War Wall List Extender_**
 
-- [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Wall%20List%20Extender.user.js)
+- [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.user.js)
 
 Images:
 
-- [Torn War Wall List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Wall%20List%20Extender.png)
+- [Torn War Wall List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.png)
 
 *** Beta, just be aware that if it causes issues, you can disable from the Tampermonkey dashboard ***
 Similar to the above script, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. There is a glitch in that when a wall page is opened the first time, sometimes a refresh is required for the script to execute properly. Also, this script has a tendency to perform too many requests to the Torn api - there is a limit on requests (100 per minute), the result of which is that only the level may be displayed for certain users (new users getting on the wall) if there is heavy wall activity, or possible a '?' for rank. If multiple things are running that query the Torn API, and the faction has 100 members (or more) and the wall is full, this will most definitely be hit (as mentioned above, heavy wall activity may also affect this). This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
 
 **_Torn War Other Fac Extender_**
 
-- [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Other%20Fac%20Extender.user.js)
+- [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.user.js)
 
 Images:
 
-- [Torn War Other Fac Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20War%20Other%20Fac%20Extender.png)
+- [Torn War Other Fac Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.png)
 
 *** alpha - don't use yet ***
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
