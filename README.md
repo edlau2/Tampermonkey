@@ -138,11 +138,11 @@ This script adds a new section to your Home page, and display beneath the factio
 
 **_Torn Jail Scores_**
 
-- [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Scores.user.js)
+- [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailScores/Torn%20Jail%20Scores.user.js)
 
 Images:
 
-- [Torn Jail Scores.png](https://github.com/edlau2/Tampermonkey/blob/master/Torn%20Jail%20Scores.png)
+- [Torn Jail Scores.png](https://github.com/edlau2/Tampermonkey/blob/master/JailScores/Torn%20Jail%20Scores.png)
 
 This script adds the "score" of a user in jail, which is used to determine the difficulty (or your chance of success) of busting that user out of jail. The score is displayed as a number in parenthesis beneath the user's level. The score corresponds directly to the DocTorn 'Quick Bust/Quick Bail/Min Score/Max Score' bar scores. Some information, mostly speculative, can be found in this guide: https://www.tornstats.com/guides.php?id=22 Will also give you an idea of what to use as scores on the DocTorn bar if you'd like to use those filters.
 
