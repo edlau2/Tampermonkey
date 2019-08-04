@@ -63,6 +63,11 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 **_Torn Get Naked_**
 
+Note: Removed for now, see the comments in the Scripting Rules section, above.
+
+<details>
+  <summary>Click to see description...</summary>
+
 - [Torn Get Naked.user.js] <!-- (https://github.com/edlau2/Tampermonkey/blob/master/GetNaked/Torn%20Get%20Naked.user.js) -->
 
 Images:
@@ -72,8 +77,6 @@ Images:
 Sneak Peak at v2, that follows the rules:
 
 - [Torn Get Naked v2.png](https://i.imgur.com/bPzcYJF.png)
-
-Note: Removed for now, see the comments in the Scripting Rules section, above.
 
 Per Bogie's reply to my questions regarding this script, it has since been modified so that there are now 5 buttons, not one, hence the following paragraph is slightly outdated.
 
@@ -93,6 +96,7 @@ This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Press
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save and Restore buttons. So one click would save the current config, and one click to restore that config. The current script *does* display what mods you have in place currently on un-equip, but *does not* yet restore them.
 
 </details>
+</details>
 
 **_Torn Numeric Rank Display_**
 
@@ -108,6 +112,9 @@ This simple script appends a user's rank number next to the rank in the User Inf
 
 Note: I've removed this for now, as I'm not sure if it breaks the rules or not (see the 'Scripting Rules' section, above). I'll have to confer with Bogie again to verify.
 
+<details>
+  <summary>Click to see description...</summary>
+
 - [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/DailyDime/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
 Images:
@@ -115,6 +122,8 @@ Images:
 - [Torn One-Click Daily Dime.png](Coming Soon - when I have more tokens)
 
 This script lets you click the Daily Dime 'buy' button with one click - up to the number of casino tokens you have available. I am using it to get the 'Win a lottery' merit (Lucky Break), you can easily bet 75 times, refill, and bet 75 more times quickly. Or, as many tokens as you may have. 
+
+</details>
 
 **_Torn User List Extender_**
 
