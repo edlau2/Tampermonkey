@@ -195,7 +195,7 @@ These scripts aren't mine, just here for easy access by fac mates. The links lin
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
 
-<!--(https://github.com/edlau2/Tampermonkey/blob/master/Dibs.user.js)-->
+<!--(https://github.com/edlau2/Tampermonkey/blob/master/Dibs/Dibs.user.js)-->
 - [Dibs.user.js](https://greasyfork.org/nb/scripts/371859-dibs)
 
 Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted energy. Written by sullengenie [1946152]
