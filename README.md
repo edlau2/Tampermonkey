@@ -194,7 +194,9 @@ Images:
 - [Loot Level Notifier1.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier1.png)
 - [Loot Level Notifier22.png]
 
-This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu.
+This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu. The options allow you to select which NPC's to be notified about. At present this is only Duke and Leslie. You may also select to display notifications when the player is in hospital, at Loot Level I, II, III, IV or IV, and any combination of the above. By default, the notification is displayed for 10 seconds but can be closed at any time, and there is an Attack button available to go directly to the player's Attack page.
+
+One caveat: the time until next level is most accurate if the extension is running when the player is in the hospital, as the time left information can be used to calculate this. If not in hosp, the time left until next level will be off, until another level is hit (say transitioning from level I to level II), at that point it wil be accurate again until the extension is stopped. For example, if you install the extension when Duke is already at Loot Level I, the extension only knows that it is at most 30 minutesuntil Loot Level II, so that is added to the cuurent time, meaning Loot Level II may be reached anywhere in the next half hour. If the extension was started/installed when Duke was in hosp, then when the transition to loot level I occurrs, there is enough information to correctly determine when the transition to Loot Level II will occurr, and it will stay accurate until stopped or uninstalled.
 
 # 3rd Party Scripts
 
