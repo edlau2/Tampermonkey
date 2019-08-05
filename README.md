@@ -186,7 +186,9 @@ Once in the Chrome App Store, the link will point there instead, and should inst
 
 **_Torn Loot Level Notifier_**
 
-- [Loot Level Notifier.zip](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier.zip)
+- [Loot Level Notifier.zip version 1.2](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.2.zip)
+- [Loot Level Notifier.zip version 1.3 (adds auto-attack option, untested)](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.3.zip)
+
 
 Images:
 
