@@ -191,8 +191,8 @@ Once in the Chrome App Store, the link will point there instead, and should inst
 Images:
 
 - [Loot Level Options.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Options.png)
-- [Loot Level Notification1.png]
-- [Loot Level Notification2.png]
+- [Loot Level Notifier1.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier1.png)
+- [Loot Level Notifier22.png]
 
 This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu.
 
