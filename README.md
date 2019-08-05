@@ -187,8 +187,9 @@ Once in the Chrome App Store, the link will point there instead, and should inst
 **_Torn Loot Level Notifier_**
 
 - [Loot Level Notifier.zip version 1.2](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.2.zip)
-- [Loot Level Notifier.zip version 1.3 (adds auto-attack option, untested)](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.3.zip)
+- [Loot Level Notifier.zip version 1.4](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.4.zip)
 
+   Adds Auto Attack feature (untested), fixes the 'Time Until Level IV' display if not in hosp
 
 Images:
 
