@@ -189,7 +189,7 @@ Once in the Chrome App Store, the link will point there instead, and should inst
 - [Loot Level Notifier.zip version 1.2](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.2.zip)
 - [Loot Level Notifier.zip version 1.4](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.4.zip)
 
-   Version 1.4 adds Auto Attack feature (untested), fixes the 'Time Until Level IV' display if not in hosp
+   Version 1.4 adds Auto Attack feature, fixes the 'Time Until Level IV' display if not in hosp
 
 Images:
 
