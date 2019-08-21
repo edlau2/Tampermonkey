@@ -186,7 +186,7 @@ Once in the Chrome App Store, the link will point there instead, and should inst
 
 **_Torn Loot Level Notifier_**
 
-- [Loot Level Notifier.zip version 1.4.8](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.4.8.zip)
+- [Loot Level Notifier.zip version 1.4.9](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.4.9.zip)
 
 Images:
 
@@ -198,7 +198,9 @@ This script displays notifications regarding NPC loot levels, health, and the ti
 
 This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
 
-One caveat: the time until next level is most accurate if the extension is running when the player is in the hospital, as the time left information can be used to calculate this. If not in hosp, the time left until next level will be off, until another level is hit (say transitioning from level I to level II), at that point it wil be accurate again until the extension is stopped. For example, if you install the extension when Duke is already at Loot Level I, the extension only knows that it is at most 30 minutesuntil Loot Level II, so that is added to the cuurent time, meaning Loot Level II may be reached anywhere in the next half hour. If the extension was started/installed when Duke was in hosp, then when the transition to loot level I occurrs, there is enough information to correctly determine when the transition to Loot Level II will occurr, and it will stay accurate until stopped or uninstalled.
+One caveat: the time until next level is most accurate if the extension is running when the player is in the hospital, as the time left information can be used to calculate this. If not in hosp, the time left until next level will be off, until another level is hit (say transitioning from level I to level II), at that point it wil be accurate again until the extension is stopped. For example, if you install the extension when Duke is already at Loot Level I, the extension only knows that it is at most 30 minutesuntil Loot Level II, so that is added to the current time, meaning Loot Level II may be reached anywhere in the next half hour. If the extension was started/installed when Duke was in hosp, then when the transition to loot level I occurrs, there is enough information to correctly determine when the transition to Loot Level II will occurr, and it will stay accurate until stopped or uninstalled.
+
+There is a warning about an synchronous call, this can also be ignored. I will address this later, and also provide a mechanism to keep track of important info and only display when level IV is about to be hit, educing too many notifications.
 
 # 3rd Party Scripts
 
