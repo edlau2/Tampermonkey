@@ -194,7 +194,11 @@ Images:
 - [Loot Level Notifier1.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier1.png)
 - [Loot Level Notifier2.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier2.png)
 
-This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu. The options allow you to select which NPC's to be notified about. At present this is only Duke and Leslie. You may also select to display notifications when the player is in hospital, at Loot Level I, II, III, IV or IV, and any combination of the above. By default, the notification is displayed for 10 seconds but can be closed at any time, and there is an Attack button available to go directly to the player's Attack page.
+This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu. The options allow you to select which NPC's to be notified about. At present this is only Duke and Leslie. You may also select to display notifications when the player is in hospital, at Loot Level I, II, III, IV or IV, and any combination of the above. By default, the notification is displayed for 10 seconds but can be closed at any time, and there is an Attack button available to go directly to the player's Attack page. 
+
+There is also an option to automatically open the NPC's profile at level IV in a new tab - the Attack page.
+
+This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a MAc.
 
 This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
 
