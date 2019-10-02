@@ -232,3 +232,22 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 - [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
+
+- [R@ce H3lper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/r@ce%20h3lper/T-RN%20-%20-R@ce%20H3lper.user.js)
+
+Racing assistant script
+
+Accurate Stats for your car
+Showing accurate stats number of your car with percentage on your Listed Cars and Race Events
+
+EASY UPGRADE NOTIFICATION
+Got random events when your car crashed during race?
+
+Looking, searching, finding, or... go thru part by part to make sure your car are fully upgraded ?
+
+Don't worry, with this feature, you will notice which categories are available to upgrade (if you are not fully upgrade your car)
+
+DOWNLOAD CSV
+Also, there are feature to download all saved upgrade stats of your car into 1 CSV / Excel format. You can use it later if you need to view it at all or sorting on your pc.
+
+Originally written by Mafia, this is a slightly modified version as his was pulled. This one won't auto-update to the removed version. Kept for legacy purposes.
