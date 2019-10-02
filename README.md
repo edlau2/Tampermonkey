@@ -233,10 +233,13 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
 
-- [R@ce H3lper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)
+- [R@ce H3lper.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)-->
 
-Racing assistant script
+Racing assistant script. Note the link is disabled as I do not have permission from Mafi to re-distribute
 
+<details>
+  <summary>Click to see description...</summary>
+ 
 Accurate Stats for your car
 Showing accurate stats number of your car with percentage on your Listed Cars and Race Events
 
@@ -250,4 +253,6 @@ Don't worry, with this feature, you will notice which categories are available t
 DOWNLOAD CSV
 Also, there are feature to download all saved upgrade stats of your car into 1 CSV / Excel format. You can use it later if you need to view it at all or sorting on your pc.
 
-Originally written by Mafia, this is a slightly modified version as his was pulled. This one won't auto-update to the removed version. Kept for legacy purposes.
+Originally written by Mafia [610357], this is a slightly modified version as his was pulled. This one won't auto-update to the removed version. Kept for legacy purposes.
+
+</details>
