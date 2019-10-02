@@ -233,7 +233,7 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
 
-- [R@ce H3lper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/r@ce%20h3lper/T-RN%20-%20-R@ce%20H3lper.user.js)
+- [R@ce H3lper.user.js](https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)
 
 Racing assistant script
 
