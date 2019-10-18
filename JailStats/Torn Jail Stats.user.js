@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Adds basic jail stats to the Home page, jail busts and fails.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -31,6 +31,12 @@
         }
         return true;
     }
+
+    // Insert comma separators into a number
+    function numberWithCommas(x) {
+        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
 
     //////////////////////////////////////////////////////////////////////
     // Build the Jail Stats div, append underneath the Personal Perks div
@@ -126,8 +132,8 @@
 
         jailBustsLi.appendChild(createValueSpan('peoplebusted'));
         jailFailsLi.appendChild(createValueSpan('failedbusts'));
-        jailBailsLi.appendChild(createValueSpan('peoplebailed'));
-        jailFeesLi.appendChild(createValueSpan('bailfees'));
+        jailBailsLi.appendChild(createValueSpan('peoplebought'));
+        jailFeesLi.appendChild(createValueSpan('peopleboughtspent'));
         jailJailsLi.appendChild(createValueSpan('jailed'));
 
         ulList.appendChild(jailBustsLi);
@@ -182,15 +188,16 @@
     //////////////////////////////////////////////////////////////////////
 
     function queryPersonalStats(name) {
-        if (name != 'peoplebusted' && name != 'failedbusts' && name != 'jailed') {
-            return 'N/A';
-        }
-        realStatsQuery(name); // Callback will set the correct value.
+        //if (name != 'peoplebusted' && name != 'failedbusts' && name != 'jailed') {
+        //    return 'N/A';
+        //}
+
+        personalStatsQuery(name); // Callback will set the correct values.
 
         return 'Please wait...';
     }
 
-    function realStatsQuery(name) {
+    function personalStatsQuery(name) {
         var details = GM_xmlhttpRequest({
             method:"POST",
             url:"https://api.torn.com/user/?selections=personalstats&key=" + api_key,
@@ -199,7 +206,7 @@
                 'Accept': 'application/json'
             },
             onload: function(response) {
-                realStatsQueryCB(response.responseText, name);
+                personalStatsQueryCB(response.responseText, name);
             },
             onerror: function(response) {
                 handleError(response.responseText);
@@ -227,7 +234,7 @@
     }
 
     // Callback to parse returned JSON
-    function realStatsQueryCB(responseText, name) {
+    function personalStatsQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
 
         if (jsonResp.error) {
@@ -242,8 +249,12 @@
             return;
         }
 
-        console.log('Torn Jail Stats, realStatsQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
-                    ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed);
+        console.log('Torn Jail Stats, personalStatsQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
+                    ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed + ' bailed = ' + stats.peoplebought +
+                   ' Bail Fees = ' + stats.peopleboughtspent);
+
+        debugger;
+
         switch (name) {
             case 'peoplebusted':
                 valSpan.innerText = stats.peoplebusted;
@@ -255,6 +266,15 @@
                 break;
             case 'jailed':
                 valSpan.innerText = stats.jailed;
+                break;
+            case 'peoplebought':
+                valSpan.innerText = stats.peoplebought;
+                return jsonResp.peoplebought;
+                break;
+            case 'peopleboughtspent':
+                var ret = '$' + numberWithCommas(stats.peopleboughtspent);
+                valSpan.innerText = ret; //stats.peopleboughtspent;
+                return jsonResp.peopleboughtspent;
                 break;
             default:
                 return 'N/A';
@@ -270,6 +290,8 @@
     // land before turning the observer back on. Otherwise, we will
     // re-call for personal stats too frequently, as the page changes
     // all the time while flying.
+    //
+    // There are other places this needs to be done, too....
     function checkTravelling() {
         queryTravelStats();
     }
