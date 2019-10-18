@@ -39,7 +39,7 @@
     // UI helpers
     //////////////////////////////////////////////////////////////////////
 
-    /*
+    /* Will add a custom ID to the <li> to see if it already exists
         <li>
             <div class="user-information-section left width112">
                 <span class="bold>Net Worth</span>
@@ -55,6 +55,7 @@
 
         // Build the <li>
         var li = document.createElement('li'); // Main <li>
+        li.id = 'xedx-networth-li';
 
         var div = document.createElement('div'); // First <div>
         div.className = 'user-information-section left width112';
@@ -115,9 +116,13 @@
         }
 
         var stats = jsonResp.personalstats;
+
+        console.log("Got Net Worth: $" + numberWithCommas(stats.networth));
+
         globalNW = stats.networth; // Set the global, as returning a value from a callback makes no sense.
 
-
+        // Insert into the page
+        addNetWorthToProfile();
     }
 
    //////////////////////////////////////////////////////////////////////
@@ -155,7 +160,7 @@
     function parseURL(URL) {
         var n = URL.indexOf('='); // Find the '=' sign
         var n2 = URL.indexOf('#'); // Find the '#' sign
-        var ID = URL.slice(n, n2); // Extract just the ID from the URL, between the '=' and '#'
+        var ID = URL.slice(n+1, n2); // Extract just the ID from the URL, between the '=' and '#'
         return ID;
     }
 
@@ -163,20 +168,32 @@
         personalStatsQuery(ID); // Callback from this will set our global networth variable
     }
 
-    function addNetWorthToProfile(nw) {
+    function addNetWorthToProfile() {
 
-        debugger;
+        // Only do this once
+        var testDiv = document.getElementById('xedx-networth-li');
+        if (validPointer(testDiv)) {
+            return;
+        }
 
         // Underneath 'targetNode', find class 'basic-list' (a UL)
+
+        // Whole profile info section, left side
         var rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
 
-        // This fails, return 'undefined'
+        // Actual UL we need. Will fail if not yet loaded. Don't worry, we'll get called again later.
         var targetUL = rootDiv.getElementsByClassName('basic-list')[0];
+        if (!validPointer(targetUL)) {
+            return;
+        }
 
-        // Create an LI, mirroring th othe LI's in that list (will be a UI helper fn, createLI())
-        var li = createLI(nw);
+        // Create an LI, mirroring th othe LI's in that list
+        var li = createLI(globalNW);
+
         // Append to end of list and we're done.
-        targetUL.appendChild(li);
+        if (globalNW != 0) {
+            targetUL.appendChild(li);
+        }
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -206,14 +223,20 @@
         // Turn OFF the observer, otherwise we'll be triggered here when we edit the page.
         observer.disconnect();
 
-        // First, get the player's ID by parsing the URL, which is window.location.href
-        var ID = parseURL(window.location.href);
+        // Since when we call addNetWorthToProfile(), the section may not have loaded yet -
+        // if not, no need to do these again, so just do once - if not loaded, that function
+        // just returns and as things load, the observer will be called again.
+        if (!globalNW) {
+            // First, get the player's ID by parsing the URL, which is window.location.href
+            var ID = parseURL(window.location.href);
+            console.log("Got ID: " + ID);
 
-        // Next, query the Torn API (personalstats) and get networth
-        queryPersonalStatsNW(ID);
+            // Next, query the Torn API (personalstats) and get networth
+            queryPersonalStatsNW(ID);
+        }
 
-        // Finally, insert into the page
-        addNetWorthToProfile(globalNW);
+        // Finally, insert into the page (now done from the callback)
+        //addNetWorthToProfile();
 
         // We can re-connect our observer now.
         observer.observe(targetNode, config);
