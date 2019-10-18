@@ -119,10 +119,10 @@
 
         console.log("Got Net Worth: $" + numberWithCommas(stats.networth));
 
-        globalNW = stats.networth; // Set the global, as returning a value from a callback makes no sense.
+        //globalNW = stats.networth; // Set the global, as returning a value from a callback makes no sense.
 
         // Insert into the page
-        addNetWorthToProfile();
+        addNetWorthToProfile(stats.networth);
     }
 
    //////////////////////////////////////////////////////////////////////
@@ -168,7 +168,7 @@
         personalStatsQuery(ID); // Callback from this will set our global networth variable
     }
 
-    function addNetWorthToProfile() {
+    function addNetWorthToProfile(nw) {
 
         // Only do this once
         var testDiv = document.getElementById('xedx-networth-li');
@@ -188,12 +188,10 @@
         }
 
         // Create an LI, mirroring th othe LI's in that list
-        var li = createLI(globalNW);
+        var li = createLI(nw);
 
         // Append to end of list and we're done.
-        if (globalNW != 0) {
-            targetUL.appendChild(li);
-        }
+        targetUL.appendChild(li);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -216,7 +214,7 @@
     // Well, sort, it's a div underneat maincontainer but should still be there
     var targetNode = document.getElementById('profileroot');
     var config = { attributes: true, childList: true, subtree: true };
-    var globalNW = 0; // Global to hold the result of the querie's callback
+    //var globalNW = 0; // Global to hold the result of the querie's callback
 
     var callback = function(mutationsList, observer) {
         // This is where all the work is done
@@ -226,14 +224,10 @@
         // Since when we call addNetWorthToProfile(), the section may not have loaded yet -
         // if not, no need to do these again, so just do once - if not loaded, that function
         // just returns and as things load, the observer will be called again.
-        if (!globalNW) {
-            // First, get the player's ID by parsing the URL, which is window.location.href
-            var ID = parseURL(window.location.href);
-            console.log("Got ID: " + ID);
 
-            // Next, query the Torn API (personalstats) and get networth
-            queryPersonalStatsNW(ID);
-        }
+        // Query the Torn API (personalstats) and get networth
+        // The callback from the query actually populates the UI
+        queryPersonalStatsNW(parseURL(window.location.href));
 
         // Finally, insert into the page (now done from the callback)
         //addNetWorthToProfile();
