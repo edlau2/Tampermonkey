@@ -12,6 +12,9 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+(function($) {
+    'use strict';
+
     //////////////////////////////////////////////////////////////////////
     // Utility functions
     //////////////////////////////////////////////////////////////////////
@@ -53,7 +56,7 @@
         // Build the <li>
         var li = document.createElement('li'); // Main <li>
 
-        var div = document.reateElement('div'); // First <div>
+        var div = document.createElement('div'); // First <div>
         div.className = 'user-information-section left width112';
 
         var span = document.createElement('span'); // Span inside of the <div>
@@ -161,8 +164,15 @@
     }
 
     function addNetWorthToProfile(nw) {
+
+        debugger;
+
         // Underneath 'targetNode', find class 'basic-list' (a UL)
-        var targetUL = targetNode.findElementByClassName('basic-list');
+        var rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
+
+        // This fails, return 'undefined'
+        var targetUL = rootDiv.getElementsByClassName('basic-list')[0];
+
         // Create an LI, mirroring th othe LI's in that list (will be a UI helper fn, createLI())
         var li = createLI(nw);
         // Append to end of list and we're done.
@@ -176,23 +186,38 @@
 
     console.log("Networth Display script started!");
 
-    // Our target node is more effectively "basic-information profile-left-wrapper left"
-    // That's the class name of the profile stats section on a profile page.
-    // I got that from the inspector in Chrome. It's a global
-    var targetNode = document.getElementByClassName('basic-information profile-left-wrapper left');
+    // Make sure we have an API key
+    var api_key = GM_getValue('gm_api_key');
+    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
+        api_key = prompt("Please enter your API key.\n" +
+                         "Your key will be saved locally so you won't have to be asked again.\n" +
+                         "Your key is kept private and not shared with anyone.", "");
+        GM_setValue('gm_api_key', api_key);
+    }
+
+    // Main conatainer for all the other DOM, loaded first so should be available.
+    // Well, sort, it's a div underneat maincontainer but should still be there
+    var targetNode = document.getElementById('profileroot');
     var config = { attributes: true, childList: true, subtree: true };
+    var globalNW = 0; // Global to hold the result of the querie's callback
+
     var callback = function(mutationsList, observer) {
         // This is where all the work is done
-        //
+        // Turn OFF the observer, otherwise we'll be triggered here when we edit the page.
+        observer.disconnect();
+
         // First, get the player's ID by parsing the URL, which is window.location.href
         var ID = parseURL(window.location.href);
 
         // Next, query the Torn API (personalstats) and get networth
-        var globalNW = 0; // Global to hold the result of the querie's callback
         queryPersonalStatsNW(ID);
 
         // Finally, insert into the page
-        addNetWorthToProfile(nw);
+        addNetWorthToProfile(globalNW);
+
+        // We can re-connect our observer now.
+        observer.observe(targetNode, config);
+
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
