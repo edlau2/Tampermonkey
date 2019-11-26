@@ -98,6 +98,16 @@ Note: The ability to restore weapons modes may wind up being a separate script, 
 </details>
 </details>
 
+**_Torn Net Worth Display_**
+
+- [Torn Net Worth Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.user.js)
+
+Images:
+
+- Coming soon.
+
+This simple script display a user's net worth on their profile page, immediately beneath their "last action". Note that this is net worth, not cash on hand.
+
 **_Torn Numeric Rank Display_**
 
 - [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js)
