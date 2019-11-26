@@ -143,7 +143,7 @@ Images:
 
 - [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
 
-This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying you bust progress - bust successes, fails, and jails. Bail stats are hopefully forthcoming. Can be used towards monitoring your progress towards those merits.
+This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying you bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards those merits.
 
 **_Torn Jail Scores_**
 
