@@ -2,7 +2,7 @@
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
 // @version      0.2
-// @description  Adds basic jail stats to the Home page, jail busts and fails.
+// @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
 // @connect      tornstats.com
@@ -61,7 +61,7 @@
         var contentDiv = createContentDiv(); // This call also queries the Torn API...
 
         extDiv.appendChild(hdrDiv);
-        hdrDiv.appendChild(document.createTextNode('Jail Stats'));
+        hdrDiv.appendChild(document.createTextNode('Jail and Bounty Stats'));
         extDiv.appendChild(bodyDiv);
         bodyDiv.appendChild(contentDiv);
 
@@ -112,7 +112,7 @@
         var contentDiv = document.createElement('div');
         contentDiv.id = 'xedx-jail-stats-content-div';
         contentDiv.className = 'cont-gray bottom-round';
-        contentDiv.setAttribute('style', 'width: 386px; height: 124px; overflow: auto');
+        contentDiv.setAttribute('style', 'width: 386px; height: 174px; overflow: auto');
 
         var ulList = document.createElement('ul')
         ulList.className = 'info-cont-wrap';
@@ -123,24 +123,32 @@
         var jailBailsLi = document.createElement('li');
         var jailFeesLi = document.createElement('li');
         var jailJailsLi = document.createElement('li');
+        var bountiesLi = document.createElement('li');
+        var bountiesFeesLi = document.createElement('li');
 
         jailBustsLi.appendChild(createDividerSpan('People Busted'));
         jailFailsLi.appendChild(createDividerSpan('Failed Busts'));
         jailBailsLi.appendChild(createDividerSpan('People Bailed'));
         jailFeesLi.appendChild(createDividerSpan('Bail Fees'));
         jailJailsLi.appendChild(createDividerSpan('Times Jailed'));
+        bountiesLi.appendChild(createDividerSpan('Bounties Collected'));
+        bountiesFeesLi.appendChild(createDividerSpan('Bounty Fees'));
 
         jailBustsLi.appendChild(createValueSpan('peoplebusted'));
         jailFailsLi.appendChild(createValueSpan('failedbusts'));
         jailBailsLi.appendChild(createValueSpan('peoplebought'));
         jailFeesLi.appendChild(createValueSpan('peopleboughtspent'));
         jailJailsLi.appendChild(createValueSpan('jailed'));
+        bountiesLi.appendChild(createValueSpan('bountiescollected'));
+        bountiesFeesLi.appendChild(createValueSpan('totalbountyreward'));
 
         ulList.appendChild(jailBustsLi);
         ulList.appendChild(jailFailsLi);
         ulList.appendChild(jailBailsLi);
         ulList.appendChild(jailFeesLi);
         ulList.appendChild(jailJailsLi);
+        ulList.appendChild(bountiesLi);
+        ulList.appendChild(bountiesFeesLi);
 
         return contentDiv;
     }
@@ -188,9 +196,6 @@
     //////////////////////////////////////////////////////////////////////
 
     function queryPersonalStats(name) {
-        //if (name != 'peoplebusted' && name != 'failedbusts' && name != 'jailed') {
-        //    return 'N/A';
-        //}
 
         personalStatsQuery(name); // Callback will set the correct values.
 
@@ -275,6 +280,15 @@
                 var ret = '$' + numberWithCommas(stats.peopleboughtspent);
                 valSpan.innerText = ret; //stats.peopleboughtspent;
                 return jsonResp.peopleboughtspent;
+                break;
+            case 'bountiescollected':
+                valSpan.innerText = stats.bountiescollected;
+                return jsonResp.bountiescollected;
+                break;
+            case 'totalbountyreward':
+                ret = '$' + numberWithCommas(stats.totalbountyreward);
+                valSpan.innerText = ret;
+                return jsonResp.totalbountyreward;
                 break;
             default:
                 return 'N/A';
