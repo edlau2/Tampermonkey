@@ -212,11 +212,7 @@ This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a M
 
 This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
 
-EDIT: The following paragraph is no longer true, I have re-written using the YATA API, and fixed several bugs - but it hasn't been uploaded yet. This note, and the following caveat, will be removed when I get around to uploading the new version. So if you're interested in this extension, wait a day or two - from today, Feb 9th, before downloading and installing.
-
-One caveat: the time until next level is most accurate if the extension is running when the player is in the hospital, as the time left information can be used to calculate this. If not in hosp, the time left until next level will be off, until another level is hit (say transitioning from level I to level II), at that point it wil be accurate again until the extension is stopped. For example, if you install the extension when Duke is already at Loot Level I, the extension only knows that it is at most 30 minutesuntil Loot Level II, so that is added to the current time, meaning Loot Level II may be reached anywhere in the next half hour. If the extension was started/installed when Duke was in hosp, then when the transition to loot level I occurrs, there is enough information to correctly determine when the transition to Loot Level II will occurr, and it will stay accurate until stopped or uninstalled.
-
-There is a warning about an synchronous call, this can be ignored. I will address this later, and also provide a mechanism to keep track of important info and only display when level IV is about to be hit, reducing too many notifications.
+There is a warning Idisplays as an error) about an synchronous call, this can be ignored. I will address this later, given time. Async is partially implemented but still in alpha, so not enabled at this time.
 
 # 3rd Party Scripts
 
