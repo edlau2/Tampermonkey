@@ -218,7 +218,13 @@ There is a warning Idisplays as an error) about an synchronous call, this can be
 
 These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
 
+The two following links point to the same code, no idea why named differently.
+
+OpenUseJS link:
 - [TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)
+
+Alterenate, GreasyFork link:
+- [TORN: High/Low Helper.user.js](https://greasyfork.org/en/scripts/391481-torn-high-low-helper)
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
 
