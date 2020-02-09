@@ -12,6 +12,10 @@ Repository for TamperMonkey scripts
 6. Paste the source into the script window and select file->save.
 7. Viola!
 
+There are other ways, or I could upload to OpenUserJS or GreasyFork, but I'm lazy and don't want to take the time, even though I have accounts there.
+
+The majority of the third-party scripts are usually self-installing (just press an "install" button). They are usually hosted at either OpenUserJS or GreasyFork.
+
 # Scripting Rules
 
 The rules for scripting, from the "Tools and Userscripts" forum (https://www.torn.com/forums.php#/p=threads&f=67&t=16037108&b=0&a=0), are as follows:
@@ -239,9 +243,19 @@ Displays the cost of a BB of stock on the Stock Exchange page, beneath the share
 
 Note: It appears that this does not work well with the 'Stock Market Helper', below. It causes the display of the values of shares you own, on the Stock Exchange page, to appear as $NaN. Since version 1.8 of Stock Market Helper, the block price is displayed as the 'Benefist Price' on the Info page of a stock in the Stock xchange.
 
-- [Stock Market Helper.user.js](https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js)
+- [Stock Market Helper.user.js] <!-- (https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js) -->
 
+Note: the link is disabled as I do not have permission from Mafia to re-distribute. 
+He has taken down ALL of his scripts.
+Kept here for legacy purposes.
+
+<details>
+  <summary>Click to see description...</summary>
+ 
 Torn Stock Helper that calculates your profit/loss in your portfolio, highlights forecasts that are poor, very poor, good and very good in the Stock Exchange, and lists the amount of $$ you have invested in stocks you have shares in. Also marks the stock's worth, as ($) 0 < 20b < 50b < 100b. And gets new data everytime stock profile reexpanded in Stock Exchange or your portfolio. Written by Mafia [610357]
+
+</details>
+
 
 - [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
 
@@ -249,7 +263,10 @@ Puts a big red warning on items that are priced way above their market value. Wr
 
 - [R@ce H3lper.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)-->
 
-Racing assistant script. Note the link is disabled as I do not have permission from Mafi to re-distribute
+Racing assistant script. 
+Note: the link is disabled as I do not have permission from Mafia to re-distribute.
+He has taken down ALL of his scripts.
+Kept here for legacy purposes.
 
 <details>
   <summary>Click to see description...</summary>
