@@ -160,6 +160,8 @@ Images:
 
 This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total, ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits.
 
+Note: I haven't yet found the names for the stats for Shrooms, Speed, and PCP in theTorn API. Every other drug is listed in the 'personalstats' field. When I find the, I'll add them. For now it displays 'unavailable'.
+
 **_Torn Jail Stats_**
 
 - [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js)
