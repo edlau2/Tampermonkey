@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -135,7 +135,7 @@
 
         cannibusLi.appendChild(createDividerSpan('Cannibus Used'));
         ecstasyLi.appendChild(createDividerSpan('Ecstsy Used'));
-        ketamineLi.appendChild(createDividerSpan('Ecstsy Used'));
+        ketamineLi.appendChild(createDividerSpan('Ketamine Used'));
         lsdLi.appendChild(createDividerSpan('LSD Used'));
         opiumLi.appendChild(createDividerSpan('Opium Used'));
         shroomsLi.appendChild(createDividerSpan('Shrooms Used'));
@@ -153,12 +153,9 @@
         ketamineLi.appendChild(createValueSpan('kettaken'));
         lsdLi.appendChild(createValueSpan('lsdtaken'));
         opiumLi.appendChild(createValueSpan('opitaken'));
-
-        // Haven't found key for these yet
-        shroomsLi.appendChild(createValueSpan('', false));
-        speedLi.appendChild(createValueSpan('', false));
-        pcpLi.appendChild(createValueSpan('', false));
-
+        shroomsLi.appendChild(createValueSpan('shrtaken'));
+        speedLi.appendChild(createValueSpan('spetaken', false));
+        pcpLi.appendChild(createValueSpan('pcptaken', false));
         xanaxLi.appendChild(createValueSpan('xantaken'));
         vicodinLi.appendChild(createValueSpan('victaken'));
         totalTakenLi.appendChild(createValueSpan('drugsused'));
@@ -196,7 +193,7 @@
     }
 
     function createValueSpan(item, query=true) {
-        var value = "Not available ATM";
+        var value = "0";
         if (query) {
             value = queryPersonalStats(item);
         }
@@ -235,9 +232,13 @@
 
         personalStatsQuery(name); // Callback will set the correct values.
 
-        return 'Please wait...';
+        //return 'Please wait...';
+        return "0";
     }
 
+    // This should only be done once, just save the result.
+    // I'll do that later when I have to refactor again.
+    // Currently executes 14 requests.
     function personalStatsQuery(name) {
         var details = GM_xmlhttpRequest({
             method:"POST",
@@ -267,6 +268,8 @@
     function personalStatsQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
 
+        console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name);
+
         if (jsonResp.error) {
             return handleError(responseText);
         }
@@ -279,65 +282,18 @@
             return;
         }
 
-        switch (name) {
-            case 'rehabs':
-                valSpan.innerText = stats.rehabs;
-                return jsonResp.rehabs;
-                break;
-            case 'opitaken':
-                valSpan.innerText = stats.opitaken;
-                return jsonResp.opitaken;
-                break;
-            case 'lsdtaken':
-                valSpan.innerText = stats.lsdtaken;
-                return jsonResp.lsdtaken;
-                break;
-            case 'overdosed':
-                valSpan.innerText = stats.overdosed;
-                return jsonResp.overdosed;
-                break;
-            case 'rehabcost':
-                var ret = '$' + numberWithCommas(stats.rehabcost);
-                valSpan.innerText = ret;
-                return jsonResp.rehabcost;
-                break;
-            case 'drugsused':
-                valSpan.innerText = stats.drugsused;
-                return jsonResp.drugsused;
-                break;
-            case 'victaken':
-                valSpan.innerText = stats.victaken;
-                return jsonResp.victaken;
-                break;
-            case 'xantaken':
-                valSpan.innerText = stats.xantaken;
-                return jsonResp.victaken;
-                break;
-            case 'exttaken':
-                valSpan.innerText = stats.exttaken;
-                return jsonResp.victaken;
-                break;
-            case 'kettaken':
-                valSpan.innerText = stats.kettaken;
-                return jsonResp.victaken;
-                break;
-            case 'cantaken':
-                valSpan.innerText = stats.cantaken;
-                return jsonResp.cantaken;
-                break;
-
-            // Dont know what these are yet...
-            case 'shroomstaken':
-                break;
-            case 'speedtaken':
-                break;
-            case 'lsdtaken':
-                break;
-
-            default:
-                return 'Bad Param';
-                break;
+        // If this fails, have never used this drug. Not an error.
+        if (!validPointer(stats[name])) {
+            return "0";
         }
+
+        if (!name.localeCompare('rehabcost')) {
+            valSpan.innerText = '$' + numberWithCommas(stats[name]);
+        } else {
+            valSpan.innerText = stats[name];
+        }
+
+    return jsonResp.name;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -381,7 +337,7 @@
             return handleError(responseText);
         }
 
-        console.log('Torn Drug Stats, realBasicQueryCB');
+        console.log('Torn Drug Stats, realBasicQueryCB (travelling check)');
 
         var stats = jsonResp.travel;
         console.log('  Destination: ' + stats.destination +
