@@ -155,8 +155,8 @@ This script adds rank next to the level in the User List, as seen when searching
 
 Images:
 
-- [Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Drug%20Stats-1.png)
-- [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Drug%20Stats-2.png)
+- [Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-1.png)
+- [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
 
 This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total, ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits.
 
