@@ -177,6 +177,7 @@
         ulList.appendChild(xanaxLi);
         ulList.appendChild(vicodinLi);
         ulList.appendChild(totalTakenLi);
+        ulList.appendChild(odsLi);
         ulList.appendChild(rehabsLi);
         ulList.appendChild(rehabCostLi);
 
