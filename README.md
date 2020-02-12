@@ -149,6 +149,17 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
+**_Torn Drug Stats_**
+
+- [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats.user.js)
+
+Images:
+
+- [Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Drug%20Stats-1.png)
+- [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Drug%20Stats-2.png)
+
+This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total, ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits.
+
 **_Torn Jail Stats_**
 
 - [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js)
@@ -157,7 +168,7 @@ Images:
 
 - [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
 
-This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying you bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards those merits.
+This script adds a new section to your Home page, and displays beneath the faction perks section a new section, similar to the Crimes section, displaying your bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards bust and bail merits.
 
 **_Torn Jail Scores_**
 
@@ -192,42 +203,16 @@ Images:
 *** alpha - don't use yet ***
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
 
-# Extensions
-
-Extensions allow for things that aren't neccesarily page-specific, although these are Torn specific. They can be installed in two ways. When still in testing, or I haven't yet bothered to publish to the Chrome App Store, I'll distribute as a .zip file of all the required files. From chrome://extension, enable "developer mode". You will then see an option, "Load Unpacked". Browse from there to the directory containg the files extracted from the .zip file. My extensions all have an Options page which can be accessed via the "Details" menu of the extension. 
-
-Once in the Chrome App Store, the link will point there instead, and should install from there.
-
-**_Torn Loot Level Notifier_**
-
-- [Loot Level Notifier.zip version 1.6.1](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.6.1.zip)
-
-Images:
-
-- [Loot Level Options.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Options.png)
-- [Loot Level Notifier1.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier1.png)
-- [Loot Level Notifier2.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier2.png)
-
-This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu. The options allow you to select which NPC's to be notified about. At present this is only Duke and Leslie. You may also select to display notifications when the player is in hospital, at Loot Level I, II, III, IV or IV, and any combination of the above. By default, the notification is displayed for 10 seconds but can be closed at any time, and there is an Attack button available to go directly to the player's Attack page. 
-
-There is also an option to automatically open the NPC's profile at level IV in a new tab - the Attack page.
-
-This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a MAc.
-
-This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
-
-There is a warning Idisplays as an error) about an synchronous call, this can be ignored. I will address this later, given time. Async is partially implemented but still in alpha, so not enabled at this time.
-
 # 3rd Party Scripts
 
 These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
 
-The two following links point to the same code, no idea why named differently.
+The two following links point to the same code, no idea why named differently. 
 
 OpenUseJS link:
 - [TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)
 
-Alterenate, GreasyFork link:
+Alternate, GreasyFork link:
 - [TORN: High/Low Helper.user.js](https://greasyfork.org/en/scripts/391481-torn-high-low-helper)
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
@@ -256,7 +241,6 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 
 </details>
 
-
 - [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
@@ -282,8 +266,45 @@ Looking, searching, finding, or... go thru part by part to make sure your car ar
 Don't worry, with this feature, you will notice which categories are available to upgrade (if you are not fully upgrade your car)
 
 DOWNLOAD CSV
+
 Also, there are feature to download all saved upgrade stats of your car into 1 CSV / Excel format. You can use it later if you need to view it at all or sorting on your pc.
 
 Originally written by Mafia [610357], this is a slightly modified version as his was pulled. This one won't auto-update to the removed version. Kept for legacy purposes.
 
 </details>
+
+# Extensions
+
+Extensions allow for things that aren't neccesarily page-specific, although these are Torn specific. They can be installed in two ways. When still in testing, or I haven't yet bothered to publish to the Chrome App Store, I'll distribute as a .zip file of all the required files. From chrome://extension, enable "developer mode". You will then see an option, "Load Unpacked". Browse from there to the directory containg the files extracted from the .zip file. My extensions all have an Options page which can be accessed via the "Details" menu of the extension. 
+
+Once in the Chrome App Store, the link will point there instead, and should install from there.
+
+**_Torn Loot Level Notifier_**
+
+- [Loot Level Notifier.zip version 1.6.1](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.6.1.zip)
+
+Images:
+
+- [Loot Level Options.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Options.png)
+- [Loot Level Notifier1.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier1.png)
+- [Loot Level Notifier2.png](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier2.png)
+
+This script displays notifications regarding NPC loot levels, health, and the time when the next loot level will be hit, as well as an option to go directly to the NPC's attack page. The notifications displayed can be configured from the Options menu. The options allow you to select which NPC's to be notified about. At present this is only Duke and Leslie. You may also select to display notifications when the player is in hospital, at Loot Level I, II, III, IV or IV, and any combination of the above. By default, the notification is displayed for 10 seconds but can be closed at any time, and there is an Attack button available to go directly to the player's Attack page. 
+
+There is also an option to automatically open the NPC's profile at level IV in a new tab - the Attack page.
+
+This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a MAc.
+
+This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
+
+There is a warning Idisplays as an error) about an synchronous call, this can be ignored. I will address this later, given time. Async is partially implemented but still in alpha, so not enabled at this time.
+
+# Third Party Extensions
+
+These extensions aren't mine, just here for easy access by fac mates. The links link to the respective author's repos or the Chrome App Store.
+
+- [Torn HiLo Assistant](https://www.torn.com/forums.php#/?p=threads&f=67&t=16059935&b=0&a=0&start=0&to=18782179)
+
+The link above is to a forum post that explains it all. It has two links, one for the Chrome app store and one for Firefox, at mozilla.org, which both have screenshots. As of this writing, it appears to be broken. Version 0.0.2
+
+
