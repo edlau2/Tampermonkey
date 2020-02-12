@@ -209,6 +209,8 @@ Similar to the above script, this extends the user list of another faction, typi
 
 These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
 
+**_TORN HighLow Helper_**
+
 The two following links point to the same code, no idea why named differently. 
 
 OpenUseJS link:
@@ -219,16 +221,22 @@ Alternate, GreasyFork link:
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
 
+**_Dibs_**
+
 <!--(https://github.com/edlau2/Tampermonkey/blob/master/Dibs/Dibs.user.js)-->
 - [Dibs.user.js](https://greasyfork.org/nb/scripts/371859-dibs)
 
 Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted energy. Written by sullengenie [1946152]
+
+**_Stock Block Price_**
 
 - [Stock Block Price.user.js](https://github.com/Nepherius/userscrips/raw/master/stock_block_price.user.js)
 
 Displays the cost of a BB of stock on the Stock Exchange page, beneath the share price. Useful to quickly see the price of a BB without having to 'fake' buying it or use a calculator. Written by nepherius [2009878]
 
 Note: It appears that this does not work well with the 'Stock Market Helper', below. It causes the display of the values of shares you own, on the Stock Exchange page, to appear as $NaN. Since version 1.8 of Stock Market Helper, the block price is displayed as the 'Benefist Price' on the Info page of a stock in the Stock xchange.
+
+**_Stock Market Helper_**
 
 - [Stock Market Helper.user.js] <!-- (https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js) -->
 
@@ -304,6 +312,8 @@ There is a warning Idisplays as an error) about an synchronous call, this can be
 # Third Party Extensions
 
 These extensions aren't mine, just here for easy access by fac mates. The links link to the respective author's repos or the Chrome App Store.
+
+**_Torn HiLo Assistant_**
 
 - [Torn HiLo Assistant](https://www.torn.com/forums.php#/?p=threads&f=67&t=16059935&b=0&a=0&start=0&to=18782179)
 
