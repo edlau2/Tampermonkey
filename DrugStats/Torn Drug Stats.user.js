@@ -113,7 +113,6 @@
         contentDiv.id = 'xedx-drug-stats-content-div';
         contentDiv.className = 'cont-gray bottom-round';
         contentDiv.setAttribute('style', 'width: 386px; height: 174px; overflow: auto');
-        //contentDiv.setAttribute('style', 'width: 386px; height: 174px');
 
         var ulList = document.createElement('ul')
         ulList.className = 'info-cont-wrap';
@@ -135,8 +134,8 @@
         var rehabCostLi = document.createElement('li');
 
         cannibusLi.appendChild(createDividerSpan('Cannibus Used'));
-        ecstasyLi.appendChild(createDividerSpan('Ecstsyibus Used'));
-        ketamineLi.appendChild(createDividerSpan('Ecstsyibus Used'));
+        ecstasyLi.appendChild(createDividerSpan('Ecstsy Used'));
+        ketamineLi.appendChild(createDividerSpan('Ecstsy Used'));
         lsdLi.appendChild(createDividerSpan('LSD Used'));
         opiumLi.appendChild(createDividerSpan('Opium Used'));
         shroomsLi.appendChild(createDividerSpan('Shrooms Used'));
@@ -203,7 +202,7 @@
         var valSpan = document.createElement('span');
         valSpan.id = 'xedx-val-span-' + item;
         //valSpan.className = 'desc';
-        // This compensates for the scrollbar. So we don't use the 'desc' attributes.
+        // This compensates for the scrollbar. So we don't use the 'desc' CSS attributes.
         valSpan.setAttribute('style', 'width: 160px');
         valSpan.innerText = value;
         return valSpan;
@@ -279,13 +278,6 @@
             return;
         }
 
-        /*
-        console.log('Torn Drug Stats, personalStatsQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
-                    ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed + ' bailed = ' + stats.peoplebought +
-                   ' Bail Fees = ' + stats.peopleboughtspent);
-        debugger;
-        */
-
         switch (name) {
             case 'rehabs':
                 valSpan.innerText = stats.rehabs;
@@ -305,7 +297,7 @@
                 break;
             case 'rehabcost':
                 var ret = '$' + numberWithCommas(stats.rehabcost);
-                valSpan.innerText = ret; //stats.peopleboughtspent;
+                valSpan.innerText = ret;
                 return jsonResp.rehabcost;
                 break;
             case 'drugsused':
@@ -316,26 +308,31 @@
                 valSpan.innerText = stats.victaken;
                 return jsonResp.victaken;
                 break;
-            case 'victaken':
-                valSpan.innerText = stats.victaken;
-                return jsonResp.victaken;
-                break;
             case 'xantaken':
-                valSpan.innerText = stats.victaken;
+                valSpan.innerText = stats.xantaken;
                 return jsonResp.victaken;
                 break;
             case 'exttaken':
-                valSpan.innerText = stats.victaken;
+                valSpan.innerText = stats.exttaken;
                 return jsonResp.victaken;
                 break;
             case 'kettaken':
-                valSpan.innerText = stats.victaken;
+                valSpan.innerText = stats.kettaken;
                 return jsonResp.victaken;
                 break;
             case 'cantaken':
                 valSpan.innerText = stats.cantaken;
                 return jsonResp.cantaken;
                 break;
+
+            // Dont know what these are yet...
+            case 'shroomstaken':
+                break;
+            case 'speedtaken':
+                break;
+            case 'lsdtaken':
+                break;
+
             default:
                 return 'Bad Param';
                 break;
