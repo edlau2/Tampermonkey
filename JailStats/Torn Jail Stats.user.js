@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -59,7 +59,7 @@
         var hdrDiv = createHeaderDiv();
         var bodyDiv = createBodyDiv();
         var contentDiv = createContentDiv(); // This call also queries the Torn API...
-
+                                             // We really should call only once and cache the data
         extDiv.appendChild(hdrDiv);
         hdrDiv.appendChild(document.createTextNode('Jail and Bounty Stats'));
         extDiv.appendChild(bodyDiv);
@@ -82,7 +82,7 @@
 
     function createExtendedDiv() {
         var extendedDiv = document.createElement('div');
-        extendedDiv.className = 'sortavble-box t-blue-cont h';
+        extendedDiv.className = 'sortable-box t-blue-cont h';
         extendedDiv.id = 'xedx-jail-stats-ext';
         return extendedDiv;
     }
@@ -132,7 +132,7 @@
         jailFeesLi.appendChild(createDividerSpan('Bail Fees'));
         jailJailsLi.appendChild(createDividerSpan('Times Jailed'));
         bountiesLi.appendChild(createDividerSpan('Bounties Collected'));
-        bountiesFeesLi.appendChild(createDividerSpan('Bounty Fees'));
+        bountiesFeesLi.appendChild(createDividerSpan('Bounty Rewards'));
 
         jailBustsLi.appendChild(createValueSpan('peoplebusted'));
         jailFailsLi.appendChild(createValueSpan('failedbusts'));
@@ -258,7 +258,7 @@
                     ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed + ' bailed = ' + stats.peoplebought +
                    ' Bail Fees = ' + stats.peopleboughtspent);
 
-        debugger;
+        //debugger;
 
         switch (name) {
             case 'peoplebusted':
