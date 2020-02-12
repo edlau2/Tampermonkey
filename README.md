@@ -307,6 +307,10 @@ These extensions aren't mine, just here for easy access by fac mates. The links 
 
 - [Torn HiLo Assistant](https://www.torn.com/forums.php#/?p=threads&f=67&t=16059935&b=0&a=0&start=0&to=18782179)
 
-The link above is to a forum post that explains it all. It has two links, one for the Chrome app store and one for Firefox, at mozilla.org, which both have screenshots. As of this writing, it appears to be broken. Version 0.0.2
+Images:
+
+- [Torn HiLo Assistant.png](https://github.com/edlau2/Tampermonkey/blob/master/Third%20Party/Torn%20HiLow%20Assistant.png)
+
+The link above is to a forum post that explains it all. It has two links, one for the Chrome app store and one for Firefox, at mozilla.org, which both have screenshots. As of this writing, it appears to be broken. Version 0.0.2 - I have notified the author, so I hope he will fix it soon.
 
 
