@@ -51,7 +51,9 @@ So that script has been modified to have 5 buttons, on one simple bar, to rapidl
 
 # Scripts 
 
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
+
+One of these days, I'll publish to my OpenUserJS account and make them self-updateable. When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned. Hmm - should probably put the version number in the name, as I usually do everywhere ele for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions. Auto-update would solve that issue.
 
 **_Torn Latest Attacks Extender_**
 
@@ -108,9 +110,9 @@ Note: The ability to restore weapons modes may wind up being a separate script, 
 
 Images:
 
-- Coming soon.
+- [Torn Net Worth Display.png](https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.png)
 
-This simple script display a user's net worth on their profile page, immediately beneath their "last action". Note that this is net worth, not cash on hand.
+This simple script display a user's net worth on their profile page, immediately beneath their "last action". Note that this is net worth, not cash on hand. Updated at new day.
 
 **_Torn Numeric Rank Display_**
 
@@ -192,7 +194,13 @@ Images:
 - [Torn War Wall List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.png)
 
 *** Beta, just be aware that if it causes issues, you can disable from the Tampermonkey dashboard ***
+
+<details>
+ <summary>Click to see details...</summary>
+
 Similar to the above script, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. There is a glitch in that when a wall page is opened the first time, sometimes a refresh is required for the script to execute properly. Also, this script has a tendency to perform too many requests to the Torn api - there is a limit on requests (100 per minute), the result of which is that only the level may be displayed for certain users (new users getting on the wall) if there is heavy wall activity, or possible a '?' for rank. If multiple things are running that query the Torn API, and the faction has 100 members (or more) and the wall is full, this will most definitely be hit (as mentioned above, heavy wall activity may also affect this). This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
+
+</details>
 
 **_Torn War Other Fac Extender_**
 
@@ -203,7 +211,13 @@ Images:
 - [Torn War Other Fac Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.png)
 
 *** alpha - don't use yet ***
+
+<details>
+  <summary>Click to see details...</summary>
+ 
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
+
+</details>
 
 # 3rd Party Scripts
 
@@ -213,7 +227,7 @@ These scripts aren't mine, just here for easy access by fac mates. The links lin
 
 The two following links point to the same code, no idea why named differently. 
 
-OpenUseJS link:
+OpenUserJS link:
 - [TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)
 
 Alternate, GreasyFork link:
