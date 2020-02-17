@@ -220,17 +220,6 @@
                 console.log('Torn Jail Stats: onabort');
                 handleError(response.responseText);
             },
-            /*
-            onloadstart: function(response) {
-                console.log('Torn Jail Stats: onloadstart');
-            },
-            onprogress: function(response) {
-                console.log('Torn Jail Stats: onprogress');
-            },
-            onreadystatechange: function(response) {
-                console.log('Torn Jail Stats: onreadystatechange: ' + response.readyState);
-            },
-            */
             ontimeout: function(response) {
                 console.log('Torn Jail Stats: ontimeout');
                 handleError(response.responseText);
@@ -258,41 +247,15 @@
                     ' failed = ' + stats.failedBusts + ' jailed = ' + stats.jailed + ' bailed = ' + stats.peoplebought +
                    ' Bail Fees = ' + stats.peopleboughtspent);
 
-        //debugger;
+        // If this fails, may not be in data (never done). Not an error.
+        if (!validPointer(stats[name])) {
+            return "0";
+        }
 
-        switch (name) {
-            case 'peoplebusted':
-                valSpan.innerText = stats.peoplebusted;
-                return jsonResp.peoplebusted;
-                break;
-            case 'failedbusts':
-                valSpan.innerText = stats.failedbusts;
-                return jsonResp.failedbusts;
-                break;
-            case 'jailed':
-                valSpan.innerText = stats.jailed;
-                break;
-            case 'peoplebought':
-                valSpan.innerText = stats.peoplebought;
-                return jsonResp.peoplebought;
-                break;
-            case 'peopleboughtspent':
-                var ret = '$' + numberWithCommas(stats.peopleboughtspent);
-                valSpan.innerText = ret; //stats.peopleboughtspent;
-                return jsonResp.peopleboughtspent;
-                break;
-            case 'bountiescollected':
-                valSpan.innerText = stats.bountiescollected;
-                return jsonResp.bountiescollected;
-                break;
-            case 'totalbountyreward':
-                ret = '$' + numberWithCommas(stats.totalbountyreward);
-                valSpan.innerText = ret;
-                return jsonResp.totalbountyreward;
-                break;
-            default:
-                return 'N/A';
-                break;
+        if (!name.localeCompare('totalbountyreward')) {
+            valSpan.innerText = '$' + numberWithCommas(stats[name]);
+        } else {
+            valSpan.innerText = stats[name];
         }
     }
 
