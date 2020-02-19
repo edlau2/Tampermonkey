@@ -154,8 +154,8 @@
         lsdLi.appendChild(createValueSpan('lsdtaken'));
         opiumLi.appendChild(createValueSpan('opitaken'));
         shroomsLi.appendChild(createValueSpan('shrtaken'));
-        speedLi.appendChild(createValueSpan('spetaken', false));
-        pcpLi.appendChild(createValueSpan('pcptaken', false));
+        speedLi.appendChild(createValueSpan('spetaken'));
+        pcpLi.appendChild(createValueSpan('pcptaken'));
         xanaxLi.appendChild(createValueSpan('xantaken'));
         vicodinLi.appendChild(createValueSpan('victaken'));
         totalTakenLi.appendChild(createValueSpan('drugsused'));
@@ -192,11 +192,9 @@
         return dividerSpan;
     }
 
-    function createValueSpan(item, query=true) {
+    function createValueSpan(item) {
         var value = "0";
-        if (query) {
-            value = queryPersonalStats(item);
-        }
+        value = queryPersonalStats(item);
         var valSpan = document.createElement('span');
         valSpan.id = 'xedx-val-span-' + item;
         //valSpan.className = 'desc';
@@ -268,8 +266,6 @@
     function personalStatsQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
 
-        console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name);
-
         if (jsonResp.error) {
             return handleError(responseText);
         }
@@ -278,12 +274,13 @@
         var valSpan = document.getElementById(searchName);
         var stats = jsonResp.personalstats;
         if (!validPointer(valSpan)) {
-            console.log('Unable to find proper span: ' + searchName + ' at ' + document.URL);
+            console.log('Torn Drug Stats, personalStatsQueryCB - Unable to find proper span: ' + searchName + ' at ' + document.URL);
             return;
         }
 
         // If this fails, have never used this drug. Not an error.
         if (!validPointer(stats[name])) {
+            console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = 0 (not found)');
             return "0";
         }
 
@@ -292,6 +289,8 @@
         } else {
             valSpan.innerText = stats[name];
         }
+        console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = ' + valSpan.innerText);
+
 
     return jsonResp.name;
     }
