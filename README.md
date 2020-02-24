@@ -337,4 +337,6 @@ Images:
 
 The link above is to a forum post that explains it all. It has two links, one for the Chrome app store and one for Firefox, at mozilla.org, which both have screenshots. As of this writing, it appears to be broken. Version 0.0.2 - I have notified the author, so I hope he will fix it soon.
 
+# Google Sheets and Scripts
 
+**Coming Soon!**
