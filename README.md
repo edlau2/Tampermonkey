@@ -343,13 +343,14 @@ The link above is to a forum post that explains it all. It has two links, one fo
 
 - [Torn Stock Ticker](https://docs.google.com/spreadsheets/d/1f9_UgVatH2q6Ozgz65Z4z-ify8ljeMh-y8WBznYStgk/edit?usp=sharing/copy)
 
-This requires some configuation. After downloading from the above link, make a copy of it from Google Sheet's File->Copy menu. This will give your own, private, editable copy. Next, enter on the Options sheet your API key and optionally, an e-mail address and/or Discord webhook channel URL to receive event notifications. Finally, from the Tools->Script Editor option in Google Sheets, select the icon that looks a bit like a stopwatch to add a trigger. See the 'Trigger Options' images, below, for more details.
+This requires some configuation. After downloading from the above link, make a copy, renaming if you like, from Google Sheet's File->Copy menu. This will give your own, private, editable copy. Next, enter on the Options sheet your API key and optionally, an e-mail address and/or Discord webhook channel URL to receive event notifications. Finally, from the 
+Tools->Script Editor option in Google Sheets, select the icon that looks a bit like a stopwatch to add a trigger. See the 'Trigger Options' images, below, for more details.
 
 Images:
 
-- [Trigger Options #1](https://github.com/edlau2/Tampermonkey/blob/master/)
-- [Trigger Options #2](https://github.com/edlau2/Tampermonkey/blob/master/)
+- [Trigger Options #1](https://github.com/edlau2/Tampermonkey/blob/master/StockTicker/trigger_page_1.png)
+- [Trigger Options #2](https://github.com/edlau2/Tampermonkey/blob/master/StockTicker/trigger_page_2.png)
 
-- [Example output #1](https://github.com/edlau2/Tampermonkey/blob/master/)
-- [Example output #2](https://github.com/edlau2/Tampermonkey/blob/master/)
+- [Example output #1](https://github.com/edlau2/Tampermonkey/blob/master/StockTicker/sample_output_1.png)
+- [Example output #2](https://github.com/edlau2/Tampermonkey/blob/master/StockTicker/sample_output_2.png)
 
