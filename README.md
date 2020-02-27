@@ -1,5 +1,5 @@
-# Tampermonkey
-Repository for TamperMonkey scripts
+# Torn Utilities
+Repository for Torn-related scripts, extensions, and more.
 
 # Installation
 
