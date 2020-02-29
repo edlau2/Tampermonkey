@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Experience
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Creates new expandable DIV on Items page with formatted weapons exp displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php
@@ -64,7 +64,7 @@
 
     function buildWeaponExpDiv() {
         // Only do this once
-        var testDiv = document.getElementById('xedx-weaponexp-ext');
+        var testDiv = document.getElementById('xedx-weapon-exp');
         if (validPointer(testDiv)) {
             return;
         }
@@ -116,9 +116,7 @@
 
     function createHeaderDiv() {
         var headerDiv = document.createElement('div');
-        //headerDiv.id = 'header_div';
         headerDiv.id = 'xedx-weapon-exp';
-        //headerDiv.className = 'title main-title title-black title-toggle active top-round';
         headerDiv.className = 'title-black title-toggle';
         headerDiv.setAttribute('role', 'heading');
         headerDiv.setAttribute('aria-level', '5');
