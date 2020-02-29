@@ -67,6 +67,16 @@ Images:
 
 This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
+**_Torn Weapon Experience_**
+
+- [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
+
+Images:
+
+- [Torn Weapon Experience-1.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-1.png)
+- [Torn Weapon Experience-2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-2.png)
+
+
 **_Torn Get Naked_**
 
 Note: Removed for now, see the comments in the Scripting Rules section, above.
