@@ -76,6 +76,8 @@ Images:
 - [Torn Weapon Experience-1.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-1.png)
 - [Torn Weapon Experience-2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-2.png)
 
+This script adds a new section on the Items page, collapsed by default, that shows all of your weapons experience. It is collapsed by default, underneath you equipped weapons section. There is a much nicer way to view this, via Torn Stats: https://www.tornstats.com/weapons.php
+
 
 **_Torn Get Naked_**
 
