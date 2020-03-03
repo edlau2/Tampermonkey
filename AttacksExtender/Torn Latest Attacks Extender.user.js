@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.11
+// @version      0.2
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx
 // @include      https://www.torn.com/index.php
@@ -345,6 +345,15 @@
               '/nPress OK to continue.');
     }
 
+    /*
+    <li class="" title="2020-03-03 06:22:02" data-location="loader.php?sid=attackLog&amp;ID=48de68dcf8023c15d8d39eb34e0dc5ca" data-wai-label="" tabindex="0" aria-label="  xedx attacked Duke and stalemated ">
+        <span>
+            <a class="t-blue" href="profiles.php?XID="></a>
+            <a href="profiles.php?XID=2100735">xedx</a> attacked <a href="profiles.php?XID=4">Duke</a> and stalemated
+            <a class="t-blue" href="profiles.php?XID="></a>
+        </span>
+    </li>
+    */
     function createLi(span) {
         var li = document.createElement("li");
         var a1 = document.createElement('a')
@@ -361,6 +370,7 @@
     //
     /*
     "66290614": {
+            "code": "db10651c645d0ac272bc1b0a081bc490",
 			"timestamp_started": 1551448810,
 			"timestamp_ended": 1551448827,
 			"attacker_id": 2100735,
@@ -408,6 +418,11 @@
             var span = document.createElement('span');
             var li = createLi(span);
 
+            // <li> link to the attack log:
+            // data-location="loader.php?sid=attackLog&ID=
+            var code = 'loader.php?sid=attackLog\u0026ID=' + obj.code;
+            li.setAttribute('data-location', code);
+
             // List element title: date of attack
             var d = new Date(0);
             d.setUTCSeconds(obj.timestamp_ended);
@@ -429,7 +444,7 @@
             }
             span.appendChild(a2);
 
-            // Sanitize the Action
+            // Format the Action
             var result = obj.result;
             if (result === 'Lost') {
                 result = 'Attacked and lost to';
@@ -512,7 +527,6 @@
             // One to populate the list
             //
             getLatestAttacksList();
-            //populateLatestAttacksList();
 
         }
 
