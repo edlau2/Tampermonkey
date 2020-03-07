@@ -69,6 +69,17 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 As of 03/03/2020, you can now click the attack to get the full attack log (version 0.2). This is thanks to Chedburn adding the log ID to both the 'attacks' queries under user and faction.
 
+**_Torn GymGains_**
+
+- [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains.user.js)
+
+Images:
+
+- [Torn Gym Gains-1.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-1.png)
+- [Torn Gym Gains-2.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-2.png)
+
+This script adds extended gym information to your Gym page. It displays the additional gains you get, depending on what perks are currently available to you - company perks, merits, fac perks, etc. These are displayed, by default, as a summary in percentage, along with the base gym gain that depends on the current gym you are in, 2.0 through 10.0. An expandle screen is available to see the breakout of the percentage gains. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
+
 **_Torn Weapon Experience_**
 
 - [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
