@@ -69,7 +69,7 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 As of 03/03/2020, you can now click the attack to get the full attack log (version 0.2). This is thanks to Chedburn adding the log ID to both the 'attacks' queries under user and faction.
 
-**_Torn GymGains_**
+[**_Torn Gym Gains_**](#GymGains)
 
 - [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains.user.js)
 
