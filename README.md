@@ -80,6 +80,20 @@ Images:
 
 This script adds extended gym information to your Gym page. It displays the additional gains you get, depending on what perks are currently available to you - company perks, merits, fac perks, etc. These are displayed, by default, as a summary in percentage, along with the base gym gain that depends on the current gym you are in, 2.0 through 10.0. An expandle screen is available to see the breakout of the percentage gains. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
+**_Torn Bounty List Extender_**
+
+(Coming soon, it's been written but not yet uploaded!)
+
+- [Torn Bounty List Extender.user.js]
+<!--(https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
+
+Images:
+
+- [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.png)
+-->
+
+This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. 
+
 **_Torn Weapon Experience_**
 
 - [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
@@ -187,7 +201,7 @@ Images:
 
 This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total, ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits.
 
-Note: I haven't yet found the names for the stats for Shrooms, Speed, and PCP in theTorn API. Every other drug is listed in the 'personalstats' field. When I find the, I'll add them. For now it displays 'unavailable'.
+~~Note: I haven't yet found the names for the stats for Shrooms, Speed, and PCP in theTorn API. Every other drug is listed in the 'personalstats' field. When I find the, I'll add them. For now it displays 'unavailable'.
 
 **_Torn Jail Stats_**
 
@@ -275,6 +289,8 @@ Displays the cost of a BB of stock on the Stock Exchange page, beneath the share
 
 Note: It appears that this does not work well with the 'Stock Market Helper', below. It causes the display of the values of shares you own, on the Stock Exchange page, to appear as $NaN. Since version 1.8 of Stock Market Helper, the block price is displayed as the 'Benefist Price' on the Info page of a stock in the Stock xchange.
 
+Note 2: I think this has subsequently been added to Torn itself, on the 'About' tab in the stock market or portfolio pages.
+
 **_Stock Market Helper_**
 
 - [Stock Market Helper.user.js] <!-- (https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js) -->
@@ -342,11 +358,13 @@ This script displays notifications regarding NPC loot levels, health, and the ti
 
 There is also an option to automatically open the NPC's profile at level IV in a new tab - the Attack page.
 
-This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a MAc.
+This has been tested on PC's and Mac's, but since I'm using a Mac, mostly on a Mac.
 
 This extension requires you to enter your API key in the Options dialog. If not entered, the Options dialog will open automatically when run.
 
 There is a warning Idisplays as an error) about an synchronous call, this can be ignored. I will address this later, given time. Async is partially implemented but still in alpha, so not enabled at this time.
+
+I have re-written this to use the YATA API, but the most recent version (1.6.3) has not been uploaded yet.
 
 # Third Party Extensions
 
