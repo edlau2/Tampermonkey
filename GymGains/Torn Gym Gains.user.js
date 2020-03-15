@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Creates new expandable DIV on Gym page with gym gains perks displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -31,6 +31,20 @@
         }
         return true;
     }
+
+    // Wildcard version of getElementsByClassName()
+    function myGetElementsByClassName2(anode, className) {
+        var elems = anode.getElementsByTagName("*");
+        var matches = [];
+        for (var i=0, m=elems.length; i<m; i++) {
+            if (elems[i].className && elems[i].className.indexOf(className) != -1) {
+                matches.push(elems[i]);
+            }
+        }
+
+        return matches;
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
     //////////////////////////////////////////////////////////////////////
@@ -39,6 +53,8 @@
         // Only do this once
         var testDiv = document.getElementById('xedx-gym-gains-wrap');
         if (validPointer(testDiv)) {
+            observer.disconnect();
+            window.setTimeout(queryGymInfo, 2000);
             return;
         }
 
@@ -51,7 +67,6 @@
         }
 
         // Piece everything together.
-        //var sep = createSeparator();
         var wrapperDiv = createWrapperDiv();
 
         var extDiv0 = createExtendedDiv();// Details
@@ -78,9 +93,6 @@
         var contentDiv1 = createContentDiv();
         contentDiv1.id = 'xedx-summary-div';
         bodyDiv1.setAttribute('style', 'display: block; overflow: hidden');
-        //fillSummaryDiv(contentDiv1);
-
-        // Need contentDiv1 + text in content div?
 
         wrapperDiv.appendChild(extDiv0);
         extDiv0.appendChild(hdrDiv0);
@@ -99,6 +111,29 @@
 
         // Populate via the Torn API
         queryPerkInfo(ul);
+
+        // Add onClick() handlers to toggle the gym stats info
+        addOnClickHandlers();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Function to add onClick() handlers
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function addOnClickHandlers() {
+        var gymDiv = document.getElementById('gymroot');
+        var rootDiv = myGetElementsByClassName2(gymDiv, 'gymList')[0];
+        var buttonDivs = myGetElementsByClassName2(rootDiv, 'gymButton');
+        for (var i=0; i < buttonDivs.length; i++) {
+            buttonDivs[i].addEventListener("click", onGymClick, false);
+        }
+    }
+
+    function onGymClick() {
+        var id = this.id;
+        var at = id.indexOf('-');
+        var index = id.slice(++at);
+        queryGymDetails(null, index);
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,14 +144,12 @@
         var wrapperDiv = document.createElement('div');
         wrapperDiv.className = 'content m-top10 sortable-list ui-sortable';
         wrapperDiv.id = 'xedx-gym-gains-wrap';
-        //wrapperDiv.setAttribute('style', 'height=125px');
         return wrapperDiv;
     }
 
     function createExtendedDiv() {
         var extendedDiv = document.createElement('div');
         extendedDiv.className = 'sortable-box t-blue-cont h';
-
         return extendedDiv;
     }
 
@@ -248,6 +281,7 @@
     }
 
     function queryGymInfo() {
+        console.log('Gym Gains: queryGymInfo');
         GM_xmlhttpRequest ( {
             url: 'https://api.torn.com/user/?selections=gym&key=' + api_key,
             method: 'POST',
@@ -266,21 +300,27 @@
 
     // Parse result of above, to enter gym into new query:
     // https://api.torn.com/torn/<19>?selections=gyms&key
-    function queryGymDetails(responseText) {
-        var jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {
-            return handleApiError(responseText);
+    function queryGymDetails(responseText=null, index=0) {
+
+        if (responseText != null) {
+            var jsonResp = JSON.parse(responseText);
+            if (jsonResp.error) {
+                return handleApiError(responseText);
+            }
         }
 
+        var useGym = index ? index : jsonResp.active_gym;
+
+        console.log('Gym Gains: queryGymDetails');
         GM_xmlhttpRequest ( {
-            url: 'https://api.torn.com/torn/' + jsonResp.active_gym +'?selections=gyms&key=' + api_key,
+            url: 'https://api.torn.com/torn/' + useGym +'?selections=gyms&key=' + api_key,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json'
             },
             onload: function(response) {
-                fillGymDetailsDiv(response.responseText, jsonResp.active_gym);
+                fillGymDetailsDiv(response.responseText, useGym);
             },
             onerror: function(response) {
                 handleApiError(response);
@@ -394,21 +434,51 @@
         queryGymInfo();
     }
 
+    // Array of all gym names, indexed (currently unused)
+    var gymNamesArr = [null, "Premier Fitness", "Average Joes", "Woody's Workout Club", "Beach Bods", "Silver Gym",
+                       "Pour Femme", "Davies Den", "Global Gym", "Knuckle Heads", "Pioneer Fitness", "Anabolic Anomalies",
+                       "Core", "Racing Fitness", "Complete Cardio", "Legs, Bums and Tums", "Deep Burn", "Apollo Gym",
+                       "Gun Shop", "Force Training", "Cha Cha's", "Atlas", "Last Round", "The Edge", "George's", "Balboas Gym",
+                       "Frontline Fitness", "Mr. Isoyamas", "Total Rebound", "Elites", "The Sports Science Lab", "Unknown", "The Jail Gym"];
+
     // Handler for 'queryGymDetails()', called by 'queryGymInfo()'
     function fillGymDetailsDiv(responseText, active_gym) {
+        var span1id = 'xedx-summary-s1';
+        var span2id = 'xedx-summary-s2';
+        var contentId = 'xedx-gymsum-contid';
+
+        console.log('Gym Gains: fillGymDetailsDiv');
+
         var jsonResp = JSON.parse(responseText);
 
         if (jsonResp.error) {
             return handleApiError(responseText);
         }
 
+        var e1 = document.getElementById(span1id);
+        var e2 = document.getElementById(span2id);
+        if (validPointer(e1)) {
+            e1.parentNode.removeChild(e1);
+        }
+        if (validPointer(e2)) {
+            e2.parentNode.removeChild(e2);
+        }
+
         var parentDiv = document.getElementById('xedx-summary-body');
-        var content = createContentDiv();
+        var content = document.getElementById(contentId);
+        if (!validPointer(content)) {
+            content = createContentDiv();
+            content.id = contentId;
+            parentDiv.appendChild(content);
+        }
         var s = document.createElement('span');
+        s.id = span1id;
         var s2 = document.createElement('span');
+        s2.id = span2id;
         content.setAttribute('style', 'text-align: center; vertical-align: middle; line-height: 24px;');
 
         var name = jsonResp.gyms[active_gym].name;
+        console.log('fillGymDetailsDiv: name=' + name);
         s.setAttribute('style', 'font-weight: bold;');
         s.appendChild(document.createTextNode(name));
         content.appendChild(s);
@@ -420,7 +490,9 @@
         var result = ' - Strength: ' + strength + ', Defense: ' + defense + ', Speed: ' + speed + ', Dexterity: ' + dexterity;
         s2.appendChild(document.createTextNode(result));
         content.appendChild(s2);
-        parentDiv.appendChild(content);
+
+        console.log('Gym Gains: enabling observer');
+        observer.observe(targetNode, config);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -440,7 +512,8 @@
         GM_setValue('gm_api_key', api_key);
     }
 
-    var targetNode = document.getElementById('mainContainer');
+    //var targetNode = document.getElementById('mainContainer');
+    var targetNode = document.getElementById('gymroot');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         // Disconnect the observer to prevent looping before
