@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Creates new expandable DIV on Gym page with gym gains perks displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -53,8 +53,6 @@
         // Only do this once
         var testDiv = document.getElementById('xedx-gym-gains-wrap');
         if (validPointer(testDiv)) {
-            observer.disconnect();
-            window.setTimeout(queryGymInfo, 2000);
             return;
         }
 
@@ -380,7 +378,8 @@
             var arr = jsonResp[category[i]];
             for (j=0; j<arr.length; j++) { // Iterate category array
                 // If is a gym gain, create the value span and add to the UL
-                var at = 0, gymGains = arr[j].toLowerCase().indexOf('gym gains');
+                var gymGains = arr[j].toLowerCase().indexOf('gym gains');
+                var val = 0;
                 if (gymGains != -1) {
                     var li = document.createElement('li'); // Create <li> for this category
                     li.appendChild(createDividerSpan(categoryName[i]));
@@ -389,16 +388,62 @@
 
                     // Parse % and add to app. type: speed, str, dex, def.
                     // If not specific, adds to all.
+                    var tmp = arr[j].slice(2, at-2);
+                    val = Number(arr[j].slice(2, at-2));
+                    //console.log('parsed value: ' + tmp);
+                    var at = 0, at2 = 0, at3 = 0;
+                    at2 = arr[j].toLowerCase().indexOf('gym gains by ');
+                    if (at2 > 0) {
+                        tmp = arr[j].slice(tmp+at2);
+                        at3 = tmp.indexOf('%');
+                    }
+                    // Note: need to search for 'Increases X gym gains by ' in these cases.
                     if ((at = arr[j].toLowerCase().indexOf('speed')) != -1) {
-                        speedPct += Number(arr[j].slice(2, at-2));
+                        if (at2 > 0 && at3 > 0) {
+                            val = Number(arr[j].slice(at2+13, at3));
+                        } else {
+                            val = Number(arr[j].slice(2, at-2));
+                        }
+                        //console.log('Adding ' + val + ' to Speed: ' + speedPct);
+                        speedPct += val;
+                        //console.log('Added ' + val + ' to Speed: ' + speedPct);
                     } else if ((at = arr[j].toLowerCase().indexOf('strength')) != -1) {
-                        strengthPct += Number(arr[j].slice(2, at-2));
+                        if (at2 > 0 && at3 > 0) {
+                            val = Number(arr[j].slice(at2+13, at3));
+                        } else {
+                            val = Number(arr[j].slice(2, at-2));
+                        }
+                        //console.log('Adding ' + val + ' to Strength: ' + strengthPct);
+                        strengthPct += val;
+                        //console.log('Added ' + val + ' to Strength: ' + strengthPct);
                     } else if ((at = arr[j].toLowerCase().indexOf('defense')) != -1) {
-                        defPct += Number(arr[j].slice(2, at-2));
+                        if (at2 > 0 && at3 > 0) {
+                            val = Number(arr[j].slice(at2+13, at3));
+                        } else {
+                            val = Number(arr[j].slice(2, at-2));
+                        }
+                        //console.log('Adding ' + val + ' to Defense: ' + defPct);
+                        defPct += val;
+                        //console.log('Added ' + val + ' to Defense: ' + defPct);
                     } else if ((at = arr[j].toLowerCase().indexOf('dexterity')) != -1) {
-                        dexPct += Number(arr[j].slice(2, at-2));
+                        if (at2 > 0 && at3 > 0) {
+                            val = Number(arr[j].slice(at2+13, at3));
+                        } else {
+                            val = Number(arr[j].slice(2, at-2));
+                        }
+                        //console.log('Adding ' + val + ' to Dexterity: ' + dexPct);
+                        dexPct += val;
+                        //console.log('Added ' + val + ' to Dexterity: ' + dexPct);
                     } else {
-                        strengthPct = defPct = speedPct = dexPct += Number(arr[j].slice(2, gymGains-2));
+                        val = Number(arr[j].slice(2, gymGains-2));
+                        //console.log('Adding ' + val + ' to everything: speed=' + speedPct + ' defense=' + defPct +
+                        //           ' strength=' + strengthPct + ' dexterity=' + dexPct);
+                        strengthPct += val;
+                        defPct += val;
+                        speedPct += val;
+                        dexPct += val; //Number(arr[j].slice(2, gymGains-2));
+                        //console.log('New values: speed=' + speedPct + ' defense=' + defPct +
+                        //           ' strength=' + strengthPct + ' dexterity=' + dexPct);
                     }
                 }
             }
