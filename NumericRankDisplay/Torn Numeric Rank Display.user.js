@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Numeric Rank Display
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Appends the numeric rank to a user's profile rank name
 // @author       xedx [2100735]
 // @include      https://www.torn.com/profiles.php*
@@ -64,7 +64,7 @@
                     rank.removeAttribute(rank.attributes[0].name);
                 }
                 rank.setAttribute(ranks[i][2], ranks[i][3]);
-                rank.innerHTML = ranks[i][1] + ' (' + i +')';
+                rank.innerHTML = ranks[i][1] + ' (' + (i+1) +')';
                 return;
             }
         }
