@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      tornstats.com
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -14,12 +15,16 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-(function($) {
+(function() {
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
     // Utility functions
     //////////////////////////////////////////////////////////////////////
+
+    // HTML constants
+    var CRLF = '<br/>';
+    var TAB = '&emsp;';
 
     // Check to see if a pointer is valid
     function validPointer(val, dbg = false) {
@@ -60,8 +65,8 @@
         var bodyDiv = createBodyDiv();
         var contentDiv = createContentDiv(); // This call also queries the Torn API...
                                              // We really should call only once and cache the data
-        extDiv.appendChild(hdrDiv);
         hdrDiv.appendChild(document.createTextNode('Drug and Rehab Stats'));
+        extDiv.appendChild(hdrDiv);
         extDiv.appendChild(bodyDiv);
         bodyDiv.appendChild(contentDiv);
 
@@ -82,7 +87,7 @@
 
     function createExtendedDiv() {
         var extendedDiv = document.createElement('div');
-        extendedDiv.className = 'sortable-box t-blue-cont h';
+        extendedDiv.className = 'sortable-box t-blue-cont h right';
         extendedDiv.id = 'xedx-drug-stats-ext';
         return extendedDiv;
     }
@@ -129,6 +134,7 @@
         var xanaxLi = document.createElement('li');
         var vicodinLi = document.createElement('li');
         var totalTakenLi = document.createElement('li');
+
         var odsLi = document.createElement('li');
         var rehabsLi = document.createElement('li');
         var rehabCostLi = document.createElement('li');
@@ -195,12 +201,14 @@
     function createValueSpan(item) {
         var value = "0";
         value = queryPersonalStats(item);
+
         var valSpan = document.createElement('span');
         valSpan.id = 'xedx-val-span-' + item;
-        //valSpan.className = 'desc';
+        valSpan.className = 'desc';
         // This compensates for the scrollbar. So we don't use the 'desc' CSS attributes.
         valSpan.setAttribute('style', 'width: 160px');
         valSpan.innerText = value;
+
         return valSpan;
     }
 
@@ -229,8 +237,6 @@
     function queryPersonalStats(name) {
 
         personalStatsQuery(name); // Callback will set the correct values.
-
-        //return 'Please wait...';
         return "0";
     }
 
@@ -263,8 +269,11 @@
     }
 
     // Callback to parse returned JSON
+    var expectedResponses = 14;
     function personalStatsQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
+
+        expectedResponses--;
 
         if (jsonResp.error) {
             return handleError(responseText);
@@ -281,6 +290,9 @@
         // If this fails, have never used this drug. Not an error.
         if (!validPointer(stats[name])) {
             console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = 0 (not found)');
+            if (!expectedResponses) {
+                addToolTips();
+            }
             return "0";
         }
 
@@ -289,10 +301,80 @@
         } else {
             valSpan.innerText = stats[name];
         }
-        console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = ' + valSpan.innerText);
+        //console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = ' + valSpan.innerText);
 
+        if (!expectedResponses) {
+                addToolTips();
+            }
 
     return jsonResp.name;
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Function(s) to add appropriate tool tip(s).
+    //////////////////////////////////////////////////////////////////////
+
+    function addToolTips() {
+        buildUseString('cantaken');
+        buildUseString('exttaken');
+        buildUseString('kettaken');
+        buildUseString('lsdtaken');
+        buildUseString('opitaken');
+        buildUseString('shrtaken');
+        buildUseString('spetaken');
+        buildUseString('pcptaken');
+        buildUseString('xantaken');
+        buildUseString('victaken');
+    }
+
+    function buildUseString(item) {
+        var useDiv = document.getElementById('xedx-val-span-' + item);
+        var useText = useDiv.innerText;
+        var pctText = useText/50 * 100;
+        if (Number(pctText) >= 100) {
+            pctText = '<B><font color=\'green\'>Completed!</font></B>';
+        } else {
+            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
+        }
+
+        var text = '<B>Honor Bar Available' + CRLF;
+        switch (item) {
+            case 'cantaken':
+                text = text + TAB + 'Who\'s Frank? (50 Cannibus): ' + pctText + CRLF;
+                break;
+            case 'exttaken':
+                text = text + TAB + 'Party Animal (50 Ecstacy): ' + pctText + CRLF;
+                break;
+            case 'kettaken':
+                text = text + TAB + 'Horse Tranquilizer (50 Ketamine): ' + pctText + CRLF;
+                break;
+            case 'lsdtaken':
+                text = text + TAB + 'Acid Dream (50 LSD): ' + pctText + CRLF;
+                break;
+            case 'opitaken':
+                text = text + TAB + 'The Fields of Opium (50 Opium): ' + pctText + CRLF;
+                break;
+            case 'shrtaken':
+                text = text + TAB + 'I Think I See Dead People (50 Shrooms): ' + pctText + CRLF;
+                break;
+            case 'spetaken':
+                text = text + TAB + 'Crank it Up (50 Speed): ' + pctText + CRLF;
+                break;
+            case 'pcptaken':
+                text = text + TAB + 'Angel Dust (50 PCP): ' + pctText + CRLF;
+                break;
+            case 'xantaken':
+                text = text + TAB + 'Free Energy (50 Xanax): ' + pctText + CRLF;
+                break;
+            case 'victaken':
+                text = text + TAB + 'Painkiller (50 Vicodin): ' + pctText + '</B>';
+                break;
+            default:
+                return;
+        }
+
+        $(useDiv).attr("data-html", "true");
+        $(useDiv).attr("title", text);
     }
 
     //////////////////////////////////////////////////////////////////////
