@@ -73,9 +73,6 @@
         hdrDiv.appendChild(document.createTextNode('Jail and Bounty Stats'));
         extDiv.appendChild(bodyDiv);
         bodyDiv.appendChild(contentDiv);
-
-        // Add tool tips where appropriate
-        //addToolTips();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -308,7 +305,7 @@
         var tmp = feesText.replace('$', '');
         tmp = tmp.replace(/,/g, '');
         var pctText = tmp/10000000 * 100;
-        if (Number(pctText) > 100) {
+        if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
@@ -324,7 +321,7 @@
         var bountiesLi = document.getElementById('xedx-bounties');
         var bountiesText = document.getElementById('xedx-val-span-bountiescollected').innerText;
         var pctText = bountiesText/250 * 100;
-        if (Number(pctText) > 100) {
+        if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
@@ -344,19 +341,19 @@
         var bustsLi = document.getElementById('xedx-busts');
         var bustsText = document.getElementById('xedx-val-span-peoplebusted').innerText;
         var pctText = bustsText/1000 * 100;
-        if (Number(pctText) > 100) {
+        if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
         }
         var pctText2 = bustsText/2500 * 100;
-        if (Number(pctText2) > 100) {
+        if (Number(pctText2) >= 100) {
             pctText2 = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText2 = '<B><font color=\'red\'>' + pctText2 + '%</font></B>';
         }
         var pctText3 = bustsText/10000 * 100;
-        if (Number(pctText3) > 100) {
+        if (Number(pctText3) >= 100) {
             pctText3 = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText3 = '<B><font color=\'red\'>' + pctText3 + '%</font></B>';
@@ -383,7 +380,7 @@
         var bailsLi = document.getElementById('xedx-bails');
         var bailsText = document.getElementById('xedx-val-span-peoplebought').innerText;
         var pctText = bailsText/500 * 100;
-        if (Number(pctText) > 100) {
+        if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
