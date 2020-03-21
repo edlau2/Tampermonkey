@@ -12,15 +12,20 @@
 
 // ==/UserScript==
 
+function validateApiKey() {
+    
+}
+
+/*
 // Validate an API key and prompt if misssing
 var api_key = GM_getValue('gm_api_key');
 function validateApiKey() {
-if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-    api_key = prompt("Please enter your API key.\n" +
-                     "Your key will be saved locally so you won't have to be asked again.\n" +
-                     "Your key is kept private and not shared with anyone.", "");
-    GM_setValue('gm_api_key', api_key);
-}
+    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
+        api_key = prompt("Please enter your API key.\n" +
+                         "Your key will be saved locally so you won't have to be asked again.\n" +
+                         "Your key is kept private and not shared with anyone.", "");
+        GM_setValue('gm_api_key', api_key);
+    }
 }
 
 var date_formats = ["YYYY-MM-DD",
@@ -68,45 +73,46 @@ return converted_date;
 // Check if a var is numeric
 function isaNumber(x)
 {
-var regex=/^[0-9]+$/;
-if (x.match(regex)) {
-    return true;
-}
-return false;
+    var regex=/^[0-9]+$/;
+    if (x.match(regex)) {
+        return true;
+    }
+    return false;
 }
 
 // Add commas at thousand place - works with decimal numbers
 function numberWithCommas(x) {
-var parts = x.toString().split(".");
-parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-return parts.join(".");
+    var parts = x.toString().split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
 }
 
 // Check to see if a pointer is valid
 function validPointer(val, dbg = false) {
-if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-    if (dbg) {
-        debugger;
+    if (val == 'undefined' || typeof val == 'undefined' || val == null) {
+        if (dbg) {
+            debugger;
+        }
+        return false;
     }
-    return false;
-}
-return true;
+    return true;
 }
 
 // Wildcard version of getElementsByClassName()
 function myGetElementsByClassName2(anode, className) {
-var elems = anode.getElementsByTagName("*");
-var matches = [];
-for (var i=0, m=elems.length; i<m; i++) {
-    if (elems[i].className && elems[i].className.indexOf(className) != -1) {
-        matches.push(elems[i]);
+    var elems = anode.getElementsByTagName("*");
+    var matches = [];
+    for (var i=0, m=elems.length; i<m; i++) {
+        if (elems[i].className && elems[i].className.indexOf(className) != -1) {
+            matches.push(elems[i]);
+        }
     }
-}
 
-return matches;
+    return matches;
 }
 
 // Backwards compatibility:
 function myGetElementsByClassName(anode, className) {
-return myGetElementsByClassName2(anode, className);
+    return myGetElementsByClassName2(anode, className);
 }
+*/
