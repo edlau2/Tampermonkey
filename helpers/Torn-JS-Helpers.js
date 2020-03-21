@@ -7,18 +7,12 @@
 // @description Commonly used functions in my Torn scripts.
 // @version     0.1
 // @license     MIT
-// @require     https://github.com/edlau2/Tampermonkey/blob/master/helpers/Torn-JS-Helpers.js
 // ==/UserLibrary==
 
 // ==/UserScript==
-initialize();
 
-function initialize() {
-  Number.prototype.format = function (n, x) {
-    var re = '\\d(?=(\\d{' + (x || 3) + '})+' + (n > 0 ? '\\.' : '$') + ')';
-    return this.toFixed(Math.max(0, ~~n)).replace(new RegExp(re, 'g'), '$&,');
-  };
-}
+
+// @require     https://github.com/edlau2/Tampermonkey/blob/master/helpers/Torn-JS-Helpers.js
 
 function validateApiKey() {
 }
