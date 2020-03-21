@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
+// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      tornstats.com
 // @connect      api.torn.com
