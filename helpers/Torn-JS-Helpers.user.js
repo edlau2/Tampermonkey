@@ -10,8 +10,8 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-//(function($) {
-//    'use strict';
+(function($) {
+    'use strict';
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Utility functions
@@ -111,4 +111,4 @@
         return matches;
     }
 
-//})();
+})();
