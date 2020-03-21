@@ -43,7 +43,7 @@
                  ['Outstanding', 'Outstanding', 'class', 'long'],
                  ['Celebrity', 'Celebrity', 'class', 'medium'],
                  ['Supreme', 'Supreme', 'class','medium'],
-                 ['Idolised', 'Idolised', 'class','medium'],
+                 ['Idolized', 'Idolized', 'class','medium'],
                  ['Champion', 'Champion', 'class','medium'],
                  ['Heroic', 'Heroic', 'class','medium'],
                  ['Legendary', 'Legendary', 'class', 'long'],
