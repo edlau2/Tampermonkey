@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Creates new expandable DIV on Gym page with gym gains perks displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -45,6 +45,17 @@
         return matches;
     }
 
+    // Insert comma separators into a number
+    //function numberWithCommas(x) {
+    //    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    //}
+
+    function numberWithCommas(x) {
+        var parts = x.toString().split(".");
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        return parts.join(".");
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
     //////////////////////////////////////////////////////////////////////
@@ -57,34 +68,56 @@
         }
 
         var tutorialNode = document.getElementsByClassName("tutorial-cont m-top10")[0];
-        var parentNode = document.getElementsByClassName("content-wrapper m-left20 left winter")[0];
+        // Wonder why this changes per season??
+        //var parentNode = document.getElementsByClassName("content-wrapper m-left20 left winter")[0];
+        var parentNode = document.getElementsByClassName("content-wrapper m-left20 left")[0];
         var refDiv = document.getElementById('gymroot');
+        debugger;
         if (!validPointer(refDiv) || !validPointer(parentNode)) {
             console.log("Torn Gym Gains: Unable to find refDiv/parentNode!");
             return;
         }
 
         // Piece everything together.
+        // extDiv0 --> Perk Details, starts collapsed
+        // extDiv2 --> Bat Stats, starts collapsed
+        // extDiv1 --> Perk Summary + gym gains, expanded
         var wrapperDiv = createWrapperDiv();
 
         var extDiv0 = createExtendedDiv();// Details
         extDiv0.id = 'xedx-gym-gains-ext0';
 
+        var extDiv2 = createExtendedDiv();// Bat Stats
+        extDiv2.id = 'xedx-gym-gains-ext2';
+
         var extDiv1 = createExtendedDiv(); // Summary
         extDiv1.id = 'xedx-gym-gains-ext1';
 
         var hdrDiv0 = createHeaderDiv();
-        var arrowDiv = createArrowDiv();
+        hdrDiv0.id = 'xedx-gym-gains-hdr-div';
+        var arrowDiv = createArrowDiv('xedx-gym-gains-body', 'xedx-gym-gains-hdr-div');
         hdrDiv0.appendChild(arrowDiv);
         hdrDiv0.appendChild(document.createTextNode('Gym Gains (detailed)'));
+
+        var hdrDiv2 = createHeaderDiv();
+        hdrDiv2.id = 'xedx-bat-stats-hdr-div';
+        var arrowDiv2 = createArrowDiv('xedx-bat-stats-body', 'xedx-bat-stats-hdr-div');
+        hdrDiv2.appendChild(arrowDiv2);
+        hdrDiv2.appendChild(document.createTextNode('Battle Stats'));
 
         var hdrDiv1 = createHeaderDiv();
         hdrDiv1.className = 'title main-title title-black top-round active';
         hdrDiv1.appendChild(document.createTextNode('Gym Gains (summary)'));
 
         var bodyDiv0 = createBodyDiv();
+        bodyDiv0.id = 'xedx-gym-gains-body';
         var contentDiv0 = createContentDiv();
         var ul = createUL();
+
+        var bodyDiv2 = createBodyDiv();
+        bodyDiv2.id = 'xedx-bat-stats-body';
+        var contentDiv2 = createContentDiv();
+        contentDiv2.id = 'xedx-bat-stats';
 
         var bodyDiv1 = createBodyDiv();
         bodyDiv1.id = 'xedx-summary-body';
@@ -98,6 +131,12 @@
         bodyDiv0.appendChild(contentDiv0);
         contentDiv0.appendChild(ul);
 
+        wrapperDiv.appendChild(extDiv2);
+        extDiv2.appendChild(hdrDiv2);
+        extDiv2.appendChild(bodyDiv2);
+        bodyDiv2.appendChild(contentDiv2);
+        wrapperDiv.insertBefore(createSmallSeparator(), extDiv2);
+
         wrapperDiv.appendChild(extDiv1);
         extDiv1.appendChild(hdrDiv1);
         extDiv1.appendChild(bodyDiv1);
@@ -107,8 +146,11 @@
         parentNode.insertBefore(wrapperDiv, refDiv);
         parentNode.insertBefore(createSeparator(), refDiv);
 
-        // Populate via the Torn API
+        // Populate perk info/gym gain info via the Torn API
         queryPerkInfo(ul);
+
+        // Populate the bat stats section via the Torn API
+        queryBatStats(contentDiv2);
 
         // Add onClick() handlers to toggle the gym stats info
         addOnClickHandlers();
@@ -153,7 +195,6 @@
 
     function createHeaderDiv(title=null) {
         var headerDiv = document.createElement('div');
-        headerDiv.id = 'xedx-gym-gains-hdr-div';
         // Start off hidden, see bodyDiv also...
         // headerDiv.className = 'title main-title title-black top-round active';
         headerDiv.className = 'title main-title title-black border-round';
@@ -165,7 +206,7 @@
         return headerDiv;
     }
 
-    function createArrowDiv() {
+    function createArrowDiv(bodyName, hdrName) {
         var arrowDiv = document.createElement('div');
         arrowDiv.className = 'arrow-wrap sortable-list';
         var a = document.createElement('a');
@@ -177,13 +218,13 @@
         // New (just because I haven't figured out correct class layout yet - dirty way)
         arrowDiv.addEventListener("click", function() {
             // Toggle visibility and border style (and arrow image)
-            var content = document.getElementById('xedx-gym-gains-body');
-            var headerDiv = document.getElementById('xedx-gym-gains-hdr-div');
-            if (content.style.display === "block") {
-                content.style.display = "none";
+            var bodyDiv = document.getElementById(bodyName);
+            var headerDiv = document.getElementById(hdrName);
+            if (bodyDiv.style.display === "block") {
+                bodyDiv.style.display = "none";
                 headerDiv.className = 'title main-title title-black border-round';
             } else {
-                content.style.display = "block";
+                bodyDiv.style.display = "block";
                 headerDiv.className = 'title main-title title-black top-round active';
             }
         });
@@ -197,7 +238,6 @@
         // Start off hidden, see headerDiv also...
         //bodyDiv.setAttribute('style', 'display: block; overflow: hidden');
         bodyDiv.setAttribute('style', 'display: none; overflow: hidden');
-        bodyDiv.id = 'xedx-gym-gains-body';
         return bodyDiv;
     }
 
@@ -205,7 +245,7 @@
     function createContentDiv() {
         var contentDiv = document.createElement('div');
         contentDiv.className = 'cont-gray'; // bottom-round';
-        contentDiv.setAttribute('style', 'height: auto; ); //overflow: auto');
+        contentDiv.setAttribute('style', 'height: auto;'); //overflow: auto');
         return contentDiv;
     }
 
@@ -324,6 +364,266 @@
                 handleApiError(response);
             }
         });
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Query and populate bat stats table
+    //////////////////////////////////////////////////////////////////////
+
+    function queryBatStats(contentDiv2) {
+        var tableDiv = document.getElementById('xedx-bat-stat-table');
+        if (!validPointer(tableDiv)) {
+            buildBatStatTable(contentDiv2);
+        }
+
+        console.log('Gym Gains: queryGymDetails');
+        GM_xmlhttpRequest ( {
+            url: 'https://api.torn.com/user/?selections=battlestats&key=' + api_key,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                fillBatStatsDiv(response.responseText);
+            },
+            onerror: function(response) {
+                handleApiError(response);
+            }
+        });
+
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // Build the table: id = 'xedx-bat-stat-table', cell ID's = 'row-<row#, 0-5>-col-<col#, 0-4>'
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    function buildBatStatTable(contentDiv2) {
+        var table = document.createElement('TABLE');
+        table.id = 'xedx-bat-stat-table';
+        $(table).attr('style', 'width: 782px;');
+        contentDiv2.appendChild(table);
+
+        // Need a table of 6 rows: header, str, def, speed, dex, total
+        // and 5 cols: header, Base stats, base + Passives, Current Effective, Base + Passives + Vico
+        for (var i = 0; i < 6; i++) {
+            var row = table.insertRow(i);
+            $(row).attr('style', 'height: 23px;');
+
+            /*
+            GM_addStyle(".cellStyle1 {'border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; vertical-align: middle;'}" +
+                        ".cellStyle2 {'border-left: 1px solid #ddd; border-bottom: 1px solid black; border_right: 1px solid black; vertical-align: middle;'" +
+                        ".cellStyle3 {'border: 1px solid #ddd; vertical-align: middle;'}");
+            */
+
+            // Set  border styles
+            var cell0 = row.insertCell(0);
+            var cell1 = row.insertCell(1);
+            var cell2 = row.insertCell(2);
+            var cell3 = row.insertCell(3);
+            var cell4 = row.insertCell(4);
+            $(cell0).attr('style', 'border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; vertical-align: middle;');
+            if (i == 0) {
+                $(cell1).attr('style', 'border-left: 1px solid #ddd; border-bottom: 1px solid black; vertical-align: middle;');
+                $(cell2).attr('style', 'border-left: 1px solid #ddd; border-bottom: 1px solid black; vertical-align: middle;');
+                $(cell3).attr('style', 'border-left: 1px solid #ddd; border-bottom: 1px solid black; vertical-align: middle;');
+                $(cell4).attr('style', 'border-left: 1px solid #ddd; border-bottom: 1px solid black; vertical-align: middle;');
+            } else {
+                $(cell1).attr('style', 'border-right: 1px solid black; border-bottom: 1px solid #ddd; vertical-align: middle;');
+                $(cell2).attr('style', 'border-right: 1px solid black; border-bottom: 1px solid #ddd; vertical-align: middle;');
+                $(cell3).attr('style', 'border-right: 1px solid black; border-bottom: 1px solid #ddd; vertical-align: middle;');
+                $(cell4).attr('style', 'border-right: 1px solid black; border-bottom: 1px solid #ddd; vertical-align: middle;');
+            }
+
+            // Set cell ID's, to use to populate later.
+            cell0.id = 'row-' + i + '-col-0';
+            cell1.id = 'row-' + i + '-col-1';
+            cell2.id = 'row-' + i + '-col-2';
+            cell3.id = 'row-' + i + '-col-3';
+            cell4.id = 'row-' + i + '-col-4';
+
+            cell1.style.textAlign = 'center';
+            cell2.style.textAlign = 'center';
+            cell3.style.textAlign = 'center';
+            cell4.style.textAlign = 'center';
+            switch (i) { // 'i' is the row
+                case 0:
+                    cell1.innerHTML = '<B>Base</B>';
+                    cell2.innerHTML = '<B>Base w/Passives</B>';
+                    cell3.innerHTML = '<B>Effective</B>';
+                    cell4.innerHTML = '<B>Base w/Passives & Vico</B>';
+                    break;
+                case 1:
+                    cell0.innerHTML = '<B>Strength</B>';
+                    cell1.style.borderLeft = '1px solid black';
+                    cell4.style.borderRight = '1px solid black';
+                    break;
+                case 2:
+                    cell0.innerHTML = '<B>Defense</B>';
+                    cell1.style.borderLeft = '1px solid black';
+                    cell4.style.borderRight = '1px solid black';
+                    break;
+                case 3:
+                    cell0.innerHTML = '<B>Speed</B>';
+                    cell1.style.borderLeft = '1px solid black';
+                    cell4.style.borderRight = '1px solid black';
+                    break;
+                case 4:
+                    cell0.innerHTML = '<B>Dexterity</B>';
+                    cell1.style.borderLeft = '1px solid black';
+                    cell1.style.borderBottom = '1px solid black';
+                    cell2.style.borderBottom = '1px solid black';
+                    cell3.style.borderBottom = '1px solid black';
+                    cell4.style.borderBottom = '1px solid black';
+                    cell4.style.borderRight = '1px solid black';
+                    break;
+                case 5:
+                    cell0.innerHTML = '<B>Total</B>';
+                    cell1.style.borderLeft = '1px solid black';
+                    cell1.style.borderTop = '1px solid black';
+                    cell2.style.borderTop = '1px solid black';
+                    cell3.style.borderTop = '1px solid black';
+                    cell4.style.borderTop = '1px solid black';
+                    cell1.style.borderBottom = '1px solid black';
+                    cell2.style.borderBottom = '1px solid black';
+                    cell3.style.borderBottom = '1px solid black';
+                    cell4.style.borderBottom = '1px solid black';
+                    cell4.style.borderRight = '1px solid black';
+                    break;
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Callback to populate the table created above
+    //////////////////////////////////////////////////////////////////////
+
+    function fillBatStatsDiv(responseText) {
+        var jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {
+            return handleApiError(responseText);
+        }
+
+        // Base values
+        fillBaseBatStats(jsonResp);
+
+        // Base with passives
+        fillBaseWithPassives(jsonResp);
+
+        // Current effective
+        fillCurrentEffectiveBatStats(jsonResp);
+
+        // Base with passives and Vicodin
+        fillBaseWithPassivesAndVico(jsonResp);
+    }
+
+
+    //////////////////////////////////////////////////////////////////////
+    // Helpers for above
+    //////////////////////////////////////////////////////////////////////
+
+    // Get the passives applied to any given stat
+    function getPassives(jsonResp, stat) {
+        var key = stat + '_info';
+        var info = jsonResp[key];
+        var ret = 0;
+        for (var i = 0; i < info.length; i++) { // Parse out '+25%' ==> 25, keep running total
+            if (info[i][0] == '+') {
+                var pAt = info[i].indexOf('%');
+                var tmp = info[i].slice(1, pAt);
+                ret += Number(tmp);
+            }
+        }
+        return ret;
+    }
+
+    function fillBaseBatStats(jsonResp) {
+        /*
+        document.getElementById('row-1-col-1').innerHTML = numberWithCommas(jsonResp.strength);
+        document.getElementById('row-2-col-1').innerHTML = numberWithCommas(jsonResp.defense);
+        document.getElementById('row-3-col-1').innerHTML = numberWithCommas(jsonResp.speed);
+        document.getElementById('row-4-col-1').innerHTML = numberWithCommas(jsonResp.dexterity);
+        document.getElementById('row-5-col-1').innerHTML = numberWithCommas(jsonResp.total);
+        */
+
+        document.getElementById('row-1-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.strength));
+        document.getElementById('row-2-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.defense));
+        document.getElementById('row-3-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.speed));
+        document.getElementById('row-4-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.dexterity));
+        document.getElementById('row-5-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.total));
+    }
+
+    function fillBaseWithPassives(jsonResp) {
+        var strMod = getPassives(jsonResp, 'strength');
+        var speMod = getPassives(jsonResp, 'speed');
+        var defMod = getPassives(jsonResp, 'defense');
+        var dexMod = getPassives(jsonResp, 'dexterity');
+        var totMod = strMod + speMod + defMod + dexMod;
+
+        var strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        //document.getElementById('row-1-col-2').innerHTML = numberWithCommas(strTot.toFixed(4)) + ' (+' + strMod + '%)';
+        document.getElementById('row-1-col-2').innerHTML = numberWithCommas(Math.round(strTot)) + ' (+' + strMod + '%)';
+        var defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        //document.getElementById('row-2-col-2').innerHTML = numberWithCommas(defTot.toFixed(4)) + ' (+' + defMod + '%)';
+        document.getElementById('row-2-col-2').innerHTML = numberWithCommas(Math.round(defTot)) + ' (+' + defMod + '%)';
+        var speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        //document.getElementById('row-3-col-2').innerHTML = numberWithCommas(speedTot.toFixed(4)) + ' (+' + speMod + '%)';
+        document.getElementById('row-3-col-2').innerHTML = numberWithCommas(Math.round(speedTot)) + ' (+' + speMod + '%)';
+        var dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        //document.getElementById('row-4-col-2').innerHTML = numberWithCommas(dexTot.toFixed(4)) + ' (+' + dexMod + '%)';
+        document.getElementById('row-4-col-2').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
+        var total = strTot + defTot + speedTot + dexTot;
+        //document.getElementById('row-5-col-2').innerHTML = numberWithCommas(total.toFixed(4));
+        document.getElementById('row-5-col-2').innerHTML = numberWithCommas(Math.round(total));
+    }
+
+    function fillCurrentEffectiveBatStats(jsonResp) {
+        var strMod = jsonResp.strength_modifier;
+        var defMod = jsonResp.defense_modifier;
+        var speMod = jsonResp.speed_modifier;
+        var dexMod = jsonResp.dexterity_modifier;
+        var strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        //document.getElementById('row-1-col-3').innerHTML = numberWithCommas(strTot.toFixed(4)) +
+        document.getElementById('row-1-col-3').innerHTML = numberWithCommas(Math.round(strTot)) +
+            ' (' + ((strMod > 0) ? '+' : '') + strMod + '%)';
+        var defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        //document.getElementById('row-2-col-3').innerHTML = numberWithCommas(defTot.toFixed(4)) +
+        document.getElementById('row-2-col-3').innerHTML = numberWithCommas(Math.round(defTot)) +
+            ' (' + ((defMod > 0) ? '+' : '') + defMod + '%)';
+        var speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        //document.getElementById('row-3-col-3').innerHTML = numberWithCommas(speedTot.toFixed(4)) +
+        document.getElementById('row-3-col-3').innerHTML = numberWithCommas(Math.round(speedTot)) +
+            ' (' + ((speMod > 0) ? '+' : '') + speMod + '%)';
+        var dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        //document.getElementById('row-4-col-3').innerHTML = numberWithCommas(dexTot.toFixed(4)) +
+        document.getElementById('row-4-col-3').innerHTML = numberWithCommas(Math.round(dexTot)) +
+            ' (' + ((dexMod > 0) ? '+' : '') + dexMod + '%)';
+        var total = strTot + defTot + speedTot + dexTot;
+        //document.getElementById('row-5-col-3').innerHTML = numberWithCommas(total.toFixed(4));
+        document.getElementById('row-5-col-3').innerHTML = numberWithCommas(Math.round(total));
+    }
+
+    function fillBaseWithPassivesAndVico(jsonResp) {
+        var strMod = getPassives(jsonResp, 'strength') + 25;
+        var speMod = getPassives(jsonResp, 'speed') + 25;
+        var defMod = getPassives(jsonResp, 'defense') + 25;
+        var dexMod = getPassives(jsonResp, 'dexterity') + 25;
+
+        var strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        //document.getElementById('row-1-col-4').innerHTML = numberWithCommas(strTot.toFixed(4)) + ' (+' + strMod + '%)';
+        document.getElementById('row-1-col-4').innerHTML = numberWithCommas(Math.round(strTot)) + ' (+' + strMod + '%)';
+        var defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        //document.getElementById('row-2-col-4').innerHTML = numberWithCommas(defTot.toFixed(4)) + ' (+' + defMod + '%)';
+        document.getElementById('row-2-col-4').innerHTML = numberWithCommas(Math.round(defTot)) + ' (+' + defMod + '%)';
+        var speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        //document.getElementById('row-3-col-4').innerHTML = numberWithCommas(speedTot.toFixed(4)) + ' (+' + speMod + '%)';
+        document.getElementById('row-3-col-4').innerHTML = numberWithCommas(Math.round(speedTot)) + ' (+' + speMod + '%)';
+        var dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        //document.getElementById('row-4-col-4').innerHTML = numberWithCommas(dexTot.toFixed(4)) + ' (+' + dexMod + '%)';
+        document.getElementById('row-4-col-4').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
+        var total = strTot + defTot + speedTot + dexTot;
+        //document.getElementById('row-5-col-4').innerHTML = numberWithCommas(total.toFixed(4));
+        document.getElementById('row-5-col-4').innerHTML = numberWithCommas(Math.round(total));
     }
 
     //////////////////////////////////////////////////////////////////////
