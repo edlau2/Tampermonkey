@@ -12,10 +12,8 @@
 
 (function($) {
     'use strict';
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    // Utility functions
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    /*
 
     // Validate an API key and prompt if misssing
     var api_key = GM_getValue('gm_api_key');
@@ -110,5 +108,12 @@
 
         return matches;
     }
+
+    // Backwards compatibility:
+    function myGetElementsByClassName(anode, className) {
+        return myGetElementsByClassName2(anode, className);
+    }
+    
+    */
 
 })();
