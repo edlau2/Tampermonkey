@@ -6,6 +6,7 @@
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains.user.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
