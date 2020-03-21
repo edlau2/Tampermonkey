@@ -4,6 +4,7 @@
 // @version      0.2
 // @description  Appends the numeric rank to a user's profile rank name
 // @author       xedx [2100735]
+// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js
 // @include      https://www.torn.com/profiles.php*
 // @grant        none
 // ==/UserScript==
