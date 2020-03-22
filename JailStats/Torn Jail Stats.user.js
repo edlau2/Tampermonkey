@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -309,7 +309,7 @@
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
         var text = 'Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B>: ' + pctText;
@@ -325,7 +325,7 @@
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
         var text = 'Honor Bar at 250: <B>\"Bounty Hunter\"</B>: ' + pctText;
@@ -345,19 +345,19 @@
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
         var pctText2 = bustsText/2500 * 100;
         if (Number(pctText2) >= 100) {
             pctText2 = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText2 = '<B><font color=\'red\'>' + pctText2 + '%</font></B>';
+            pctText2 = '<B><font color=\'red\'>' + Math.round(pctText2) + '%</font></B>';
         }
         var pctText3 = bustsText/10000 * 100;
         if (Number(pctText3) >= 100) {
             pctText3 = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText3 = '<B><font color=\'red\'>' + pctText3 + '%</font></B>';
+            pctText3 = '<B><font color=\'red\'>' + Math.round(pctText3) + '%</font></B>';
         }
 
         var text = 'Honor Bar at 1,000: <B>\"Bar Breaker\"</B>: ' + pctText;
@@ -384,7 +384,7 @@
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
-            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
         var text = 'Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B>: ' + pctText;
