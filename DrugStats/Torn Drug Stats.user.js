@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -15,6 +15,8 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+// @require      https://github.com/edlau2/Tampermonkey/blob/master/helpers/Torn-JS-Helpers.js
 
 (function() {
     'use strict';
@@ -42,7 +44,6 @@
     function numberWithCommas(x) {
         return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
-
 
     //////////////////////////////////////////////////////////////////////
     // Build the Drug Stats div, append underneath the Personal Perks div
@@ -304,6 +305,18 @@
         }
         //console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = ' + valSpan.innerText);
 
+        // Once we have valid 'drugsused' and 'overdosed', we can calc the percentage.
+        if (!name.localeCompare('drugsused') || !name.localeCompare('overdosed')) {
+            searchName = 'xedx-val-span-drugsused';
+            var valSpanDrugsused = document.getElementById(searchName);
+            searchName = 'xedx-val-span-overdosed';
+            var valSpanOverdosed = document.getElementById(searchName);
+            if (valSpanDrugsused.innerText != '0' && valSpanOverdosed.innerText != '0') {
+                var pct = ((Number(valSpanOverdosed.innerText) / Number(valSpanDrugsused.innerText))*100).toFixed(2);
+                valSpanOverdosed.innerText = valSpanOverdosed.innerText + ' (' + pct + '%)';
+            }
+        }
+
         if (!expectedResponses) {
                 addToolTips();
             }
@@ -471,8 +484,6 @@
     //////////////////////////////////////////////////////////////////////
 
     console.log("Torn Drug Stats script started!");
-
-    // Make sure we have an API key
     var api_key = GM_getValue('gm_api_key');
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
         api_key = prompt("Please enter your API key.\n" +
