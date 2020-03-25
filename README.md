@@ -190,7 +190,7 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
-**_Torn Crime Tooltips**
+**_Torn Crime Tooltips_**
 
 - [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
 
