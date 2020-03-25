@@ -7,6 +7,7 @@
 // @include      https://www.torn.com/index.php
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      tornstats.com
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -261,16 +262,12 @@
             return;
         }
 
-        console.log('Torn Jail Stats, personalStatsQueryCB: id = ' + valSpan + ' busted = ' + stats.peoplebusted +
-                    ' failed = ' + stats.failedbusts + ' jailed = ' + stats.jailed + ' bailed = ' + stats.peoplebought +
-                   ' Bail Fees = $' + numberWithCommas(stats.peopleboughtspent));
-
         // If this fails, may not be in data (never done). Not an error.
         if (!validPointer(stats[name])) {
             return "0";
         }
 
-        if (!name.localeCompare('totalbountyreward')) {
+        if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
             valSpan.innerText = '$' + numberWithCommas(stats[name]);
         } else {
             valSpan.innerText = stats[name];
@@ -286,6 +283,20 @@
     //////////////////////////////////////////////////////////////////////
 
     function addToolTips() {
+        GM_addStyle(".tooltip2 {" +
+                  "radius: 4px !important;" +
+                  "background-color: #ddd !important;" +
+                  "padding: 5px 20px;" +
+                  "border: 2px solid white;" +
+                  "border-radius: 10px;" +
+                  "width: 300px;" +
+                  "margin: 50px;" +
+                  "text-align: left;" +
+                  "font: bold 14px ;" +
+                  "font-stretch: condensed;" +
+                  "text-decoration: none;" +
+                  "}");
+
         var bustsLi = document.getElementById('xedx-busts');
         var bailsLi = document.getElementById('xedx-bails');
         var bountiesLi = document.getElementById('xedx-bounties');
@@ -293,14 +304,26 @@
 
         if (validPointer(bustsLi) && validPointer(bailsLi) &&
             validPointer(bountiesLi) && validPointer(feesLi)) {
-            buildBustsToolTip();
-            buildBailsToolTip();
-            buildBountiesToolTip();
-            buildFeesToolTip();
+            buildBustsToolTip('People Busted');
+            buildBailsToolTip('People Bailed');
+            buildBountiesToolTip('Bounties Collected');
+            buildFeesToolTip('Bounty Rewards');
         }
     }
 
-    function buildFeesToolTip() {
+    function displayToolTip(div, text) {
+        $(document).ready(function() {
+            $(div).attr("title", "original");
+            $(div).tooltip({
+                content: text,
+                classes: {
+                    "ui-tooltip": "tooltip2"
+                }
+            });
+        })
+    }
+
+    function buildFeesToolTip(title) {
         var feesLi = document.getElementById('xedx-fees');
         var feesText = document.getElementById('xedx-val-span-totalbountyreward').innerText;
         var tmp = feesText.replace('$', '');
@@ -312,13 +335,14 @@
             pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
-        var text = 'Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B>: ' + pctText;
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B> ' + pctText;
 
-        $(feesLi).attr("data-html", "true");
-        $(feesLi).attr("title", text);
+        displayToolTip(feesLi, text);
+        //$(feesLi).attr("data-html", "true");
+        //$(feesLi).attr("title", text);
     }
 
-    function buildBountiesToolTip() {
+    function buildBountiesToolTip(title) {
         var bountiesLi = document.getElementById('xedx-bounties');
         var bountiesText = document.getElementById('xedx-val-span-bountiescollected').innerText;
         var pctText = bountiesText/250 * 100;
@@ -328,17 +352,18 @@
             pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
-        var text = 'Honor Bar at 250: <B>\"Bounty Hunter\"</B>: ' + pctText;
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 250: <B>\"Bounty Hunter\"</B> ' + pctText;
         var text2 = 'Medals at: <B>' +
         ((bountiesText > 25) ? '<font color=green>25, </font>' : '<font color=red>25, </font>') +
             ((bountiesText > 100) ? '<font color=green>100, </font>' : '<font color=red>100, </font>') +
             ((bountiesText > 500) ? '<font color=green>500</font></B>' : '<font color=red>500</font></B>');
 
-        $(bountiesLi).attr("data-html", "true");
-        $(bountiesLi).attr("title", text + CRLF + text2);
+        displayToolTip(bountiesLi, text + CRLF + text2);
+        //$(bountiesLi).attr("data-html", "true");
+        //$(bountiesLi).attr("title", text + CRLF + text2);
     }
 
-    function buildBustsToolTip() {
+    function buildBustsToolTip(title) {
         var bustsLi = document.getElementById('xedx-busts');
         var bustsText = document.getElementById('xedx-val-span-peoplebusted').innerText;
         var pctText = bustsText/1000 * 100;
@@ -360,9 +385,9 @@
             pctText3 = '<B><font color=\'red\'>' + Math.round(pctText3) + '%</font></B>';
         }
 
-        var text = 'Honor Bar at 1,000: <B>\"Bar Breaker\"</B>: ' + pctText;
-        var text2 = 'Honor Bar at 2,500: <B>\"Aiding and Abetting\"</B>: ' + pctText2;
-        var text3 = 'Honor Bar at 10,000:<B>\"Don\'t Drop It\"</B>: ' + pctText3;
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 1,000: <B>\"Bar Breaker\"</B> ' + pctText;
+        var text2 = 'Honor Bar at 2,500: <B>\"Aiding and Abetting\"</B> ' + pctText2;
+        var text3 = 'Honor Bar at 10,000: <B>\"Don\'t Drop It\"</B> ' + pctText3;
         var text4 = 'Medals at: <B>' +
             ((bustsText > 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
             ((bustsText > 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
@@ -373,11 +398,12 @@
             ((bustsText > 8000) ? '<font color=green>8K</font></B>' : '<font color=red>8K</font></B>');
             // 250, 500, 1K, 2K, 4K, 6K and 8K</B>';
 
-        $(bustsLi).attr("data-html", "true");
-        $(bustsLi).attr("title", text + CRLF + text2 + CRLF + text3 + CRLF + text4);
+        displayToolTip(bustsLi, text + CRLF + text2 + CRLF + text3 + CRLF + text4);
+        //$(bustsLi).attr("data-html", "true");
+        //$(bustsLi).attr("title", text + CRLF + text2 + CRLF + text3 + CRLF + text4);
     }
 
-    function buildBailsToolTip() {
+    function buildBailsToolTip(title) {
         var bailsLi = document.getElementById('xedx-bails');
         var bailsText = document.getElementById('xedx-val-span-peoplebought').innerText;
         var pctText = bailsText/500 * 100;
@@ -387,10 +413,11 @@
             pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
         }
 
-        var text = 'Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B>: ' + pctText;
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B> ' + pctText;
 
-        $(bailsLi).attr("data-html", "true");
-        $(bailsLi).attr("title", text);
+        displayToolTip(bailsLi, text);
+        //$(bailsLi).attr("data-html", "true");
+        //$(bailsLi).attr("title", text);
     }
 
     //////////////////////////////////////////////////////////////////////
