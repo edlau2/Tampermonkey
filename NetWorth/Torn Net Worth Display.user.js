@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
+// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.user.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -83,9 +84,11 @@
     //////////////////////////////////////////////////////////////////////
 
     function personalStatsQuery(ID) {
+        var url = "https://api.torn.com/user/" + ID + "?selections=personalstats&key=" + api_key;
+        console.log('Querying NW, URL = \"' + url + '\"');
         var details = GM_xmlhttpRequest({
             method:"POST",
-            url:"https://api.torn.com/user/" + ID + "?selections=personalstats&key=" + api_key,
+            url:url, //"https://api.torn.com/user/" + ID + "?selections=personalstats&key=" + api_key,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json'
@@ -116,12 +119,6 @@
         }
 
         var stats = jsonResp.personalstats;
-
-        console.log("Got Net Worth: $" + numberWithCommas(stats.networth));
-
-        //globalNW = stats.networth; // Set the global, as returning a value from a callback makes no sense.
-
-        // Insert into the page
         addNetWorthToProfile(stats.networth);
     }
 
@@ -159,8 +156,13 @@
     // We ned the XID
     function parseURL(URL) {
         var n = URL.indexOf('='); // Find the '=' sign
-        var n2 = URL.indexOf('#'); // Find the '#' sign
-        var ID = URL.slice(n+1, n2); // Extract just the ID from the URL, between the '=' and '#'
+        var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
+        var ID = 0;
+        if (n2 != -1) {
+            ID = URL.slice(n+1, n2); // Extract just the ID from the URL, between the '=' and '#'
+        } else {
+            ID = URL.slice(n+1);
+        }
         return ID;
     }
 
@@ -175,22 +177,13 @@
         if (validPointer(testDiv)) {
             return;
         }
-
-        // Underneath 'targetNode', find class 'basic-list' (a UL)
-
-        // Whole profile info section, left side
         var rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-
-        // Actual UL we need. Will fail if not yet loaded. Don't worry, we'll get called again later.
         var targetUL = rootDiv.getElementsByClassName('basic-list')[0];
         if (!validPointer(targetUL)) {
             return;
         }
 
-        // Create an LI, mirroring th othe LI's in that list
         var li = createLI(nw);
-
-        // Append to end of list and we're done.
         targetUL.appendChild(li);
     }
 
@@ -209,13 +202,8 @@
                          "Your key is kept private and not shared with anyone.", "");
         GM_setValue('gm_api_key', api_key);
     }
-
-    // Main conatainer for all the other DOM, loaded first so should be available.
-    // Well, sort, it's a div underneat maincontainer but should still be there
     var targetNode = document.getElementById('profileroot');
     var config = { attributes: true, childList: true, subtree: true };
-    //var globalNW = 0; // Global to hold the result of the querie's callback
-
     var callback = function(mutationsList, observer) {
         // This is where all the work is done
         // Turn OFF the observer, otherwise we'll be triggered here when we edit the page.
@@ -227,12 +215,8 @@
 
         // Query the Torn API (personalstats) and get networth
         // The callback from the query actually populates the UI
+        console.log('Query NW, Window URL: ' + window.location.href);
         queryPersonalStatsNW(parseURL(window.location.href));
-
-        // Finally, insert into the page (now done from the callback)
-        //addNetWorthToProfile();
-
-        // We can re-connect our observer now.
         observer.observe(targetNode, config);
 
     };
