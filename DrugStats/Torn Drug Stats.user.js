@@ -7,6 +7,7 @@
 // @include      https://www.torn.com/index.php
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats.user.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      tornstats.com
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -141,20 +142,20 @@
         var rehabsLi = document.createElement('li');
         var rehabCostLi = document.createElement('li');
 
-        cannibusLi.appendChild(createDividerSpan('Cannibus Used'));
-        ecstasyLi.appendChild(createDividerSpan('Ecstsy Used'));
-        ketamineLi.appendChild(createDividerSpan('Ketamine Used'));
-        lsdLi.appendChild(createDividerSpan('LSD Used'));
-        opiumLi.appendChild(createDividerSpan('Opium Used'));
-        shroomsLi.appendChild(createDividerSpan('Shrooms Used'));
-        speedLi.appendChild(createDividerSpan('Speed Used'));
-        pcpLi.appendChild(createDividerSpan('PCP Used'));
-        xanaxLi.appendChild(createDividerSpan('Xanax Used'));
-        vicodinLi.appendChild(createDividerSpan('Vicodin Used'));
-        totalTakenLi.appendChild(createDividerSpan('Total Drugs Used'));
-        odsLi.appendChild(createDividerSpan('Overdoses'));
-        rehabsLi.appendChild(createDividerSpan('Rehabs'));
-        rehabCostLi.appendChild(createDividerSpan('Rehab Costs'));
+        cannibusLi.appendChild(createDividerSpan('cantaken', 'Cannibus Used'));
+        ecstasyLi.appendChild(createDividerSpan('exttaken', 'Ecstsy Used'));
+        ketamineLi.appendChild(createDividerSpan('kettaken', 'Ketamine Used'));
+        lsdLi.appendChild(createDividerSpan('lsdtaken', 'LSD Used'));
+        opiumLi.appendChild(createDividerSpan('opitaken', 'Opium Used'));
+        shroomsLi.appendChild(createDividerSpan('shrtaken', 'Shrooms Used'));
+        speedLi.appendChild(createDividerSpan('spetaken', 'Speed Used'));
+        pcpLi.appendChild(createDividerSpan('pcptaken', 'PCP Used'));
+        xanaxLi.appendChild(createDividerSpan('xantaken', 'Xanax Used'));
+        vicodinLi.appendChild(createDividerSpan('victaken', 'Vicodin Used'));
+        totalTakenLi.appendChild(createDividerSpan('drugsused', 'Total Drugs Used'));
+        odsLi.appendChild(createDividerSpan('overdosed', 'Overdoses'));
+        rehabsLi.appendChild(createDividerSpan('rehabs', 'Rehabs'));
+        rehabCostLi.appendChild(createDividerSpan('rehabcost', 'Rehab Costs'));
 
         cannibusLi.appendChild(createValueSpan('cantaken'));
         ecstasyLi.appendChild(createValueSpan('exttaken'));
@@ -189,9 +190,10 @@
         return contentDiv;
     }
 
-    function createDividerSpan(name) {
+    function createDividerSpan(item, name) {
         var dividerSpan = document.createElement('span');
         dividerSpan.className = ('divider');
+        dividerSpan.id = 'xedx-div-span-' + item;
 
         var nameSpan = document.createElement('span');
         nameSpan.innerText = name;
@@ -329,6 +331,20 @@
     //////////////////////////////////////////////////////////////////////
 
     function addToolTips() {
+        GM_addStyle(".tooltip2 {" +
+                  "radius: 4px !important;" +
+                  "background-color: #ddd !important;" +
+                  "padding: 5px 20px;" +
+                  "border: 2px solid white;" +
+                  "border-radius: 10px;" +
+                  "width: 300px;" +
+                  "margin: 50px;" +
+                  "text-align: left;" +
+                  "font: bold 14px ;" +
+                  "font-stretch: condensed;" +
+                  "text-decoration: none;" +
+                  "}");
+
         buildUseString('cantaken');
         buildUseString('exttaken');
         buildUseString('kettaken');
@@ -341,54 +357,68 @@
         buildUseString('victaken');
     }
 
+    function displayToolTip(div, text) {
+        $(document).ready(function() {
+            $(div.parentNode).attr("title", "original");
+            $(div.parentNode).tooltip({
+                content: text,
+                classes: {
+                    "ui-tooltip": "tooltip2"
+                }
+            });
+        })
+    }
+
     function buildUseString(item) {
         var useDiv = document.getElementById('xedx-val-span-' + item);
-        var useText = useDiv.innerText;
+        var useText = useDiv.innerText.replace(/,/g, "");
         var pctText = useText/50 * 100;
         if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>Completed!</font></B>';
+            pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
             pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
         }
-
-        var text = '<B>Honor Bar Available' + CRLF;
+        var divSpan = document.getElementById('xedx-div-span-' + item);
+        var text = '<B>' + divSpan.innerText + ': </B>Honor Bar Available' + CRLF;
         switch (item) {
             case 'cantaken':
-                text = text + TAB + 'Who\'s Frank? (50 Cannibus): ' + pctText + CRLF;
+                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannibus): ' + pctText + CRLF;
                 break;
             case 'exttaken':
-                text = text + TAB + 'Party Animal (50 Ecstacy): ' + pctText + CRLF;
+                text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
                 break;
             case 'kettaken':
-                text = text + TAB + 'Horse Tranquilizer (50 Ketamine): ' + pctText + CRLF;
+                text = text + TAB + '<B>Horse Tranquilizer</B> (50 Ketamine): ' + pctText + CRLF;
                 break;
             case 'lsdtaken':
-                text = text + TAB + 'Acid Dream (50 LSD): ' + pctText + CRLF;
+                text = text + TAB + '<B>Acid Dream</B> (50 LSD): ' + pctText + CRLF;
                 break;
             case 'opitaken':
-                text = text + TAB + 'The Fields of Opium (50 Opium): ' + pctText + CRLF;
+                text = text + TAB + '<B>The Fields of Opium</B> (50 Opium): ' + pctText + CRLF;
                 break;
             case 'shrtaken':
-                text = text + TAB + 'I Think I See Dead People (50 Shrooms): ' + pctText + CRLF;
+                text = text + TAB + '<B>I Think I See Dead People</B> (50 Shrooms): ' + pctText + CRLF;
                 break;
             case 'spetaken':
-                text = text + TAB + 'Crank it Up (50 Speed): ' + pctText + CRLF;
+                text = text + TAB + '<B>Crank it Up</B> (50 Speed): ' + pctText + CRLF;
                 break;
             case 'pcptaken':
-                text = text + TAB + 'Angel Dust (50 PCP): ' + pctText + CRLF;
+                text = text + TAB + '<B>Angel Dust</B> (50 PCP): ' + pctText + CRLF;
                 break;
             case 'xantaken':
-                text = text + TAB + 'Free Energy (50 Xanax): ' + pctText + CRLF;
+                text = text + TAB + '<B>Free Energy</B> (50 Xanax): ' + pctText + CRLF;
                 break;
             case 'victaken':
-                text = text + TAB + 'Painkiller (50 Vicodin): ' + pctText + '</B>';
+                text = text + TAB + '<B>Painkiller</B> (50 Vicodin): ' + pctText + '</B>';
                 break;
             default:
                 return;
         }
 
-        $(useDiv).attr("data-html", "true");
-        $(useDiv).attr("title", text);
+        displayToolTip(useDiv, text);
+
+        //$(useDiv).attr("data-html", "true");
+        //$(useDiv).attr("title", text);
     }
 
     //////////////////////////////////////////////////////////////////////
