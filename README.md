@@ -190,6 +190,17 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
+**_Torn Crime Tooltips**
+
+- [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
+
+Images:
+
+- [Torn Crime Tooltips-1.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-1.png)
+- [Torn Crime Tooltips-2.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-2.png)
+
+Adds Tool Tips to the Criminal Offences display on your home page. Useful for merit hunting.
+
 **_Torn Drug Stats_**
 
 - [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats.user.js)
@@ -200,7 +211,7 @@ Images:
 - [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
 - [Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
 
-This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits.
+This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
 
 ~~Note: I haven't yet found the names for the stats for Shrooms, Speed, and PCP in theTorn API. Every other drug is listed in the 'personalstats' field. When I find the, I'll add them. For now it displays 'unavailable'.
 
@@ -213,7 +224,7 @@ Images:
 - [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
 - [Torn Jail Stats 2.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats-2.png)
 
-This script adds a new section to your Home page, and displays beneath the faction perks section a new section, similar to the Crimes section, displaying your bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards bust and bail merits.
+This script adds a new section to your Home page, and displays beneath the faction perks section a new section, similar to the Crimes section, displaying your bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards bust and bail merits, comes with tool tips to display merit progress.
 
 **_Torn Jail Scores_**
 
