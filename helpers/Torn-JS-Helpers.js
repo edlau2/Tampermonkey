@@ -13,6 +13,7 @@
 
 // ==/UserScript==
 
+/*
 initialize();
 
 function initialize() {
@@ -21,9 +22,10 @@ function initialize() {
     return this.toFixed(Math.max(0, ~~n)).replace(new RegExp(re, 'g'), '$&,');
   };
 }
+*/
 
 function validateApiKey() {
     console.log('Helper script validating API key!');
-    return 42;
+    return 43;
 }
 
