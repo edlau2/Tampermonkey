@@ -1,6 +1,6 @@
 // ==UserScript==
 // @exclude     *
-// @namespace   xedx-helpers
+// @namespace   xedx.helpers
 
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
