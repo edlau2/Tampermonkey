@@ -5,6 +5,8 @@
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
+// @require     http://code.jquery.com/jquery-3.4.1.min.js
+// @require     http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @version     0.1
@@ -175,6 +177,18 @@ function createMoveDiv() {
     b.className = 'accordion-header-move right';
     moveDiv.appendChild(b);
     return moveDiv;
+}
+
+function displayToolTip(div, text) {
+    $(document).ready(function() {
+        $(div.parentNode).attr("title", "original");
+        $(div.parentNode).tooltip({
+            content: text,
+            classes: {
+                "ui-tooltip": "tooltip2"
+            }
+        });
+    })
 }
 
 
