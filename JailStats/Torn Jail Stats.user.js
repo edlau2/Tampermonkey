@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      tornstats.com
@@ -21,36 +22,13 @@
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
-    // Utility functions
-    //////////////////////////////////////////////////////////////////////
-
-    // HTML constants
-    var CRLF = '<br/>';
-    var TAB = '&emsp;';
-
-    // Check to see if a pointer is valid
-    function validPointer(val, dbg = false) {
-        if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-            if (dbg) {
-                debugger;
-            }
-            return false;
-        }
-        return true;
-    }
-
-    // Insert comma separators into a number
-    function numberWithCommas(x) {
-        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // Build the Jail Stats div, append underneath the Personal Perks div
     //////////////////////////////////////////////////////////////////////
 
+    var extDivId = 'xedx-jail-stats-ext';
     function buildJailStatsDiv() {
         // Only do this once
-        var testDiv = document.getElementById('xedx-jail-stats-ext');
+        var testDiv = document.getElementById(extDivId);
         if (validPointer(testDiv)) {
             return;
         }
@@ -61,7 +39,7 @@
         }
 
         // Piece everything together.
-        var extDiv = createExtendedDiv();
+        var extDiv = createExtendedDiv('sortable-box t-blue-cont h', extDivId);
         var hdrDiv = createHeaderDiv();
         var bodyDiv = createBodyDiv();
         var contentDiv = createContentDiv(); // This call also queries the Torn API...
@@ -87,28 +65,6 @@
         return sepHr;
     }
 
-    function createExtendedDiv() {
-        var extendedDiv = document.createElement('div');
-        extendedDiv.className = 'sortable-box t-blue-cont h';
-        extendedDiv.id = 'xedx-jail-stats-ext';
-        return extendedDiv;
-    }
-
-    function createHeaderDiv() {
-        var headerDiv = document.createElement('div');
-        headerDiv.id = 'xedx-header_div';
-        headerDiv.className = 'title main-title title-black active top-round';
-        headerDiv.setAttribute('role', 'heading');
-        headerDiv.setAttribute('aria-level', '5');
-
-        var arrowDiv = createArrowDiv();
-        var moveDiv = createMoveDiv();
-        headerDiv.appendChild(arrowDiv);
-        headerDiv.appendChild(moveDiv);
-
-        return headerDiv;
-    }
-
     function createBodyDiv() {
         var bodyDiv = document.createElement('div');
         bodyDiv.className = 'bottom-round';
@@ -125,11 +81,7 @@
         ulList.className = 'info-cont-wrap';
         contentDiv.appendChild(ulList);
 
-        // The ID's let us add tool tips via the Torn HomePage ToolTips script.
-        // It only adds tooltips if the ID's are present.
-        // We could (should?) just go ahead and add the title attributes
-        // here - the title's text is the tooltip.
-        //
+        // ID's are for tool tips, added later.
         var jailBustsLi = document.createElement('li');
         jailBustsLi.id = 'xedx-busts';
         var jailFailsLi = document.createElement('li');
@@ -142,13 +94,13 @@
         var bountiesFeesLi = document.createElement('li');
         bountiesFeesLi.id = 'xedx-fees';
 
-        jailBustsLi.appendChild(createDividerSpan('People Busted'));
-        jailFailsLi.appendChild(createDividerSpan('Failed Busts'));
-        jailBailsLi.appendChild(createDividerSpan('People Bailed'));
-        jailFeesLi.appendChild(createDividerSpan('Bail Fees'));
-        jailJailsLi.appendChild(createDividerSpan('Times Jailed'));
-        bountiesLi.appendChild(createDividerSpan('Bounties Collected'));
-        bountiesFeesLi.appendChild(createDividerSpan('Bounty Rewards'));
+        jailBustsLi.appendChild(createDividerSpan('peoplebusted', 'People Busted'));
+        jailFailsLi.appendChild(createDividerSpan('failedbusts', 'Failed Busts'));
+        jailBailsLi.appendChild(createDividerSpan('peoplebought', 'People Bailed'));
+        jailFeesLi.appendChild(createDividerSpan('peopleboughtspent', 'Bail Fees'));
+        jailJailsLi.appendChild(createDividerSpan('jailed', 'Times Jailed'));
+        bountiesLi.appendChild(createDividerSpan('bountiescollected', 'Bounties Collected'));
+        bountiesFeesLi.appendChild(createDividerSpan('totalbountyreward', 'Bounty Rewards'));
 
         jailBustsLi.appendChild(createValueSpan('peoplebusted'));
         jailFailsLi.appendChild(createValueSpan('failedbusts'));
@@ -169,17 +121,6 @@
         return contentDiv;
     }
 
-    function createDividerSpan(name) {
-        var dividerSpan = document.createElement('span');
-        dividerSpan.className = ('divider');
-
-        var nameSpan = document.createElement('span');
-        nameSpan.innerText = name;
-        dividerSpan.appendChild(nameSpan);
-
-        return dividerSpan;
-    }
-
     function createValueSpan(item) {
         var value = queryPersonalStats(item);
         var valSpan = document.createElement('span');
@@ -187,24 +128,6 @@
         valSpan.className = 'desc';
         valSpan.innerText = value;
         return valSpan;
-    }
-
-    function createArrowDiv() {
-        var arrowDiv = document.createElement('div');
-        arrowDiv.className = 'arrow-wrap';
-        var a = document.createElement('i');
-        a.className = 'accordion-header-arrow right';
-        arrowDiv.appendChild(a);
-        return arrowDiv;
-    }
-
-    function createMoveDiv() {
-        var moveDiv = document.createElement('div');
-        moveDiv.className = 'move-wrap';
-        var b = document.createElement('i');
-        b.className = 'accordion-header-move right';
-        moveDiv.appendChild(b);
-        return moveDiv;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -338,8 +261,6 @@
         var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B> ' + pctText;
 
         displayToolTip(feesLi, text);
-        //$(feesLi).attr("data-html", "true");
-        //$(feesLi).attr("title", text);
     }
 
     function buildBountiesToolTip(title) {
@@ -359,8 +280,6 @@
             ((bountiesText > 500) ? '<font color=green>500</font></B>' : '<font color=red>500</font></B>');
 
         displayToolTip(bountiesLi, text + CRLF + text2);
-        //$(bountiesLi).attr("data-html", "true");
-        //$(bountiesLi).attr("title", text + CRLF + text2);
     }
 
     function buildBustsToolTip(title) {
@@ -399,8 +318,6 @@
             // 250, 500, 1K, 2K, 4K, 6K and 8K</B>';
 
         displayToolTip(bustsLi, text + CRLF + text2 + CRLF + text3 + CRLF + text4);
-        //$(bustsLi).attr("data-html", "true");
-        //$(bustsLi).attr("title", text + CRLF + text2 + CRLF + text3 + CRLF + text4);
     }
 
     function buildBailsToolTip(title) {
@@ -416,8 +333,6 @@
         var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B> ' + pctText;
 
         displayToolTip(bailsLi, text);
-        //$(bailsLi).attr("data-html", "true");
-        //$(bailsLi).attr("title", text);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -456,7 +371,6 @@
         var jsonResp = JSON.parse(responseText);
 
         if (jsonResp.error) {
-            console.log('Torn Jail Stats: re-enabling observer');
             observer.observe(targetNode, config);
             return handleError(responseText);
         }
@@ -485,13 +399,11 @@
         console.log('  Destination: ' + stats.destination +
                     '\n  time_left: ' + stats.time_left + ' seconds.');
         if (stats.time_left == 0 && stats.destination == 'Torn') {
-            console.log('Torn Jail Stats: re-enabling observer');
             observer.observe(targetNode, config);
         } else {
             // If travelling, set timeout to re-connect the observer
             // when we are scheduled to land.
             setTimeout(function(){
-                console.log('Torn Jail Stats: re-enabling observer');
                 observer.observe(targetNode, config); },
                        stats.time_left * 1000);
         }
@@ -531,25 +443,13 @@
     //////////////////////////////////////////////////////////////////////
 
     console.log("Torn Jail Stats script started!");
-
-    // Make sure we have an API key
-    var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
-    }
+    validateApiKey();
 
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-
-        // debugger;
-
         // Disconnect the observer to prevent looping before
         // we start modifying the page.
-        console.log('Torn Jail Stats: disconnecting observer');
         observer.disconnect();
         buildJailStatsDiv();
 
@@ -557,10 +457,7 @@
         // or else sets a timeout to re-connect when we land, if
         // we are travelling.
         checkTravelling();
-
-        //observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
-    console.log('Torn Jail Stats: starting observer');
     observer.observe(targetNode, config);
 })();
