@@ -16,5 +16,6 @@
 
 function validateApiKey() {
     console.log('Helper script validating API key!');
+    return 42;
 }
 
