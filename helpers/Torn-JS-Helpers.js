@@ -11,8 +11,10 @@
 
 // ==/UserScript==
 
+// @location https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+
 
 function validateApiKey() {
-    
+    console.log('Helper script validating API key!');
 }
 
