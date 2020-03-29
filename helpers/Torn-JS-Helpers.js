@@ -149,6 +149,15 @@ function createHeaderDiv() {
     return headerDiv;
 }
 
+function createDividerSpan(item, name) {
+    var dividerSpan = document.createElement('span');
+    dividerSpan.className = ('divider');
+    dividerSpan.id = 'xedx-div-span-' + item;
+    var nameSpan = document.createElement('span');
+    nameSpan.innerText = name;
+    dividerSpan.appendChild(nameSpan);
+    return dividerSpan;
+}
 
 function createArrowDiv() {
     var arrowDiv = document.createElement('div');
