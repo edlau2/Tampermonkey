@@ -13,8 +13,10 @@
 
 // ==/UserScript==
 
-
+///////////////////////////////////////////////////////////////////////////////////
 // Validate an API key and prompt if misssing
+///////////////////////////////////////////////////////////////////////////////////
+
 var api_key = GM_getValue('gm_api_key');
 function validateApiKey() {
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
@@ -25,6 +27,10 @@ function validateApiKey() {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////
+// Miscellaneous utilities
+///////////////////////////////////////////////////////////////////////////////////
+
 // Date formatting 'constants'
 var date_formats = ["YYYY-MM-DD",
                     "YYYY-MONTH-DD DDD",
@@ -34,6 +40,10 @@ var date_formats = ["YYYY-MM-DD",
 
 var months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 var days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+// HTML constants
+var CRLF = '<br/>';
+var TAB = '&emsp;';
 
 // Convert a date object into a readable format
 function dateConverter(dateobj, format){
@@ -112,6 +122,50 @@ function myGetElementsByClassName2(anode, className) {
 // Backwards compatibility:
 function myGetElementsByClassName(anode, className) {
     return myGetElementsByClassName2(anode, className);
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// UI helpers
+///////////////////////////////////////////////////////////////////////////////////
+
+function createExtendedDiv(className, ID) {
+    var extendedDiv = document.createElement('div');
+    extendedDiv.className = className;
+    extendedDiv.id = ID;
+    return extendedDiv;
+}
+
+function createHeaderDiv() {
+    var headerDiv = document.createElement('div');
+    headerDiv.id = 'xedx-header_div';
+    headerDiv.className = 'title main-title title-black active top-round';
+    headerDiv.setAttribute('role', 'heading');
+    headerDiv.setAttribute('aria-level', '5');
+
+    var arrowDiv = createArrowDiv();
+    var moveDiv = createMoveDiv();
+    headerDiv.appendChild(arrowDiv);
+    headerDiv.appendChild(moveDiv);
+    return headerDiv;
+}
+
+
+function createArrowDiv() {
+    var arrowDiv = document.createElement('div');
+    arrowDiv.className = 'arrow-wrap';
+    var a = document.createElement('i');
+    a.className = 'accordion-header-arrow right';
+    arrowDiv.appendChild(a);
+    return arrowDiv;
+}
+
+function createMoveDiv() {
+    var moveDiv = document.createElement('div');
+    moveDiv.className = 'move-wrap';
+    var b = document.createElement('i');
+    b.className = 'accordion-header-move right';
+    moveDiv.appendChild(b);
+    return moveDiv;
 }
 
 
