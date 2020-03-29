@@ -1,6 +1,6 @@
 // ==UserScript==
 // @exclude     *
-// @namespace   https://github.com/edlau2
+// @namespace   xedx-helpers
 
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
