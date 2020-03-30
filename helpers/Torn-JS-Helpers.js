@@ -5,8 +5,6 @@
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
-// @require     http://code.jquery.com/jquery-3.4.1.min.js
-// @require     http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @version     0.1
@@ -130,11 +128,26 @@ function myGetElementsByClassName(anode, className) {
 // UI helpers
 ///////////////////////////////////////////////////////////////////////////////////
 
-function createExtendedDiv(className, ID) {
+var extDivId = 'xedx-extended-div';
+function createExtendedDiv() {
     var extendedDiv = document.createElement('div');
-    extendedDiv.className = className;
-    extendedDiv.id = ID;
+    extendedDiv.className = 'sortable-box t-blue-cont h';
+    extendedDiv.id = extDivId;
     return extendedDiv;
+}
+
+function createBodyDiv() {
+        var bodyDiv = document.createElement('div');
+        bodyDiv.className = 'bottom-round';
+        return bodyDiv;
+    }
+
+function extendedDivExists() {
+    var testDiv = document.getElementById(extDivId);
+        if (validPointer(testDiv)) {
+            return true;
+        }
+    return false;
 }
 
 function createHeaderDiv() {
@@ -179,16 +192,15 @@ function createMoveDiv() {
     return moveDiv;
 }
 
-function displayToolTip(div, text) {
-    $(document).ready(function() {
-        $(div.parentNode).attr("title", "original");
-        $(div.parentNode).tooltip({
-            content: text,
-            classes: {
-                "ui-tooltip": "tooltip2"
-            }
-        });
-    })
+function createSeparator() {
+    var sepHr = document.createElement('hr');
+    sepHr.className = 'delimiter-999 m-top10 m-bottom10';
+    return sepHr;
 }
 
-
+function createSmallSeparator() {
+    var sepHr = document.createElement('hr');
+    sepHr.className = 'delimiter-999';
+    sepHr.setAttribute('style', 'margin-top: 5px; margin-bottom: 5px;');
+    return sepHr;
+}
