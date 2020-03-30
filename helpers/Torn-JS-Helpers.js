@@ -111,7 +111,7 @@ function myGetElementsByClassName2(anode, className) {
     var elems = anode.getElementsByTagName("*");
     var matches = [];
     for (var i=0, m=elems.length; i<m; i++) {
-        if (elems[i].className && elems[i].className.indexOf(className) != -1) {
+        if (validPointer(elems[i].className) && elems[i].className.indexOf(className) != -1) {
             matches.push(elems[i]);
         }
     }
