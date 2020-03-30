@@ -7,7 +7,7 @@
 // @description Commonly used functions in my Torn scripts.
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @version     0.1
+// @version     0.2
 // @license     MIT
 // ==/UserLibrary==
 
@@ -30,6 +30,10 @@ function validateApiKey() {
 ///////////////////////////////////////////////////////////////////////////////////
 // Miscellaneous utilities
 ///////////////////////////////////////////////////////////////////////////////////
+
+function getHelperVersion() {
+    return GM_info.script.version;
+}
 
 // Date formatting 'constants'
 var date_formats = ["YYYY-MM-DD",
