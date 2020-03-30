@@ -128,8 +128,7 @@ function myGetElementsByClassName(anode, className) {
 // UI helpers
 ///////////////////////////////////////////////////////////////////////////////////
 
-var extDivId = 'xedx-extended-div';
-function createExtendedDiv() {
+function createExtendedDiv(extDivId) {
     var extendedDiv = document.createElement('div');
     extendedDiv.className = 'sortable-box t-blue-cont h';
     extendedDiv.id = extDivId;
@@ -142,7 +141,7 @@ function createBodyDiv() {
         return bodyDiv;
     }
 
-function extendedDivExists() {
+function extendedDivExists(extDivId) {
     var testDiv = document.getElementById(extDivId);
         if (validPointer(testDiv)) {
             return true;
