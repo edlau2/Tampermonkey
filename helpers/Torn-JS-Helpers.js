@@ -189,18 +189,18 @@ function createArrowDiv() {
     return arrowDiv;
 }
 
-function createHeaderDivEx(title=null, hdrId=null, bodyId=null, hidden=false) {
+function createHeaderDivEx(title=null, hdrId=null, bodyDiv=null, hidden=false) {
     var headerDiv = document.createElement('div');
     headerDiv.className = 'title main-title title-black border-round';
     headerDiv.setAttribute('role', 'table');
     headerDiv.setAttribute('aria-level', '5');
     if (hdrId) {headerDiv.id = hdrId;}
-    if (bodyId && hdrId) {
-        let bodyDiv = document.getElementById(bodyId);
+    if (bodyDiv && hdrId) {
         if (validPointer(bodyDiv)) {
             if (hidden) {bodyDiv.style.display = "none";}
             else {bodyDiv.style.display = "block";}
         }
+        let bodyId = bodyDiv.Id;
         let arrowDiv = createArrowDivEx(bodyId, hdrId);
         headerDiv.appendChild(arrowDiv);
     }
