@@ -200,8 +200,7 @@ function createHeaderDivEx(title=null, hdrId=null, bodyDiv=null, hidden=false) {
             if (hidden) {bodyDiv.style.display = "none";}
             else {bodyDiv.style.display = "block";}
         }
-        let bodyId = bodyDiv.id;
-        let arrowDiv = createArrowDivEx(bodyId, hdrId);
+        let arrowDiv = createArrowDivEx(bodyDiv.id, hdrId);
         headerDiv.appendChild(arrowDiv);
     }
     if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
