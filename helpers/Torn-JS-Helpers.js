@@ -141,17 +141,18 @@ function createExtendedDiv(extDivId) {
     return extendedDiv;
 }
 
-function createBodyDiv() {
-        var bodyDiv = document.createElement('div');
-        bodyDiv.className = 'bottom-round';
-        return bodyDiv;
-    }
+function createBodyDiv(id=null) {
+    var bodyDiv = document.createElement('div');
+    bodyDiv.className = 'bottom-round';
+    if (id) {bodyDiv.id = id;}
+    return bodyDiv;
+}
 
 function extendedDivExists(extDivId) {
     var testDiv = document.getElementById(extDivId);
-        if (validPointer(testDiv)) {
-            return true;
-        }
+    if (validPointer(testDiv)) {
+        return true;
+    }
     return false;
 }
 
