@@ -194,15 +194,15 @@ function createHeaderDivEx(title=null, hdrId=null, bodyId=null) {
     headerDiv.setAttribute('role', 'table');
     headerDiv.setAttribute('aria-level', '5');
     if (hdrId) {headerDiv.id = hdrId;}
-    if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
     if (bodyId && hdrId) {
-        let arrowDiv = createArrowDivEd(bodyId, hdrId);
+        let arrowDiv = createArrowDivEx(bodyId, hdrId);
         headerDiv.appendChild(arrowDiv);
     }
+    if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
     return headerDiv;
 }
 
-function createArrowDivEd(bodyId, hdrId) {
+function createArrowDivEx(bodyId, hdrId) {
     var arrowDiv = document.createElement('div');
     arrowDiv.className = 'arrow-wrap sortable-list';
     var a = document.createElement('a');
