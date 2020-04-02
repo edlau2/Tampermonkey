@@ -55,6 +55,18 @@ Note that the PNG files are not part of the installation, they are simple screen
 
 One of these days, I'll publish to my OpenUserJS account and make them self-updateable. When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned. Hmm - should probably put the version number in the name, as I usually do everywhere ele for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions. Auto-update would solve that issue.
 
+**_Torn Racing - Car Order_**
+
+- [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
+
+Images:
+
+- [Torn Racing - Car Order-1.png](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order-1.png)
+- [Torn Racing - Car Order-2.png](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order-2.png)
+- [Torn Racing - Car Order-3.png](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order-3.png)
+
+This script allows you to drag and drop your enlisted race cars into any order you like. Saving this order will allow them to automatically appear in this order when starting a race. Or, you can reset to the Torn default.
+
 **_Torn Latest Attacks Extender_**
 
 - [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
