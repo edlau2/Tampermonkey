@@ -1,11 +1,11 @@
 /// ==UserScript==
 // @name         Torn Racing - Car Order
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Allows cars to be sorted in any order when starting a race.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=racing*
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/TornRacing/Torn%20Racing%20-%20Car%20Order.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -137,10 +137,11 @@
         // Make cars draggable. Also only do once.
         var setDraggable = false;
         if (!setDraggable) {
-            setDraggable = true;
+            //debugger;
             refDiv = document.getElementById(refDivId);
             let ul = refDiv.getElementsByClassName('enlist-list')[0];
             if (validPointer(ul)) {
+                setDraggable = true;
                 for (let i = 0, len = ul.children.length; i < len; i++ ) {
                     let li = ul.children[i];
                     li.setAttribute("draggable", "true");
@@ -275,48 +276,6 @@
         return contentDiv;
     }
 
-    /*
-    // TEMPORARY ... fix this!
-    // My 'helper' version isn't working here for some reason, so use cusotm ones...
-    function myCreateHeaderDiv(title=null) {
-        var headerDiv = document.createElement('div');
-        headerDiv.className = 'title main-title title-black border-round';
-        headerDiv.setAttribute('role', 'table');
-        headerDiv.setAttribute('aria-level', '5');
-        if (title != null) {
-            headerDiv.appendChild(document.createTextNode(title));
-        }
-        return headerDiv;
-    }
-
-    function myCreateArrowDiv(bodyName, hdrName) {
-        var arrowDiv = document.createElement('div');
-        arrowDiv.className = 'arrow-wrap sortable-list';
-        var a = document.createElement('a');
-        a.setAttribute('role', 'button');
-        a.setAttribute('href', '#/');
-        a.className = 'accordion-header-arrow right';
-        arrowDiv.appendChild(a);
-
-        // New (just because I haven't figured out correct class layout yet - dirty way)
-        arrowDiv.addEventListener("click", function() {
-            // Toggle visibility and border style (and arrow image)
-            var bodyDiv = document.getElementById(bodyName);
-            var headerDiv = document.getElementById(hdrName);
-            if (bodyDiv.style.display === "block") {
-                bodyDiv.style.display = "none";
-                headerDiv.className = 'title main-title title-black border-round';
-            } else {
-                bodyDiv.style.display = "block";
-                headerDiv.className = 'title main-title title-black top-round active';
-            }
-        });
-
-        return arrowDiv;
-    }
-    // END TEMPORARY !!!
-    */
-
     // Need to save state - and have a handler for when it changes!
     function createCheckbox(text, def, id) {
         let span = document.createElement('SPAN');
@@ -396,11 +355,14 @@
 
     function handleRestoreBtn(silent=false) {
         observer.disconnect();
-        let carList = JSON.parse(GM_getValue(savedOrderKey));
-        if (validPointer(carList) && carList.length > 0) {
-            putCarsInOrder(carList);
-        } else if (!silent) {
-            alert('No car list has been saved! Please see the "Help".');
+        var data = GM_getValue(savedOrderKey);
+        if (validPointer(data)) {
+            let carList = JSON.parse(data);
+            if (validPointer(carList) && carList.length > 0) {
+                putCarsInOrder(carList);
+            } else if (!silent) {
+                alert('No car list has been saved! Please see the "Help".');
+            }
         }
         observer.observe(targetNode, config);
     }
