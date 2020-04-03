@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Creates new expandable DIV on Gym page with gym gains perks displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains.user.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -45,12 +45,6 @@
 
         return matches;
     }
-
-    // Insert comma separators into a number
-    //function numberWithCommas(x) {
-    //    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    //}
-
     function numberWithCommas(x) {
         var parts = x.toString().split(".");
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -227,6 +221,9 @@
             } else {
                 bodyDiv.style.display = "block";
                 headerDiv.className = 'title main-title title-black top-round active';
+                if (hdrName == 'xedx-bat-stats-hdr-div') {
+                    queryBatStats(document.getElementById('xedx-bat-stats'));
+                }
             }
         });
 
