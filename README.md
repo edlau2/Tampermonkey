@@ -328,9 +328,13 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 
 </details>
 
+**_Bazaar Scam Warning_**
+
 - [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
+
+**_Race Helper_**
 
 - [Race Helper.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)-->
 
@@ -367,6 +371,8 @@ Extensions allow for things that aren't neccesarily page-specific, although thes
 Once in the Chrome App Store, the link will point there instead, and should install from there.
 
 **_Torn Loot Level Notifier_**
+
+Note: Most, myself included, find it just as easy to monitor YATA's NPC loot page: https://yata.alwaysdata.net/loot/
 
 - [Loot Level Notifier.zip version 1.6.1](https://github.com/edlau2/Tampermonkey/blob/master/LootLevel/Loot%20Level%20Notifier-1.6.1.zip)
 
