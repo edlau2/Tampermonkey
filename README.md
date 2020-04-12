@@ -94,8 +94,6 @@ This script adds extended gym information to your Gym page. It displays the addi
 
 **_Torn Bounty List Extender_**
 
-(Coming soon, it's been written but not yet uploaded!)
-
 - [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
 
 Images:
@@ -151,7 +149,6 @@ This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Press
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save and Restore buttons. So one click would save the current config, and one click to restore that config. The current script *does* display what mods you have in place currently on un-equip, but *does not* yet restore them.
 
 </details>
-</details>
 
 **_Torn Net Worth Display_**
 
@@ -171,7 +168,7 @@ Images:
 
 - [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.png)
 
-This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section. This script also highlights using the MutationObserver object, so that chages are made only when the relevant DOM has been loaded.
+This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section (which is off by one from the actual titled rank). 
 
 **_Torn One-Click Daily Dime_**
 
@@ -222,8 +219,6 @@ Images:
 - [Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
 
 This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
-
-~~Note: I haven't yet found the names for the stats for Shrooms, Speed, and PCP in theTorn API. Every other drug is listed in the 'personalstats' field. When I find the, I'll add them. For now it displays 'unavailable'.~~
 
 **_Torn Jail Stats_**
 
