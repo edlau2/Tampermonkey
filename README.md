@@ -96,13 +96,11 @@ This script adds extended gym information to your Gym page. It displays the addi
 
 (Coming soon, it's been written but not yet uploaded!)
 
-- [Torn Bounty List Extender.user.js]
-<!--(https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
+- [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
 
 Images:
 
-- [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.png)
--->
+- [Torn Bounty List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/Torn%20Bounty%20List%20Extender.png)
 
 This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. 
 
