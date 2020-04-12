@@ -149,6 +149,7 @@ This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Press
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save and Restore buttons. So one click would save the current config, and one click to restore that config. The current script *does* display what mods you have in place currently on un-equip, but *does not* yet restore them.
 
 </details>
+</details>
 
 **_Torn Net Worth Display_**
 
