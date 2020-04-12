@@ -82,7 +82,7 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Build the Jail Stats div, append underneath the Personal Perks div
+    // Build the Car Order div, append underneath the Personal Perks div
     //////////////////////////////////////////////////////////////////////
 
     var extDivId = 'xedx-carorder-ext-div';
@@ -217,6 +217,7 @@
             // Since the order has changed, either auto-save or maybe flash the 'Save' button
             // saveBtnId
             stopBlinkBtnId = blinkBtn(saveBtnId);
+            console.log('Blinking "Save" button - ID = ' + stopBlinkBtnId);
         }
 
         // Get rid of the added <meta http-equiv="content-type" content="text/html;charset=UTF-8">
@@ -264,9 +265,6 @@
             val = 'true';
         }
         primaryBtnWrap.appendChild(createCheckbox('Load Saved at Startup', (val === 'true'), loadSavedId));
-
-        // TBD: add another checkbox, to start with window hidden.
-
         secondaryBtnWrap.appendChild(createSilverButton('Defaults', handleDefBtn));
         secondaryBtnWrap.appendChild(createSilverButton('Help', handleHelpBtn));
 
@@ -330,7 +328,7 @@
     //////////////////////////////////////////////////////////////////////
 
     function handleSaveBtn() {
-        console.log('handleSaveBtn');
+        console.log('handleSaveBtn - stopBlinkBtnId = ' + stopBlinkBtnId);
         let refDiv = document.getElementById(refDivId);
         let checkDiv = refDiv.getElementsByClassName('enlist-wrap enlisted-wrap')[0];
         let currOrder = getCurrentCarOrder(checkDiv);
@@ -341,16 +339,17 @@
         alert('Car order has been saved!');
     }
 
+    // Could use animateElementJS(...) here??
     function stopBlinkBtn(id) {
         clearInterval(id);
     }
 
     function blinkBtn(id) {
         let selector = document.getElementById(id);
-        return (setInterval(() => {
+        return ((stopBlinkBtnId = setInterval(() => {
             $(selector).fadeOut(500);
             $(selector).fadeIn(500);},
-            1000));
+            1000)));
     }
 
     function handleRestoreBtn(silent=false) {
