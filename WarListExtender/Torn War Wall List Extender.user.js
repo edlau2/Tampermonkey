@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Torn War Wall List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Appends rank to the level display on the war user list.
 // @author       xedx
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.user.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/factions.php*
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
@@ -228,13 +230,12 @@
     }
 
     // Find a rank from our cache, based on ID
-    function getCachedRankFromId(ID) {
+    function getCachedRankFromId(ID, li) {
         for (var i = 0; i < rank_cache.length; i++) {
-            if (rank_cache[i][0] == ID) {
+            if (rank_cache[i].ID == ID) {
                 logEvent("cache hit: ID " + ID + " ==> Rank:" + rank_cache[i][1] + " Expires: " +
                          dateConverter(new Date(rank_cache[i][2]), "YYYY-MM-DD HH:MM:SS"));
-                expireCache(i);
-                return rank_cache[i][1];
+                return rank_cache[i].numeric_rank;
             }
         }
         logEvent("cache miss: ID " + ID);
