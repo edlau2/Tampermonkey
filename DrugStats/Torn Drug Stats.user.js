@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      1.0
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -27,50 +27,31 @@
     // Build the Drug Stats div, append underneath the Personal Perks div
     //////////////////////////////////////////////////////////////////////
 
-    var extDivId = 'xedx-drug-stats-ext';
+    var extDivId = 'xedx-drugstats-ext-div';
     function buildDrugStatsDiv() {
         // Only do this once
-        var testDiv = document.getElementById(extDivId);
-        if (validPointer(testDiv)) {
-            return;
-        }
+        if (extendedDivExists(extDivId)) {return;}
 
         var mainDiv = document.getElementById('column0');
-        if (!validPointer(mainDiv)) {
-            return;
-        }
+        if (!validPointer(mainDiv)) {return;}
 
         // Piece everything together.
-        var extDiv = createExtendedDiv('sortable-box t-blue-cont h', extDivId);
+        var extDiv = createExtendedDiv(extDivId);
         var hdrDiv = createHeaderDiv();
         var bodyDiv = createBodyDiv();
         var contentDiv = createContentDiv(); // This call also queries the Torn API...
                                              // We really should call only once and cache the data
+
         hdrDiv.appendChild(document.createTextNode('Drug and Rehab Stats'));
         extDiv.appendChild(hdrDiv);
         extDiv.appendChild(bodyDiv);
         bodyDiv.appendChild(contentDiv);
-
-        if (validPointer(mainDiv)) {
-            mainDiv.appendChild(extDiv);
-        }
+        mainDiv.appendChild(extDiv);
     }
 
     //////////////////////////////////////////////////////////////////////
     // Helpers for creating misc. UI parts and pieces
     //////////////////////////////////////////////////////////////////////
-
-    function createSeparator() {
-        var sepHr = document.createElement('hr');
-        sepHr.className = 'delimiter-999 m-top10 m-bottom10';
-        return sepHr;
-    }
-
-    function createBodyDiv() {
-        var bodyDiv = document.createElement('div');
-        bodyDiv.className = 'bottom-round';
-        return bodyDiv;
-    }
 
     function createContentDiv() {
         var contentDiv = document.createElement('div');
@@ -149,7 +130,6 @@
     function createValueSpan(item) {
         var value = "0";
         value = queryPersonalStats(item);
-
         var valSpan = document.createElement('span');
         valSpan.id = 'xedx-val-span-' + item;
         valSpan.className = 'desc';
@@ -165,49 +145,15 @@
     //////////////////////////////////////////////////////////////////////
 
     function queryPersonalStats(name) {
-
-        personalStatsQuery(name); // Callback will set the correct values.
+        xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB, name); // Callback will set the correct values.
         return "0";
-    }
-
-    // This should only be done once, just save the result.
-    // I'll do that later when I have to refactor again.
-    // Currently executes 14 requests.
-    function personalStatsQuery(name) {
-        var details = GM_xmlhttpRequest({
-            method:"POST",
-            url:"https://api.torn.com/user/?selections=personalstats&key=" + api_key,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            },
-            onload: function(response) {
-                personalStatsQueryCB(response.responseText, name);
-            },
-            onerror: function(response) {
-                handleError(response.responseText);
-            },
-            onabort: function(response) {
-                console.log('Torn Drug Stats: onabort');
-                handleError(response.responseText);
-            },
-            ontimeout: function(response) {
-                console.log('Torn Drug Stats: ontimeout');
-                handleError(response.responseText);
-            }
-        });
     }
 
     // Callback to parse returned JSON
     var expectedResponses = 14;
-    function personalStatsQueryCB(responseText, name) {
+    function personalStatsQueryCB(responseText, ID, name) {
         var jsonResp = JSON.parse(responseText);
-
-        expectedResponses--;
-
-        if (jsonResp.error) {
-            return handleError(responseText);
-        }
+        if (jsonResp.error) {return handleError(responseText);}
 
         var searchName = 'xedx-val-span-' + name;
         var valSpan = document.getElementById(searchName);
@@ -219,7 +165,6 @@
 
         // If this fails, have never used this drug. Not an error.
         if (!validPointer(stats[name])) {
-            //console.log('Torn Drug Stats, personalStatsQueryCB, name: ' + name + ' value = 0 (not found)');
             if (!expectedResponses) {
                 addToolTips();
             }
@@ -353,6 +298,8 @@
     // all the time while flying.
     //
     // There are other places this needs to be done, too....
+    //
+    // Add all this crap to a comon function in the helper lib.
     function checkTravelling() {
         queryTravelStats();
     }
@@ -377,13 +324,10 @@
     // Callback to parse returned JSON
     function realBasicQueryCB(responseText, name) {
         var jsonResp = JSON.parse(responseText);
-
         if (jsonResp.error) {
             observer.observe(targetNode, config);
             return handleError(responseText);
         }
-
-        console.log('Torn Drug Stats, realBasicQueryCB (travel check)');
 
         var stats = jsonResp.travel;
         console.log('  Destination: ' + stats.destination +
@@ -401,32 +345,6 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Very simple error handler; only displayed (and logged) once
-    //////////////////////////////////////////////////////////////////////
-
-    // TBD: Change this to a self-closing message.
-    var errorLogged = false;
-    function handleError(responseText) {
-        if (!errorLogged) {
-            var jsonResp = JSON.parse(responseText);
-            var errorText = 'Torn Jail Stats: An error has occurred querying personal stats information.\n' +
-                '\nCode: ' + jsonResp.error.code +
-                '\nError: ' + jsonResp.error.error;
-
-            if (jsonResp.error.code == 5) {
-                errorText += '\n\n The Torn API only allows so many requests per minute. ' +
-                    'If this limit is exceeded, this error will occur. It will clear itself' +
-                    'up shortly, or you may try refreshing the page.\n';
-            }
-
-            errorText += '\nPress OK to continue.';
-            alert(errorText);
-            console.log(errorText);
-            errorLogged = true;
-        }
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
     // actually get to the page(s) - technically, when the page(s) change.
     // As they do on load. Seems more reliable than onLoad().
@@ -438,14 +356,14 @@
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        // Disconnect the observer to prevent looping before
-        // we start modifying the page.
         observer.disconnect();
         buildDrugStatsDiv();
 
         // This call either immediately re-connects the observer,
         // or else sets a timeout to re-connect when we land, if
         // we are travelling.
+        //
+        // Move to helper lib!
         checkTravelling();
     };
     var observer = new MutationObserver(callback);
