@@ -134,6 +134,21 @@ function myGetElementsByClassName(anode, className) {
     return myGetElementsByClassName2(anode, className);
 }
 
+// The URL expected is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
+// More accurately, "XID=" must be present :-)
+// We need the XID; the trailing '#' may not be present.
+function xidFromProfileURL(URL) {
+    var n = URL.indexOf('XID='); // Find the 'XID=' token
+    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
+    var ID = 0;
+    if (n2 != -1) {
+        ID = URL.slice(n+4, n2); // Extract just the ID from the URL, between the '=' and '#'
+    } else {
+        ID = URL.slice(n+4);
+    }
+    return ID;
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API
 /////////////////////////////////////////////////////////////////////////////////
