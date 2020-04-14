@@ -8,9 +8,10 @@
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
+// @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.3
+// @version     0.5
 // @license     MIT
 // ==/UserLibrary==
 
@@ -137,9 +138,9 @@ function myGetElementsByClassName(anode, className) {
 // Functions to query the Torn API
 /////////////////////////////////////////////////////////////////////////////////
 
-function xedx_TornUserQuery(ID, selection, callback) {
+function xedx_TornUserQuery(ID, selection, callback, param=null) {
     let url = "https://api.torn.com/user/" + ID + "?selections=" + selection + "&key=" + api_key;
-    console.log(GM_info.script.name + 'Querying ' + selection);
+    console.log(GM_info.script.name + ' Querying ' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -148,7 +149,7 @@ function xedx_TornUserQuery(ID, selection, callback) {
             'Accept': 'application/json'
         },
         onload: function(response) {
-            callback(response.responseText, ID);
+            callback(response.responseText, ID, param);
         },
         onerror: function(response) {
             handleError(response.responseText);
