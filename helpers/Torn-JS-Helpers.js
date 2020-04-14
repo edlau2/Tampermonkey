@@ -7,7 +7,10 @@
 // @description Commonly used functions in my Torn scripts.
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @version     0.2
+// @connect     api.torn.com
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @version     0.3
 // @license     MIT
 // ==/UserLibrary==
 
@@ -128,6 +131,63 @@ function myGetElementsByClassName2(anode, className) {
 // Backwards compatibility:
 function myGetElementsByClassName(anode, className) {
     return myGetElementsByClassName2(anode, className);
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Functions to query the Torn API
+/////////////////////////////////////////////////////////////////////////////////
+
+function xedx_TornUserQuery(ID, selection, callback) {
+    let url = "https://api.torn.com/user/" + ID + "?selections=" + selection + "&key=" + api_key;
+    console.log(GM_info.script.name + 'Querying ' + selection);
+    let details = GM_xmlhttpRequest({
+        method:"POST",
+        url:url,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+        },
+        onload: function(response) {
+            callback(response.responseText, ID);
+        },
+        onerror: function(response) {
+            handleError(response.responseText);
+        },
+        onabort: function(response) {
+            console.log(GM_info.script.name + ': onabort');
+            handleError(response.responseText);
+        },
+        ontimeout: function(response) {
+            console.log(GM_info.script.name +': ontimeout');
+            handleError(response.responseText);
+        }
+    });
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Very simple error handler; only displayed (and logged) once <== this is a lie.
+/////////////////////////////////////////////////////////////////////////////////
+
+// TBD: Change this to a self-closing message.
+var errorLogged = false;
+function handleError(responseText) {
+    if (!errorLogged) {
+        let jsonResp = JSON.parse(responseText);
+        let errorText = GM_info.script.name + ': An error has occurred querying TornStats.\n' +
+            '\nCode: ' + jsonResp.error.code +
+            '\nError: ' + jsonResp.error.error;
+
+        if (jsonResp.error.code == 5) {
+            errorText += '\n\n The Torn API only allows so many requests per minute. ' +
+                'If this limit is exceeded, this error will occur. It will clear itself' +
+                'up shortly, or you may try refreshing the page.\n';
+        }
+
+        errorText += '\nPress OK to continue.';
+        alert(errorText);
+        console.log(errorText);
+        errorLogged = true;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
