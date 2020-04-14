@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.user.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -52,16 +53,16 @@
     */
     function createLI(nw) {
         // Create the value we want to display
-        var display = '$' + numberWithCommas(nw);
+        let display = '$' + numberWithCommas(nw);
 
         // Build the <li>
-        var li = document.createElement('li'); // Main <li>
+        let li = document.createElement('li'); // Main <li>
         li.id = 'xedx-networth-li';
 
-        var div = document.createElement('div'); // First <div>
+        let div = document.createElement('div'); // First <div>
         div.className = 'user-information-section left width112';
 
-        var span = document.createElement('span'); // Span inside of the <div>
+        let span = document.createElement('span'); // Span inside of the <div>
         span.className = 'bold';
         span.innerHTML = 'Net Worth';
 
@@ -69,8 +70,8 @@
         li.appendChild(div);
         div.appendChild(span);
 
-        var div2 = document.createElement('div');
-        var span2 = document.createElement('span');
+        let div2 = document.createElement('div');
+        let span2 = document.createElement('span');
         span2.innerHTML = display;
 
         li.appendChild(div2);
@@ -84,75 +85,26 @@
     //////////////////////////////////////////////////////////////////////
 
     function personalStatsQuery(ID) {
-        var url = "https://api.torn.com/user/" + ID + "?selections=personalstats&key=" + api_key;
-        console.log('Querying NW, URL = \"' + url + '\"');
-        var details = GM_xmlhttpRequest({
-            method:"POST",
-            url:url, //"https://api.torn.com/user/" + ID + "?selections=personalstats&key=" + api_key,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            },
-            onload: function(response) {
-                personalStatsQueryCB(response.responseText);
-            },
-            onerror: function(response) {
-                handleError(response.responseText);
-            },
-            onabort: function(response) {
-                console.log('Torn Jail Stats: onabort');
-                handleError(response.responseText);
-            },
-            ontimeout: function(response) {
-                console.log('Torn Jail Stats: ontimeout');
-                handleError(response.responseText);
-            }
-        });
+        xedx_TornUserQuery(ID, 'personalstats', personalStatsQueryCB);
     }
 
     // Callback to parse returned JSON
     function personalStatsQueryCB(responseText) {
-        var jsonResp = JSON.parse(responseText);
+        let jsonResp = JSON.parse(responseText);
 
         if (jsonResp.error) {
             return handleError(responseText);
         }
 
-        var stats = jsonResp.personalstats;
+        let stats = jsonResp.personalstats;
         addNetWorthToProfile(stats.networth);
-    }
-
-   //////////////////////////////////////////////////////////////////////
-    // Very simple error handler; only displayed (and logged) once
-    //////////////////////////////////////////////////////////////////////
-
-    // TBD: Change this to a self-closing message.
-    var errorLogged = false;
-    function handleError(responseText) {
-        if (!errorLogged) {
-            var jsonResp = JSON.parse(responseText);
-            var errorText = 'Torn Net Worth Display: An error has occurred querying personal stats information.\n' +
-                '\nCode: ' + jsonResp.error.code +
-                '\nError: ' + jsonResp.error.error;
-
-            if (jsonResp.error.code == 5) {
-                errorText += '\n\n The Torn API only allows so many requests per minute. ' +
-                    'If this limit is exceeded, this error will occur. It will clear itself' +
-                    'up shortly, or you may try refreshing the page.\n';
-            }
-
-            errorText += '\nPress OK to continue.';
-            alert(errorText);
-            console.log(errorText);
-            errorLogged = true;
-        }
     }
 
     //////////////////////////////////////////////////////////////////////
     // Main functions that do the real work
     //////////////////////////////////////////////////////////////////////
 
-    // The URL s the form "https://www.torn.com/profiles.php?XID=1162022#/"
+    // The URL is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
     // We ned the XID
     function parseURL(URL) {
         var n = URL.indexOf('='); // Find the '=' sign
@@ -166,25 +118,19 @@
         return ID;
     }
 
-    function queryPersonalStatsNW(ID) {
-        personalStatsQuery(ID); // Callback from this will set our global networth variable
-    }
-
     function addNetWorthToProfile(nw) {
+        if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
 
-        // Only do this once
-        var testDiv = document.getElementById('xedx-networth-li');
-        if (validPointer(testDiv)) {
-            return;
-        }
         var rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
         var targetUL = rootDiv.getElementsByClassName('basic-list')[0];
         if (!validPointer(targetUL)) {
             return;
         }
 
+        observer.disconnect();
         var li = createLI(nw);
         targetUL.appendChild(li);
+        observer.observe(targetNode, config);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -195,29 +141,13 @@
     console.log("Networth Display script started!");
 
     // Make sure we have an API key
-    var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
-    }
+    validateApiKey();
+
     var targetNode = document.getElementById('profileroot');
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        // This is where all the work is done
-        // Turn OFF the observer, otherwise we'll be triggered here when we edit the page.
-        observer.disconnect();
-
-        // Since when we call addNetWorthToProfile(), the section may not have loaded yet -
-        // if not, no need to do these again, so just do once - if not loaded, that function
-        // just returns and as things load, the observer will be called again.
-
-        // Query the Torn API (personalstats) and get networth
-        // The callback from the query actually populates the UI
-        console.log('Query NW, Window URL: ' + window.location.href);
-        queryPersonalStatsNW(parseURL(window.location.href));
-        observer.observe(targetNode, config);
+        if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
+        personalStatsQuery(parseURL(window.location.href));
 
     };
     var observer = new MutationObserver(callback);
