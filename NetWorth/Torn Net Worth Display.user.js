@@ -18,44 +18,11 @@
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
-    // Utility functions
-    //////////////////////////////////////////////////////////////////////
-
-    // Check to see if a pointer is valid
-    function validPointer(val, dbg = false) {
-        if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-            if (dbg) {
-                debugger;
-            }
-            return false;
-        }
-        return true;
-    }
-
-    // Insert comma separators into a number
-    function numberWithCommas(x) {
-        return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // UI helpers
     //////////////////////////////////////////////////////////////////////
 
-    /* Will add a custom ID to the <li> to see if it already exists
-        <li>
-            <div class="user-information-section left width112">
-                <span class="bold>Net Worth</span>
-            </div>
-            <div>
-                <span>[value goes here]</span>
-            </div>
-        </li>
-    */
     function createLI(nw) {
-        // Create the value we want to display
         let display = '$' + numberWithCommas(nw);
-
-        // Build the <li>
         let li = document.createElement('li'); // Main <li>
         li.id = 'xedx-networth-li';
 
@@ -104,20 +71,6 @@
     // Main functions that do the real work
     //////////////////////////////////////////////////////////////////////
 
-    // The URL is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
-    // We ned the XID
-    function parseURL(URL) {
-        var n = URL.indexOf('='); // Find the '=' sign
-        var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
-        var ID = 0;
-        if (n2 != -1) {
-            ID = URL.slice(n+1, n2); // Extract just the ID from the URL, between the '=' and '#'
-        } else {
-            ID = URL.slice(n+1);
-        }
-        return ID;
-    }
-
     function addNetWorthToProfile(nw) {
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
 
@@ -147,7 +100,7 @@
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
-        personalStatsQuery(parseURL(window.location.href));
+        personalStatsQuery(xidFromProfileURL(window.location.href));
 
     };
     var observer = new MutationObserver(callback);
