@@ -288,8 +288,8 @@ Forum link:
 
 The two following links point to the same code, no idea why named differently. 
 
-OpenUserJS link:
-- [TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)
+OpenUserJS link: (now an empty shell)
+- ~~-[TORN_HighLow_Helper.user.js](https://openuserjs.org/meta/DeKleineKobini/TORN_HighLow_Helper.user.js)~~
 
 Alternate, GreasyFork link:
 - [TORN: High/Low Helper.user.js](https://greasyfork.org/en/scripts/391481-torn-high-low-helper)
