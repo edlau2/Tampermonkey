@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.5
+// @version     0.6
 // @license     MIT
 // ==/UserLibrary==
 
@@ -148,6 +148,59 @@ function xidFromProfileURL(URL) {
     }
     return ID;
 }
+
+// Return the numeric equivalent of the full rank returned by the 'profie' selection
+// Torn 'user' API query.
+function numericRankFromFullRank(fullRank) {
+    let parts = fullRank.split(' ');
+    let rank = parts[0];
+    if (parts.length >= 3 &&
+        (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
+        rank = rank + ' ' + parts[1];
+    }
+
+    // Lookup name in our table (array) to convert to number
+    let numeric_rank = 0;
+    for (let i = 0; i < ranks.length; i++) {
+        if (rank == ranks[i]) {
+            numeric_rank = i;
+            break;
+        }
+    }
+
+    return numeric_rank;
+}
+
+//////////////////////////////////////////////////////////////////////
+// Map textual rank names to numeric, via array index
+//////////////////////////////////////////////////////////////////////
+
+var ranks = ['Absolute beginner',
+             'Beginner',
+             'Inexperienced',
+             'Rookie',
+             'Novice',
+             'Below average',
+             'Average',
+             'Reasonable',
+             'Above average',
+             'Competent',
+             'Highly competent',
+             'Veteran',
+             'Distinguished',
+             'Highly distinguished',
+             'Professional',
+             'Star',
+             'Master',
+             'Outstanding',
+             'Celebrity',
+             'Supreme',
+             'Idolized',
+             'Champion',
+             'Heroic',
+             'Legendary',
+             'Elite',
+             'Invincible'];
 
 /////////////////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API
