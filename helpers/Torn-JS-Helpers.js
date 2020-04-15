@@ -35,6 +35,11 @@ function validateApiKey() {
 // Miscellaneous utilities
 ///////////////////////////////////////////////////////////////////////////////////
 
+// Just spit out the name of the script at startup
+function logScriptStart() {
+    console.log(GM_info.script.name + ' script started!');
+}
+
 // Get rid of this - returns hosting script version, not this library's version
 function getHelperVersion() {
     //return GM_info.script.version;
