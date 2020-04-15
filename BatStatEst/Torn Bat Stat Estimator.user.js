@@ -72,7 +72,7 @@
     //////////////////////////////////////////////////////////////////////
 
     // This calculation taken from https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
-    // and DeKleineKobini's 'dekleinekobini.statestimate'
+    // and DeKleineKobini's 'dekleinekobini.statestimate' - stat estimates from: https://www.tornstats.com/awards.php
     function buildBatStatDisplay() {
         // if (userLvl >= 75) {return "Over level 75, N/A.";}
 
@@ -120,13 +120,18 @@
     const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
     const crimeTriggers = [ 100, 5000, 10000, 20000, 30000, 50000 ];
     const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
+
+    // From: https://wiki.torn.com/wiki/Ranks
+    // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
+    //
+    // These are from: https://www.tornstats.com/awards.php
     const estimatedStats = [
         "under 2k",
-        "2k - 25k",
+        "2k - 20k",
         "20k - 250k",
-        "200k - 2.5m",
-        "2m - 25m",
-        "20m - 250m",
+        "250k - 2.5m",
+        "2.5m - 35m",
+        "35m - 200m",
         "over 200m",
     ];
 
