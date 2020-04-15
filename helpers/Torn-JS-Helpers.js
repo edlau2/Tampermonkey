@@ -163,7 +163,7 @@ function numericRankFromFullRank(fullRank) {
     let numeric_rank = 0;
     for (let i = 0; i < ranks.length; i++) {
         if (rank == ranks[i]) {
-            numeric_rank = i;
+            numeric_rank = i+1;
             break;
         }
     }
