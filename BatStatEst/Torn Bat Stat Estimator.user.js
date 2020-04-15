@@ -4,6 +4,7 @@
 // @version      0.1
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @include      https://www.torn.com/profiles.php*
