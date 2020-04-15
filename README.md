@@ -6,13 +6,8 @@ Repository for Torn-related scripts, extensions, and more.
 1. Install Tampermonkey
  [(Tampermonkey link)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en)
 2. Select a script in this repo that you wish to use. The script is the link ending in .user.js. The .png file is a screenshot showing what the script does.
-3. View the file and click the Raw button at the top of the file to view its source.
-4. Copy the source.
-5. Open Tampermonkey in your browser and click the Add Script tab (icon with a plus symbol).
-6. Paste the source into the script window and select file->save.
-7. Viola!
-
-There are other ways, or I could upload to OpenUserJS or GreasyFork, but I'm lazy and don't want to take the time, even though I have accounts there.
+3. Click the 'Install' button.
+4. Viola!
 
 The majority of the third-party scripts are usually self-installing (just press an "install" button). They are usually hosted at either OpenUserJS or GreasyFork.
 
@@ -53,11 +48,11 @@ So that script has been modified to have 5 buttons, on one simple bar, to rapidl
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
 
-One of these days, I'll publish to my OpenUserJS account and make them self-updateable. When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned. Hmm - should probably put the version number in the name, as I usually do everywhere ele for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions. Auto-update would solve that issue.
+One of these days, I'll publish to my OpenUserJS account and ~~make them self-updateable.~~ (done!) ~~When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned.~~ Hmm - should probably put the version number in the name, as I usually do everywhere else for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions.
 
 **_Torn Racing - Car Order_**
 
-- [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
+- [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/raw/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
 
 Images:
 
@@ -69,7 +64,7 @@ This script allows you to drag and drop your enlisted race cars into any order y
 
 **_Torn Latest Attacks Extender_**
 
-- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
+- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
 
 Images:
 
@@ -83,7 +78,7 @@ As of 03/03/2020, you can now click the attack to get the full attack log (versi
 
 **_Torn Gym Gains_**
 
-- [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains.user.js)
+- [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js)
 
 Images:
 
@@ -94,7 +89,7 @@ This script adds extended gym information to your Gym page. It displays the addi
 
 **_Torn Bounty List Extender_**
 
-- [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
+- [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
 
 Images:
 
@@ -102,9 +97,17 @@ Images:
 
 This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. 
 
+**_Torn Bat Stat Estimator_**
+
+- [Torn Bat Stat Estimator.user.js](https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js)
+
+Images:
+
+This script uses the method described here: https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0 to estimate a user's bat stats, as best as can be estimated with publicly available stats. The possible range of bat stats is displayed on the user's profile page.
+
 **_Torn Weapon Experience_**
 
-- [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
+- [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
 
 Images:
 
@@ -153,7 +156,7 @@ Note: The ability to restore weapons modes may wind up being a separate script, 
 
 **_Torn Net Worth Display_**
 
-- [Torn Net Worth Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.user.js)
+- [Torn Net Worth Display.user.js](https://github.com/edlau2/Tampermonkey/raw/master/NetWorth/Torn%20Net%20Worth%20Display.user.js)
 
 Images:
 
@@ -163,7 +166,7 @@ This simple script display a user's net worth on their profile page, immediately
 
 **_Torn Numeric Rank Display_**
 
-- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js)
+- [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/raw/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js)
 
 Images:
 
@@ -178,7 +181,7 @@ Note: I've removed this for now, as I'm not sure if it breaks the rules or not (
 <details>
   <summary>Click to see description...</summary>
 
-- [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/DailyDime/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
+- [Torn One-Click Daily Dime.user.js]<!--(https://github.com/edlau2/Tampermonkey/raw/master/DailyDime/Torn%20One%2dClick%20Daily%20Dime.user.js)-->
 
 Images:
 
@@ -190,7 +193,7 @@ This script lets you click the Daily Dime 'buy' button with one click - up to th
 
 **_Torn User List Extender_**
 
-- [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
+- [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
 
 Images:
 
@@ -200,7 +203,7 @@ This script adds rank next to the level in the User List, as seen when searching
 
 **_Torn Crime Tooltips_**
 
-- [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
+- [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/raw/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
 
 Images:
 
@@ -211,7 +214,7 @@ Adds Tool Tips to the Criminal Offences display on your home page. Useful for me
 
 **_Torn Drug Stats_**
 
-- [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats.user.js)
+- [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/DrugStats/Torn%20Drug%20Stats.user.js)
 
 Images:
 
@@ -223,7 +226,7 @@ This script adds a new section to your Home page, and display beneaths the facti
 
 **_Torn Jail Stats_**
 
-- [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js)
+- [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/JailStats/Torn%20Jail%20Stats.user.js)
 
 Images:
 
@@ -234,7 +237,7 @@ This script adds a new section to your Home page, and displays beneath the facti
 
 **_Torn Jail Scores_**
 
-- [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/blob/master/JailScores/Torn%20Jail%20Scores.user.js)
+- [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/raw/master/JailScores/Torn%20Jail%20Scores.user.js)
 
 Images:
 
@@ -245,7 +248,7 @@ This script adds the "score" of a user in jail, which is used to determine the d
 
 **_Torn War Wall List Extender_**
 
-- [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.user.js)
+- [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.user.js)
 
 Images:
 
@@ -255,7 +258,7 @@ Similar to the User List Extender, this extends the user list on the territory w
 
 **_Torn War Other Fac Extender_**
 
-- [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/blob/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.user.js)
+- [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.user.js)
 
 Images:
 
