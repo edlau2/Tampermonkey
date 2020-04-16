@@ -106,7 +106,7 @@ Images:
 - [Torn Bat Stat Estimator-horokeu.png](https://github.com/edlau2/Tampermonkey/blob/master/BatStatEst/Torn%20Bat%20Stat%20Estimator-horokeu.png)
 - [Torn Bat Stat Estimator-xedx.png](https://github.com/edlau2/Tampermonkey/blob/master/BatStatEst/Torn%20Bat%20Stat%20Estimator-xedx.png)
 
-This script uses the method described here: https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0 to estimate a user's bat stats, as best as can be estimated with publicly available stats. The possible range of bat stats is displayed on the user's profile page. This is most useful for lower level players, due to the ranges involved at higher levels. Also, 'ghost' triggers can't be helped, for instance if you hit a NW trigger and then lose it. Always check things like Xanax and refills used, and other indicators also before relying on this estimate to pick a fight!
+This script uses the method described here: https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0 to estimate a user's bat stats, as best as can be estimated with publicly available stats. The possible range of bat stats is displayed on the user's profile page. This is most useful for lower level players, due to the ranges involved at higher levels. Also, 'ghost' triggers can't be helped, for instance if you hit a NW trigger and then lose it. Also, level holding will also throw off the results, usually resulting in an 'N/A' result. Always check things like Xanax and refills used, and other indicators also before relying on this estimate to pick a fight!
 
 **_Torn Weapon Experience_**
 
