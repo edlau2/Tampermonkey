@@ -41,6 +41,13 @@
             for (let i=0; i < ul.childNodes.length; i++) {
                 let li = ul.children[i]; // The <li> we want
                 console.log(GM_info.script.name + '<li>: ' + li.innerText); // Just log the crimes we've detected, for now.
+
+                // ===> New !!!
+                // Trap the 'Kidnapping' li...
+                if (li.innerText.indexOf('Kidnapping') != -1) { // Could also use '.contains()'
+                    console.log('Found kidnapping: ', li);
+                }
+                // End new !!!
             }
         }
 
@@ -60,7 +67,7 @@
                                                            // when building DIVs manually, for example.
 
     // If you open Chrome's Developer Tools, this line will cause it to break in a debugger:
-    debugger;
+    //debugger;
 
     // Alternatively, you could in Tamper Monkey's Settings, select Debug Scripts, which will
     // stop in the debugger at the start of EVERY script.
