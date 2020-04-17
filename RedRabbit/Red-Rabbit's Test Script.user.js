@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Red-Rabbit's Test Script
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  I am the world!
 // @include      https://www.torn.com/crimes.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -32,22 +32,49 @@
         // On the Crimes page, the crimes are in a <ul> (Unordered List) element.
         // Each crime is it's own <li> (List Item). Get the UL. Note that we can access
         // via the var 'useNode from here, the parent DIV.
-        let ul = useNode.getElementsByClassName('specials-cont')[0]; // AGain, by class name. 'let' instead of 'var' keeps the scope local
+        let ul = useNode.getElementsByClassName('specials-cont')[0]; // Again, by class name. 'let' instead of 'var' keeps the scope local
         if (validPointer(ul)) { // Make sure we found it!
             console.log(GM_info.script.name + 'Found the crimes UL!');
 
-            // Now we can access every <li> in the <ul>
-            // We just want the immediate child nodes for now.
-            for (let i=0; i < ul.childNodes.length; i++) {
-                let li = ul.children[i]; // The <li> we want
-                console.log(GM_info.script.name + '<li>: ' + li.innerText); // Just log the crimes we've detected, for now.
+            // We know the ID's for Kidnap and Mayor, so just search for those.
+            // We could use these just to determine where we are on all the 'crimes' pages.
+            let kidnapBtn = document.getElementById('kidnapping');
+            let mayorBtn = document.getElementById('mayor');
 
-                // ===> New !!!
-                // Trap the 'Kidnapping' li...
-                if (li.innerText.indexOf('Kidnapping') != -1) { // Could also use '.contains()'
-                    console.log('Found kidnapping: ', li);
-                }
-                // End new !!!
+            //
+            // This means we are on the page where we select what crime, in general.
+            // Note that setting the 'click' function sets it for *all* 'label's.
+            // The entire page. So we'll get notified for any click, an any label.
+            // We can differentiate by name. The name is 'e.currentTarget.innerText',
+            // where 'e' is the event that triggered this, specifically the 'click' event.
+            //
+            // We *should* be able to just add an event handler to the radio button
+            // we really want, which is this element:
+            // <input id="kidnapping" class="radio-css without-label" type="radio" value="kidnapping" name="crime">
+            // but that is not working, for some reason I tried about 10 different ways. With no success.
+            //
+            if (validPointer(kidnapBtn)) {
+                alert('Found the "kidnap" button!');
+                $("label").click(function (e) {
+                    alert('clicked on "' + e.currentTarget.innerText + '"');
+                    console.log('Clicked on "' + e.currentTarget.innerText + '"', e);
+                });
+            }
+
+            //
+            // This means we're on the next page, the 'sub crime'. Here, if the
+            // mayorBtn is valid, we're on the Kidnapping page, it was pressed.
+            // We got the button, above: "let mayorBtn = document.getElementById('mayor');"
+            //
+            // Again, I set a fn to be called on ALL labels, we can differentiate by name.
+            // The name is 'e.currentTarget.innerText', where 'e' is the event that triggered
+            // this, specifically the 'click' event.
+            if (validPointer(mayorBtn)) {
+                alert('Found the "mayor" button!');
+                $("label").click(function (e) {
+                     alert('clicked on "'+ e.currentTarget.innerText + '"');
+                     console.log('Clicked on "' + e.currentTarget.innerText + '"', e);
+                });
             }
         }
 
