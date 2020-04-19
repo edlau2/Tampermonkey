@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.1
+// @version      0.2
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -112,6 +112,14 @@ function btnOnConfigClick(e) {
     cfgBase.style.display = "none";
     var cfgDialog = $("#configure").dialog(configOpt);
     cfgDialog.dialog("open");
+
+    // Try to get the dialog to configure. Should be able to do so -before- opening.
+    let uiDlg = document.getElementsByClassName("ui-dialog")[0];
+    if (validPointer(uiDlg)) {
+        let style = uiDlg.getAttribute('style');
+        style = style + ' border: solid black 2px; border-radius: 5px; background-color: gray';
+        uiDlg.setAttribute('style', style);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////
