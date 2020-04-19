@@ -8,6 +8,7 @@
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/FacChatFilter/Torn%20Fac%20Chat%20Filter.user.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_listValues
@@ -514,6 +515,11 @@ var configOpt =
         resizable: true,
         autoOpen: false,
         modal: true,
+        /*
+        border: "solid black 2px",
+        borderRadius: "5px",
+        backgroundColor: "gray",
+        */
         buttons: [
         {
             text: "Ok",
