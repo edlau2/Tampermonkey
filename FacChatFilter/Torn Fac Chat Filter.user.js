@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.4
+// @version      0.5
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
