@@ -280,6 +280,8 @@ Similar to the above script, this extends the user list of another faction, typi
 
 These scripts aren't mine, just here for easy access by fac mates. The links link to the respective author's repos, either GitHub, OpenUserJS, or GreasyFork.
 
+TBD: Add Special Gym Ratios and Special Gym Reqs scripts here ...
+
 **_Easter Egg Hunt: Random_**
 
 To aid in just clicking around Torn, to hopefully stumble across more Easter Eggs, ths script puts an icon/link on your page that takes you to a random page in Torn. I had a small hand in it, it works very well. Not supposed to guarantee any more eggs, but easier to go around to new places you may never have been. I'd recommend using it in conjunction with DoctorN's "Alert me if there's an Easter Egg on the page" option enabled.
