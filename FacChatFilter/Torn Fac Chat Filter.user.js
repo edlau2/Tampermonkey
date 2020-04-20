@@ -37,8 +37,15 @@ function blinkLight(filter_name, filtered, interval=1000) {
     }, interval);
 }
 
+function filterReset(content) {
+    const msgs = $(content).find('div[class^=message_]');
+    $(msgs).each(function() {
+        $(this).show();
+    });
+}
+
 // Do the filtering
-function filter(filter_name, content, keyword, hide) {
+function filter(filter_name, content, keyword) {
     const msgs = $(content).find('div[class^=message_]');
     $(msgs).each(function() {
         const msg = $(this).text();  // Entire message
@@ -70,11 +77,14 @@ function filter(filter_name, content, keyword, hide) {
                 hide ? $(this).hide() : $(this).show();
                 console.log('Hiding ' + from);
                 blinkLight(filter_name, hide);
-            } else {
+            }
+            /*
+            else {
                 hide ? $(this).show() : $(this).hide();
                 console.log('Showing ' + from);
                 blinkLight(filter_name, !hide);
             }
+            */
         }
     });
 }
@@ -90,9 +100,8 @@ const disabledBtnText = '&nbsp;';
 const btnDisabledColor = 'Crimson';
 const optionsBtnText = '&nbsp;';
 
-function btnOnEnableClick(e) {
-    //alert('onEnable');
-    let button = e.currentTarget; // Same as .srcElement, 'this' ....
+function btnOnEnableClick(content, filter_name) {
+    let button = document.getElementById(filter_name + '-enable');
     console.log(this.innerHTML + 'clicked');
     if (!disabled) {
         button.style.backgroundColor = btnDisabledColor;
@@ -105,14 +114,16 @@ function btnOnEnableClick(e) {
         this.innerHTML = disabledBtnText;
         GM_setValue('state', 'Enabled');
     }
-    filter('faction'); // ??? Need params, esp. 'content' ????
+
+    // Re-run our filtere.
+    btnOnApplyFilterClick(content, filter_name);
 }
 
 ////////////////////////////////////////////////////////////
 // Load/launch the config (options) dialog
 ////////////////////////////////////////////////////////////
 
-function btnOnConfigClick(e, filter_name) {
+function btnOnConfigClick(content, filter_name) {
     let cfgBase = document.getElementById("configure");
     cfgBase.style.display = "none";
     var cfgDialog = $("#configure").dialog(configOpt);
@@ -124,12 +135,11 @@ function btnOnConfigClick(e, filter_name) {
     $(".ui-dialog-titlebar").attr("style", "text-align: center; margin: 5px; color: black; font-weight: bold");
 
     let okBtn = document.getElementById("xedx-cfgbtn-ok");
-    const textParam = filter_name;
-    okBtn.addEventListener("click", function(e) {
-                    //alert('Options: on OK filter_name = ' + textParam);
-                    btnOnApplyFilterClick(null, textParam);
+    const c_filter_name = filter_name;
+    const c_content = content;
+    okBtn.addEventListener("click", function() {
+                    btnOnApplyFilterClick(c_content, c_filter_name);
                     let cfgBase = document.getElementById("configure");
-                    //$(this).dialog( "close" );
                     $("#configure").dialog("close");
                 }, false);
 }
@@ -188,7 +198,7 @@ function removeFilter(spanId) {
 }
 
 // Apply button - save filters to storage and memory
-function btnOnApplyFilterClick(chat, filter_name) {
+function btnOnApplyFilterClick(content, filter_name) {
     // Save each filter as id:value
     let name = filter_name + '-filter-div';
     let elem = document.getElementById(name);
@@ -206,6 +216,17 @@ function btnOnApplyFilterClick(chat, filter_name) {
         GM_setValue(id, value);  // Save in storage
         filterArray.push(value); // Save in-mem
     }
+
+    // Reset and run through the filter...
+    filterReset(content);
+    for (let i=0; i<filterArray.length; i++) {
+        let keyword = filterArray[i];
+        if (keyword.length > 0) {
+            console.log('Filtering on "' + keyword + '"');
+            filter(filter_name, content, keyword);
+        }
+    }
+
 
     let text = 'Filters Applied!\n';
     filterArray.forEach(item => (text = text + '\n\t' + item));
@@ -306,17 +327,17 @@ function ResetHandlerFlags() {
     handlerBtns.viewBtnOn = false;
 }
 
-function enableButtonHandlers(filter_name) {
+function enableButtonHandlers(content, filter_name) {
     // Handlers for button(s) on main chat
     let cfgButton = document.getElementById(filter_name + '-enable');
     if (validPointer(cfgButton) && !handlerBtns.cfgBtnOn) {
-        cfgButton.addEventListener("click", btnOnEnableClick);
+        cfgButton.addEventListener("click", function() {btnOnEnableClick(content, filter_name);});
         handlerBtns.cfgBtnOn = true;
     }
 
     let enableButton = document.getElementById(filter_name + '-cfg');
     if (validPointer(enableButton) && !handlerBtns.enableBtnOn) {
-        enableButton.addEventListener("click", function(e) {btnOnConfigClick(e, filter_name);});
+        enableButton.addEventListener("click", function() {btnOnConfigClick(content, filter_name);});
         handlerBtns.enableBtnOn = true;
     }
 
@@ -329,7 +350,7 @@ function enableButtonHandlers(filter_name) {
 
     let applyButton = document.getElementById(filter_name + '-cfg-apply');
     if (validPointer(applyButton) && !handlerBtns.applyBtnOn) {
-        applyButton.addEventListener("click", function(){btnOnApplyFilterClick(chat, filter_name);}, false);
+        applyButton.addEventListener("click", function(){btnOnApplyFilterClick(content, filter_name);}, false);
         handlerBtns.applyBtnOn = true;
     }
 
@@ -381,7 +402,7 @@ function addChatFilter(box, chat) {
             let keyword = filterArray[i];
             if (keyword.length > 0) {
                 console.log('Filtering on "' + keyword + '"');
-                filter(filter_name, content, keyword, hide);
+                filter(filter_name, content, keyword);
             }
         }
         return; // Assumes everything below has fully completed. ???
@@ -468,7 +489,7 @@ function addChatFilter(box, chat) {
     }
 
     // Enable all the buttons. We may have to call again...
-    if (true) /*!handlersInstalled())*/ {enableButtonHandlers(filter_name);}
+    if (true) /*!handlersInstalled())*/ {enableButtonHandlers(content, filter_name);}
 
     // Load saved filters - call once.
     if (!filtersLoaded) {
@@ -483,7 +504,7 @@ function addChatFilter(box, chat) {
             let keyword = filterArray[i];
             if (keyword.length > 0) {
                 console.log('Filtering on "' + keyword + '"');
-                filter(filter_name, content, keyword, hide);
+                filter(filter_name, content, keyword);
             }
         }
     });
