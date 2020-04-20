@@ -152,6 +152,7 @@
     // Callback to parse returned JSON
     var expectedResponses = 14;
     function personalStatsQueryCB(responseText, ID, name) {
+        expectedResponses--;
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
@@ -250,41 +251,84 @@
         }
         var divSpan = document.getElementById('xedx-div-span-' + item);
         var text = '<B>' + divSpan.innerText + ': </B>Honor Bar Available' + CRLF;
+        var effectText, cdText, sideEffectText, odChance;
+
         switch (item) {
             case 'cantaken':
                 text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannibus): ' + pctText + CRLF;
+                effectText = 'Increases nerve by 2-3.';
+                cdText = 'Cooldown: 1 to 1 1/2 hr.';
+                sideEffectText = '-35% speed, -25% def, -20% strength';
+                odChance = 'Very low, 5x chance on 4/20';
                 break;
             case 'exttaken':
                 text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
+                effectText = 'Doubles happiness.';
+                cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 40 min';
+                sideEffectText = 'none.';
+                odChance = 'unknown';
                 break;
             case 'kettaken':
                 text = text + TAB + '<B>Horse Tranquilizer</B> (50 Ketamine): ' + pctText + CRLF;
+                effectText = 'Temporarily increases Defense by 50%.';
+                cdText = 'Cooldown: 50 min - 1 hr 30 min';
+                sideEffectText = '-20% speed, -20% strength';
+                odChance = 'high';
                 break;
             case 'lsdtaken':
                 text = text + TAB + '<B>Acid Dream</B> (50 LSD): ' + pctText + CRLF;
+                effectText = 'Increases energy by 50, nerve by 5, and happiness by 200-500. Also +50% def, +30% str';
+                cdText = 'Cooldown: 6 hrs 40 min - 7 hrs 30 min';
+                sideEffectText = '-30% dex';
+                odChance = 'unknown';
                 break;
             case 'opitaken':
                 text = text + TAB + '<B>The Fields of Opium</B> (50 Opium): ' + pctText + CRLF;
+                effectText = 'Removes all hospital time and replenishes life by 66.6%. Increases happiness by 50-100.';
+                cdText = 'Cooldown: 3 hrs 20 min - 4 hrs 10 min';
+                sideEffectText = 'none';
+                odChance = 'none';
                 break;
             case 'shrtaken':
                 text = text + TAB + '<B>I Think I See Dead People</B> (50 Shrooms): ' + pctText + CRLF;
+                effectText = 'Increases happiness by 500 and reduces energy by 25.';
+                cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 54 min';
+                sideEffectText = '-20% on all bat stats, -25e';
+                odChance = 'unknown';
                 break;
             case 'spetaken':
                 text = text + TAB + '<B>Crank it Up</B> (50 Speed): ' + pctText + CRLF;
+                effectText = 'Temporarily increases Speed by 20%. Increases happiness by 50.';
+                cdText = 'Cooldown: 3 hrs 28 min';
+                sideEffectText = '-20% dex';
+                odChance = 'unknown';
                 break;
             case 'pcptaken':
                 text = text + TAB + '<B>Angel Dust</B> (50 PCP): ' + pctText + CRLF;
+                effectText = 'Temporarily increases Strength and Dexterity by 20%. Increases happiness by 250.';
+                cdText = 'Cooldown: 5 hrs 40 min - 6 hrs 40 min';
+                sideEffectText = 'none.';
+                odChance = 'unknown';
                 break;
             case 'xantaken':
                 text = text + TAB + '<B>Free Energy</B> (50 Xanax): ' + pctText + CRLF;
+                effectText = 'Increases energy by 250 and happiness by 75.';
+                cdText = 'Cooldown: 6 - 8 hrs.';
+                sideEffectText = '-35% all bat stats';
+                odChance = '3.0%';
                 break;
             case 'victaken':
                 text = text + TAB + '<B>Painkiller</B> (50 Vicodin): ' + pctText + '</B>';
+                effectText = 'Temporarily increases all battle stats by 25%. Increases happiness by 75.';
+                cdText = 'Cooldown: 5 hrs - 5 hrs 50 min';
+                sideEffectText = 'none.';
+                odChance = 'unknown';
                 break;
             default:
                 return;
         }
-
+        text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
+            CRLF + 'Chance of OD: ' + odChance;
         displayToolTip(useDiv, text);
     }
 
