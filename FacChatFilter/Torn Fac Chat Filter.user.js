@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.3
+// @version      0.4
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -84,19 +84,25 @@ function filter(filter_name, content, keyword, hide) {
 // and sets the global 'disable' variable.
 ////////////////////////////////////////////////////////////
 
+const enabledBtnText = '&nbsp;';
+const btnEnabledColor = 'LawnGreen';
+const disabledBtnText = '&nbsp;';
+const btnDisabledColor = 'Crimson';
+const optionsBtnText = '&nbsp;';
+
 function btnOnEnableClick(e) {
     //alert('onEnable');
     let button = e.currentTarget; // Same as .srcElement, 'this' ....
     console.log(this.innerHTML + 'clicked');
-    if (this.innerHTML == "Disable") {
-        button.style.backgroundColor = 'LawnGreen';
+    if (!disabled) {
+        button.style.backgroundColor = btnDisabledColor;
         disabled = true;
-        this.innerHTML = "Enable";
+        this.innerHTML = enabledBtnText;
         GM_setValue('state', 'Disabled');
     } else {
-        button.style.backgroundColor = 'Crimson';
+        button.style.backgroundColor = btnEnabledColor;
         disabled = false;
-        this.innerHTML = "Disable";
+        this.innerHTML = disabledBtnText;
         GM_setValue('state', 'Enabled');
     }
     filter('faction'); // ??? Need params, esp. 'content' ????
@@ -106,28 +112,33 @@ function btnOnEnableClick(e) {
 // Load/launch the config (options) dialog
 ////////////////////////////////////////////////////////////
 
-function btnOnConfigClick(e) {
+function btnOnConfigClick(e, filter_name) {
     let cfgBase = document.getElementById("configure");
     cfgBase.style.display = "none";
     var cfgDialog = $("#configure").dialog(configOpt);
     cfgDialog.dialog("open");
 
-    // Try to get the dialog to configure. Should be able to do so -before- opening.
-    let uiDlg = document.getElementsByClassName("ui-dialog")[0];
-    if (validPointer(uiDlg)) {
-        let style = uiDlg.getAttribute('style');
-        style = style + ' border: solid black 2px; border-radius: 5px; background-color: gray';
-        uiDlg.setAttribute('style', style);
-    }
+    // Further dialog customization
+    $(".ui-dialog").attr("style", $(".ui-dialog").attr("style") + " border: solid black 2px; border-radius: 5px; background-color: gray");
     $(".ui-dialog-titlebar-close").hide();
     $(".ui-dialog-titlebar").attr("style", "text-align: center; margin: 5px; color: black; font-weight: bold");
-    //$(".ui-dialog-titlebar").hide(); // Need this to make draggable?
+
+    let okBtn = document.getElementById("xedx-cfgbtn-ok");
+    const textParam = filter_name;
+    okBtn.addEventListener("click", function(e) {
+                    //alert('Options: on OK filter_name = ' + textParam);
+                    btnOnApplyFilterClick(null, textParam);
+                    let cfgBase = document.getElementById("configure");
+                    //$(this).dialog( "close" );
+                    $("#configure").dialog("close");
+                }, false);
 }
 
 /////////////////////////////////////////////////////////////////////
 // Handle adding/removing filters (the Options dialog buttons)
 /////////////////////////////////////////////////////////////////////
 
+// Create UI element for a new filter
 function btnOnAddFilterClick(chat, filter_name) {
     //alert('Add filter');
     let idIndex = Math.random();
@@ -153,7 +164,7 @@ function addSavedFilter(filter_name, id, value) {
     let btnId = 'btn-' + id;
     let spanID = 'span-' + id;
     let span = document.getElementById(spanID);
-    if (!validPointer(span)) {// Already in UI
+    if (!validPointer(span)) { // Already in UI
     }
         let name = 'Filter: ';
         let filter = '<span id="' + spanID + '" <label for="filter" style="color: green;">' + name + '</label>' +
@@ -167,8 +178,7 @@ function addSavedFilter(filter_name, id, value) {
         let removeBtn = document.getElementById(btnId);
         if (removeBtn) {removeBtn.addEventListener("click", function(){removeFilter(spanID);}, false);}
 
-    // Add to in-mem array
-    if (!filterArray.includes(value)) {filterArray.push(value);}
+    if (!filterArray.includes(value)) {filterArray.push(value);} // Add to in-mem array
 }
 
 // Remove a filter, from the UI only
@@ -177,21 +187,8 @@ function removeFilter(spanId) {
     $(elem).remove();
 }
 
-// Apply button - save filters to storage
+// Apply button - save filters to storage and memory
 function btnOnApplyFilterClick(chat, filter_name) {
-    //alert('Apply Filters');
-    //console.log('Applying filter');
-
-    /* NOT WORKING - stringify is returning empty object!
-    let name = filter_name + '-filter-div';
-    let elem = document.getElementById(name);
-    let replacer = function(k, v) { if (v === undefined) { return null; } return v; };
-    let save_elem = JSON.stringify(elem, replacer); // For debugging...
-    GM_setValue(name, save_elem);
-    */
-
-    // ... so do it the long way :-(
-
     // Save each filter as id:value
     let name = filter_name + '-filter-div';
     let elem = document.getElementById(name);
@@ -200,11 +197,14 @@ function btnOnApplyFilterClick(chat, filter_name) {
     for (let i=0; i < inputs.length; i++) {
         let id = inputs[i].id;
         let value = inputs[i].value;
+        if (value == '') {
+            let spanID = 'span-' + id;
+            removeFilter(spanID);
+            continue;
+        }
         console.log('Applying filter (2): ' + id + ' == ' + value);
-        GM_setValue(id, value);
-
-        // Save in-mem
-        filterArray.push(value);
+        GM_setValue(id, value);  // Save in storage
+        filterArray.push(value); // Save in-mem
     }
 
     let text = 'Filters Applied!\n';
@@ -221,22 +221,11 @@ function btnOnRestoreFilterClick(chat, filter_name) {
 // Function to load saved filters from storage
 function loadSavedFilters(chat, filter_name) {
     //alert('Load saved filters');
-
-    /* NOT WORKING - stringifying the element is returning empty object!
-    let name = filter_name + '-filter-div';
-    let elem = document.getElementById(name);
-    let saved_elem = JSON.parse(GM_getValue(name), null);
-    if (!validPointer(saved_elem)) {return;}
-    if (JSON.stringify(saved_elem) === JSON.stringify({})) {return;}
-    $(elem).replaceWith(saved_elem);
-    */
-
-    // ... so do it the long way :-(
-
     let vals = GM_listValues();
     for (let i=0; i < vals.length; i++) {
         let id = vals[i];
         let value = GM_getValue(id);
+        if (value == '') {continue;}
         if (value.indexOf('filter') == -1) {continue;}
         addSavedFilter(filter_name, id, value);
     }
@@ -249,10 +238,7 @@ function clearFilters(filter_name, fromApply=false) {
     let vals = GM_listValues();
     for (let i=0; i < vals.length; i++) {
         let spanID = 'span-' + vals[i]; // id = vals[i]
-        if (!fromApply) {
-            //console.log('Clearing filter, spanID = ' + spanID);
-            removeFilter(spanID);
-        }
+        if (!fromApply) {removeFilter(spanID);}
         GM_deleteValue(vals[i]);
     }
 
@@ -317,7 +303,6 @@ function ResetHandlerFlags() {
 }
 
 function enableButtonHandlers(filter_name) {
-
     // Handlers for button(s) on main chat
     let cfgButton = document.getElementById(filter_name + '-enable');
     if (validPointer(cfgButton) && !handlerBtns.cfgBtnOn) {
@@ -327,7 +312,7 @@ function enableButtonHandlers(filter_name) {
 
     let enableButton = document.getElementById(filter_name + '-cfg');
     if (validPointer(enableButton) && !handlerBtns.enableBtnOn) {
-        enableButton.addEventListener("click", btnOnConfigClick);
+        enableButton.addEventListener("click", function(e) {btnOnConfigClick(e, filter_name);});
         handlerBtns.enableBtnOn = true;
     }
 
@@ -368,7 +353,7 @@ function enableButtonHandlers(filter_name) {
 // chat content box ocurrs.
 //////////////////////////////////////////////////////
 
-var oneShotBreak = false; // Set to 'true' to stop at a debugger breakpoint on startup, once only.
+var oneShotBreak = false;  // Set to 'true' to stop at a debugger breakpoint on startup, once only.
 var filtersLoaded = false; // Only load filters from storage once.
 
 function addChatFilter(box, chat) {
@@ -384,20 +369,10 @@ function addChatFilter(box, chat) {
         oneShotBreak = false;
     }
 
-    // I *think* this is looking for the box added.
-    // Should be able to look for 'id="xedx-filter-span"' instead
-    // How do I do this with JQuery?
     let filtSpan = document.getElementById("xedx-filter-span"); // $('#xedx-filter-span')
     let elem = $(box).find('#'+filter_name);
-    //if ($(box).find('#'+filter_name).size() > 0) { // Diff. jquery version screwed this up...
     if (elem.length > 0 || validPointer(filtSpan)) { // Filter input exists -or- filterSpan created (config dialog)
-    //if (filterArray.length > 0) {
-        /* No longer used
-        $('#'+filter_name).val(GM_getValue(filter_name)); // from storage ? What does 'val' do?
-        const keyword = $('#'+filter_name).val();
-        */
         console.log('trigger 3: ', content);
-        //filterArray.forEach(keyword => function() {
         for (let i=0; i<filterArray.length; i++) {
             let keyword = filterArray[i];
             if (keyword.length > 0) {
@@ -405,7 +380,6 @@ function addChatFilter(box, chat) {
                 filter(filter_name, content, keyword, hide);
             }
         }
-        //});
         return; // Assumes everything below has fully completed. ???
     }
 
@@ -415,6 +389,7 @@ function addChatFilter(box, chat) {
 
     const input = $(box).find('div[class^=chat-box-input_]');
     if (!validPointer(filtSpan)) { // Only do once!
+        let edBtnText = disabled ? disabledBtnText : enabledBtnText;
         $(input).prepend('<div>' +
                          '<span id="xedx-filter-span" style="vertical-align: middle; display:table; margin:0 auto;">' +
                          /*
@@ -425,18 +400,22 @@ function addChatFilter(box, chat) {
 
                          // Make some nifty light buttons
                          '<button type="button" id="' + filter_name + '-filtered"' +
-                         ' style="border-radius: 50%; background-color: Gainsboro;">&nbsp</button>' +
+                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px; height: 10px; background-color: Gainsboro;">&nbsp</button>' +
                          '<button type="button" id="' + filter_name + '-notfiltered"' +
-                         ' style="border-radius: 50%; margin: 2px; background-color: Gainsboro">&nbsp</button>' +
+                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px; height: 10px; background-color: Gainsboro">&nbsp</button>' +
 
-                         // Options and Enable/Disable button
+                         // Options button
                          '<button type="button" id="' + filter_name + '-cfg' +
                          '" onclick="btnOnConfigClick()"' +
-                         ' style="border-radius: 5px; margin: 0px 10px 0px;">Options</button>' +
+                         ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 75px;">' +
+                         optionsBtnText + '</button>' +
+
+                         // Enable/Disable button
                          '<button type="button" id="' + filter_name + '-enable' +
                          '" onclick="btnOnEnableClick()"' +
-                         ' style="border-radius: 5px;  margin: 0px 10px 0px; background-color: Crimson">' +
-                         (disabled ? 'Enable' : 'Disable') + '</button>' +
+                         ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 75px; ' +
+                         'background-color: Crimson">' +
+                         edBtnText + '</button>' +
                          '</span>' +
                          '</div>');
 
@@ -450,25 +429,24 @@ function addChatFilter(box, chat) {
     let configDiv = document.getElementById('configure');
     if (!validPointer(configDiv)) { // Only do once!
         $(".body").append('<div id="configure" ' +
-                          //'style="border: 2px solid black; border-radius: 5px; background-color: white; display: block;">' +
                           'style="background-color: LightGray; display: block; text-align: center;">' +
                           '<p><br><span style="color: blue;">Installed Filters:</span></p>' +
 
                           // Filter inputs.
-                          '<div id="' + filter_name + '-filter-div"><br>' +
-                          '</div>' +
+                          '<div id="' + filter_name + '-filter-div"><br></div>' +
+
                           // Buttons at bottom on cfg
                           '<span id="xedx-cfg-btn-span" style="vertical-align: middle; padding: 10px; display: inline-block;"><br>' +
                           '<button type="button" id="' + filter_name + '-cfg-add" onclick="btnOnAddFilterClick()"' +
-                              ' style="border-radius: 5px;">Add Filter</button>' +
+                              ' style="border-radius: 5px; border: 1px solid black;">Add Filter</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-apply" onclick="btnOnApplyFilterClick()"' +
-                              ' style="border-radius: 5px;">Apply Filters</button>' +
+                              ' style="border-radius: 5px; border: 1px solid black;">Apply Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-restore" onclick="btnOnRestoreFilterClick()"' +
-                              ' style="border-radius: 5px;">Restore Filters</button>' +
+                              ' style="border-radius: 5px; border: 1px solid black;">Restore Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-clear" onclick="btnOnClearFilterClick()"' +
-                              ' style="border-radius: 5px;">Clear Filters</button>' +
+                              ' style="border-radius: 5px; border: 1px solid black;">Clear Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-view" onclick="btnOnViewFilterClick()"' +
-                              ' style="border-radius: 5px;">View Filters</button>' +
+                              ' style="border-radius: 5px; border: 1px solid black;">View Filters</button>' +
                           '</span>' +
                         '</div>');
     ResetHandlerFlags();
@@ -485,14 +463,6 @@ function addChatFilter(box, chat) {
 
     // Get notifications on node insertion/deletion, in the chat box
     $(content).bind('DOMNodeInserted DOMNodeRemoved', function() {
-        /*
-        $('#'+filter_name).val(GM_getValue(filter_name));
-        const keyword = $('#'+filter_name).val(); // This is for the input box, no longer used.
-        if (keyword.length > 0) {
-            console.log('Filtering on "' + keyword + '"');
-            filter(filter_name, content, keyword, hide);
-        }
-        */
         console.log('trigger 2 ', content);
         for (let i=0; i<filterArray.length; i++) {
             let keyword = filterArray[i];
@@ -503,16 +473,16 @@ function addChatFilter(box, chat) {
         }
     });
 
+    /*
     // Triggers on input to 'filter' input box
     // Moved to the Config dialog, Apply button function.
     $('#'+filter_name).on('input', function() {
-        /*
         const keyword = $('#'+filter_name).val();
         GM_setValue(filter_name, keyword); // Sets single value, need an array...
         console.log('trigger 1');
         if (keyword.length > 0) {filter(content, keyword, hide);}
-        */
     });
+    */
 }
 
 //////////////////////////////////////////////////////
@@ -527,26 +497,16 @@ var configOpt =
         autoOpen: false,
         modal: true,
         title: "Filtering Options",
-        /*
-        closeOnEscape: false,
-        open: function(event, ui) {
-            $(".ui-dialog-titlebar-close", ui.dialog || ui).hide();
-        },
-        */
         buttons: [
             {
                 text: "Ok",
-                click: function() {
-                    let cfgBase = document.getElementById("configure");
-                    //cfgBase.style.display = "block";
-                    $(this).dialog( "close" );
-                },
+                id: "xedx-cfgbtn-ok",
             },
             {
                 text: "Cancel",
+                id: "xedx-cfgbtn-close",
                 click: function() {
                     let cfgBase = document.getElementById("configure");
-                    //cfgBase.style.display = "block";
                     $(this).dialog( "close" );
                 },
             },
