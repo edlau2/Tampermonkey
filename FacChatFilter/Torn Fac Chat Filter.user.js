@@ -388,10 +388,18 @@ function addChatFilter(box, chat) {
     //////////////////////////////////////////////////////
 
     const input = $(box).find('div[class^=chat-box-input_]');
+    const output = $(box).find('div[class^=chat-box-content_]');
     if (!validPointer(filtSpan)) { // Only do once!
         let edBtnText = disabled ? disabledBtnText : enabledBtnText;
-        $(input).prepend('<div>' +
-                         '<span id="xedx-filter-span" style="vertical-align: middle; display:table; margin:0 auto;">' +
+        $(input).before('<div>' +
+        //$(input).prepend('<div>' +
+        //$(output).append('<div>' +
+                         '<span id="xedx-filter-span" style="vertical-align: middle; display:block; margin:0 auto; height: 14px; ' +
+                         //'border: 1px solid #ccc; background-color: #f2f2f2;">' +
+                         //'border: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
+                         'border-left: 1px solid #a9a9a9; border-right: 1px solid #a9a9a9; ' +
+                         'border-bottom: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
+
                          /*
                          // Input field for filter - moved to Options dialog
                          '<label for="filter" style="color: green;">Filter: </label>' +
@@ -400,20 +408,22 @@ function addChatFilter(box, chat) {
 
                          // Make some nifty light buttons
                          '<button type="button" id="' + filter_name + '-filtered"' +
-                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px; height: 10px; background-color: Gainsboro;">&nbsp</button>' +
+                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px 2px 0px 8px; height: 10px; ' +
+                         'width: 4%; background-color: Gainsboro;">&nbsp</button>' +
                          '<button type="button" id="' + filter_name + '-notfiltered"' +
-                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px; height: 10px; background-color: Gainsboro">&nbsp</button>' +
+                         ' style="border-radius: 30%; border: 1px solid black; height: 10px; ' +
+                         'width: 4%; background-color: Gainsboro">&nbsp</button>' +
 
                          // Options button
                          '<button type="button" id="' + filter_name + '-cfg' +
                          '" onclick="btnOnConfigClick()"' +
-                         ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 75px;">' +
+                         ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 34%;">' +
                          optionsBtnText + '</button>' +
 
                          // Enable/Disable button
                          '<button type="button" id="' + filter_name + '-enable' +
                          '" onclick="btnOnEnableClick()"' +
-                         ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 75px; ' +
+                         ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 0px 0px; height:10px; width: 34%; ' +
                          'background-color: Crimson">' +
                          edBtnText + '</button>' +
                          '</span>' +
