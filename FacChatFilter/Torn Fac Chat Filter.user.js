@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.5
+// @version      0.6
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -140,6 +140,7 @@ function btnOnConfigClick(content, filter_name) {
     okBtn.addEventListener("click", function() {
                     btnOnApplyFilterClick(c_content, c_filter_name);
                     let cfgBase = document.getElementById("configure");
+                    cfgBase.style.display = "none";
                     $("#configure").dialog("close");
                 }, false);
 }
@@ -543,6 +544,7 @@ var configOpt =
                 id: "xedx-cfgbtn-close",
                 click: function() {
                     let cfgBase = document.getElementById("configure");
+                    cfgBase.style.display = "block";
                     $(this).dialog( "close" );
                 },
             },
