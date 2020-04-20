@@ -466,7 +466,7 @@ function addChatFilter(box, chat) {
     let configDiv = document.getElementById('configure');
     if (!validPointer(configDiv)) { // Only do once!
         $(".body").append('<div id="configure" ' +
-                          'style="background-color: LightGray; display: block; text-align: center;">' +
+                          'style="background-color: LightGray; display: none; text-align: center;">' +
                           '<p><br><span style="color: blue;">Installed Filters:</span></p>' +
 
                           // Filter inputs.
@@ -585,6 +585,8 @@ var configOpt =
         let chat = 'faction';
         let box = $('#chatRoot').find('div[class^=chat-box_][class*=' + chat + '_]');
         $(box).ready(addChatFilter(box, chat));
+        let cfgBase = document.getElementById("configure");
+        if (validPointer(cfgBase)) {cfgBase.style.display = "none";}
     };
 })();
 
