@@ -223,12 +223,16 @@ function loadSavedFilters(chat, filter_name) {
     //alert('Load saved filters');
     let vals = GM_listValues();
     for (let i=0; i < vals.length; i++) {
-        let id = vals[i];
-        let value = GM_getValue(id);
+        let key = vals[i];
+        let value = GM_getValue(key);
         if (value == '') {continue;}
-        if (value.indexOf('filter') == -1) {continue;}
-        addSavedFilter(filter_name, id, value);
+        if (key.indexOf(filter_name) == -1) {continue;}
+        addSavedFilter(filter_name, key, value);
     }
+
+    //let text = '';
+    //filterArray.forEach(item => (text = text + '\n\t' + item));
+    //alert('Loaded Saved Filters:' + text);
 }
 
 // Function to clear all saved filters, from UI and storage
@@ -391,6 +395,7 @@ function addChatFilter(box, chat) {
     const output = $(box).find('div[class^=chat-box-content_]');
     if (!validPointer(filtSpan)) { // Only do once!
         let edBtnText = disabled ? disabledBtnText : enabledBtnText;
+        let edBtnColor = disabled ? btnDisabledColor : btnEnabledColor;
         $(input).before('<div>' +
         //$(input).prepend('<div>' +
         //$(output).append('<div>' +
@@ -407,24 +412,24 @@ function addChatFilter(box, chat) {
                          */
 
                          // Make some nifty light buttons
-                         '<button type="button" id="' + filter_name + '-filtered"' +
+                         '<button type="button" id="' + filter_name + '-filtered" title="Blocked"' +
                          ' style="border-radius: 30%; border: 1px solid black; margin: 2px 2px 0px 8px; height: 10px; ' +
                          'width: 4%; background-color: Gainsboro;">&nbsp</button>' +
-                         '<button type="button" id="' + filter_name + '-notfiltered"' +
+                         '<button type="button" id="' + filter_name + '-notfiltered" title="Allowed"' +
                          ' style="border-radius: 30%; border: 1px solid black; height: 10px; ' +
                          'width: 4%; background-color: Gainsboro">&nbsp</button>' +
 
                          // Options button
                          '<button type="button" id="' + filter_name + '-cfg' +
-                         '" onclick="btnOnConfigClick()"' +
+                         '" onclick="btnOnConfigClick()" title="Filter Options"' +
                          ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 34%;">' +
                          optionsBtnText + '</button>' +
 
                          // Enable/Disable button
                          '<button type="button" id="' + filter_name + '-enable' +
-                         '" onclick="btnOnEnableClick()"' +
+                         '" onclick="btnOnEnableClick()" title="Enable/Disable"' +
                          ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 0px 0px; height:10px; width: 34%; ' +
-                         'background-color: Crimson">' +
+                         'background-color: ' + edBtnColor + ';">' +
                          edBtnText + '</button>' +
                          '</span>' +
                          '</div>');
@@ -533,7 +538,7 @@ var configOpt =
     console.log(GM_info.script.name + ' script started!');
 
     // Load initial state
-    let state = GM_getValue('State');
+    let state = GM_getValue('state');
     if (!validPointer(state) || state == 'Disabled') {
         disabled = true;
         GM_setValue('state', 'Disabled');
