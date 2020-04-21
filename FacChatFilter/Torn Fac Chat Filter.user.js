@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.8
+// @version      0.9
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -355,6 +355,7 @@ function enableButtonHandlers(content, filter_name) {
 
 var oneShotBreak = false;  // Set to 'true' to stop at a debugger breakpoint on startup, once only.
 var filtersLoaded = false; // Only load filters from storage once.
+var chatSize = 0;          // Track parent resizing.
 
 function addChatFilter(box, chat) {
     const content = $(box).find('div[class^=chat-box-content_]');
@@ -369,9 +370,9 @@ function addChatFilter(box, chat) {
         oneShotBreak = false;
     }
 
-    let filtSpan = document.getElementById("xedx-filter-span"); // $('#xedx-filter-span')
+    let filtDiv = document.getElementById("xedx-filter-div"); // $('#xedx-filter-div')
     let elem = $(box).find('#'+filter_name);
-    if (elem.length > 0 || validPointer(filtSpan)) { // Filter input exists -or- filterSpan created (config dialog)
+    if (elem.length > 0 || validPointer(filtDiv)) { // Filter input exists -or- filterSpan created (config dialog)
         console.log('trigger 3: ', content);
         if (!disabled) {
             if (filterArray.length > 0) {
@@ -379,7 +380,7 @@ function addChatFilter(box, chat) {
                 filter(filter_name, content, /*keyword*/null);
             }
         }
-        return;
+        if (validPointer(filtDiv)) {return;}
     }
 
     //////////////////////////////////////////////////////
@@ -388,10 +389,10 @@ function addChatFilter(box, chat) {
 
     const input = $(box).find('div[class^=chat-box-input_]');
     const output = $(box).find('div[class^=chat-box-content_]');
-    if (!validPointer(filtSpan)) { // Only do once!
+    if (!validPointer(filtDiv)) { // Only do once!
         let edBtnText = disabled ? disabledBtnText : enabledBtnText;
         let edBtnColor = disabled ? btnDisabledColor : btnEnabledColor;
-        $(input).before('<div>' +
+        $(input).before('<div id="xedx-filter-div">' +
                         '<span id="xedx-filter-span" style="vertical-align: middle; display:block; margin:0 auto; height: 14px; ' +
                         'border-left: 1px solid #a9a9a9; border-right: 1px solid #a9a9a9; ' +
                         'border-bottom: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
@@ -425,7 +426,28 @@ function addChatFilter(box, chat) {
                         '</span>' +
                         '</div>');
 
+        console.log('Inserted xedx-filter-div');
         ResetHandlerFlags();
+
+        // Need to modify chat box height, to compensate for new div.
+        filtDiv = document.getElementById("xedx-filter-div"); // $('#xedx-filter-div')
+        if (validPointer(filtDiv)/* && !chatSize*/) {
+            if (!chatSize) chatSize = $(output).height() - $(filtDiv).height();
+            $(output).height(chatSize);
+            const viewport = $(output).find('div[class^=viewport_]');
+            $(viewport).height(chatSize-1);
+
+            // Remove when needed to re-create in proper place.
+            $(output).on('DOMNodeRemoved DOMNodeInserted', function(e) {
+                if (validPointer(e.target.className)) {
+                    let at = e.target.className.indexOf('chat-box-content');
+                    if (validPointer(filtDiv) && e.type == 'DOMNodeRemoved' && at != -1) {
+                        $(filtDiv).remove();
+                        filtDiv = null;
+                    }
+                }
+            });
+        }
     }
 
     ////////////////////////////////////////////////////////////
