@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -255,18 +255,19 @@
 
         switch (item) {
             case 'cantaken':
-                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannibus): ' + pctText + CRLF;
+                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannibus): ' + pctText + CRLF +
+                    TAB + '<B>Spaced Out</B> (Overdose on Cannibus)' + CRLF;
                 effectText = 'Increases nerve by 2-3.';
                 cdText = 'Cooldown: 1 to 1 1/2 hr.';
                 sideEffectText = '-35% speed, -25% def, -20% strength';
-                odChance = 'Very low, 5x chance on 4/20';
+                odChance = 'Very low (near impossible!), 5x chance on 4/20';
                 break;
             case 'exttaken':
                 text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
                 effectText = 'Doubles happiness.';
                 cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 40 min';
                 sideEffectText = 'none.';
-                odChance = 'unknown';
+                odChance = '~4%-5%';
                 break;
             case 'kettaken':
                 text = text + TAB + '<B>Horse Tranquilizer</B> (50 Ketamine): ' + pctText + CRLF;
@@ -280,7 +281,7 @@
                 effectText = 'Increases energy by 50, nerve by 5, and happiness by 200-500. Also +50% def, +30% str';
                 cdText = 'Cooldown: 6 hrs 40 min - 7 hrs 30 min';
                 sideEffectText = '-30% dex';
-                odChance = 'unknown';
+                odChance = '~5%-6%';
                 break;
             case 'opitaken':
                 text = text + TAB + '<B>The Fields of Opium</B> (50 Opium): ' + pctText + CRLF;
