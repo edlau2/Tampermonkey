@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.7
+// @version      0.8
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -52,39 +52,26 @@ function filter(filter_name, content, keyword) {
         let at = msg.indexOf(':');   // Ptr. to 'From:' separator
         let from = msg.slice(0, at); // Msg is from this person
 
-        //console.log("Torn Fac Chat: filtering! From: '" + from + "'");
-
         if (disabled) {
             console.log('Filtering Disabled');
             $(this).show();
             blinkLight(filter_name, !hide, 1500);
         }
 
-        // Potential options:
-        //if (msg.toLowerCase().includes(keyword.toLowerCase())) // Contains, case-insensitive
-        //if (msg.toLowerCase().startsWith(keyword.toLowerCase())) // Starts with, should match 'from', insensitive
-        //if (from == keyword) // Case-sensitive match on 'from'
-
+        // Can't 'continue' inside of an '.each()' :-)
         if (!disabled) {
-            console.log('Filtering on keyword ' + keyword);
+            let match = keyword ? keyword : 'Entire Array';
+            console.log('Filtering on keyword: ' + match);
             console.log('Matching ' + from);
 
-            // Could change this - case sensitive, use 'if (filterArray.includes(from))...'
-            // Or for case-insensitive, convert array, and toLower for 'from':
-            // filterArray = filterArray.map(function(x){ return x.toUpperCase() }) // or toLowerCase ?
-
-            if (from.toLowerCase() == keyword.toLowerCase()) { // Case-insensitive match on 'from'
+            if (!keyword ?
+                filterArray.includes(from.toLowerCase()) :
+               (from.toLowerCase() == keyword.toLowerCase()) // Legacy...
+               ) {
                 hide ? $(this).hide() : $(this).show();
                 console.log('Hiding ' + from);
                 blinkLight(filter_name, hide);
             }
-            /*
-            else {
-                hide ? $(this).show() : $(this).hide();
-                console.log('Showing ' + from);
-                blinkLight(filter_name, !hide);
-            }
-            */
         }
     });
 }
@@ -170,7 +157,6 @@ function btnOnAddFilterClick(chat, filter_name) {
 
 // Add a filter, to the UI and in-memory array
 function addSavedFilter(filter_name, id, value) {
-    //console.log('addSavedFilter: ' + id + ' == ' + value);
     let elem = document.getElementById(filter_name + '-filter-div');
     let btnId = 'btn-' + id;
     let spanID = 'span-' + id;
@@ -189,7 +175,7 @@ function addSavedFilter(filter_name, id, value) {
     let removeBtn = document.getElementById(btnId);
     if (removeBtn) {removeBtn.addEventListener("click", function(){removeFilter(spanID);}, false);}
 
-    if (!filterArray.includes(value)) {filterArray.push(value);} // Add to in-mem array
+    if (!filterArray.includes(value)) {filterArray.push(value.toLowerCase());} // Add to in-mem array
 }
 
 // Remove a filter, from the UI only
@@ -200,7 +186,6 @@ function removeFilter(spanId) {
 
 // Apply button - save filters to storage and memory
 function btnOnApplyFilterClick(content, filter_name, silent=false) {
-    // Save each filter as id:value
     let name = filter_name + '-filter-div';
     let elem = document.getElementById(name);
     let inputs = elem.getElementsByTagName('input');
@@ -215,18 +200,12 @@ function btnOnApplyFilterClick(content, filter_name, silent=false) {
         }
         console.log('Applying filter (2): ' + id + ' == ' + value);
         GM_setValue(id, value);  // Save in storage
-        filterArray.push(value); // Save in-mem
+        filterArray.push(value.toLowerCase()); // Save in-mem
     }
 
     // Reset and run through the filter...
     filterReset(content);
-    for (let i=0; i<filterArray.length; i++) {
-        let keyword = filterArray[i];
-        if (keyword.length > 0) {
-            console.log('Filtering on "' + keyword + '"');
-            filter(filter_name, content, keyword);
-        }
-    }
+    if (filterArray.length > 0) {filter(filter_name, content, null);}
 
     if (!silent) {
         let text = 'Filters Applied!\n';
@@ -237,13 +216,11 @@ function btnOnApplyFilterClick(content, filter_name, silent=false) {
 
 // Restore button - restore filters from storage
 function btnOnRestoreFilterClick(chat, filter_name) {
-    //alert('Restore Filters');
     loadSavedFilters(chat, filter_name);
 }
 
 // Function to load saved filters from storage
 function loadSavedFilters(chat, filter_name) {
-    //alert('Load saved filters');
     let vals = GM_listValues();
     for (let i=0; i < vals.length; i++) {
         let key = vals[i];
@@ -252,18 +229,13 @@ function loadSavedFilters(chat, filter_name) {
         if (key.indexOf(filter_name) == -1) {continue;}
         addSavedFilter(filter_name, key, value);
     }
-
-    //let text = '';
-    //filterArray.forEach(item => (text = text + '\n\t' + item));
-    //alert('Loaded Saved Filters:' + text);
 }
 
 // Function to clear all saved filters, from UI and storage
 function clearFilters(filter_name, fromApply=false) {
-    //alert('Clear filters');
-
     let vals = GM_listValues();
     for (let i=0; i < vals.length; i++) {
+        if (vals[i].indexOf(filter_name) < 0) {continue;}
         let spanID = 'span-' + vals[i]; // id = vals[i]
         if (!fromApply) {removeFilter(spanID);}
         GM_deleteValue(vals[i]);
@@ -402,15 +374,12 @@ function addChatFilter(box, chat) {
     if (elem.length > 0 || validPointer(filtSpan)) { // Filter input exists -or- filterSpan created (config dialog)
         console.log('trigger 3: ', content);
         if (!disabled) {
-            for (let i=0; i<filterArray.length; i++) {
-                let keyword = filterArray[i];
-                if (keyword.length > 0) {
-                    console.log('Filtering on "' + keyword + '"');
-                    filter(filter_name, content, keyword);
-                }
+            if (filterArray.length > 0) {
+                console.log('Calling filter with entire array');
+                filter(filter_name, content, /*keyword*/null);
             }
         }
-        return; // Assumes everything below has fully completed. ???
+        return;
     }
 
     //////////////////////////////////////////////////////
@@ -423,11 +392,7 @@ function addChatFilter(box, chat) {
         let edBtnText = disabled ? disabledBtnText : enabledBtnText;
         let edBtnColor = disabled ? btnDisabledColor : btnEnabledColor;
         $(input).before('<div>' +
-                        //$(input).prepend('<div>' +
-                        //$(output).append('<div>' +
                         '<span id="xedx-filter-span" style="vertical-align: middle; display:block; margin:0 auto; height: 14px; ' +
-                        //'border: 1px solid #ccc; background-color: #f2f2f2;">' +
-                        //'border: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
                         'border-left: 1px solid #a9a9a9; border-right: 1px solid #a9a9a9; ' +
                         'border-bottom: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
 
@@ -503,10 +468,11 @@ function addChatFilter(box, chat) {
     }
 
     // Get notifications on node insertion/deletion, in the chat box
-    /*
     $(content).bind('DOMNodeInserted DOMNodeRemoved', function() {
         if (!disabled) {
             console.log('trigger 2 ', content);
+            if (filterArray.length > 0) {filter(filter_name, content, null);}
+            /*
             for (let i=0; i<filterArray.length; i++) {
                 let keyword = filterArray[i];
                 if (keyword.length > 0) {
@@ -514,20 +480,9 @@ function addChatFilter(box, chat) {
                     filter(filter_name, content, keyword);
                 }
             }
+            */
         }
     });
-    */
-
-    /*
-    // Triggers on input to 'filter' input box
-    // Moved to the Config dialog, Apply button function.
-    $('#'+filter_name).on('input', function() {
-        const keyword = $('#'+filter_name).val();
-        GM_setValue(filter_name, keyword); // Sets single value, need an array...
-        console.log('trigger 1');
-        if (keyword.length > 0) {filter(content, keyword, hide);}
-    });
-    */
 }
 
 //////////////////////////////////////////////////////
@@ -559,6 +514,20 @@ var configOpt =
         ]
     };
 
+function loadInitialState() {
+    let state = GM_getValue('state');
+    if (!validPointer(state) || state == 'Disabled') {
+        disabled = true;
+        GM_setValue('state', 'Disabled');
+    } else {
+        disabled = false;
+        GM_setValue('state', 'Enabled');
+    }
+
+    let statusText = disabled ? 'disabled' : 'enabled';
+    console.log('Loaded saved state. Status: ' + statusText);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 // Main entry point
 ////////////////////////////////////////////////////////////////////////////////////
@@ -568,14 +537,7 @@ var configOpt =
 
     console.log(GM_info.script.name + ' script started!');
 
-    // Load initial state
-    let state = GM_getValue('state');
-    if (!validPointer(state) || state == 'Disabled') {
-        disabled = true;
-        GM_setValue('state', 'Disabled');
-    } else {
-        disabled = false;
-    }
+    loadInitialState();
 
     // Chats we care about...
     // const chats = ['global', 'trade', 'faction', 'company', 'travel', 'hospital', 'jail'];
@@ -590,6 +552,7 @@ var configOpt =
     // Make sure we trigger again when changing pages.
     window.onload = function () {
         console.log(GM_info.script.name + ' onLoad');
+        loadInitialState();
         let chat = 'faction';
         let box = $('#chatRoot').find('div[class^=chat-box_][class*=' + chat + '_]');
         $(box).ready(addChatFilter(box, chat));
