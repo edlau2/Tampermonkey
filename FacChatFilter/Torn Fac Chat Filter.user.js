@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Chat Filter
 // @namespace    https://github.com/edlau2
-// @version      0.6
+// @version      0.7
 // @description  Add ability to filter out chats by keyword/name.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -116,7 +116,7 @@ function btnOnEnableClick(content, filter_name) {
     }
 
     // Re-run our filtere.
-    btnOnApplyFilterClick(content, filter_name);
+    btnOnApplyFilterClick(content, filter_name, true);
 }
 
 ////////////////////////////////////////////////////////////
@@ -138,11 +138,11 @@ function btnOnConfigClick(content, filter_name) {
     const c_filter_name = filter_name;
     const c_content = content;
     okBtn.addEventListener("click", function() {
-                    btnOnApplyFilterClick(c_content, c_filter_name);
-                    let cfgBase = document.getElementById("configure");
-                    cfgBase.style.display = "none";
-                    $("#configure").dialog("close");
-                }, false);
+        btnOnApplyFilterClick(c_content, c_filter_name);
+        let cfgBase = document.getElementById("configure");
+        cfgBase.style.display = "none";
+        $("#configure").dialog("close");
+    }, false);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -159,9 +159,9 @@ function btnOnAddFilterClick(chat, filter_name) {
     let spanID = 'span-' + id;
     let name = 'Filter: ';
     let filter = '<span id="' + spanID + '" <label for="filter" style="color: green;">' + name + '</label>' +
-                 '<input type="text" style="border: 1px solid #ddd;"' +
-                 ' id="' + id + '" name="' + id + '">' +
-                 '<button type="button" id="' + btnId + '" onclick="removeFilter()">X</button><br></span>';
+        '<input type="text" style="border: 1px solid #ddd;"' +
+        ' id="' + id + '" name="' + id + '">' +
+        '<button type="button" id="' + btnId + '" onclick="removeFilter()">X</button><br></span>';
     $(elem).append(filter);
 
     let removeBtn = document.getElementById(btnId);
@@ -177,17 +177,17 @@ function addSavedFilter(filter_name, id, value) {
     let span = document.getElementById(spanID);
     if (!validPointer(span)) { // Already in UI
     }
-        let name = 'Filter: ';
-        let filter = '<span id="' + spanID + '" <label for="filter" style="color: green;">' + name + '</label>' +
-                     '<input type="text" style="border: 1px solid #ddd;"' +
-                     ' id="' + id + '" name="' + id + '">' +
-                     '<button type="button" id="' + btnId + '" onclick="removeFilter()">X</button><br></span>';
-        $(elem).append(filter);
-        let indexElem = document.getElementById(id);
-        indexElem.setAttribute('value', value); // Just set in 'filter' assignment?
+    let name = 'Filter: ';
+    let filter = '<span id="' + spanID + '" <label for="filter" style="color: green;">' + name + '</label>' +
+        '<input type="text" style="border: 1px solid #ddd;"' +
+        ' id="' + id + '" name="' + id + '">' +
+        '<button type="button" id="' + btnId + '" onclick="removeFilter()">X</button><br></span>';
+    $(elem).append(filter);
+    let indexElem = document.getElementById(id);
+    indexElem.setAttribute('value', value); // Just set in 'filter' assignment?
 
-        let removeBtn = document.getElementById(btnId);
-        if (removeBtn) {removeBtn.addEventListener("click", function(){removeFilter(spanID);}, false);}
+    let removeBtn = document.getElementById(btnId);
+    if (removeBtn) {removeBtn.addEventListener("click", function(){removeFilter(spanID);}, false);}
 
     if (!filterArray.includes(value)) {filterArray.push(value);} // Add to in-mem array
 }
@@ -199,7 +199,7 @@ function removeFilter(spanId) {
 }
 
 // Apply button - save filters to storage and memory
-function btnOnApplyFilterClick(content, filter_name) {
+function btnOnApplyFilterClick(content, filter_name, silent=false) {
     // Save each filter as id:value
     let name = filter_name + '-filter-div';
     let elem = document.getElementById(name);
@@ -228,10 +228,11 @@ function btnOnApplyFilterClick(content, filter_name) {
         }
     }
 
-
-    let text = 'Filters Applied!\n';
-    filterArray.forEach(item => (text = text + '\n\t' + item));
-    alert(text);
+    if (!silent) {
+        let text = 'Filters Applied!\n';
+        filterArray.forEach(item => (text = text + '\n\t' + item));
+        alert(text);
+    }
 }
 
 // Restore button - restore filters from storage
@@ -288,7 +289,8 @@ function clearFilters(filter_name, fromApply=false) {
 function viewFilters() {
     let text = '';
     filterArray.forEach(item => (text = text + '\n\t' + item));
-    alert('Installed Filters:' + text);
+    let statusText = disabled ? 'disabled' : 'enabled';
+    alert('Installed Filters (currently' + statusText + '):' + text);
 }
 
 //////////////////////////////////////////////////////
@@ -307,9 +309,9 @@ var handlerBtns = {'cfgBtnOn' : false,
                   }
 
 var eventOptions = {
-  once: false,
-  passive: true,
-  capture: false
+    once: false,
+    passive: true,
+    capture: false
 }
 
 function handlersInstalled() {
@@ -324,8 +326,8 @@ function handlersInstalled() {
 
 function ResetHandlerFlags() {
     handlerBtns.cfgBtnOn = handlerBtns.enableBtnOn = handlerBtns.addBtnOn =
-    handlerBtns.applyBtnOn = handlerBtns.restoreBtnOn = handlerBtns.clearBtnOn =
-    handlerBtns.viewBtnOn = false;
+        handlerBtns.applyBtnOn = handlerBtns.restoreBtnOn = handlerBtns.clearBtnOn =
+        handlerBtns.viewBtnOn = false;
 }
 
 function enableButtonHandlers(content, filter_name) {
@@ -399,11 +401,13 @@ function addChatFilter(box, chat) {
     let elem = $(box).find('#'+filter_name);
     if (elem.length > 0 || validPointer(filtSpan)) { // Filter input exists -or- filterSpan created (config dialog)
         console.log('trigger 3: ', content);
-        for (let i=0; i<filterArray.length; i++) {
-            let keyword = filterArray[i];
-            if (keyword.length > 0) {
-                console.log('Filtering on "' + keyword + '"');
-                filter(filter_name, content, keyword);
+        if (!disabled) {
+            for (let i=0; i<filterArray.length; i++) {
+                let keyword = filterArray[i];
+                if (keyword.length > 0) {
+                    console.log('Filtering on "' + keyword + '"');
+                    filter(filter_name, content, keyword);
+                }
             }
         }
         return; // Assumes everything below has fully completed. ???
@@ -419,44 +423,44 @@ function addChatFilter(box, chat) {
         let edBtnText = disabled ? disabledBtnText : enabledBtnText;
         let edBtnColor = disabled ? btnDisabledColor : btnEnabledColor;
         $(input).before('<div>' +
-        //$(input).prepend('<div>' +
-        //$(output).append('<div>' +
-                         '<span id="xedx-filter-span" style="vertical-align: middle; display:block; margin:0 auto; height: 14px; ' +
-                         //'border: 1px solid #ccc; background-color: #f2f2f2;">' +
-                         //'border: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
-                         'border-left: 1px solid #a9a9a9; border-right: 1px solid #a9a9a9; ' +
-                         'border-bottom: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
+                        //$(input).prepend('<div>' +
+                        //$(output).append('<div>' +
+                        '<span id="xedx-filter-span" style="vertical-align: middle; display:block; margin:0 auto; height: 14px; ' +
+                        //'border: 1px solid #ccc; background-color: #f2f2f2;">' +
+                        //'border: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
+                        'border-left: 1px solid #a9a9a9; border-right: 1px solid #a9a9a9; ' +
+                        'border-bottom: 1px solid #a9a9a9; background-color: #f2f2f2;">' +
 
-                         /*
+                        /*
                          // Input field for filter - moved to Options dialog
                          '<label for="filter" style="color: green;">Filter: </label>' +
                          '<input type="text" size="12" id="' + filter_name + '" name="' + filter_name + '">' + //</span>' +
                          */
 
-                         // Make some nifty light buttons
-                         '<button type="button" id="' + filter_name + '-filtered" title="Blocked"' +
-                         ' style="border-radius: 30%; border: 1px solid black; margin: 2px 2px 0px 8px; height: 10px; ' +
-                         'width: 4%; background-color: Gainsboro;">&nbsp</button>' +
-                         '<button type="button" id="' + filter_name + '-notfiltered" title="Allowed"' +
-                         ' style="border-radius: 30%; border: 1px solid black; height: 10px; ' +
-                         'width: 4%; background-color: Gainsboro">&nbsp</button>' +
+                        // Make some nifty light buttons
+                        '<button type="button" id="' + filter_name + '-filtered" title="Blocked"' +
+                        ' style="border-radius: 30%; border: 1px solid black; margin: 2px 2px 0px 8px; height: 10px; ' +
+                        'width: 4%; background-color: Gainsboro;">&nbsp</button>' +
+                        '<button type="button" id="' + filter_name + '-notfiltered" title="Allowed"' +
+                        ' style="border-radius: 30%; border: 1px solid black; height: 10px; ' +
+                        'width: 4%; background-color: Gainsboro">&nbsp</button>' +
 
-                         // Options button
-                         '<button type="button" id="' + filter_name + '-cfg' +
-                         '" onclick="btnOnConfigClick()" title="Filter Options"' +
-                         ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 34%;">' +
-                         optionsBtnText + '</button>' +
+                        // Options button
+                        '<button type="button" id="' + filter_name + '-cfg' +
+                        '" onclick="btnOnConfigClick()" title="Filter Options"' +
+                        ' style="border-radius: 5px; border: 1px solid black; margin: 0px 10px 0px; height:10px; width: 34%;">' +
+                        optionsBtnText + '</button>' +
 
-                         // Enable/Disable button
-                         '<button type="button" id="' + filter_name + '-enable' +
-                         '" onclick="btnOnEnableClick()" title="Enable/Disable"' +
-                         ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 0px 0px; height:10px; width: 34%; ' +
-                         'background-color: ' + edBtnColor + ';">' +
-                         edBtnText + '</button>' +
-                         '</span>' +
-                         '</div>');
+                        // Enable/Disable button
+                        '<button type="button" id="' + filter_name + '-enable' +
+                        '" onclick="btnOnEnableClick()" title="Enable/Disable"' +
+                        ' style="border-radius: 5px;  border: 1px solid black; margin: 0px 0px 0px; height:10px; width: 34%; ' +
+                        'background-color: ' + edBtnColor + ';">' +
+                        edBtnText + '</button>' +
+                        '</span>' +
+                        '</div>');
 
-    ResetHandlerFlags();
+        ResetHandlerFlags();
     }
 
     ////////////////////////////////////////////////////////////
@@ -475,18 +479,18 @@ function addChatFilter(box, chat) {
                           // Buttons at bottom on cfg
                           '<span id="xedx-cfg-btn-span" style="vertical-align: middle; padding: 10px; display: inline-block;"><br>' +
                           '<button type="button" id="' + filter_name + '-cfg-add" onclick="btnOnAddFilterClick()"' +
-                              ' style="border-radius: 5px; border: 1px solid black;">Add Filter</button>' +
+                          ' style="border-radius: 5px; border: 1px solid black;">Add Filter</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-apply" onclick="btnOnApplyFilterClick()"' +
-                              ' style="border-radius: 5px; border: 1px solid black;">Apply Filters</button>' +
+                          ' style="border-radius: 5px; border: 1px solid black;">Apply Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-restore" onclick="btnOnRestoreFilterClick()"' +
-                              ' style="border-radius: 5px; border: 1px solid black;">Restore Filters</button>' +
+                          ' style="border-radius: 5px; border: 1px solid black;">Restore Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-clear" onclick="btnOnClearFilterClick()"' +
-                              ' style="border-radius: 5px; border: 1px solid black;">Clear Filters</button>' +
+                          ' style="border-radius: 5px; border: 1px solid black;">Clear Filters</button>' +
                           '<button type="button" id="' + filter_name + '-cfg-view" onclick="btnOnViewFilterClick()"' +
-                              ' style="border-radius: 5px; border: 1px solid black;">View Filters</button>' +
+                          ' style="border-radius: 5px; border: 1px solid black;">View Filters</button>' +
                           '</span>' +
-                        '</div>');
-    ResetHandlerFlags();
+                          '</div>');
+        ResetHandlerFlags();
     }
 
     // Enable all the buttons. We may have to call again...
@@ -499,16 +503,20 @@ function addChatFilter(box, chat) {
     }
 
     // Get notifications on node insertion/deletion, in the chat box
+    /*
     $(content).bind('DOMNodeInserted DOMNodeRemoved', function() {
-        console.log('trigger 2 ', content);
-        for (let i=0; i<filterArray.length; i++) {
-            let keyword = filterArray[i];
-            if (keyword.length > 0) {
-                console.log('Filtering on "' + keyword + '"');
-                filter(filter_name, content, keyword);
+        if (!disabled) {
+            console.log('trigger 2 ', content);
+            for (let i=0; i<filterArray.length; i++) {
+                let keyword = filterArray[i];
+                if (keyword.length > 0) {
+                    console.log('Filtering on "' + keyword + '"');
+                    filter(filter_name, content, keyword);
+                }
             }
         }
     });
+    */
 
     /*
     // Triggers on input to 'filter' input box
