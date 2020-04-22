@@ -121,6 +121,7 @@ function validPointer(val, dbg = false) {
     return true;
 }
 
+// Note: easier to use $(selector).find(...); instead
 // Wildcard version of getElementsByClassName()
 function myGetElementsByClassName2(anode, className) {
     var elems = anode.getElementsByTagName("*");
@@ -174,6 +175,36 @@ function numericRankFromFullRank(fullRank) {
     }
 
     return numeric_rank;
+}
+
+// Add the style I use for tool-tips
+function addToolTipStyle() {
+    GM_addStyle(".tooltip2 {" +
+              "radius: 4px !important;" +
+              "background-color: #ddd !important;" +
+              "padding: 5px 20px;" +
+              "border: 2px solid white;" +
+              "border-radius: 10px;" +
+              "width: 300px;" +
+              "margin: 50px;" +
+              "text-align: left;" +
+              "font: bold 14px ;" +
+              "font-stretch: condensed;" +
+              "text-decoration: none;" +
+              "}");
+}
+
+// Adds a tool tip to a DIV
+function displayToolTip(div, text) {
+    $(document).ready(function() {
+        $(div.parentNode).attr("title", "original");
+        $(div.parentNode).tooltip({
+            content: text,
+            classes: {
+                "ui-tooltip": "tooltip2"
+            }
+        });
+    })
 }
 
 //////////////////////////////////////////////////////////////////////
