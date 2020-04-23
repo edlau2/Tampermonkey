@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Estimator
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
@@ -18,39 +18,16 @@
 // Note: the approach used is described here:
 // https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
 
-(function($) {
+(function() {
     'use strict';
 
-    //////////////////////////////////////////////////////////////////////
-    // UI helpers: create an <LI> to insert onto the page
-    //////////////////////////////////////////////////////////////////////
-
-    function createBatStatLI(display) {
-        var li = document.createElement('li'); // Main <li>
-        li.id = batStatLi;
-        var div = document.createElement('div'); // First <div>
-        div.className = 'user-information-section left width112';
-        var span = document.createElement('span'); // Span inside of the <div>
-        span.className = 'bold';
-        span.innerHTML = 'Est. Bat Stats';
-
-        // Put them together
-        li.appendChild(div);
-        div.appendChild(span);
-
-        let div2 = document.createElement('div');
-        let span2 = document.createElement('span');
-        span2.innerHTML = display;
-
-        li.appendChild(div2);
-        div2.appendChild(span2);
+    function createBatStatLI(ul, display) {
+        let li = '<li id="'+ batStatLi + '"><div class="user-information-section left width112"><span class="bold">Est. Bat Stats</span>' +
+            '</div><div><span>' + display + '</span></div></li>';
+        $(ul).append(li);
 
         return li;
     }
-
-    //////////////////////////////////////////////////////////////////////
-    // Main functions that do the real work: query the Torn API
-    //////////////////////////////////////////////////////////////////////
 
     function personalStatsQuery(ID) {
         xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
@@ -67,12 +44,29 @@
 
         updateUserProfile();
     }
+
+    // Create the <li>, add to the profile page
+    function updateUserProfile() {
+        let testDiv = document.getElementById(batStatLi);
+        if (validPointer(testDiv)) {return;} // Only do once
+
+        let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
+        let targetUL = rootDiv.getElementsByClassName('basic-list')[0];
+        if (!validPointer(targetUL)) {return;}
+
+        let display = buildBatStatDisplay(); // Calculate bat stats estimate
+        let li = createBatStatLI(targetUL, display); // And add to the display
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Determine the range to display
-    //////////////////////////////////////////////////////////////////////
+    //
+    // This calculation taken from:
+    //    https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
+    // and DeKleineKobini's 'dekleinekobini.statestimate' from:
+    //    https://www.tornstats.com/awards.php
+    ////////////////////////////////////////////////////////////////////
 
-    // This calculation taken from https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
-    // and DeKleineKobini's 'dekleinekobini.statestimate' - stat estimates from: https://www.tornstats.com/awards.php
     function buildBatStatDisplay() {
         // if (userLvl >= 75) {return "Over level 75, N/A.";}
 
@@ -89,23 +83,18 @@
 
         let statLevel = userRank - trLevel - trCrime - trNetworth - 1;
         let estimated = estimatedStats[statLevel];
-        if (!estimated) estimated = "N/A";
+
+        console.log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + estimated);
+        console.log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
+        console.log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
+        if (!estimated) {
+            if (userLvl < 76)
+                estimated = "Unknown, maybe level holding?";
+            else
+                estimated = "N/A";
+        }
 
         return estimated;
-    }
-
-    // Create the <li>, add to the profile page
-    function updateUserProfile() {
-        let testDiv = document.getElementById(batStatLi);
-        if (validPointer(testDiv)) {return;}
-
-        let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-        let targetUL = rootDiv.getElementsByClassName('basic-list')[0];
-        if (!validPointer(targetUL)) {return;}
-
-        let display = buildBatStatDisplay();
-        let li = createBatStatLI(display);
-        targetUL.appendChild(li);
     }
 
     //////////////////////////////////////////////////////////////////////
