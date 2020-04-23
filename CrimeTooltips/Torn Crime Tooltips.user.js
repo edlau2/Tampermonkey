@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      api.torn.com
@@ -20,81 +21,14 @@
     'use strict';
 
     //////////////////////////////////////////////////////////////////////
-    // General utility functions
-    //////////////////////////////////////////////////////////////////////
-
-    // HTML constants
-    var CRLF = '<br/>';
-    var TAB = '&emsp;';
-
-    // Check to see if a pointer is valid
-    function validPointer(val, dbg = false) {
-        if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-            if (dbg) {
-                debugger;
-            }
-            return false;
-        }
-        return true;
-    }
-
-    // Wildcard version of getElementsByClassName()
-    function myGetElementsByClassName2(anode, className) {
-        var elems = anode.getElementsByTagName("*");
-        var matches = [];
-        for (var i=0, m=elems.length; i<m; i++) {
-            if (elems[i].className && elems[i].className.indexOf(className) != -1) {
-                matches.push(elems[i]);
-            }
-        }
-
-        return matches;
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // Functions that do the tool tip adding to separate DIV's
     //////////////////////////////////////////////////////////////////////
 
     function addCriminalRecordToolTips() {
         var rootDiv = document.getElementsByClassName('cont-gray bottom-round criminal-record')[0];
-        if (!validPointer(rootDiv)) {
-            console.log('Cannot find criminal record div!');
-            return;
-        }
+        if (!validPointer(rootDiv)) {return;}
 
-        // Define the tool tip style to whatever we want.
-        GM_addStyle(".tooltip1 {" +
-                    "display:none;" +
-                    "background: solid white;" +
-                    "font-size:12px;" +
-                    "height:10px;" +
-                    "width:80px;" +
-                    "padding:10px;" +
-                    "color:#fff; " +
-                    "z-index: 99;" +
-                    "bottom: 10px;" +
-                    "border: 2px solid black;" +
-                    /* for IE */
-                    "filter:alpha(opacity=80);" +
-                    /* CSS3 standard */
-                    "opacity:0.8;" +
-                    "}");
-
-        GM_addStyle(".tooltip2 {" +
-                  "radius: 4px !important;" +
-                  "background-color: #ddd !important;" +
-                  //" color: rgb(255, 77, 85) !important;" +
-                  "padding: 5px 20px;" +
-                  "border: 2px solid white;" +
-                  "border-radius: 10px;" +
-                  "width: 300px;" +
-                  "margin: 50px;" +
-                  "text-align: left;" +
-                  "font: bold 14px ;" +
-                  "font-stretch: condensed;" +
-                  "text-decoration: none;" +
-                  // "box-shadow: 0 0 10px black;" +
-                  "}");
+        addToolTipStyle();
 
         var ul = rootDiv.getElementsByClassName("info-cont-wrap")[0];
         var items = ul.getElementsByTagName("li");
@@ -127,7 +61,7 @@
     //////////////////////////////////////////////////////////////////////
 
     // Helper to get the value of the number associated with the
-    // span, which is a key/value string pair.
+    // span, which is a key/value string pair, as a percentage.
     function getPctForLi(li, value) {
         var span = li.getElementsByClassName('desc')[0];
         var spanText = span.innerText.replace(/,/g, "")
@@ -141,33 +75,15 @@
         return pctText;
     }
 
-    //
-    // For some reason, calling this does not work.
-    // The tooltip quickly dissapears...
-    // Figured out why - positioning at the top causes the text to
-    // go under the mouse, firing a mouse move event.
-    //
-    // Note that this replaces the default tool tips, added like this:
-    // $(useDiv).attr("data-html", "true");
-    // $(useDiv).attr("title", text);
-    //
-    // That does not allow for very long tool tips, they wind up truncated
-    // with elipses.
-    //
+    // Function to insert the tooltip.
     function displayToolTip(li, text) {
         $(document).ready(function() {
             $(li).attr("title", "original");
             $(li).tooltip({
                 content: text,
-                //position: { my: "center top", at: "center top"},
                 classes: {
                     "ui-tooltip": "tooltip2"
                 }
-            });
-            //$(li).tooltip("option", "track", true);
-            $(li).on( "tooltipclose", function( event, ui ) {
-                var span = li.getElementsByClassName('divider')[0];
-                console.log('ToolTip \"' + span.innerText + '\" CLOSE!');
             });
         })
     }
@@ -336,7 +252,6 @@
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     console.log("Torn HomePage Tooltips script started!");
-
     document.addEventListener('readystatechange', event => {
         if (event.target.readyState === "complete") {
             addCriminalRecordToolTips();
