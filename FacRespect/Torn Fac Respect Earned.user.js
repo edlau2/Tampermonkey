@@ -79,8 +79,8 @@
     }
 
     function buildMedalText(name, respect, needed) {
-        let text = TAB + ((respect > needed) ? '<font color=green>' + name + ': ' + needed + ' (' + asHtmlPct(respect, needed) + ')' +
-                    ', </font>' : '<font color=red>' + name + ': ' + needed + ' (' + asHtmlPct(respect, needed) + ')' +
+        let text = TAB + ((respect > needed) ? '<font color=green>' + name.toLocaleString() + ': ' + needed.toLocaleString() + ' (' + asHtmlPct(respect, needed) + ')' +
+                    ', </font>' : '<font color=red>' + name.toLocaleString() + ': ' + needed.toLocaleString() + ' (' + asHtmlPct(respect, needed) + ')' +
                     ', </font>') + CRLF;
         return text;
     }
