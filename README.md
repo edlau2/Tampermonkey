@@ -87,6 +87,16 @@ Images:
 
 This script adds extended gym information to your Gym page. It displays the additional gains you get, depending on what perks are currently available to you - company perks, merits, fac perks, etc. These are displayed, by default, as a summary in percentage, along with the base gym gain that depends on the current gym you are in, 2.0 through 10.0. An expandle screen is available to see the breakout of the percentage gains. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
 
+**_Torn Fac Respect Earned_**
+
+- [Torn Fac Respect Earned.user.js](https://github.com/edlau2/Tampermonkey/raw/master/FacRespect/Torn%20Fac%20Respect%20Earned.user.js)
+
+Images:
+
+- [Torn Fac Respect Earned.png](https://github.com/edlau2/Tampermonkey/blob/master/FacRespect/Torn%20Fac%20Respect%20Earned.png)
+
+This script add a section to the Faction Stats area on your home page, listing the respect you have earned for your faction so far. It has a tool tip, so if you hover over the respect you have earned, it will tell you what medals and honors (merits) are available, and how close you are to getting them.
+
 **_Torn Bounty List Extender_**
 
 - [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
