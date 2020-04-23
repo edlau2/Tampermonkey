@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
@@ -14,43 +14,10 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-(function($) {
+(function() {
     'use strict';
 
-    //////////////////////////////////////////////////////////////////////
-    // UI helpers
-    //////////////////////////////////////////////////////////////////////
-
-    function createLI(nw) {
-        let display = '$' + numberWithCommas(nw);
-        let li = document.createElement('li'); // Main <li>
-        li.id = 'xedx-networth-li';
-
-        let div = document.createElement('div'); // First <div>
-        div.className = 'user-information-section left width112';
-
-        let span = document.createElement('span'); // Span inside of the <div>
-        span.className = 'bold';
-        span.innerHTML = 'Net Worth';
-
-        // Put them together
-        li.appendChild(div);
-        div.appendChild(span);
-
-        let div2 = document.createElement('div');
-        let span2 = document.createElement('span');
-        span2.innerHTML = display;
-
-        li.appendChild(div2);
-        div2.appendChild(span2);
-
-        return li;
-    }
-
-    //////////////////////////////////////////////////////////////////////
     // Query functions
-    //////////////////////////////////////////////////////////////////////
-
     function personalStatsQuery(ID) {
         xedx_TornUserQuery(ID, 'personalstats', personalStatsQueryCB);
     }
@@ -58,31 +25,25 @@
     // Callback to parse returned JSON
     function personalStatsQueryCB(responseText) {
         let jsonResp = JSON.parse(responseText);
-
-        if (jsonResp.error) {
-            return handleError(responseText);
-        }
-
-        let stats = jsonResp.personalstats;
-        addNetWorthToProfile(stats.networth);
+        if (jsonResp.error) {return handleError(responseText);}
+        addNetWorthToProfile(jsonResp.personalstats.networth);
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // Main functions that do the real work
-    //////////////////////////////////////////////////////////////////////
-
+    // Add the new <li>
     function addNetWorthToProfile(nw) {
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
-
-        var rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-        var targetUL = rootDiv.getElementsByClassName('basic-list')[0];
-        if (!validPointer(targetUL)) {
-            return;
-        }
-
         observer.disconnect();
-        var li = createLI(nw);
-        targetUL.appendChild(li);
+
+        let display = '$' + numberWithCommas(nw);
+        let profileDiv = $('#profileroot').find('div.user-profile');
+        let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
+        let ul = $(basicInfo).find('ul.basic-list');
+        if (!ul.length) {return;}
+
+        let li = '<li id="xedx-networth-li"><div class="user-information-section left width112">' +
+            '<span class="bold">Net Worth</span></div><div><span>' + display + '</span></div></li>';
+        $(ul).append(li);
+
         observer.observe(targetNode, config);
     }
 
