@@ -1,171 +1,61 @@
 // ==UserScript==
 // @name         Torn One-Click Daily Dime
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Clicks on the daily dime 'X' times for you with one click
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=lottery
-// @grant        GM_xmlhttpRequest
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_listValues
-// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+// This is just easier to read this way, instead of one line.
+// Could also have be @required from a separate .js....
+const daily_dime_div =
+      '<div class="t-blue-cont h" id="xedx-dailydime-ext">' +
+          '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">One-Click Daily Dime</div>' +
+          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: 60px; overflow: auto">' +
+              '<div style="text-align: center">' +
+                  '<span>' +
+                      '<button id="buy-btn" style="font-size: 14px; height: 24px; text-align: center;border-radius: 5px; margin: 15px 40px; ' +
+                      'background: LightGrey; border: 1px solid black;">Buy</button>' +
+                      '<input id="xedx-slot-turns" type="number" style="font-size: 14px; height: 24px; text-align: center;' +
+                      'border-radius: 5px; margin: 15px 40px; border: 1px solid black;">' +
+                      '<B>Daily Dime tickets</B>' +
+                  '</span>' +
+              '</div>' +
+          '</div>' +
+      '</div>';
+
+const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
+var lottoDiv = null;
+var buyBtn = null;
+var inputField = null;
+var slotturnsDiv = null;
 
 (function() {
     'use strict';
 
-    //////////////////////////////////////////////////////////////////////
-    // Utility funstions
-    //////////////////////////////////////////////////////////////////////
+    function createMainDiv() {
+        if (validPointer(document.getElementById('xedx-dailydime-ext'))) {return;} // Only do once
+        var parentDiv = document.getElementsByClassName("lottery-wrap"); // $('#lottery-wrap')
+        $(parentDiv).append(separator);
+        $(parentDiv).append(daily_dime_div);
 
-    // Check to see if a pointer is valid
-    function validPointer(val, dbg = false) {
-        if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-            if (dbg) {
-                debugger;
-            }
-            return false;
-        }
-        return true;
-    }
+        // Could change this to pick any of the lottos...
+        // 'daily-dime', 'lucky-shot', or 'holy-grail'
+        lottoDiv = document.getElementById('daily-dime');
+        buyBtn = lottoDiv.getElementsByClassName('btn')[0];
+        inputField = document.getElementById('xedx-slot-turns');
+        slotturnsDiv = document.getElementsByClassName('slotturns')[0];
 
-    function addMainButtons() {
-        observer.disconnect();
-        var extDiv = document.getElementById('xedx-dailydime-ext');
-
-        // Only do once, or when not present.
-        if (validPointer(extDiv)) {
-            return;
-        }
-
-        var parentDiv = document.getElementsByClassName("lottery-wrap");
-
-        // Create our own div, to append to parentDiv[0], after a separator
-        var separator = createSeparator();
-        var btnDiv = createButtonDiv();
-        parentDiv[0].appendChild(separator);
-        parentDiv[0].appendChild(btnDiv);
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // createButtonDiv() function: Creates the div we insert into the
-    // page. Insertion is done in the addMainButtons() function.
-    //////////////////////////////////////////////////////////////////////
-
-    function createButtonDiv() {
-        var extDiv = createExtendedDiv();
-        var hdrDiv = createHeaderDiv();
-        var bodyDiv = createBodyDiv();
-
-        // Header
-        extDiv.appendChild(hdrDiv);
-        hdrDiv.appendChild(document.createTextNode('One-Click Daily Dime'));
-
-        // Body
-        extDiv.appendChild(bodyDiv);
-        var btns = createButtons();
-        bodyDiv.appendChild(btns);
-
-        return extDiv;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Helpers for creating misc. UI parts and pieces
-    //////////////////////////////////////////////////////////////////////
-
-    function createSeparator() {
-        var sepHr = document.createElement('hr');
-        sepHr.className = 'delimiter-999 m-top10 m-bottom10';
-        return sepHr;
-    }
-
-    function createExtendedDiv() {
-        var extendedDiv = document.createElement('div');
-        extendedDiv.className = 't-blue-cont h';
-        extendedDiv.id = 'xedx-dailydime-ext';
-        return extendedDiv;
-    }
-
-    function createHeaderDiv() {
-        var headerDiv = document.createElement('div');
-        headerDiv.id = 'xedx-header_div';
-        headerDiv.className = 'title main-title title-black active top-round';
-        headerDiv.setAttribute('role', 'heading');
-        headerDiv.setAttribute('aria-level', '5');
-        return headerDiv;
-    }
-
-    function createBodyDiv() {
-        var contentDiv = document.createElement('div');
-        contentDiv.id = 'xedx-content-div';
-        contentDiv.className = 'cont-gray bottom-round';
-        contentDiv.setAttribute('style', 'height: 50px; overflow: auto');
-        return contentDiv;
-    }
-
-    function setBtnAttributes(btn) {
-        btn.setAttribute('style', 'font-size: 14px; height: 24px; text-align: center;' +
-                        'border-radius: 5px; margin: 15px 40px; background: LightGrey; border: 1px solid black;');
-    }
-
-    function createButtons() {
-        var btnDiv = document.createElement('div');
-        btnDiv.setAttribute('style', 'text-align: center');
-
-        var btnSpan = document.createElement('span');
-        btnDiv.appendChild(btnSpan);
-
-        var buyBtn = document.createElement('button');
-        buyBtn.id = 'buy-btn';
-        var t = document.createTextNode('Buy');
         buyBtn.addEventListener('click',function () {
             buyFunction();
         });
-        buyBtn.appendChild(t);
-        setBtnAttributes(buyBtn);
-        btnSpan.append(buyBtn);
 
-        /*
-        // Forces a manual refresh of the input field, to match
-        // how many tokens we have left.
-        // Now done automatically by virtue of the 'refresh'
-        // function being called from the 'buy' function.
-        //
-        var refreshBtn = document.createElement('button');
-        refreshBtn.id = 'refresh-btn';
-        t = document.createTextNode('Refresh');
-        buyBtn.addEventListener('click',function () {
-            refreshFunction();
-        });
-        refreshBtn.appendChild(t);
-        setBtnAttributes(refreshBtn);
-        */
-
-        var inputField = document.createElement("INPUT");
-        inputField.id = 'xedx-slot-turns';
-        inputField.setAttribute("type", "number");
-        inputField.setAttribute('style', 'font-size: 14px; height: 24px; text-align: center;' +
-                        'border-radius: 5px; margin: 15px 40px; border: 1px solid black;');
-        btnSpan.appendChild(inputField);
-        btnSpan.appendChild(document.createTextNode("Daily Dime tickets"));
-        //btnSpan.append(refreshBtn);
-
-        // Pre-load the input field
-        var slotturnsDiv = document.getElementsByClassName('slotturns')[0];
-        var turns = 0;
-        if (validPointer(slotturnsDiv)) {
-            turns = slotturnsDiv.innerText;
-            inputField.value = turns;
-        }
-
-        // If we're out of tokens, disable our buy button.
-        if (parseInt(turns) == 0) {
-            buyBtn.disabled = true;
-        }
-
-        return btnDiv;
+        refresh();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -173,42 +63,28 @@
     //////////////////////////////////////////////////////////////////////
 
     function buyFunction() {
-        var dailyDimeDiv = document.getElementById('daily-dime');
-        var buyBtn = dailyDimeDiv.getElementsByClassName('btn')[0];
-        var inputFieldDiv = document.getElementById('xedx-slot-turns');
-        var turns = parseInt(inputFieldDiv.value);
+        let turns = parseInt(inputField.value);
+        buyBtn.disabled = true;
 
-        var slotturnsDiv = document.getElementsByClassName('slotturns')[0];
-        var maxTurns = 0;
-        if (validPointer(slotturnsDiv)) {
-            maxTurns = slotturnsDiv.innerText;
-            if (turns > maxTurns) {
-                inputFieldDiv.value = maxTurns;
-                turns = maxTurns;
-            }
-        }
+        let maxTurns = slotturnsDiv.innerText;
+        if (turns > maxTurns) {inputField.value = turns = maxTurns;}
 
-        if (validPointer(buyBtn)) {
-            for (var i = 0; i < turns; i++) {
-                buyBtn.click();
-                maxTurns--;
-            }
+        console.log("Daily Dime debug: Will buy " + turns + " times.");
+        for (let i = 0; i < turns; i++) {
+            buyBtn.click();
+            maxTurns--;
         }
-        refreshFunction(maxTurns);
+        refresh(maxTurns);
     }
 
-    function refreshFunction(maxTurns = -1) {
-        if (maxTurns = -1) {
-            var inputFieldDiv = document.getElementById('xedx-slot-turns');
-            var slotturnsDiv = document.getElementsByClassName('slotturns')[0];
-            var turns = 0;
-            if (validPointer(slotturnsDiv)) {
-                turns = slotturnsDiv.innerText;
-                inputFieldDiv.value = turns;
-            }
+    function refresh(maxTurns = -1) {
+        if (maxTurns == -1) {
+            inputField.value = slotturnsDiv.innerText;
         } else {
-            inputFieldDiv.value = maxTurns;
+            inputField.value = maxTurns;
         }
+
+        buyBtn.disabled = (inputField.value == 0);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -217,13 +93,20 @@
     // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Torn Once-Click Daily Dime script started!");
+    logScriptStart();
 
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        addMainButtons();
+        observer.disconnect();
+        createMainDiv();
         observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);})();
+    observer.observe(targetNode, config);
+
+})();
+
+
+
+
