@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -101,11 +101,11 @@
     function queryGymDetails(responseText=null, index=0) {
         if (responseText != null) {
             var jsonResp = JSON.parse(responseText);
-            if (jsonResp.error) {return handleApiError(responseText);}
+            if (jsonResp.error) {return handleError(responseText);}
         }
 
         var useGym = index ? index : jsonResp.active_gym;
-        xedx_TornTornQuery(null, 'battlestats', fillGymDetailsDiv, useGym);
+        xedx_TornTornQuery(null, 'gyms', fillGymDetailsDiv, useGym);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@
 
     function fillBatStatsDiv(responseText, ID=null, unused=null) {
         var jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleApiError(responseText);}
+        if (jsonResp.error) {return handleError(responseText);}
 
         fillBaseBatStats(jsonResp);
         fillBaseWithPassives(jsonResp);
