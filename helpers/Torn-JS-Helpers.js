@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.7
+// @version     0.8
 // @license     MIT
 // ==/UserLibrary==
 
@@ -273,6 +273,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
 }
 
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
+    if (ID == null) ID = '';
     let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
     console.log(GM_info.script.name + ' Querying ' + selection);
     let details = GM_xmlhttpRequest({
