@@ -249,27 +249,27 @@ var ranks = ['Absolute beginner',
 // Callback should have the following signature: callback(responseText, ID, (optional)param)
 //
 function xedx_TornUserQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('user', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('user', ID, selection, callback, param);
 }
 
 function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('property', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('property', ID, selection, callback, param);
 }
 
 function xedx_TornFactionQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('faction', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('faction', ID, selection, callback, param);
 }
 
 function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('company', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('company', ID, selection, callback, param);
 }
 
 function xedx_TornMarketQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('market', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('market', ID, selection, callback, param);
 }
 
 function xedx_TornTornQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('torn', ID, selection, callback, param=null);
+    xedx_TornGenericQuery('torn', ID, selection, callback, param);
 }
 
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
