@@ -50,7 +50,7 @@ const meleeItemsId = 'melee-items';
 const tempItemsId = 'temporary-items';
 const armorItemsId = 'armour-items';
 
-const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId, tempItemsId, armorItemsId];
+const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempItemsId, armorItemsId];
 
 (function() {
     'use strict';
@@ -126,6 +126,7 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId, tempItemsI
             viewGroupFunction(meleeItemArray);
         });
 
+        /*
         myButton = document.getElementById('xedx-view-temp-btn');
         myButton.addEventListener('click',function () {
             viewGroupFunction(tempItemArray);
@@ -135,6 +136,7 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId, tempItemsI
         myButton.addEventListener('click',function () {
             viewGroupFunction(armorItemArray);
         });
+        */
 
         myButton = document.getElementById('xedx-reload-btn');
         myButton.addEventListener('click',function () {
