@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.6
+// @version     0.7
 // @license     MIT
 // ==/UserLibrary==
 
@@ -121,7 +121,10 @@ function validPointer(val, dbg = false) {
     return true;
 }
 
-// Note: easier to use $(selector).find(...); instead
+// Note: easier to use $(selector).find(...); instead.
+//
+// Only used by 'Torn Racing - Car Order' and 'Torn Gym Gains'
+//
 // Wildcard version of getElementsByClassName()
 function myGetElementsByClassName2(anode, className) {
     var elems = anode.getElementsByTagName("*");
@@ -242,8 +245,35 @@ var ranks = ['Absolute beginner',
 // Functions to query the Torn API
 /////////////////////////////////////////////////////////////////////////////////
 
+//
+// Callback should have the following signature: callback(responseText, ID, (optional)param)
+//
 function xedx_TornUserQuery(ID, selection, callback, param=null) {
-    let url = "https://api.torn.com/user/" + ID + "?selections=" + selection + "&key=" + api_key;
+    xedx_TornGenericQuery('user', ID, selection, callback, param=null);
+}
+
+function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('property', ID, selection, callback, param=null);
+}
+
+function xedx_TornFactionQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('faction', ID, selection, callback, param=null);
+}
+
+function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('company', ID, selection, callback, param=null);
+}
+
+function xedx_TornMarketQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('market', ID, selection, callback, param=null);
+}
+
+function xedx_TornTornQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('torn', ID, selection, callback, param=null);
+}
+
+function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
+    let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
     console.log(GM_info.script.name + ' Querying ' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
@@ -296,7 +326,8 @@ function handleError(responseText) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-// UI helpers
+// UI helpers. These are all being deprecated in favor of importing fully formed
+// HTML via a @require, see 'Torn Drug Stats' or 'Torn Gym Gains' as examples.
 ///////////////////////////////////////////////////////////////////////////////////
 
 function createExtendedDiv(extDivId) {
