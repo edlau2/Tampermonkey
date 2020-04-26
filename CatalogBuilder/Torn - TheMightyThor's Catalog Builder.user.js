@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.s
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
-// @include      https://www.torn.com/item.php
+// @include      https://www.torn.com/bazaar.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -21,69 +21,224 @@ const xedx_main_div =
       '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
           'TheMightyThor`s Inventory Builder</div>' +
       '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: 60px; overflow: auto">' +
-          '<div style="text-align: center">' +
+          '<div style="text-align: center; vertical-align: middle;">' +
               '<span id="button-span">' +
-                  '<button id="xedx-submit-btn" class="btn-dark-bg">Submit</button>' +
-                  '<button id="xedx-view-all-btn" class="btn-dark-bg">View All</button>' +
-                  '<button id="xedx-view-primary-btn" class="btn-dark-bg">View Primary</button>' +
-                  '<button id="xedx-view-secondary-btn" class="btn-dark-bg">View Secondary</button>' +
-                  '<button id="xedx-view-melee-btn" class="btn-dark-bg">View Melee</button>' +
-                  //'<button id="xedx-view-temp-btn" class="btn-dark-bg">View Temporary</button>' +
-                  //'<button id="xedx-view-armor-btn" class="btn-dark-bg">View Armor</button>' +
-                  '<button id="xedx-reload-btn" class="btn-dark-bg">Reload</button>' +
-                  //'<input id="xedx-slot-turns" type="number" style="font-size: 14px; height: 24px; text-align: center;' +
-                  //'border-radius: 5px; margin: 15px 40px; border: 1px solid black;">' +
-                  //'<B>Daily Dime tickets</B>' +
-
+                  '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
+                  '<button id="xedx-view-btn" class="enabled-btn">View All</button>' +
+                  '<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
               '</span>' +
           '</div>' +
       '</div>' +
   '</div>';
 
-const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">'; // Moved to helper lib
+const enabledBtnStyle = '.enabled-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: LightGrey;' +
+      'border: 1px solid black;' +
+      '}';
 
+const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: white;' +
+      'border: 1px solid black;' +
+      '}';
+
+const strSuccess = 'Success';
+const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">'; // Moved to helper lib
 const spreadsheetURL = ''; // URL for the content service provider
 
-const primaryItemsId = 'primary-items';
-const secondaryItemsId = 'secondary-items';
-const meleeItemsId = 'melee-items';
-const tempItemsId = 'temporary-items';
-const armorItemsId = 'armour-items';
-
-const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempItemsId, armorItemsId];
 
 (function() {
     'use strict';
 
-    var categoryDiv = null;
-    var primaryItemArray = [];
-    var secondaryItemArray = [];
-    var meleeItemArray = [];
-    var tempItemArray = [];
-    var armorItemArray = [];
+    var detectedItemsArray = [];
+    var detectedItemsHashTable = [];
 
-    // Build the simple UI associated with this
-    function buildUI() {
-        let parentDiv = document.getElementsByClassName('equipped-items-wrap')[0];
-        if (!validPointer(parentDiv)) {return;}
-        if (validPointer(document.getElementById('xedx-main-div'))) {return;} // Do only once
+    /////////////////////////////////////////////////////////////////
+    // Look for an item that has been expanded, and grab it's info
+    /////////////////////////////////////////////////////////////////
 
-        $(parentDiv).append(separator);
-        $(parentDiv).append(xedx_main_div);
+    function trapItemDetails() {
+        buildUI(); // If needed...
 
-        installHandlers();
-        categoryDiv = document.getElementById('category-wrap');
+        let parentDiv = $('div.ReactVirtualized__Grid').get();
+        if (!validPointer(parentDiv) || !parentDiv.length) {return;}
 
-        disableButtons();
-        loadInventoryData();
-        enableButtons();
+        let owlItem = $(parentDiv).find('div.info___3-0WL').get();
+        if (!validPointer(owlItem) || !owlItem.length) {return;}
+
+        let clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
+        let pricingUl = $(clearfix).find('ul.info-cont')[0];
+        let statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
+
+        let newItem = getNewItem();
+
+        // We give a unique ID to a root node that persists (I hope)
+        // to prevent doing this more than once. We also hash the
+        // resulting object to prevent array insertion more than once
+        // in case this fails for whatever reason. The hash value is
+        // saved in a separate array.
+        if (isItemTagged(pricingUl, newItem)) {return;}
+
+        console.log('mutation observed ==> trapItemDetails');
+
+        getNameTypeItemInfo(owlItem, newItem);
+        getPricingInfo(pricingUl, newItem);
+        getStatInfo(statsUl, newItem);
+
+        // Generate a unique hash value for this, so as not to add twice.
+        // Should never get here if already added.
+        let jsonData = JSON.stringify(newItem);
+        let hash = jsonData.hashCode();
+
+        console.log('Hashcode for the ' + newItem.name + ': ' + hash);
+        if (!detectedItemsHashTable.includes(hash)) {
+            detectedItemsHashTable.push(hash);
+            detectedItemsArray.push(newItem);
+            console.log('Pushed a "' + newItem.name + '" onto array');
+        }
     }
 
-    // Load data for all of categories we're interested in
-    function loadInventoryData() {
-        for (let i=0; i < allItemsList.length; i++) {
-            queryItemGroupInfo(allItemsList[i]);
+    /////////////////////////////////////////////////////////////////
+    // Function to add an ID to items we've visited. This prevents us
+    // from doing the same work twice.
+    /////////////////////////////////////////////////////////////////
+
+    function isItemTagged(element, newItem) {
+        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+        let itemActiveParent = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2 > div.itemDescription___3bOmj')[0];
+        let id = itemActive.id;
+        if (id == "" || !validPointer(id)) {
+            itemActive.id = 'xedx-' + Math.random();
+            //console.log('Item not tagged - tagged as ' + itemActive.id);
+        } else {
+            //console.log('Item already tagged as ' + id);
+            return true;
         }
+
+        /* Not working, not persistent.
+        let testTag = $(itemActive).find('div.xedx');
+        if (testTag.length) {
+            console.log('Found "xedx" div.');
+            return true;
+        } else {
+            $(itemActive).append('<div class="xedx"></div>');
+            console.log('Added "xedx" div');
+        }
+        */
+
+        return false;
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Functions to pick apart various nodes to get info we want
+    /////////////////////////////////////////////////////////////////
+
+    function getNewItem() {
+        return {name: 'TBD',       // <== getNameTypeItemInfo
+                type: 'TBD',       // <== getNameTypeItemInfo
+                dmg: 'TBD',        // <== getStatInfo
+                acc: 'TBD',        // <== getStatInfo
+                quality: 'TBD',    // <== getStatInfo
+                buy: 'TBD',        // <== getPricingInfo
+                sell: 'TBD',       // <== getPricingInfo
+                value: 'TBD',      // <== getPricingInfo
+                circ: 'TBD',       // <== getPricingInfo
+                asking: 'TBD',
+                };
+    }
+
+    function getStatInfo(element, newItem) {
+        let liList = element.getElementsByTagName('li');
+        let dmgLi = liList[0], accLi = liList[1], qLi = liList[6];
+
+        newItem.dmg = $(dmgLi).find('div.desc').get()[0].innerText.trim();
+        newItem.acc = $(accLi).find('div.desc').get()[0].innerText.trim();
+
+        let tmp = $(qLi).find('div.desc').get()[0];
+        if (validPointer(tmp)) {newItem.quality = $(qLi).find('div.desc').get()[0].innerText.trim();}
+    }
+
+    function getPricingInfo(element, newItem) {
+        let liList = element.getElementsByTagName('li');
+        let buyLi = liList[0], sellLi = liList[1], valueLi = liList[2], circLi = liList[3];
+
+        newItem.buy = $(buyLi).find('div.desc').get()[0].innerText;
+        newItem.sell = $(sellLi).find('div.desc').get()[0].innerText;
+        newItem.value = $(valueLi).find('div.desc').get()[0].innerText;
+        newItem.circ = $(circLi).find('div.desc').get()[0].innerText;
+
+        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+        newItem.asking = $(itemActive).find('p.price___8AdTw').get()[0].innerText;
+    }
+
+    function getNameTypeItemInfo(element, newItem) {
+        let itemWrap = $(element).find('div.clearfix.info-wrap > div.item-cont > div.item-wrap').get()[0];
+        let spanWrap = $(itemWrap).find('span.info-msg > div.m-bottom10 > span.bold').get()[0];
+        let name = $(spanWrap).text();
+        if (name.indexOf('The') == 0) {name = name.slice(4);}
+
+        let infoMsg = $(itemWrap).find('span.info-msg > div.m-bottom10').get()[0];
+        let type = $(infoMsg).text();
+        let at = type.indexOf('is a ');
+        let end = type.indexOf('Weapon.');
+        if (end == -1) {end = type.indexOf('.');}
+        if (end < 0) {end = 0;}
+        if (at >= 0) {type = type.slice(at+6, end-1);}
+
+        newItem.name = name;
+        newItem.type = type;
+    }
+
+    //////////////////////////////////////////////////////////////////
+    // Function to create a hash for a string. Returns a positive
+    // 32 bit int.
+    //////////////////////////////////////////////////////////////////
+
+    String.prototype.hashCode = function(){
+    var hash = 0;
+    for (var i = 0; i < this.length; i++) {
+        var character = this.charCodeAt(i);
+        hash = ((hash<<5)-hash)+character;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+    /////////////////////////////////////////////////////////////////
+    // Initializing the UI - display, install handlers, etc.
+    /////////////////////////////////////////////////////////////////
+
+    function buildUI() {
+
+        GM_addStyle(enabledBtnStyle);
+        GM_addStyle(disabledBtnStyle);
+
+        let parentDiv = document.getElementsByClassName('searchBar___F1E8s')[0]; // Search/sort options
+        let nextDiv = document.getElementsByClassName('segment___38fN3')[0];     // Items grid
+        if (!validPointer(parentDiv)) {return;}                                  // Wait until enough is loaded
+        if (!validPointer(nextDiv)) {return;}                                    // ...
+        if (validPointer(document.getElementById('xedx-main-div'))) {return;}    // Do only once
+
+        $(xedx_main_div).insertAfter(parentDiv);
+        $(separator).insertAfter(parentDiv);
+
+        $(targetNode).unbind('DOMNodeInserted');
+
+        installHandlers(); // Hook up buttons
+
+        //disableButtons(); // Temporary - testing enable/disable
+        //enableButtons();
+
+        return strSuccess; // Return value is currently unused
     }
 
     // enable/Disable all buttons
@@ -96,6 +251,8 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempI
         let btns = span.getElementsByTagName('button');
         for (let i=0; i<btns.length; i++) {
             btns[i].disabled = value;
+            if (value) {btns[i].className = 'disabled-btn';}
+            else {btns[i].className = 'enabled-btn';}
         }
     }
 
@@ -106,41 +263,14 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempI
             submitFunction();
         });
 
-        myButton = document.getElementById('xedx-view-all-btn');
+        myButton = document.getElementById('xedx-view-btn');
         myButton.addEventListener('click',function () {
             viewFunction();
         });
 
-        myButton = document.getElementById('xedx-view-primary-btn');
+        myButton = document.getElementById('xedx-clear-btn');
         myButton.addEventListener('click',function () {
-            viewGroupFunction(primaryItemArray);
-        });
-
-        myButton = document.getElementById('xedx-view-secondary-btn');
-        myButton.addEventListener('click',function () {
-            viewGroupFunction(secondaryItemArray);
-        });
-
-        myButton = document.getElementById('xedx-view-melee-btn');
-        myButton.addEventListener('click',function () {
-            viewGroupFunction(meleeItemArray);
-        });
-
-        /*
-        myButton = document.getElementById('xedx-view-temp-btn');
-        myButton.addEventListener('click',function () {
-            viewGroupFunction(tempItemArray);
-        });
-
-        myButton = document.getElementById('xedx-view-armor-btn');
-        myButton.addEventListener('click',function () {
-            viewGroupFunction(armorItemArray);
-        });
-        */
-
-        myButton = document.getElementById('xedx-reload-btn');
-        myButton.addEventListener('click',function () {
-            loadInventoryData();
+            clearInventoryData();
         });
     }
 
@@ -151,114 +281,24 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempI
 
     // Preview what will be sent (mostly for debugging purposes)
     function viewFunction() {
-        alert('Inventory to be uploaded:');
-    }
-
-    function viewGroupFunction(groupArray) {
-        let text = "Inventory:\n\n";
-        for (let i=0; i < groupArray.length; i++) {
-            text = text + 'Name: ' + groupArray[i].name + '\n' +
-                'Damage: ' + groupArray[i].dmg + '\n' +
-                'Accuray: ' + groupArray[i].acc + '\n\n';
+        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):';
+        for (let i=0; i<detectedItemsArray.length; i++) {
+            let item = detectedItemsArray[i];
+            let hash = JSON.stringify(item).hashCode();
+            text = text + '\n\nName: ' + item.name + ' (' + item.type + ')\n\t' +
+                'Damage: ' + item.dmg +' Accuracy: ' + item.acc +' Quality: ' + item.quality + '\n\t' +
+                'Buy: ' + item.buy + ' Sell: ' + item.sell + ' Value: ' + item.value + '\n\t' +
+                'Asking Price: ' + item.asking + '\n\t' +
+                'Hashcode (debugging): ' + hash;
         }
-
         alert(text);
     }
 
-    // See if a given <ul> (item category) is active, by ID
-    function isItemActive(itemId) {
-        let ul = document.getElementById(itemId);
-        if (!validPointer(ul)) {return false;} // Doesn't exist yet
-
-        let attr = $(ul).attr('aria-hidden');
-        if (attr == true) {return false;} // Hidden
-
-        return true;
+    // Load data
+    function clearInventoryData() {
+        detectedItemsArray = [];
+        alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
     }
-
-    // Get the id of the active category selected
-    function getActiveCategory() {
-        let id = '';
-        let ul = categoryDiv.getElementsByTagName('ul')[0];
-        let liList = ul.getElementsByTagName('li');
-        for (let i=0; i < liList.length; i++) {
-            let li = liList[i];
-            let selected = li.getAttribute('aria-selected');
-            if (selected) {id = li.getAttribute('aria-controls');}
-        }
-
-        return id;
-    }
-
-    // Build an array of item info: name, accuracy and damage, where applicable
-    // This builds from an entire group, such as primary-items. groupId is the ID
-    // of the <ul> containing items in the category.
-    function queryItemGroupInfo(groupId) {
-        let ul = document.getElementById(groupId);
-        let liList = $(ul).children();
-
-        for (let i=0; i<liList.length; i++) {
-            let li = liList[i];
-            let value = queryItemInfo(li);
-            pushArrayItem(groupId, value);
-        }
-
-    }
-
-    // Get info for one item, represented by an <li> in the <ul>
-    // representing a given category.
-    // Returns an object: {name, acc, dmg}
-    function queryItemInfo(li) {
-        let damage = 'N/A', accuracy = 'N/A', name = 'N/A';
-        let bonusesUl = $(li).find('ul.bonuses-wrap')[0];
-        if (validPointer(bonusesUl)) {damage = bonusesUl.children[0].innerText;}
-        if (validPointer(bonusesUl)) {accuracy = bonusesUl.children[1].innerText;}
-
-        let thumbnail = $(li).find('div.thumbnail-wrap');
-        if (validPointer(thumbnail)) {name = $(thumbnail).attr('aria-label');}
-
-        let rVal = {'name': name, 'dmg': damage, 'acc': accuracy};
-        return rVal;
-    }
-
-    // Push an item onto the correct array
-    function pushArrayItem(groupId, value) {
-        switch (groupId) {
-            case primaryItemsId:
-                primaryItemArray.push(value);
-                break;
-            case secondaryItemsId:
-                return secondaryItemArray.push(value);
-                break;
-            case meleeItemsId:
-                return meleeItemArray.push(value);
-                break;
-            case tempItemsId:
-                return tempItemArray.push(value);
-                break;
-            case armorItemsId:
-                return armorItemArray.push(value);
-                break;
-        }
-    }
-
-    // Clears the array associated with item group
-    function clearGroupArray(groupId) {
-        switch (groupId) {
-            case primaryItemsId:
-                return primaryItemArray.slice();
-            case secondaryItemsId:
-                return secondaryItemArray.slice();
-            case meleeItemsId:
-                return meleeItemArray.slice();
-            case tempItemsId:
-                return tempItemArray.slice();
-            case armorItemsId:
-                return armorItemArray.slice();
-        }
-        return null;
-    }
-
 
     //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
@@ -268,15 +308,28 @@ const allItemsList = [primaryItemsId, secondaryItemsId, meleeItemsId]; //, tempI
 
     logScriptStart();
 
-    var targetNode = document.getElementById('category-wrap');
+    var targetNode = document.getElementById('bazaarroot');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         observer.disconnect();
-        buildUI();
+        //console.log('mutation observed ==> trapItemDetails');
+        trapItemDetails();
         observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
+
+    window.onload = function () {
+        console.log('onLoad ==> buildUI');
+        buildUI();
+
+        // Will be unbound once UI is in place.
+        $(targetNode).bind('DOMNodeInserted', function(e) {
+            console.log(e.type + ' ==> trapItemDetails');
+            trapItemDetails();
+        });
+    };
+
 })();
 
 
