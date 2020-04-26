@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.s
+// @version      0.2
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
