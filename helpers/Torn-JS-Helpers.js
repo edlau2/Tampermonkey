@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.8
+// @version     0.9
 // @license     MIT
 // ==/UserLibrary==
 
@@ -47,18 +47,20 @@ function getHelperVersion() {
 }
 
 // Date formatting 'constants'
-var date_formats = ["YYYY-MM-DD",
-                    "YYYY-MONTH-DD DDD",
-                    "YYYY-MM-DD HH:MM:SS",
-                    "DAY MONTH DD YYYY HH:MM:SS",
-                    "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)"];
+const date_formats = ["YYYY-MM-DD",
+                      "YYYY-MONTH-DD DDD",
+                      "YYYY-MM-DD HH:MM:SS",
+                      "DAY MONTH DD YYYY HH:MM:SS",
+                      "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)"];
 
-var months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-var days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 
 // HTML constants
-var CRLF = '<br/>';
-var TAB = '&emsp;';
+const CRLF = '<br/>';
+const TAB = '&emsp;';
+const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
+
 
 // Convert a date object into a readable format
 function dateConverter(dateobj, format){
@@ -121,11 +123,26 @@ function validPointer(val, dbg = false) {
     return true;
 }
 
+//////////////////////////////////////////////////////////////////
+// Function to create a hash for a string. Returns a positive
+// 32 bit int.
+//////////////////////////////////////////////////////////////////
+
+String.prototype.hashCode = function(){
+    var hash = 0;
+    for (var i = 0; i < this.length; i++) {
+        var character = this.charCodeAt(i);
+        hash = ((hash<<5)-hash)+character;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+}
+
+//
+// Wildcard version of getElementsByClassName()
 // Note: easier to use $(selector).find(...); instead.
 //
 // Only used by 'Torn Racing - Car Order' and 'Torn Gym Gains'
-//
-// Wildcard version of getElementsByClassName()
 function myGetElementsByClassName2(anode, className) {
     var elems = anode.getElementsByTagName("*");
     var matches = [];
@@ -287,15 +304,15 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
-            handleError(response.responseText);
+            handleSysError(response);
         },
         onabort: function(response) {
             console.log(GM_info.script.name + ': onabort');
-            handleError(response.responseText);
+            handleSysError(response.responseText);
         },
         ontimeout: function(response) {
             console.log(GM_info.script.name +': ontimeout');
-            handleError(response.responseText);
+            handleSysError(response.responseText);
         }
     });
 }
@@ -324,6 +341,15 @@ function handleError(responseText) {
         console.log(errorText);
         errorLogged = true;
     }
+}
+
+function handleSysError(response) {
+    let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
+        response.error;
+
+    errorText += '\n\nPress OK to continue.';
+    alert(errorText);
+    console.log(errorText);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
