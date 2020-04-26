@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
+// @connect      script.google.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -20,12 +21,17 @@ const xedx_main_div =
   '<div class="t-blue-cont h" id="xedx-main-div">' +
       '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
           'TheMightyThor`s Inventory Builder</div>' +
-      '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: 60px; overflow: auto">' +
+      '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto">' +
           '<div style="text-align: center; vertical-align: middle;">' +
               '<span id="button-span">' +
                   '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
                   '<button id="xedx-view-btn" class="enabled-btn">View All</button>' +
                   '<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
+              '</span>' +
+          '</div><div style="text-align: center; vertical-align: middle;>' +
+              '<span id="input-span">Google Sheets Key: ' +
+                  '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
+                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 250px;">' +
               '</span>' +
           '</div>' +
       '</div>' +
@@ -59,6 +65,7 @@ const spreadsheetURL = ''; // URL for the content service provider
 
     var detectedItemsArray = [];
     var detectedItemsHashTable = [];
+    var google_sheets_key = "";
 
     /////////////////////////////////////////////////////////////////
     // Look for an item that has been expanded, and grab it's info
@@ -71,11 +78,16 @@ const spreadsheetURL = ''; // URL for the content service provider
         if (!validPointer(parentDiv) || !parentDiv.length) {return;}
 
         let owlItem = $(parentDiv).find('div.info___3-0WL').get();
-        if (!validPointer(owlItem) || !owlItem.length) {return;}
+        if (!owlItem.length || !validPointer(owlItem)) {return;}
 
         let clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
+        if (!validPointer(clearfix)) {return;}
+
         let pricingUl = $(clearfix).find('ul.info-cont')[0];
+        if (!validPointer(pricingUl)) {return;}
+
         let statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
+        if (!validPointer(statsUl)) {return;}
 
         let newItem = getNewItem();
 
@@ -107,7 +119,9 @@ const spreadsheetURL = ''; // URL for the content service provider
 
     /////////////////////////////////////////////////////////////////
     // Function to add an ID to items we've visited. This prevents us
-    // from doing the same work twice.
+    // from doing the same work twice. Doesn't work quite as expected.
+    // Prevents some multiple calls, but the div or ID is not
+    // persisted if the item selected changes.
     /////////////////////////////////////////////////////////////////
 
     function isItemTagged(element, newItem) {
@@ -151,9 +165,13 @@ const spreadsheetURL = ''; // URL for the content service provider
                 sell: 'TBD',       // <== getPricingInfo
                 value: 'TBD',      // <== getPricingInfo
                 circ: 'TBD',       // <== getPricingInfo
-                asking: 'TBD',
+                asking: 'TBD',     // <== getPricingInfo
                 };
     }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill damage, accuracy and quality item info data members
+    /////////////////////////////////////////////////////////////////
 
     function getStatInfo(element, newItem) {
         let liList = element.getElementsByTagName('li');
@@ -165,6 +183,10 @@ const spreadsheetURL = ''; // URL for the content service provider
         let tmp = $(qLi).find('div.desc').get()[0];
         if (validPointer(tmp)) {newItem.quality = $(qLi).find('div.desc').get()[0].innerText.trim();}
     }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill buy, sell, value, asking price and circulation item data members
+    /////////////////////////////////////////////////////////////////
 
     function getPricingInfo(element, newItem) {
         let liList = element.getElementsByTagName('li');
@@ -179,6 +201,10 @@ const spreadsheetURL = ''; // URL for the content service provider
         let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
         newItem.asking = $(itemActive).find('p.price___8AdTw').get()[0].innerText;
     }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill name and type item data members.
+    /////////////////////////////////////////////////////////////////
 
     function getNameTypeItemInfo(element, newItem) {
         let itemWrap = $(element).find('div.clearfix.info-wrap > div.item-cont > div.item-wrap').get()[0];
@@ -241,11 +267,17 @@ const spreadsheetURL = ''; // URL for the content service provider
         return strSuccess; // Return value is currently unused
     }
 
+    /////////////////////////////////////////////////////////////////
     // enable/Disable all buttons
+    /////////////////////////////////////////////////////////////////
+
     function enableButtons() {disableEnableButtons(false);}
     function disableButtons() {disableEnableButtons(true);}
 
+    /////////////////////////////////////////////////////////////////
     // Diable/Enable all buttons - true to disable, false to enable
+    /////////////////////////////////////////////////////////////////
+
     function disableEnableButtons(value) {
         let span = document.getElementById('button-span');
         let btns = span.getElementsByTagName('button');
@@ -256,7 +288,10 @@ const spreadsheetURL = ''; // URL for the content service provider
         }
     }
 
+    /////////////////////////////////////////////////////////////////
     // Install button handlers
+    /////////////////////////////////////////////////////////////////
+
     function installHandlers() {
         let myButton = document.getElementById('xedx-submit-btn');
         myButton.addEventListener('click',function () {
@@ -274,14 +309,99 @@ const spreadsheetURL = ''; // URL for the content service provider
         });
     }
 
+    /////////////////////////////////////////////////////////////////
     // Send to our content service provider
-    function submitFunction() {
-        alert('Please wait while data is uplaoded...');
+    //
+    // This POSTS to the entered Google Sheets Content Service provider.
+    // Response TBD...
+    /////////////////////////////////////////////////////////////////
+
+    function readyState(state) {
+        switch (state) {
+            case 0: return 'UNSENT'; // UNSENT	Client has been created. open() not called yet.
+            case 1: return 'OPENED'; // open() has been called.
+            case 2: return 'HEADERS_RECEIVED'; // send() has been called, and headers and status are available.
+            case 3: return 'LOADING'; // Downloading; responseText holds partial data.
+            case 4: return 'DONE';
+        }
+        return 'Unknown';
     }
 
+    function submitFunction() {
+        if (detectedItemsArray.length == 0) {
+            alert('No data to upload!');
+            return;
+        }
+
+        //alert('Please wait while data is uploaded...');
+        let key = document.getElementById('xedx-google-key').value;
+        let url = 'https://script.google.com/macros/s/' + key + '/exec';
+        let data = JSON.stringify(detectedItemsArray);
+        console.log(GM_info.script.name + ' Posting data to ' + url);
+        let details = GM_xmlhttpRequest({
+            method:"POST",
+            url:url,
+            data:data,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                submitFunctionCB(response.responseText);
+            },
+            onerror: function(response) {
+                console.log(GM_info.script.name + ': onerror');
+                handleSysError(response);
+            },
+            onabort: function(response) {
+                console.log(GM_info.script.name + ': onabort');
+                handleSysError(response);
+            },
+            ontimeout: function(response) {
+                console.log(GM_info.script.name +': ontimeout');
+                handleSysError(response);
+            },
+            onprogress: function(e) {
+                console.log(GM_info.script.name +': onprogress');
+            },
+            onreadystatechange: function(e) {
+                console.log(GM_info.script.name +': onreadystatechange: ' + readyState(e.readyState));
+            }
+        });
+    }
+
+    // Callback for above...
+    function submitFunctionCB(responseText) {
+        if (responseText.indexOf('<!DOCTYPE html>') != -1) {
+            var newWindow = window.open();
+            newWindow.document.body.innerHTML = responseText;
+            return;
+        }
+
+        //let jsonResp = JSON.parse(responseText); // Only needed is response is expected as stringified JSON
+        //if (jsonResp.error) {return handleError(responseText);}
+
+        alert('Need to process this type of response here:\n\n' + responseText);
+    }
+
+    // Note: same as 'handleSysError' in helper lib...
+    function handleSysError(response) {
+        let errorText = GM_info.script.name + ': An error has occurred submitting data.\n\n' +
+            response.error;
+
+        errorText += '\n\nPress OK to continue.';
+        alert(errorText);
+        console.log(errorText);
+    }
+
+    /////////////////////////////////////////////////////////////////
     // Preview what will be sent (mostly for debugging purposes)
+    /////////////////////////////////////////////////////////////////
+
     function viewFunction() {
-        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):';
+        let key = document.getElementById('xedx-google-key').value;
+        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):\n' +
+            'Key = ' + key;
         for (let i=0; i<detectedItemsArray.length; i++) {
             let item = detectedItemsArray[i];
             let hash = JSON.stringify(item).hashCode();
@@ -294,7 +414,10 @@ const spreadsheetURL = ''; // URL for the content service provider
         alert(text);
     }
 
-    // Load data
+    /////////////////////////////////////////////////////////////////
+    // Clear saved data - erase the array. Could do inline.
+    /////////////////////////////////////////////////////////////////
+
     function clearInventoryData() {
         detectedItemsArray = [];
         alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
