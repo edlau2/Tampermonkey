@@ -165,12 +165,28 @@ function myGetElementsByClassName(anode, className) {
 // We need the XID; the trailing '#' may not be present.
 function xidFromProfileURL(URL) {
     var n = URL.indexOf('XID='); // Find the 'XID=' token
+    if (n == -1) {return null;}
     var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
     var ID = 0;
     if (n2 != -1) {
         ID = URL.slice(n+4, n2); // Extract just the ID from the URL, between the '=' and '#'
     } else {
         ID = URL.slice(n+4);
+    }
+    return ID;
+}
+
+// Another version of above, except search for 'userid='
+// Should combine these...
+function useridFromProfileURL(URL) {
+    var n = URL.indexOf('userId='); // Find the 'userId=' token
+    if (n == -1) {return null;}
+    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
+    var ID = 0;
+    if (n2 != -1) {
+        ID = URL.slice(n+7, n2); // Extract just the ID from the URL, between the '=' and '#'
+    } else {
+        ID = URL.slice(n+7);
     }
     return ID;
 }
