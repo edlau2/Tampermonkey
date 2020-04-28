@@ -16,11 +16,12 @@
 const daily_dime_div =
       '<div class="t-blue-cont h" id="xedx-dailydime-ext">' +
           '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">One-Click Daily Dime</div>' +
-          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: 60px; overflow: auto">' +
+          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: 56px; overflow: auto">' +
               '<div style="text-align: center">' +
                   '<span>' +
-                      '<button id="buy-btn" style="font-size: 14px; height: 24px; text-align: center;border-radius: 5px; margin: 15px 40px; ' +
-                      'background: LightGrey; border: 1px solid black;">Buy</button>' +
+                      //'<button id="xedx-buy-btn" style="font-size: 14px; height: 24px; text-align: center;border-radius: 5px; margin: 15px 40px; ' +
+                      //'background: LightGrey; border: 1px solid black;">Buy</button>' +
+                      '<button id="xedx-buy-btn" class="btn-dark-bg">Buy</button>' +
                       '<input id="xedx-slot-turns" type="number" style="font-size: 14px; height: 24px; text-align: center;' +
                       'border-radius: 5px; margin: 15px 40px; border: 1px solid black;">' +
                       '<B>Daily Dime tickets</B>' +
@@ -29,14 +30,13 @@ const daily_dime_div =
           '</div>' +
       '</div>';
 
-const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
-var lottoDiv = null;
-var buyBtn = null;
-var inputField = null;
-var slotturnsDiv = null;
-
 (function() {
     'use strict';
+
+    var lottoDiv = null;
+    var buyBtn = null; // Lotto buy button
+    var inputField = null;
+    var slotturnsDiv = null;
 
     function createMainDiv() {
         if (validPointer(document.getElementById('xedx-dailydime-ext'))) {return;} // Only do once
@@ -51,7 +51,8 @@ var slotturnsDiv = null;
         inputField = document.getElementById('xedx-slot-turns');
         slotturnsDiv = document.getElementsByClassName('slotturns')[0];
 
-        buyBtn.addEventListener('click',function () {
+        let myBuyButton = document.getElementById('xedx-buy-btn');
+        myBuyButton.addEventListener('click',function () {
             buyFunction();
         });
 
@@ -63,6 +64,7 @@ var slotturnsDiv = null;
     //////////////////////////////////////////////////////////////////////
 
     function buyFunction() {
+        refresh();
         let turns = parseInt(inputField.value);
         buyBtn.disabled = true;
 
