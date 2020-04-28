@@ -68,7 +68,6 @@
         let extDivId = 'xedx-drugstats-ext-div';
         let mainDiv = document.getElementById('column0');
         if (!validPointer(mainDiv)) {return;}
-
         $(mainDiv).append(extDiv);
         xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB, '');
     }
@@ -93,13 +92,49 @@
         buildUseString('victaken');
     }
 
+/*
+.mod-text {
+  color: #FFF;
+  font-size: 1em;
+  text-align: center;
+  bottom: 0;
+}
+.mod-background {
+  background-color: #f58322;
+  border-radius: 8px;
+  filter: alpha(opacity=60);
+  opacity: 0.60;
+  top: 0;
+  height: 100%;
+}
+
+GM_addStyle(".tooltip3 {" +
+              "radius: 4px !important;" +
+              //"background-color: #ddd !important;" +
+              "background-color: #f58322 !important;" +
+              "filter: alpha(opacity=60);" +
+              "opacity: 0.60;" +
+              "padding: 5px 20px;" +
+              "border: 2px solid white;" +
+              "border-radius: 10px;" +
+              "width: 300px;" +
+              "margin: 50px;" +
+              "text-align: left;" +
+              "font: bold 14px ;" +
+              "font-stretch: condensed;" +
+              "text-decoration: none;" +
+              "color: #FFF;" +
+              "font-size: 1em;" +
+              "}");
+*/
+
     function displayToolTip(div, text) {
         $(document).ready(function() {
             $(div.parentNode).attr("title", "original");
             $(div.parentNode).tooltip({
                 content: text,
                 classes: {
-                    "ui-tooltip": "tooltip2"
+                    "ui-tooltip": "tooltip3"
                 }
             });
         })
