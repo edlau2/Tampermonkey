@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -82,7 +82,7 @@
             $(li).tooltip({
                 content: text,
                 classes: {
-                    "ui-tooltip": "tooltip2"
+                    "ui-tooltip": "tooltip3"
                 }
             });
         })
