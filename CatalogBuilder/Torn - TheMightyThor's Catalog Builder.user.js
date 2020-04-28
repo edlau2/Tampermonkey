@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
@@ -143,9 +143,7 @@ const strSuccess = 'Success';
         let id = itemActive.id;
         if (id == "" || !validPointer(id)) {
             itemActive.id = 'xedx-' + Math.random();
-            //console.log('Item not tagged - tagged as ' + itemActive.id);
         } else {
-            //console.log('Item already tagged as ' + id);
             return true;
         }
 
@@ -444,6 +442,7 @@ const strSuccess = 'Success';
         let result = jsonResp.result;
         let output = '';
         if (result.indexOf('Success') != -1) {
+            clearInventoryData(true);
             let start = result.indexOf('Processed');
             let end = result.indexOf('.') + 1;
             let msg1 = result.slice(start, end);
@@ -470,9 +469,7 @@ const strSuccess = 'Success';
     /////////////////////////////////////////////////////////////////
 
     function viewFunction() {
-        let key = document.getElementById('xedx-google-key').value;
-        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):\n' +
-            'Key = ' + key;
+        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):';
         for (let i=0; i<detectedItemsArray.length; i++) {
             let item = detectedItemsArray[i];
             let hash = JSON.stringify(item).hashCode();
@@ -489,9 +486,11 @@ const strSuccess = 'Success';
     // Clear saved data - erase the array. Could do inline.
     /////////////////////////////////////////////////////////////////
 
-    function clearInventoryData() {
+    function clearInventoryData(silent=false) {
         detectedItemsArray = [];
-        alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
+        if (!silent) {
+            alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -541,6 +540,17 @@ const strSuccess = 'Success';
             trapItemDetails();
         });
     };
+
+    // If there is anything saved and not yet uploaded, prompt the user.
+    let goingAwayText = 'You have items yet to be uploaded. If you leave, you will lose any unsaved changes.';
+    window.addEventListener('beforeunload', (event) => {
+        if (detectedItemsArray.length) {
+            // Cancel the event as stated by the standard.
+            event.preventDefault();
+            // Chrome requires returnValue to be set.
+            event.returnValue = goingAwayText;
+        }
+        });
 
 })();
 
