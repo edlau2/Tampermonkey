@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     0.9
+// @version     1.0
 // @license     MIT
 // ==/UserLibrary==
 
@@ -228,6 +228,24 @@ function addToolTipStyle() {
               "font-stretch: condensed;" +
               "text-decoration: none;" +
               "}");
+
+    GM_addStyle(".tooltip3 {" +
+              "radius: 4px !important;" +
+              "background-color: #000000 !important;" +
+              "filter: alpha(opacity=80);" +
+              "opacity: 0.80;" +
+              "padding: 5px 20px;" +
+              "border: 2px solid gray;" +
+              "border-radius: 10px;" +
+              "width: 300px;" +
+              "margin: 50px;" +
+              "text-align: left;" +
+              "font: bold 14px ;" +
+              "font-stretch: condensed;" +
+              "text-decoration: none;" +
+              "color: #FFF;" +
+              "font-size: 1em;" +
+              "}");
 }
 
 // Adds a tool tip to a DIV
@@ -237,7 +255,7 @@ function displayToolTip(div, text) {
         $(div.parentNode).tooltip({
             content: text,
             classes: {
-                "ui-tooltip": "tooltip2"
+                "ui-tooltip": "tooltip3"
             }
         });
     })
