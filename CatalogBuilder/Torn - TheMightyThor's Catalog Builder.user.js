@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.5
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      script.google.com
+// @connect      script.googleusercontent.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -29,9 +30,10 @@ const xedx_main_div =
                   '<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
               '</span>' +
           '</div><div style="text-align: center; vertical-align: middle;>' +
-              '<span id="input-span">Google Sheets Key: ' +
+              '<span id="input-span">Google Sheets URL: ' +
                   '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
-                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 250px;">' +
+                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 450px;">' +
+                  '<button id="xedx-save-btn" class="enabled-btn">Save</button>' +
               '</span>' +
           '</div>' +
       '</div>' +
@@ -46,6 +48,16 @@ const enabledBtnStyle = '.enabled-btn {font-size: 14px; ' +
       'border: 1px solid black;' +
       '}';
 
+const blueBtnStyle = '.blue-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: dodgerblue;' +
+      'border: 1px solid black;' +
+      '}';
+
+
 const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
       'height: 24px;' +
       'text-align: center;' +
@@ -56,9 +68,6 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
       '}';
 
 const strSuccess = 'Success';
-const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">'; // Moved to helper lib
-const spreadsheetURL = ''; // URL for the content service provider
-
 
 (function() {
     'use strict';
@@ -66,6 +75,9 @@ const spreadsheetURL = ''; // URL for the content service provider
     var detectedItemsArray = [];
     var detectedItemsHashTable = [];
     var google_sheets_key = "";
+    var profileId = "";
+    var spreadsheetURL = '';
+        //'https://script.google.com/macros/s/AKfycbyT0L4R0ewjEs0-1CeqUWeBUR---jhbcy-NaFZQinayEDZBLDI/exec';
 
     /////////////////////////////////////////////////////////////////
     // Look for an item that has been expanded, and grab it's info
@@ -166,6 +178,7 @@ const spreadsheetURL = ''; // URL for the content service provider
                 value: 'TBD',      // <== getPricingInfo
                 circ: 'TBD',       // <== getPricingInfo
                 asking: 'TBD',     // <== getPricingInfo
+                id: profileId,     // <== buildUi
                 };
     }
 
@@ -175,13 +188,25 @@ const spreadsheetURL = ''; // URL for the content service provider
 
     function getStatInfo(element, newItem) {
         let liList = element.getElementsByTagName('li');
-        let dmgLi = liList[0], accLi = liList[1], qLi = liList[6];
+        let dmgLi = liList[0], accLi = liList[1]; //, qLi = liList[6];
 
         newItem.dmg = $(dmgLi).find('div.desc').get()[0].innerText.trim();
         newItem.acc = $(accLi).find('div.desc').get()[0].innerText.trim();
 
-        let tmp = $(qLi).find('div.desc').get()[0];
-        if (validPointer(tmp)) {newItem.quality = $(qLi).find('div.desc').get()[0].innerText.trim();}
+        // Quality LI position varies. All these can be found by class='title'
+        // 'Damage:', 'Accuracy:', 'Quality:', etc. Find qLi that way.
+        // Should prob do the same for *all* the stuff we're looking for.
+        for (let i=0; i < liList.length; i++) {
+            let titleDiv = $(liList[i]).find('div.title').get()[0];
+            if (validPointer(titleDiv)) {
+                if (titleDiv.innerText.trim() == 'Quality:') {
+                    let desc = $(liList[i]).find('div.desc').get()[0];
+                    if (validPointer(desc)) {newItem.quality = desc.innerText.trim();}
+                }
+            } else {
+                //debugger;
+            }
+        }
     }
 
     /////////////////////////////////////////////////////////////////
@@ -214,7 +239,10 @@ const spreadsheetURL = ''; // URL for the content service provider
 
         let infoMsg = $(itemWrap).find('span.info-msg > div.m-bottom10').get()[0];
         let type = $(infoMsg).text();
-        let at = type.indexOf('is a ');
+
+        // May be 'are a' or 'is a', search both
+        let at = type.indexOf('are a ');
+        if (at == -1) {at = type.indexOf('is a ');}
         let end = type.indexOf('Weapon.');
         if (end == -1) {end = type.indexOf('.');}
         if (end < 0) {end = 0;}
@@ -247,6 +275,7 @@ const spreadsheetURL = ''; // URL for the content service provider
 
         GM_addStyle(enabledBtnStyle);
         GM_addStyle(disabledBtnStyle);
+        GM_addStyle(blueBtnStyle);
 
         let parentDiv = document.getElementsByClassName('searchBar___F1E8s')[0]; // Search/sort options
         let nextDiv = document.getElementsByClassName('segment___38fN3')[0];     // Items grid
@@ -259,32 +288,49 @@ const spreadsheetURL = ''; // URL for the content service provider
 
         $(targetNode).unbind('DOMNodeInserted');
 
+        let urlInput = document.getElementById('xedx-google-key');
+        let value = GM_getValue('xedx-google-key');
+        if (typeof value != 'undefined' && value != null && value != '') {
+            urlInput.value = value;
+        }
+
         installHandlers(); // Hook up buttons
 
         //disableButtons(); // Temporary - testing enable/disable
         //enableButtons();
 
+        // Save the user ID of this bazaar
+        profileId = useridFromProfileURL(window.location.href);
+
         return strSuccess; // Return value is currently unused
     }
 
     /////////////////////////////////////////////////////////////////
-    // enable/Disable all buttons
+    // enable/Disable all buttons - or set to blue.
     /////////////////////////////////////////////////////////////////
 
-    function enableButtons() {disableEnableButtons(false);}
-    function disableButtons() {disableEnableButtons(true);}
+    function enableButtons(id=null) {disableEnableButtons(false, id);}
+    function disableButtons(id=null) {disableEnableButtons(true, id);}
 
     /////////////////////////////////////////////////////////////////
-    // Diable/Enable all buttons - true to disable, false to enable
+    // Diable/Enable one or all buttons - true to disable, false to enable
     /////////////////////////////////////////////////////////////////
 
-    function disableEnableButtons(value) {
-        let span = document.getElementById('button-span');
-        let btns = span.getElementsByTagName('button');
-        for (let i=0; i<btns.length; i++) {
-            btns[i].disabled = value;
-            if (value) {btns[i].className = 'disabled-btn';}
-            else {btns[i].className = 'enabled-btn';}
+    function disableEnableButtons(value, id) {
+        if (id == null) {
+            let span = document.getElementById('button-span');
+            let btns = span.getElementsByTagName('button');
+            for (let i=0; i<btns.length; i++) {
+                btns[i].disabled = value;
+                if (value) {btns[i].className = 'blue-btn';}
+                else {btns[i].className = 'enabled-btn';}
+            }
+        } else {
+            // blueBtnStyle
+            let btn = document.getElementById(id);
+            btn.disabled = value;
+            if (value) {btn.className = 'blue-btn';}
+                else {btn.className = 'enabled-btn';}
         }
     }
 
@@ -306,6 +352,11 @@ const spreadsheetURL = ''; // URL for the content service provider
         myButton = document.getElementById('xedx-clear-btn');
         myButton.addEventListener('click',function () {
             clearInventoryData();
+        });
+
+        myButton = document.getElementById('xedx-save-btn');
+        myButton.addEventListener('click',function () {
+            saveSheetsUrl();
         });
     }
 
@@ -334,64 +385,84 @@ const spreadsheetURL = ''; // URL for the content service provider
         }
 
         //alert('Please wait while data is uploaded...');
-        let key = document.getElementById('xedx-google-key').value;
-        let url = 'https://script.google.com/macros/s/' + key + '/exec';
+        let url = document.getElementById('xedx-google-key').value;
+        if (url == '') {
+            url = GM_getValue('xedx-google-key');
+            if (url == '' || typeof url == 'undefined') {
+                alert('You must enter the Google Sheets URL!');
+                return;
+            }
+        }
+        saveSheetsUrl(url);
+
         let data = JSON.stringify(detectedItemsArray);
         console.log(GM_info.script.name + ' Posting data to ' + url);
+        disableButtons('xedx-submit-btn');
         let details = GM_xmlhttpRequest({
             method:"POST",
             url:url,
             data:data,
+            //data:detectedItemsArray[0],
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json'
             },
             onload: function(response) {
+                console.log(GM_info.script.name + ': submitFunctionCB: ' + response.responseText);
                 submitFunctionCB(response.responseText);
             },
             onerror: function(response) {
+                enableButtons('xedx-submit-btn');
                 console.log(GM_info.script.name + ': onerror');
-                handleSysError(response);
+                handleScriptError(response);
             },
             onabort: function(response) {
+                enableButtons('xedx-submit-btn');
                 console.log(GM_info.script.name + ': onabort');
                 handleSysError(response);
             },
             ontimeout: function(response) {
+                enableButtons('xedx-submit-btn');
                 console.log(GM_info.script.name +': ontimeout');
-                handleSysError(response);
-            },
-            onprogress: function(e) {
-                console.log(GM_info.script.name +': onprogress');
-            },
-            onreadystatechange: function(e) {
-                console.log(GM_info.script.name +': onreadystatechange: ' + readyState(e.readyState));
+                handleScriptError(response);
             }
         });
     }
 
     // Callback for above...
     function submitFunctionCB(responseText) {
+        enableButtons('xedx-submit-btn');
         if (responseText.indexOf('<!DOCTYPE html>') != -1) {
             var newWindow = window.open();
             newWindow.document.body.innerHTML = responseText;
             return;
         }
 
-        //let jsonResp = JSON.parse(responseText); // Only needed is response is expected as stringified JSON
-        //if (jsonResp.error) {return handleError(responseText);}
+        let jsonResp = JSON.parse(responseText); // Only needed is response is expected as stringified JSON
+        if (jsonResp.error) {return handleError(responseText);}
 
-        alert('Need to process this type of response here:\n\n' + responseText);
+        let result = jsonResp.result;
+        let output = '';
+        if (result.indexOf('Success') != -1) {
+            let start = result.indexOf('Processed');
+            let end = result.indexOf('.') + 1;
+            let msg1 = result.slice(start, end);
+            let start2 = result.indexOf('Found');
+            let msg2 = result.slice(start2);
+            output = 'Success!\n\n' + msg1 + '\n' + msg2;
+        } else {
+            output = 'An error has occurred!\nDetails:\n\n' + responseText;
+        }
+
+        alert(output);
     }
 
-    // Note: same as 'handleSysError' in helper lib...
-    function handleSysError(response) {
-        let errorText = GM_info.script.name + ': An error has occurred submitting data.\n\n' +
+    function handleScriptError(response) {
+        let errorText = GM_info.script.name + ': An error has occurred submitting data:\n\n' +
             response.error;
 
-        errorText += '\n\nPress OK to continue.';
-        alert(errorText);
         console.log(errorText);
+        alert(errorText + '\n\nPress OK to continue.');
     }
 
     /////////////////////////////////////////////////////////////////
@@ -408,7 +479,7 @@ const spreadsheetURL = ''; // URL for the content service provider
             text = text + '\n\nName: ' + item.name + ' (' + item.type + ')\n\t' +
                 'Damage: ' + item.dmg +' Accuracy: ' + item.acc +' Quality: ' + item.quality + '\n\t' +
                 'Buy: ' + item.buy + ' Sell: ' + item.sell + ' Value: ' + item.value + '\n\t' +
-                'Asking Price: ' + item.asking + '\n\t' +
+                'Asking Price: ' + item.asking + ' Profile ID: ' + item.id + '\n\t' +
                 'Hashcode (debugging): ' + hash;
         }
         alert(text);
@@ -421,6 +492,24 @@ const spreadsheetURL = ''; // URL for the content service provider
     function clearInventoryData() {
         detectedItemsArray = [];
         alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    // Save the URL to our Google Sheets script (content service provider).
+    // Could do inline.
+    /////////////////////////////////////////////////////////////////////////
+
+    function saveSheetsUrl(useUrl=null) {
+        let url = useUrl;
+        if (url == null) {
+            url = document.getElementById('xedx-google-key').value;
+        }
+        if (url == '' || url == null) {
+            alert('You must enter the Google Sheets URL!');
+            return;
+        }
+        spreadsheetURL = url;
+        GM_setValue('xedx-google-key', url);
     }
 
     //////////////////////////////////////////////////////////////////////
