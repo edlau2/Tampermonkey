@@ -118,18 +118,6 @@ Images:
 
 This script uses the method described here: https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0 to estimate a user's bat stats, as best as can be estimated with publicly available stats. The possible range of bat stats is displayed on the user's profile page. This is most useful for lower level players, due to the ranges involved at higher levels. Also, 'ghost' triggers can't be helped, for instance if you hit a NW trigger and then lose it. Also, level holding will also throw off the results, usually resulting in an 'N/A' result. Always check things like Xanax and refills used, and other indicators also before relying on this estimate to pick a fight!
 
-**_Torn Weapon Experience_**
-
-- [Torn Weapon Experience.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WeaponExp/Torn%20Weapon%20Experience.user.js)
-
-Images:
-
-- [Torn Weapon Experience-1.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-1.png)
-- [Torn Weapon Experience-2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExp/Torn%20Weapon%20Exp-2.png)
-
-This script adds a new section on the Items page, collapsed by default, that shows all of your weapons experience. It is collapsed by default, underneath you equipped weapons section. There is a much nicer way to view this, via Torn Stats: https://www.tornstats.com/weapons.php
-
-
 **_Torn Get Naked_**
 
 Note: Removed for now, see the comments in the Scripting Rules section, above.
