@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.1
+// @version     1.2
 // @license     MIT
 // ==/UserLibrary==
 
