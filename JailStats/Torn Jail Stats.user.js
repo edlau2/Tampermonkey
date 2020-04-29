@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.3
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -223,7 +223,7 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
         observer.disconnect();
         // This call either immediately calls the provided callback and re-connects the observer,
         // or else sets a timeout to re-connect when we land, if we are travelling.
-        checkTravelling(buildJailStatsDiv);
+        checkTravelling(buildJailStatsDiv, observer, targetNode, config);
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
