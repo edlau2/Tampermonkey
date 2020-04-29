@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.2
+// @version     1.3
 // @license     MIT
 // ==/UserLibrary==
 
@@ -359,12 +359,11 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
 // so the 'main' enrty point, if triggered using an observer, will
 // constantly get called. Instead, call this function:
 //
-// checkTravelling(callback); where 'callback' is the actual function
-// you'd normally call.
+// checkTravelling(callback, observer, targetNode, config);
+// where 'callback' is the actual function you'd normally call.
 //
-// The following vars. must be set and globally accessible:
-// var observer, var targetNode, and var config.
-// Used as follows: observer.observe(targetNode, config);
+// observer, targetNode, and config will be used as follows:
+// observer.observe(targetNode, config);
 //
 // The code either executes the callback immediately, if not
 // travelling, with the observer disconnected, and reconnects after
@@ -374,15 +373,21 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
 // hence this will be called again.
 //////////////////////////////////////////////////////////////////////
 
-function checkTravelling(callback) {
-    xedx_TornUserQuery('', 'travel', xedx_travelCB, callback);
+function checkTravelling(callback, observer, targetNode, config) {
+    var cbStruct = {callback:callback, observer:observer,
+                    targetNode:targetNode, config:config};
+    xedx_TornUserQuery('', 'travel', xedx_travelCB, cbStruct);
 }
 
-function xedx_travelCB(responseText, ID, callback) {
+function xedx_travelCB(responseText, ID, cbStruct) {
     let jsonResp = JSON.parse(responseText);
     if (jsonResp.error) {return handleError(responseText);}
 
     let stats = jsonResp.travel;
+    let callback = cbStruct.callback;
+    let observer = cbStruct.observer;
+    let targetNode = cbStruct.targetNode;
+    let config = cbStruct.config;
     observer.disconnect();
     if (stats.time_left == 0 && stats.destination == 'Torn') {
         if (callback != null) {
