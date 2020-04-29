@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      1.1
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -9,7 +9,6 @@
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
-// @connect      tornstats.com
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -18,6 +17,29 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+const extDivId = 'xedx-jailstats-ext-div';
+const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId + '">' +
+      '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
+          '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
+          '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
+          'Jail and Bounty Stats' +
+      '</div>' +
+      '<div class="bottom-round">' +
+          '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
+              '<ul class="info-cont-wrap">' +
+                  '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
+                  '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
+                  '<li id="xedx-bails" title="original"><span class="divider" id="xedx-div-span-peoplebought"><span>People Bailed</span></span><span id="xedx-val-span-peoplebought" class="desc">0</span></li>' +
+                  '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
+                  '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
+                  '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
+                  '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
+              '</ul>' +
+          '</div>' +
+      '</div>' +
+  '</div>';
+
+
 (function() {
     'use strict';
 
@@ -25,200 +47,53 @@
     // Build the Jail Stats div, append underneath the Personal Perks div
     //////////////////////////////////////////////////////////////////////
 
-    var extDivId = 'xedx-jail-stats-ext';
     function buildJailStatsDiv() {
         // Only do this once
-        var testDiv = document.getElementById(extDivId);
-        if (validPointer(testDiv)) {
-            return;
-        }
+        if (extendedDivExists(extDivId)) {return;}
 
         var mainDiv = document.getElementById('column0');
-        if (!validPointer(mainDiv)) {
-            return;
-        }
+        if (!validPointer(mainDiv)) {return;}
+        $(mainDiv).append(jail_stat_div);
 
-        // Piece everything together.
-        var extDiv = createExtendedDiv('sortable-box t-blue-cont h', extDivId);
-        var hdrDiv = createHeaderDiv();
-        var bodyDiv = createBodyDiv();
-        var contentDiv = createContentDiv(); // This call also queries the Torn API...
-                                             // We really should call only once and cache the data
-
-        if (validPointer(mainDiv)) {
-            mainDiv.appendChild(extDiv);
-        }
-
-        extDiv.appendChild(hdrDiv);
-        hdrDiv.appendChild(document.createTextNode('Jail and Bounty Stats'));
-        extDiv.appendChild(bodyDiv);
-        bodyDiv.appendChild(contentDiv);
+        xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB); // Callback will set the correct values.
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Helpers for creating misc. UI parts and pieces
+    // Callback to parse returned JSON.
     //////////////////////////////////////////////////////////////////////
 
-    function createSeparator() {
-        var sepHr = document.createElement('hr');
-        sepHr.className = 'delimiter-999 m-top10 m-bottom10';
-        return sepHr;
-    }
+    let statArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
+    function personalStatsQueryCB(responseText) {
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
 
-    function createBodyDiv() {
-        var bodyDiv = document.createElement('div');
-        bodyDiv.className = 'bottom-round';
-        return bodyDiv;
-    }
-
-    function createContentDiv() {
-        var contentDiv = document.createElement('div');
-        contentDiv.id = 'xedx-jail-stats-content-div';
-        contentDiv.className = 'cont-gray bottom-round';
-        contentDiv.setAttribute('style', 'width: 386px; height: 174px; overflow: auto');
-
-        var ulList = document.createElement('ul')
-        ulList.className = 'info-cont-wrap';
-        contentDiv.appendChild(ulList);
-
-        // ID's are for tool tips, added later.
-        var jailBustsLi = document.createElement('li');
-        jailBustsLi.id = 'xedx-busts';
-        var jailFailsLi = document.createElement('li');
-        var jailBailsLi = document.createElement('li');
-        jailBailsLi.id = 'xedx-bails';
-        var jailFeesLi = document.createElement('li');
-        var jailJailsLi = document.createElement('li');
-        var bountiesLi = document.createElement('li');
-        bountiesLi.id = 'xedx-bounties';
-        var bountiesFeesLi = document.createElement('li');
-        bountiesFeesLi.id = 'xedx-fees';
-
-        jailBustsLi.appendChild(createDividerSpan('peoplebusted', 'People Busted'));
-        jailFailsLi.appendChild(createDividerSpan('failedbusts', 'Failed Busts'));
-        jailBailsLi.appendChild(createDividerSpan('peoplebought', 'People Bailed'));
-        jailFeesLi.appendChild(createDividerSpan('peopleboughtspent', 'Bail Fees'));
-        jailJailsLi.appendChild(createDividerSpan('jailed', 'Times Jailed'));
-        bountiesLi.appendChild(createDividerSpan('bountiescollected', 'Bounties Collected'));
-        bountiesFeesLi.appendChild(createDividerSpan('totalbountyreward', 'Bounty Rewards'));
-
-        jailBustsLi.appendChild(createValueSpan('peoplebusted'));
-        jailFailsLi.appendChild(createValueSpan('failedbusts'));
-        jailBailsLi.appendChild(createValueSpan('peoplebought'));
-        jailFeesLi.appendChild(createValueSpan('peopleboughtspent'));
-        jailJailsLi.appendChild(createValueSpan('jailed'));
-        bountiesLi.appendChild(createValueSpan('bountiescollected'));
-        bountiesFeesLi.appendChild(createValueSpan('totalbountyreward'));
-
-        ulList.appendChild(jailBustsLi);
-        ulList.appendChild(jailFailsLi);
-        ulList.appendChild(jailBailsLi);
-        ulList.appendChild(jailFeesLi);
-        ulList.appendChild(jailJailsLi);
-        ulList.appendChild(bountiesLi);
-        ulList.appendChild(bountiesFeesLi);
-
-        return contentDiv;
-    }
-
-    function createValueSpan(item) {
-        var value = queryPersonalStats(item);
-        var valSpan = document.createElement('span');
-        valSpan.id = 'xedx-val-span-' + item;
-        valSpan.className = 'desc';
-        valSpan.innerText = value;
-        return valSpan;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Functions to query the Torn API for personal stats.
-    //////////////////////////////////////////////////////////////////////
-
-    function queryPersonalStats(name) {
-
-        personalStatsQuery(name); // Callback will set the correct values.
-
-        return 'Please wait...';
-    }
-
-    function personalStatsQuery(name) {
-        var details = GM_xmlhttpRequest({
-            method:"POST",
-            url:"https://api.torn.com/user/?selections=personalstats&key=" + api_key,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            },
-            onload: function(response) {
-                personalStatsQueryCB(response.responseText, name);
-            },
-            onerror: function(response) {
-                handleError(response.responseText);
-            },
-            onabort: function(response) {
-                console.log('Torn Jail Stats: onabort');
-                handleError(response.responseText);
-            },
-            ontimeout: function(response) {
-                console.log('Torn Jail Stats: ontimeout');
-                handleError(response.responseText);
+        for (let i=0; i<statArray.length; i++) {
+            let name = statArray[i];
+            let searchName = 'xedx-val-span-' + name;
+            let valSpan = document.getElementById(searchName);
+            let stats = jsonResp.personalstats;
+            if (!validPointer(valSpan)) {
+                console.log('Unable to find proper span: ' + searchName + ' at ' + document.URL);
+                continue;
             }
-        });
-    }
+            if (!validPointer(stats[name])) {continue;} // May not be in data (never done). Not an error.
 
-    // Callback to parse returned JSON. Note that we keep track of how many times we've done this.
-    // We have 7 stats we keep track of - once all have been responded to, we can add tool tips.
-    var totalCalls = 7;
-    function personalStatsQueryCB(responseText, name) {
-        var jsonResp = JSON.parse(responseText);
-        totalCalls--;
-
-        if (jsonResp.error) {
-            return handleError(responseText);
+            if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
+                valSpan.innerText = '$' + numberWithCommas(stats[name]);
+            } else {
+                valSpan.innerText = stats[name];
+            }
         }
 
-        var searchName = 'xedx-val-span-' + name;
-        var valSpan = document.getElementById(searchName);
-        var stats = jsonResp.personalstats;
-        if (!validPointer(valSpan)) {
-            console.log('Unable to find proper span: ' + searchName + ' at ' + document.URL);
-            return;
-        }
-
-        // If this fails, may not be in data (never done). Not an error.
-        if (!validPointer(stats[name])) {
-            return "0";
-        }
-
-        if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
-            valSpan.innerText = '$' + numberWithCommas(stats[name]);
-        } else {
-            valSpan.innerText = stats[name];
-        }
-
-        if (!totalCalls) {
-            addToolTips();
-        }
+        addToolTips();
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Function to add tooltips for honor bars/medals (merits)
+    // Functions to add tooltips for honor bars/medals (merits)
     //////////////////////////////////////////////////////////////////////
 
     function addToolTips() {
-        GM_addStyle(".tooltip2 {" +
-                  "radius: 4px !important;" +
-                  "background-color: #ddd !important;" +
-                  "padding: 5px 20px;" +
-                  "border: 2px solid white;" +
-                  "border-radius: 10px;" +
-                  "width: 300px;" +
-                  "margin: 50px;" +
-                  "text-align: left;" +
-                  "font: bold 14px ;" +
-                  "font-stretch: condensed;" +
-                  "text-decoration: none;" +
-                  "}");
+        addToolTipStyle();
 
         var bustsLi = document.getElementById('xedx-busts');
         var bailsLi = document.getElementById('xedx-bails');
@@ -240,7 +115,7 @@
             $(div).tooltip({
                 content: text,
                 classes: {
-                    "ui-tooltip": "tooltip2"
+                    "ui-tooltip": "tooltip3"
                 }
             });
         })
@@ -315,7 +190,6 @@
             ((bustsText > 4000) ? '<font color=green>4K, </font>' : '<font color=red>4K, </font>') +
             ((bustsText > 6000) ? '<font color=green>6K</font>' : '<font color=red>6K</font>') + ' and ' +
             ((bustsText > 8000) ? '<font color=green>8K</font></B>' : '<font color=red>8K</font></B>');
-            // 250, 500, 1K, 2K, 4K, 6K and 8K</B>';
 
         displayToolTip(bustsLi, text + CRLF + text2 + CRLF + text3 + CRLF + text4);
     }
@@ -331,109 +205,7 @@
         }
 
         var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B> ' + pctText;
-
         displayToolTip(bailsLi, text);
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Functions to query the Torn API for travel stats.
-    //////////////////////////////////////////////////////////////////////
-
-    // See if we are travelling. If we are, we need to wait until we
-    // land before turning the observer back on. Otherwise, we will
-    // re-call for personal stats too frequently, as the page changes
-    // all the time while flying.
-    //
-    // There are other places this needs to be done, too....
-    function checkTravelling() {
-        queryTravelStats();
-    }
-
-    function queryTravelStats() {
-        var details = GM_xmlhttpRequest({
-            method:"POST",
-            url:"https://api.torn.com/user/?selections=travel&key=" + api_key,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            },
-            onload: function(response) {
-                realBasicQueryCB(response.responseText, name);
-            },
-            onerror: function(response) {
-                handleError(response.responseText);
-            }
-        });
-    }
-
-    // Callback to parse returned JSON
-    function realBasicQueryCB(responseText, name) {
-        var jsonResp = JSON.parse(responseText);
-
-        if (jsonResp.error) {
-            observer.observe(targetNode, config);
-            return handleError(responseText);
-        }
-
-        console.log('Torn Jail Stats, realBasicQueryCB');
-
-        // Sample responses:
-        /*
-        "travel": {
-		  "destination": "Switzerland",
-		  "timestamp": 1564855026,
-		  "departed": 1564847826,
-		  "time_left": 6185 // Seconds
-	    }
-
-        {
-	    "travel": {
-		  "destination": "Torn",
-		  "timestamp": 1564823178,
-		  "departed": 1564819938,
-		  "time_left": 0
-	    }
-        */
-
-        var stats = jsonResp.travel;
-        console.log('  Destination: ' + stats.destination +
-                    '\n  time_left: ' + stats.time_left + ' seconds.');
-        if (stats.time_left == 0 && stats.destination == 'Torn') {
-            observer.observe(targetNode, config);
-        } else {
-            // If travelling, set timeout to re-connect the observer
-            // when we are scheduled to land.
-            setTimeout(function(){
-                observer.observe(targetNode, config); },
-                       stats.time_left * 1000);
-        }
-
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Very simple error handler; only displayed (and logged) once
-    //////////////////////////////////////////////////////////////////////
-
-    // TBD: Change this to a self-closing message.
-    var errorLogged = false;
-    function handleError(responseText) {
-        if (!errorLogged) {
-            var jsonResp = JSON.parse(responseText);
-            var errorText = 'Torn Jail Stats: An error has occurred querying personal stats information.\n' +
-                '\nCode: ' + jsonResp.error.code +
-                '\nError: ' + jsonResp.error.error;
-
-            if (jsonResp.error.code == 5) {
-                errorText += '\n\n The Torn API only allows so many requests per minute. ' +
-                    'If this limit is exceeded, this error will occur. It will clear itself' +
-                    'up shortly, or you may try refreshing the page.\n';
-            }
-
-            errorText += '\nPress OK to continue.';
-            alert(errorText);
-            console.log(errorText);
-            errorLogged = true;
-        }
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -442,21 +214,16 @@
     // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Torn Jail Stats script started!");
+    logScriptStart()
     validateApiKey();
 
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        // Disconnect the observer to prevent looping before
-        // we start modifying the page.
         observer.disconnect();
-        buildJailStatsDiv();
-
-        // This call either immediately re-connects the observer,
-        // or else sets a timeout to re-connect when we land, if
-        // we are travelling.
-        checkTravelling();
+        // This call either immediately calls the provided callback and re-connects the observer,
+        // or else sets a timeout to re-connect when we land, if we are travelling.
+        checkTravelling(buildJailStatsDiv);
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
