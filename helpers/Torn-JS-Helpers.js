@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.0
+// @version     1.1
 // @license     MIT
 // ==/UserLibrary==
 
@@ -326,7 +326,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
-    console.log(GM_info.script.name + ' Querying ' + selection);
+    console.log(GM_info.script.name + ' Querying ' + section + ':' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -349,6 +349,52 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             handleSysError(response.responseText);
         }
     });
+}
+
+//////////////////////////////////////////////////////////////////////
+// Functions to query the Torn API for travel stats.
+//
+// Use this if the @include or @match is https://www.torn.com/index.php
+// It checks to see if travelling, which refreshes the page constantly,
+// so the 'main' enrty point, if triggered using an observer, will
+// constantly get called. Instead, call this function:
+//
+// checkTravelling(callback); where 'callback' is the actual function
+// you'd normally call.
+//
+// The following vars. must be set and globally accessible:
+// var observer, var targetNode, and var config.
+// Used as follows: observer.observe(targetNode, config);
+//
+// The code either executes the callback immediately, if not
+// travelling, with the observer disconnected, and reconnects after
+// the call.
+//
+// If travelling, the observer is reconnected on landing, and
+// hence this will be called again.
+//////////////////////////////////////////////////////////////////////
+
+function checkTravelling(callback) {
+    xedx_TornUserQuery('', 'travel', xedx_travelCB, callback);
+}
+
+function xedx_travelCB(responseText, ID, callback) {
+    let jsonResp = JSON.parse(responseText);
+    if (jsonResp.error) {return handleError(responseText);}
+
+    let stats = jsonResp.travel;
+    observer.disconnect();
+    if (stats.time_left == 0 && stats.destination == 'Torn') {
+        if (callback != null) {
+            callback(); // Calls whatever work needs to be done, with observer disconnected
+            observer.observe(targetNode, config);
+        }
+    } else {
+        // If travelling, set timeout to re-connect the observer when we are scheduled to land.
+        console.log(GM_info.script.name + ' Destination: "' + stats.destination +
+                '" time_left: ' + stats.time_left + ' seconds.');
+        setTimeout(function(){observer.observe(targetNode, config); }, stats.time_left * 1000);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////
