@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.3
+// @version     1.4
 // @license     MIT
 // ==/UserLibrary==
 
@@ -352,6 +352,10 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
 }
 
 //////////////////////////////////////////////////////////////////////
+// ************************ Travel Related ***************************
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API for travel stats.
 //
 // Use this if the @include or @match is https://www.torn.com/index.php
@@ -400,6 +404,23 @@ function xedx_travelCB(responseText, ID, cbStruct) {
                 '" time_left: ' + stats.time_left + ' seconds.');
         setTimeout(function(){observer.observe(targetNode, config); }, stats.time_left * 1000);
     }
+}
+
+// Return TRUE if on the 'Traveling' screen
+function areTraveling() {
+    let text = $("#skip-to-content").text().trim();
+    let areTravelling = text.indexOf('Travel') > -1; // Accomodate for US or UK spelling (1 or 2 'l's)
+    return areTravelling;
+}
+
+// Return what country we are in
+function currentCountry() {
+    let header = $('body').find('.header.msg.responsive-sidebar-header').get();
+    if (!validPointer(header)) {return '';}
+    let className = $(header).attr('class');
+    let country = className.replace('header msg responsive-sidebar-header', '').trim();
+    if (country = '') {country = 'Torn';}
+    return country;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
