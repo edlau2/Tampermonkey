@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.5
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -251,7 +251,9 @@
     // 'Main'
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-    console.log("Torn HomePage Tooltips script started!");
+    logScriptStart();
+    if (awayFromHome()) {return;}
+
     document.addEventListener('readystatechange', event => {
         if (event.target.readyState === "complete") {
             addCriminalRecordToolTips();
