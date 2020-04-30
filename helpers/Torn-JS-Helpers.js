@@ -1,6 +1,11 @@
 // ==UserScript==
 // @exclude     *
 // @namespace   https://github.com/edlau2
+// @connect     api.torn.com
+// @grant       GM_xmlhttpRequest
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @grant       GM_deleteValue
 
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
@@ -12,7 +17,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     1.7
+// @version     1.8
 // @license     MIT
 // ==/UserLibrary==
 
@@ -459,6 +464,7 @@ function handleError(responseText) {
         if (jsonResp.error.code == 2) {
             errorText += '\n\n It appears that the API key entered or saved for you ' +
                 'is incorrect. Please try refreshing the page, you will be prompted again for your API key.\n';
+            //GM_setValue('gm_api_key', '');
             GM_deleteValue('gm_api_key');
         }
 
