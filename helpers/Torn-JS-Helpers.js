@@ -11,7 +11,8 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.6
+// @grant       GM_deleteValue
+// @version     1.7
 // @license     MIT
 // ==/UserLibrary==
 
@@ -453,6 +454,12 @@ function handleError(responseText) {
             errorText += '\n\n The Torn API only allows so many requests per minute. ' +
                 'If this limit is exceeded, this error will occur. It will clear itself' +
                 'up shortly, or you may try refreshing the page.\n';
+        }
+
+        if (jsonResp.error.code == 2) {
+            errorText += '\n\n It appears that the API key entered or saved for you ' +
+                'is incorrect. Please try refreshing the page, you will be prompted again for your API key.\n';
+            GM_deleteValue('gm_api_key');
         }
 
         errorText += '\nPress OK to continue.';
