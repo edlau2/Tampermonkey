@@ -242,10 +242,7 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
             GM_setValue('gm_max_values', '100');// Default
         }
 
-        let country = currentCountry();
-        let areTravelling = areTravelling();
-        if (areTravelling || country != 'Torn') {return;}
-
+        if (awayFromHome()) {return;}
         extendLatestAttacks();
 
         // If not properly configured, extend the config dialog.
