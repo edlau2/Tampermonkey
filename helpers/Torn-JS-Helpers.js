@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.4
+// @version     1.5
 // @license     MIT
 // ==/UserLibrary==
 
@@ -419,7 +419,7 @@ function currentCountry() {
     if (!validPointer(header)) {return '';}
     let className = $(header).attr('class');
     let country = className.replace('header msg responsive-sidebar-header', '').trim();
-    if (country = '') {country = 'Torn';}
+    if (country == '') {country = 'Torn';}
     return country;
 }
 
