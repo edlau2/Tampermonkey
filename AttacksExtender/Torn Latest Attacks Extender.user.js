@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.5
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
@@ -85,17 +85,16 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
         if (document.getElementById('config-div')) return;
 
         let extendedDiv = document.getElementById('xedx-attacks-ext');
+        if (!validPointer(extendedDiv)) {return;}
         $(extendedDiv).append(latest_attacks_config_div);
 
-        let btn = document.getElementById('cancel-btn');
-        btn.addEventListener('click',function () {
-            cancelConfig();
-        });
+        $('#apikey').val(GM_getValue('gm_api_key'));
+        $('#userid').val(GM_getValue('gm_user_id'));
+        $('#maxinput').val(GM_getValue('gm_max_values'));
+        $('#dateformat').val(GM_getValue('gm_date_format'));
 
-        btn = document.getElementById('save-btn');
-        btn.addEventListener('click',function () {
-            saveConfig();
-        });
+        $('#cancel-btn').click(function () {cancelConfig();});
+        $('#save-btn').click(function () {saveConfig();});
     }
 
     // Handler for 'Config' screen, 'Cancel' button
@@ -124,7 +123,6 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
         config.max_values = GM_getValue('gm_max_values');
         config.date_format = GM_getValue('gm_date_format');
 
-        // Note that this assumes the text was the last element appended!
         var headerDiv = document.getElementById('header_div');
         headerDiv.removeChild(headerDiv.lastChild);
         headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('gm_max_values') + ')'));
@@ -222,13 +220,11 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     function extendLatestAttacks() {
         // Find first column
         let mainDiv = document.getElementById('column1');
+        if (!validPointer(mainDiv)) {return;}
         $(mainDiv).append(latest_attacks_div);
 
         // Hook up button handler(s)
-        let btn = document.getElementById('config-btn');
-        btn.addEventListener('click',function () {
-            createConfigDiv();
-        });
+        $('#config-btn').click(function () {createConfigDiv();});
 
         getLatestAttacksList();
         queryProfileInfo();
@@ -245,6 +241,10 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
             config.max_values = 100;
             GM_setValue('gm_max_values', '100');// Default
         }
+
+        let country = currentCountry();
+        let areTravelling = areTravelling();
+        if (areTravelling || country != 'Torn') {return;}
 
         extendLatestAttacks();
 
