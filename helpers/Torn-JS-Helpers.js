@@ -11,7 +11,7 @@
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
-// @version     1.5
+// @version     1.6
 // @license     MIT
 // ==/UserLibrary==
 
@@ -421,6 +421,19 @@ function currentCountry() {
     let country = className.replace('header msg responsive-sidebar-header', '').trim();
     if (country == '') {country = 'Torn';}
     return country;
+}
+
+// Return TRUE if travelling or not in Torn
+function awayFromHome() {
+    let country = currentCountry();
+    if (country == '') {country = 'Torn';}
+    let travelling = areTraveling();
+    console.log(GM_info.script.name + 'Travelling: ' + travelling + ' Country: ' + country);
+    if (travelling || country != 'Torn') {
+        console.log(GM_info.script.name + 'Not in Torn!');
+        return true;
+    }
+    return false;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
