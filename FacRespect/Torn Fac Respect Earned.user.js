@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      http://code.jquery.com/jquery-3.4.1.min.js
-// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -100,7 +98,8 @@
     // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
-    console.log(GM_info.script.name + ' script started!');
+    logScriptStart();
+    if (awayFromHome()) {return;}
     validateApiKey();
 
     var jsonResp = null; // Global for returned stats
