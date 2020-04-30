@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -65,6 +65,7 @@
 
     window.onload = function () {
         console.log(GM_info.script.name + ' onLoad');
+        if (awayFromHome()) {return;}
         let extDivId = 'xedx-drugstats-ext-div';
         let mainDiv = document.getElementById('column0');
         if (!validPointer(mainDiv)) {return;}
@@ -76,6 +77,8 @@
     //////////////////////////////////////////////////////////////////////
     // Function(s) to add appropriate tool tip(s).
     //////////////////////////////////////////////////////////////////////
+
+    // TBD: these are visible off-screen! Well, on the bottom, on screen!!!!
 
     function addToolTips() {
         addToolTipStyle();
@@ -91,42 +94,6 @@
         buildUseString('xantaken');
         buildUseString('victaken');
     }
-
-/*
-.mod-text {
-  color: #FFF;
-  font-size: 1em;
-  text-align: center;
-  bottom: 0;
-}
-.mod-background {
-  background-color: #f58322;
-  border-radius: 8px;
-  filter: alpha(opacity=60);
-  opacity: 0.60;
-  top: 0;
-  height: 100%;
-}
-
-GM_addStyle(".tooltip3 {" +
-              "radius: 4px !important;" +
-              //"background-color: #ddd !important;" +
-              "background-color: #f58322 !important;" +
-              "filter: alpha(opacity=60);" +
-              "opacity: 0.60;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid white;" +
-              "border-radius: 10px;" +
-              "width: 300px;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "color: #FFF;" +
-              "font-size: 1em;" +
-              "}");
-*/
 
     function displayToolTip(div, text) {
         $(document).ready(function() {
