@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
@@ -71,6 +71,8 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
 
     function populateUserConfig(responseText, ID, param) {
         let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+
         config.user_id = jsonResp.player_id;
         config.user_name = jsonResp.name;
         GM_setValue('gm_user_id', config.user_id);
