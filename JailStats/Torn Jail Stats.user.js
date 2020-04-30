@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -214,7 +214,8 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
-    logScriptStart()
+    logScriptStart();
+    if (awayFromHome()) {return;}
     validateApiKey();
 
     var targetNode = document.getElementById('mainContainer');
