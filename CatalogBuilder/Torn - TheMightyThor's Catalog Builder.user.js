@@ -1,134 +1,283 @@
 // ==UserScript==
-// @exclude     *
-// @namespace   https://github.com/edlau2
-
-// ==UserLibrary==
-// @name        Torn-JS-Helpers
-// @description Commonly used functions in my Torn scripts.
-// @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @connect     api.torn.com
-// @grant       GM_xmlhttpRequest
-// @grant       GM_getValue
-// @grant       GM_setValue
-// @version     1.0
-// @license     MIT
-// ==/UserLibrary==
-
+// @name         Torn - TheMightyThor's Catalog Builder
+// @namespace    http://tampermonkey.net/
+// @version      0.7
+// @description  Selects items in you invetory and docuemnts in an associated spreadsheet
+// @author       xedx [2100735]
+// @include      https://www.torn.com/bazaar.php*
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @connect      api.torn.com
+// @connect      script.google.com
+// @connect      script.googleusercontent.com
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
 // ==/UserScript==
 
-///////////////////////////////////////////////////////////////////////////////////
-// Validate an API key and prompt if misssing
-///////////////////////////////////////////////////////////////////////////////////
+// This is just easier to read this way, instead of one line.
+// Could also have be @required from a separate .js....
+const xedx_main_div =
+  '<div class="t-blue-cont h" id="xedx-main-div">' +
+      '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
+          'TheMightyThor`s Inventory Builder</div>' +
+      '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto">' +
+          '<div style="text-align: center; vertical-align: middle;">' +
+              '<span id="button-span">' +
+                  '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
+                  '<button id="xedx-view-btn" class="enabled-btn">View All</button>' +
+                  '<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
+              '</span>' +
+          '</div><div style="text-align: center; vertical-align: middle;>' +
+              '<span id="input-span">Google Sheets URL: ' +
+                  '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
+                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 450px;">' +
+                  '<button id="xedx-save-btn" class="enabled-btn">Save</button>' +
+              '</span>' +
+          '</div>' +
+      '</div>' +
+  '</div>';
 
-var api_key = GM_getValue('gm_api_key');
-function validateApiKey() {
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
-    }
-}
+const enabledBtnStyle = '.enabled-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: LightGrey;' +
+      'border: 1px solid black;' +
+      '}';
 
-///////////////////////////////////////////////////////////////////////////////////
-// Miscellaneous utilities
-///////////////////////////////////////////////////////////////////////////////////
-
-// Just spit out the name of the script at startup
-function logScriptStart() {
-    console.log(GM_info.script.name + ' script started!');
-}
-
-// Get rid of this - returns hosting script version, not this library's version
-function getHelperVersion() {
-    //return GM_info.script.version;
-    return '0.2';
-}
-
-// Date formatting 'constants'
-const date_formats = ["YYYY-MM-DD",
-                      "YYYY-MONTH-DD DDD",
-                      "YYYY-MM-DD HH:MM:SS",
-                      "DAY MONTH DD YYYY HH:MM:SS",
-                      "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)"];
-
-const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-const days = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
-
-// HTML constants
-const CRLF = '<br/>';
-const TAB = '&emsp;';
-const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
+const blueBtnStyle = '.blue-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: dodgerblue;' +
+      'border: 1px solid black;' +
+      '}';
 
 
-// Convert a date object into a readable format
-function dateConverter(dateobj, format){
-    var year = dateobj.getFullYear();
-    var month= ("0" + (dateobj.getMonth()+1)).slice(-2);
-    var date = ("0" + dateobj.getDate()).slice(-2);
-    var hours = ("0" + dateobj.getHours()).slice(-2);
-    var minutes = ("0" + dateobj.getMinutes()).slice(-2);
-    var seconds = ("0" + dateobj.getSeconds()).slice(-2);
-    var day = dateobj.getDay();
-    var converted_date = dateobj.toString();
+const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
+      'height: 24px;' +
+      'text-align: center;' +
+      'border-radius: 5px;' +
+      'margin: 15px 40px;' +
+      'background: white;' +
+      'border: 1px solid black;' +
+      '}';
 
-    switch(format){
-        case "YYYY-MM-DD":
-            converted_date = year + "-" + month + "-" + date;
-            break;
-        case "YYYY-MONTH-DD DDD":
-            converted_date = year + "-" + months[parseInt(month)-1] + "-" + date + " " + days[parseInt(day)];
-            break;
-        case "YYYY-MM-DD HH:MM:SS":
-            converted_date = year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds;
-            break;
-        case "DAY MONTH DD YYYY HH:MM:SS":
-            converted_date = days[parseInt(day)] + " " + months[parseInt(month)-1] + " " + date + " " + year + " " +
-                hours + ":" + minutes + ":" + seconds;
-            break;
-        case "FULL (DAY MONTH DD YYYY HH:MM:SS TZ)":
-            converted_date = dateobj.toString();
-            break;
-    }
+const strSuccess = 'Success';
 
-    return converted_date;
-}
+(function() {
+    'use strict';
 
-// Check if a var is numeric
-function isaNumber(x)
-{
-    var regex=/^[0-9]+$/;
-    if (x.match(regex)) {
-        return true;
-    }
-    return false;
-}
+    var detectedItemsArray = [];
+    var detectedItemsHashTable = [];
+    var google_sheets_key = "";
+    var profileId = "";
+    var spreadsheetURL = '';
+        //'https://script.google.com/macros/s/AKfycbyT0L4R0ewjEs0-1CeqUWeBUR---jhbcy-NaFZQinayEDZBLDI/exec';
 
-// Add commas at thousand place - works with decimal numbers
-function numberWithCommas(x) {
-    var parts = x.toString().split(".");
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return parts.join(".");
-}
+    /////////////////////////////////////////////////////////////////
+    // Look for an item that has been expanded, and grab it's info
+    /////////////////////////////////////////////////////////////////
 
-// Check to see if a pointer is valid
-function validPointer(val, dbg = false) {
-    if (val == 'undefined' || typeof val == 'undefined' || val == null) {
-        if (dbg) {
-            debugger;
+    function trapItemDetails() {
+        if (doingBazaarMaintainance()) {
+            if ($('#xedx-main-div').length > 0) {
+                $(targetNode).unbind('DOMNodeInserted');
+                $('#xedx-main-div').remove();
+            }
+            return;
         }
+        buildUI(); // If needed...
+
+        let parentDiv = $('div.ReactVirtualized__Grid').get();
+        if (!validPointer(parentDiv) || !parentDiv.length) {return;}
+
+        let owlItem = $(parentDiv).find('div.info___3-0WL').get();
+        if (!owlItem.length || !validPointer(owlItem)) {return;}
+
+        let clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
+        if (!validPointer(clearfix)) {return;}
+
+        let pricingUl = $(clearfix).find('ul.info-cont')[0];
+        if (!validPointer(pricingUl)) {return;}
+
+        let statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
+        if (!validPointer(statsUl)) {return;}
+
+        let newItem = getNewItem();
+
+        // We give a unique ID to a root node that persists (I hope)
+        // to prevent doing this more than once. We also hash the
+        // resulting object to prevent array insertion more than once
+        // in case this fails for whatever reason. The hash value is
+        // saved in a separate array.
+        if (isItemTagged(pricingUl, newItem)) {return;}
+
+        console.log('mutation observed ==> trapItemDetails');
+
+        getNameTypeItemInfo(owlItem, newItem);
+        getPricingInfo(pricingUl, newItem);
+        getStatInfo(statsUl, newItem);
+
+        // Generate a unique hash value for this, so as not to add twice.
+        // Should never get here if already added.
+        // The hash can't be part of the data, for obvious reasons - at
+        // least not when calculating the hash. But we can add it to be saved
+        // into the spreadsheet, to prevent inserting duplicates, if you go to the
+        // same place twice by mistake.
+        let jsonData = JSON.stringify(newItem);
+        let hash = jsonData.hashCode();
+
+        console.log('Hashcode for the ' + newItem.name + ': ' + hash);
+        if (!detectedItemsHashTable.includes(hash)) {
+            detectedItemsHashTable.push(hash);
+
+            // We add the hash value to the item immediately before pushing onto our array.
+            // This allows it to be recorded by the Google Sheets script, to prevent
+            // duplicates from being inserted into the sheet.
+            newItem.hash = hash.toString();
+            detectedItemsArray.push(newItem);
+            console.log('Pushed a "' + newItem.name + '" onto array');
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Function to add an ID to items we've visited. This prevents us
+    // from doing the same work twice. Doesn't work quite as expected.
+    // Prevents some multiple calls, but the div or ID is not
+    // persisted if the item selected changes.
+    /////////////////////////////////////////////////////////////////
+
+    function isItemTagged(element, newItem) {
+        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+
+        // Don't need *both* of these, do we?
+        let itemActiveParent = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2 > div.itemDescription___3bOmj')[0];
+        if (!validPointer(itemActive)) {
+            return false;
+        }
+        let id = itemActive.id;
+        if (id == "" || !validPointer(id)) {
+            itemActive.id = 'xedx-' + Math.random();
+        } else {
+            return true;
+        }
+
+        /* Not working, not persistent.
+        let testTag = $(itemActive).find('div.xedx');
+        if (testTag.length) {
+            console.log('Found "xedx" div.');
+            return true;
+        } else {
+            $(itemActive).append('<div class="xedx"></div>');
+            console.log('Added "xedx" div');
+        }
+        */
+
         return false;
     }
-    return true;
-}
 
-//////////////////////////////////////////////////////////////////
-// Function to create a hash for a string. Returns a positive
-// 32 bit int.
-//////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////
+    // Functions to pick apart various nodes to get info we want
+    /////////////////////////////////////////////////////////////////
 
-String.prototype.hashCode = function(){
+    function getNewItem() {
+        return {name: 'TBD',       // <== getNameTypeItemInfo
+                type: 'TBD',       // <== getNameTypeItemInfo
+                dmg: 'TBD',        // <== getStatInfo
+                acc: 'TBD',        // <== getStatInfo
+                quality: 'TBD',    // <== getStatInfo
+                buy: 'TBD',        // <== getPricingInfo
+                sell: 'TBD',       // <== getPricingInfo
+                value: 'TBD',      // <== getPricingInfo
+                circ: 'TBD',       // <== getPricingInfo
+                asking: 'TBD',     // <== getPricingInfo
+                id: profileId,     // <== buildUi
+                hash: 0,
+                };
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill damage, accuracy and quality item info data members
+    /////////////////////////////////////////////////////////////////
+
+    function getStatInfo(element, newItem) {
+        let liList = element.getElementsByTagName('li');
+        let dmgLi = liList[0], accLi = liList[1]; //, qLi = liList[6];
+
+        newItem.dmg = $(dmgLi).find('div.desc').get()[0].innerText.trim();
+        newItem.acc = $(accLi).find('div.desc').get()[0].innerText.trim();
+
+        // Quality LI position varies. All these can be found by class='title'
+        // 'Damage:', 'Accuracy:', 'Quality:', etc. Find qLi that way.
+        // Should prob do the same for *all* the stuff we're looking for.
+        for (let i=0; i < liList.length; i++) {
+            let titleDiv = $(liList[i]).find('div.title').get()[0];
+            if (validPointer(titleDiv)) {
+                if (titleDiv.innerText.trim() == 'Quality:') {
+                    let desc = $(liList[i]).find('div.desc').get()[0];
+                    if (validPointer(desc)) {newItem.quality = desc.innerText.trim();}
+                }
+            } else {
+                //debugger;
+            }
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill buy, sell, value, asking price and circulation item data members
+    /////////////////////////////////////////////////////////////////
+
+    function getPricingInfo(element, newItem) {
+        let liList = element.getElementsByTagName('li');
+        let buyLi = liList[0], sellLi = liList[1], valueLi = liList[2], circLi = liList[3];
+
+        newItem.buy = $(buyLi).find('div.desc').get()[0].innerText;
+        newItem.sell = $(sellLi).find('div.desc').get()[0].innerText;
+        newItem.value = $(valueLi).find('div.desc').get()[0].innerText;
+        newItem.circ = $(circLi).find('div.desc').get()[0].innerText;
+
+        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+        newItem.asking = $(itemActive).find('p.price___8AdTw').get()[0].innerText;
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Fill name and type item data members.
+    /////////////////////////////////////////////////////////////////
+
+    function getNameTypeItemInfo(element, newItem) {
+        let itemWrap = $(element).find('div.clearfix.info-wrap > div.item-cont > div.item-wrap').get()[0];
+        let spanWrap = $(itemWrap).find('span.info-msg > div.m-bottom10 > span.bold').get()[0];
+        let name = $(spanWrap).text();
+        if (name.indexOf('The') == 0) {name = name.slice(4);}
+
+        let infoMsg = $(itemWrap).find('span.info-msg > div.m-bottom10').get()[0];
+        let type = $(infoMsg).text();
+
+        // May be 'are a' or 'is a', search both
+        let at = type.indexOf('are a ');
+        if (at == -1) {at = type.indexOf('is a ');}
+        let end = type.indexOf('Weapon.');
+        if (end == -1) {end = type.indexOf('.');}
+        if (end < 0) {end = 0;}
+        if (at >= 0) {type = type.slice(at+6, end-1);}
+
+        newItem.name = name;
+        newItem.type = type;
+    }
+
+    //////////////////////////////////////////////////////////////////
+    // Function to create a hash for a string. Returns a positive
+    // 32 bit int.
+    //////////////////////////////////////////////////////////////////
+
+    String.prototype.hashCode = function(){
     var hash = 0;
     for (var i = 0; i < this.length; i++) {
         var character = this.charCodeAt(i);
@@ -138,373 +287,306 @@ String.prototype.hashCode = function(){
     return Math.abs(hash);
 }
 
-//
-// Wildcard version of getElementsByClassName()
-// Note: easier to use $(selector).find(...); instead.
-//
-// Only used by 'Torn Racing - Car Order' and 'Torn Gym Gains'
-function myGetElementsByClassName2(anode, className) {
-    var elems = anode.getElementsByTagName("*");
-    var matches = [];
-    for (var i=0, m=elems.length; i<m; i++) {
-        if (validPointer(elems[i].className) && elems[i].className.indexOf(className) != -1) {
-            matches.push(elems[i]);
+    /////////////////////////////////////////////////////////////////
+    // Initializing the UI - display, install handlers, etc.
+    /////////////////////////////////////////////////////////////////
+
+    function buildUI() {
+
+        GM_addStyle(enabledBtnStyle);
+        GM_addStyle(disabledBtnStyle);
+        GM_addStyle(blueBtnStyle);
+
+        let parentDiv = document.getElementsByClassName('searchBar___F1E8s')[0]; // Search/sort options
+        let nextDiv = document.getElementsByClassName('segment___38fN3')[0];     // Items grid
+        if (!validPointer(parentDiv)) {return;}                                  // Wait until enough is loaded
+        if (!validPointer(nextDiv)) {return;}                                    // ...
+        if (validPointer(document.getElementById('xedx-main-div'))) {return;}    // Do only once
+
+        $(xedx_main_div).insertAfter(parentDiv);
+        $(separator).insertAfter(parentDiv);
+
+        $(targetNode).unbind('DOMNodeInserted');
+
+        let urlInput = document.getElementById('xedx-google-key');
+        let value = GM_getValue('xedx-google-key');
+        if (typeof value != 'undefined' && value != null && value != '') {
+            urlInput.value = value;
+        }
+
+        installHandlers(); // Hook up buttons
+
+        //disableButtons(); // Temporary - testing enable/disable
+        //enableButtons();
+
+        // Save the user ID of this bazaar
+        profileId = useridFromProfileURL(window.location.href);
+
+        return strSuccess; // Return value is currently unused
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // enable/Disable all buttons - or set to blue.
+    /////////////////////////////////////////////////////////////////
+
+    function enableButtons(id=null) {disableEnableButtons(false, id);}
+    function disableButtons(id=null) {disableEnableButtons(true, id);}
+
+    /////////////////////////////////////////////////////////////////
+    // Diable/Enable one or all buttons - true to disable, false to enable
+    /////////////////////////////////////////////////////////////////
+
+    function disableEnableButtons(value, id) {
+        if (id == null) {
+            let span = document.getElementById('button-span');
+            let btns = span.getElementsByTagName('button');
+            for (let i=0; i<btns.length; i++) {
+                btns[i].disabled = value;
+                if (value) {btns[i].className = 'blue-btn';}
+                else {btns[i].className = 'enabled-btn';}
+            }
+        } else {
+            // blueBtnStyle
+            let btn = document.getElementById(id);
+            btn.disabled = value;
+            if (value) {btn.className = 'blue-btn';}
+                else {btn.className = 'enabled-btn';}
         }
     }
 
-    return matches;
-}
+    /////////////////////////////////////////////////////////////////
+    // Install button handlers
+    /////////////////////////////////////////////////////////////////
 
-// Backwards compatibility:
-function myGetElementsByClassName(anode, className) {
-    return myGetElementsByClassName2(anode, className);
-}
+    function installHandlers() {
+        let myButton = document.getElementById('xedx-submit-btn');
+        myButton.addEventListener('click',function () {
+            submitFunction();
+        });
 
-// The URL expected is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
-// More accurately, "XID=" must be present :-)
-// We need the XID; the trailing '#' may not be present.
-function xidFromProfileURL(URL) {
-    var n = URL.indexOf('XID='); // Find the 'XID=' token
-    if (n == -1) {return null;}
-    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
-    var ID = 0;
-    if (n2 != -1) {
-        ID = URL.slice(n+4, n2); // Extract just the ID from the URL, between the '=' and '#'
-    } else {
-        ID = URL.slice(n+4);
-    }
-    return ID;
-}
+        myButton = document.getElementById('xedx-view-btn');
+        myButton.addEventListener('click',function () {
+            viewFunction();
+        });
 
-// Another version of above, except search for 'userid='
-// Should combine these...
-function useridFromProfileURL(URL) {
-    var n = URL.indexOf('userId='); // Find the 'userId=' token
-    if (n == -1) {return null;}
-    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
-    var ID = 0;
-    if (n2 != -1) {
-        ID = URL.slice(n+7, n2); // Extract just the ID from the URL, between the '=' and '#'
-    } else {
-        ID = URL.slice(n+7);
-    }
-    return ID;
-}
+        myButton = document.getElementById('xedx-clear-btn');
+        myButton.addEventListener('click',function () {
+            clearInventoryData();
+        });
 
-// Return the numeric equivalent of the full rank returned by the 'profie' selection
-// Torn 'user' API query.
-function numericRankFromFullRank(fullRank) {
-    let parts = fullRank.split(' ');
-    let rank = parts[0];
-    if (parts.length >= 3 &&
-        (rank == 'Absolute' || rank == 'Below' || rank == 'Above' || rank == 'Highly')) {
-        rank = rank + ' ' + parts[1];
+        myButton = document.getElementById('xedx-save-btn');
+        myButton.addEventListener('click',function () {
+            saveSheetsUrl();
+        });
     }
 
-    // Lookup name in our table (array) to convert to number
-    let numeric_rank = 0;
-    for (let i = 0; i < ranks.length; i++) {
-        if (rank == ranks[i]) {
-            numeric_rank = i+1;
-            break;
+    /////////////////////////////////////////////////////////////////
+    // Send to our content service provider
+    //
+    // This POSTS to the entered Google Sheets Content Service provider.
+    // Response TBD...
+    /////////////////////////////////////////////////////////////////
+
+    function readyState(state) {
+        switch (state) {
+            case 0: return 'UNSENT'; // UNSENT	Client has been created. open() not called yet.
+            case 1: return 'OPENED'; // open() has been called.
+            case 2: return 'HEADERS_RECEIVED'; // send() has been called, and headers and status are available.
+            case 3: return 'LOADING'; // Downloading; responseText holds partial data.
+            case 4: return 'DONE';
         }
+        return 'Unknown';
     }
 
-    return numeric_rank;
-}
+    function submitFunction() {
+        if (detectedItemsArray.length == 0) {
+            alert('No data to upload!');
+            return;
+        }
 
-// Add the style I use for tool-tips
-function addToolTipStyle() {
-    GM_addStyle(".tooltip2 {" +
-              "radius: 4px !important;" +
-              "background-color: #ddd !important;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid white;" +
-              "border-radius: 10px;" +
-              "width: 300px;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "}");
+        //alert('Please wait while data is uploaded...');
+        let url = document.getElementById('xedx-google-key').value;
+        if (url == '') {
+            url = GM_getValue('xedx-google-key');
+            if (url == '' || typeof url == 'undefined') {
+                alert('You must enter the Google Sheets URL!');
+                return;
+            }
+        }
+        saveSheetsUrl(url);
 
-    GM_addStyle(".tooltip3 {" +
-              "radius: 4px !important;" +
-              "background-color: #000000 !important;" +
-              "filter: alpha(opacity=80);" +
-              "opacity: 0.80;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid gray;" +
-              "border-radius: 10px;" +
-              "width: 300px;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "color: #FFF;" +
-              "font-size: 1em;" +
-              "}");
-}
-
-// Adds a tool tip to a DIV
-function displayToolTip(div, text) {
-    $(document).ready(function() {
-        $(div.parentNode).attr("title", "original");
-        $(div.parentNode).tooltip({
-            content: text,
-            classes: {
-                "ui-tooltip": "tooltip3"
+        let data = JSON.stringify(detectedItemsArray);
+        console.log(GM_info.script.name + ' Posting data to ' + url);
+        disableButtons('xedx-submit-btn');
+        let details = GM_xmlhttpRequest({
+            method:"POST",
+            url:url,
+            data:data,
+            //data:detectedItemsArray[0],
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                console.log(GM_info.script.name + ': submitFunctionCB: ' + response.responseText);
+                submitFunctionCB(response.responseText);
+            },
+            onerror: function(response) {
+                enableButtons('xedx-submit-btn');
+                console.log(GM_info.script.name + ': onerror');
+                handleScriptError(response);
+            },
+            onabort: function(response) {
+                enableButtons('xedx-submit-btn');
+                console.log(GM_info.script.name + ': onabort');
+                handleSysError(response);
+            },
+            ontimeout: function(response) {
+                enableButtons('xedx-submit-btn');
+                console.log(GM_info.script.name +': ontimeout');
+                handleScriptError(response);
             }
         });
-    })
-}
+    }
 
-//////////////////////////////////////////////////////////////////////
-// Map textual rank names to numeric, via array index
-//////////////////////////////////////////////////////////////////////
-
-var ranks = ['Absolute beginner',
-             'Beginner',
-             'Inexperienced',
-             'Rookie',
-             'Novice',
-             'Below average',
-             'Average',
-             'Reasonable',
-             'Above average',
-             'Competent',
-             'Highly competent',
-             'Veteran',
-             'Distinguished',
-             'Highly distinguished',
-             'Professional',
-             'Star',
-             'Master',
-             'Outstanding',
-             'Celebrity',
-             'Supreme',
-             'Idolized',
-             'Champion',
-             'Heroic',
-             'Legendary',
-             'Elite',
-             'Invincible'];
-
-/////////////////////////////////////////////////////////////////////////////////
-// Functions to query the Torn API
-/////////////////////////////////////////////////////////////////////////////////
-
-//
-// Callback should have the following signature: callback(responseText, ID, (optional)param)
-//
-function xedx_TornUserQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('user', ID, selection, callback, param);
-}
-
-function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('property', ID, selection, callback, param);
-}
-
-function xedx_TornFactionQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('faction', ID, selection, callback, param);
-}
-
-function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('company', ID, selection, callback, param);
-}
-
-function xedx_TornMarketQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('market', ID, selection, callback, param);
-}
-
-function xedx_TornTornQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('torn', ID, selection, callback, param);
-}
-
-function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
-    if (ID == null) ID = '';
-    let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
-    console.log(GM_info.script.name + ' Querying ' + selection);
-    let details = GM_xmlhttpRequest({
-        method:"POST",
-        url:url,
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json'
-        },
-        onload: function(response) {
-            callback(response.responseText, ID, param);
-        },
-        onerror: function(response) {
-            handleSysError(response);
-        },
-        onabort: function(response) {
-            console.log(GM_info.script.name + ': onabort');
-            handleSysError(response.responseText);
-        },
-        ontimeout: function(response) {
-            console.log(GM_info.script.name +': ontimeout');
-            handleSysError(response.responseText);
-        }
-    });
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-// Very simple error handler; only displayed (and logged) once <== this is a lie.
-/////////////////////////////////////////////////////////////////////////////////
-
-// TBD: Change this to a self-closing message.
-var errorLogged = false;
-function handleError(responseText) {
-    if (!errorLogged) {
-        let jsonResp = JSON.parse(responseText);
-        let errorText = GM_info.script.name + ': An error has occurred querying TornStats.\n' +
-            '\nCode: ' + jsonResp.error.code +
-            '\nError: ' + jsonResp.error.error;
-
-        if (jsonResp.error.code == 5) {
-            errorText += '\n\n The Torn API only allows so many requests per minute. ' +
-                'If this limit is exceeded, this error will occur. It will clear itself' +
-                'up shortly, or you may try refreshing the page.\n';
+    // Callback for above...
+    function submitFunctionCB(responseText) {
+        enableButtons('xedx-submit-btn');
+        if (responseText.indexOf('<!DOCTYPE html>') != -1) {
+            var newWindow = window.open();
+            newWindow.document.body.innerHTML = responseText;
+            return;
         }
 
-        errorText += '\nPress OK to continue.';
-        alert(errorText);
-        console.log(errorText);
-        errorLogged = true;
-    }
-}
+        let jsonResp = JSON.parse(responseText); // Only needed is response is expected as stringified JSON
+        if (jsonResp.error) {return handleError(responseText);}
 
-function handleSysError(response) {
-    let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
-        response.error;
-
-    errorText += '\n\nPress OK to continue.';
-    alert(errorText);
-    console.log(errorText);
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-// UI helpers. These are all being deprecated in favor of importing fully formed
-// HTML via a @require, see 'Torn Drug Stats' or 'Torn Gym Gains' as examples.
-///////////////////////////////////////////////////////////////////////////////////
-
-function createExtendedDiv(extDivId) {
-    var extendedDiv = document.createElement('div');
-    extendedDiv.className = 'sortable-box t-blue-cont h';
-    extendedDiv.id = extDivId;
-    return extendedDiv;
-}
-
-function createBodyDiv(id=null) {
-    var bodyDiv = document.createElement('div');
-    bodyDiv.className = 'bottom-round';
-    if (id) {bodyDiv.id = id;}
-    return bodyDiv;
-}
-
-function extendedDivExists(extDivId) {
-    var testDiv = document.getElementById(extDivId);
-    if (validPointer(testDiv)) {
-        return true;
-    }
-    return false;
-}
-
-function createHeaderDiv() {
-    var headerDiv = document.createElement('div');
-    headerDiv.id = 'xedx-header_div';
-    headerDiv.className = 'title main-title title-black active top-round';
-    headerDiv.setAttribute('role', 'heading');
-    headerDiv.setAttribute('aria-level', '5');
-
-    var arrowDiv = createArrowDiv();
-    var moveDiv = createMoveDiv();
-    headerDiv.appendChild(arrowDiv);
-    headerDiv.appendChild(moveDiv);
-    return headerDiv;
-}
-
-function createDividerSpan(item, name) {
-    var dividerSpan = document.createElement('span');
-    dividerSpan.className = ('divider');
-    dividerSpan.id = 'xedx-div-span-' + item;
-    var nameSpan = document.createElement('span');
-    nameSpan.innerText = name;
-    dividerSpan.appendChild(nameSpan);
-    return dividerSpan;
-}
-
-function createArrowDiv() {
-    var arrowDiv = document.createElement('div');
-    arrowDiv.className = 'arrow-wrap';
-    var a = document.createElement('i');
-    a.className = 'accordion-header-arrow right';
-    arrowDiv.appendChild(a);
-    return arrowDiv;
-}
-
-function createHeaderDivEx(title=null, hdrId=null, bodyDiv=null, hidden=false) {
-    var headerDiv = document.createElement('div');
-    headerDiv.className = 'title main-title title-black border-round';
-    headerDiv.setAttribute('role', 'table');
-    headerDiv.setAttribute('aria-level', '5');
-    if (hdrId) {headerDiv.id = hdrId;}
-    if (bodyDiv && hdrId) {
-        if (validPointer(bodyDiv)) {
-            if (hidden) {bodyDiv.style.display = "none";}
-            else {bodyDiv.style.display = "block";}
-        }
-        let arrowDiv = createArrowDivEx(bodyDiv.id, hdrId);
-        headerDiv.appendChild(arrowDiv);
-    }
-    if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
-    return headerDiv;
-}
-
-function createArrowDivEx(bodyId, hdrId) {
-    var arrowDiv = document.createElement('div');
-    arrowDiv.className = 'arrow-wrap sortable-list';
-    var a = document.createElement('a');
-    a.setAttribute('role', 'button');
-    a.setAttribute('href', '#/');
-    a.className = 'accordion-header-arrow right';
-    arrowDiv.appendChild(a);
-    arrowDiv.addEventListener("click", function() {
-        var bodyDiv = document.getElementById(bodyId);
-        var headerDiv = document.getElementById(hdrId);
-        if (bodyDiv.style.display === "block") {
-            bodyDiv.style.display = "none";
-            headerDiv.className = 'title main-title title-black border-round';
+        let result = jsonResp.result;
+        let output = '';
+        if (result.indexOf('Success') != -1) {
+            clearInventoryData(true);
+            let start = result.indexOf('Processed');
+            let end = result.indexOf('.') + 1;
+            let msg1 = result.slice(start, end);
+            let start2 = result.indexOf('Found');
+            let msg2 = result.slice(start2);
+            output = 'Success!\n\n' + msg1 + '\n' + msg2;
         } else {
-            bodyDiv.style.display = "block";
-            headerDiv.className = 'title main-title title-black top-round active';
+            output = 'An error has occurred!\nDetails:\n\n' + responseText;
         }
-    });
 
-    return arrowDiv;
-}
+        alert(output);
+    }
 
-function createMoveDiv() {
-    var moveDiv = document.createElement('div');
-    moveDiv.className = 'move-wrap';
-    var b = document.createElement('i');
-    b.className = 'accordion-header-move right';
-    moveDiv.appendChild(b);
-    return moveDiv;
-}
+    function handleScriptError(response) {
+        let errorText = GM_info.script.name + ': An error has occurred submitting data:\n\n' +
+            response.error;
 
-function createSeparator() {
-    var sepHr = document.createElement('hr');
-    sepHr.className = 'delimiter-999 m-top10 m-bottom10';
-    return sepHr;
-}
+        console.log(errorText);
+        alert(errorText + '\n\nPress OK to continue.');
+    }
 
-function createSmallSeparator() {
-    var sepHr = document.createElement('hr');
-    sepHr.className = 'delimiter-999';
-    sepHr.setAttribute('style', 'margin-top: 5px; margin-bottom: 5px;');
-    return sepHr;
-}
+    /////////////////////////////////////////////////////////////////
+    // Preview what will be sent (mostly for debugging purposes)
+    /////////////////////////////////////////////////////////////////
+
+    function viewFunction() {
+        let text = 'Inventory to be uploaded (total ' + detectedItemsArray.length + ' items):';
+        for (let i=0; i<detectedItemsArray.length; i++) {
+            let item = detectedItemsArray[i];
+            let hash = JSON.stringify(item).hashCode();
+            text = text + '\n\nName: ' + item.name + ' (' + item.type + ')\n\t' +
+                'Damage: ' + item.dmg +' Accuracy: ' + item.acc +' Quality: ' + item.quality + '\n\t' +
+                'Buy: ' + item.buy + ' Sell: ' + item.sell + ' Value: ' + item.value + '\n\t' +
+                'Asking Price: ' + item.asking + ' Profile ID: ' + item.id + '\n\t' +
+                'Hashcode (debugging): ' + hash;
+        }
+        alert(text);
+    }
+
+    /////////////////////////////////////////////////////////////////
+    // Clear saved data - erase the array. Could do inline.
+    /////////////////////////////////////////////////////////////////
+
+    function clearInventoryData(silent=false) {
+        detectedItemsArray = [];
+        if (!silent) {
+            alert('All data cleared. Select "view" to verify (if you don`t believe me!).');
+        }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    // Save the URL to our Google Sheets script (content service provider).
+    // Could do inline.
+    /////////////////////////////////////////////////////////////////////////
+
+    function saveSheetsUrl(useUrl=null) {
+        let url = useUrl;
+        if (url == null) {
+            url = document.getElementById('xedx-google-key').value;
+        }
+        if (url == '' || url == null) {
+            alert('You must enter the Google Sheets URL!');
+            return;
+        }
+        spreadsheetURL = url;
+        GM_setValue('xedx-google-key', url);
+    }
+
+    // Return 'true' if on our own bazaar page...
+    function doingBazaarMaintainance() {
+        let loc = window.location.href;
+        //console.log('Checking URL: ' + loc);
+        if (loc.indexOf('add') > 0 || loc.indexOf('manage') > 0 || loc.indexOf('personalize') > 0) {
+            console.log('Nothing to see here, just doing maintainace on my own Bazaar...');
+            return true;
+        }
+        return false;
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Main entry point. Start an observer so that we trigger when we
+    // actually get to the page(s) - technically, when the page(s) change.
+    // As they do on load. Seems more reliable than onLoad().
+    //////////////////////////////////////////////////////////////////////
+
+    logScriptStart();
+
+    var targetNode = document.getElementById('bazaarroot');
+    var config = { attributes: false, childList: true, subtree: true };
+    var callback = function(mutationsList, observer) {
+        observer.disconnect();
+        //console.log('mutation observed ==> trapItemDetails');
+        trapItemDetails();
+        observer.observe(targetNode, config);
+    };
+    var observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
+
+    window.onload = function () {
+        console.log('onLoad ==> buildUI');
+        buildUI();
+
+        // Will be unbound once UI is in place.
+        $(targetNode).bind('DOMNodeInserted', function(e) {
+            console.log(e.type + ' ==> trapItemDetails');
+            trapItemDetails();
+        });
+    };
+
+    // If there is anything saved and not yet uploaded, prompt the user.
+    let goingAwayText = 'You have items yet to be uploaded. If you leave, you will lose any unsaved changes.';
+    window.addEventListener('beforeunload', (event) => {
+        if (detectedItemsArray.length) {
+            // Cancel the event as stated by the standard.
+            event.preventDefault();
+            // Chrome requires returnValue to be set.
+            event.returnValue = goingAwayText;
+        }
+        });
+
+})();
+
+
+
+
