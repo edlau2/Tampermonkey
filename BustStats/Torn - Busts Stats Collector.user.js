@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -229,7 +229,7 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
 
     // Callback for above...
     function submitFunctionCB(responseText) {
-        if (responseText.indexOf('<!DOCTYPE html>') != -1) {
+        if (responseText.indexOf('<!DOCTYPE html>') != -1 || responseText.indexOf('<html>') != -1) {
             var newWindow = window.open();
             newWindow.document.body.innerHTML = responseText;
             return;
@@ -246,6 +246,20 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
 
         console.log(output);
     }
+
+    /*
+    function handleSysError(response) {
+        console.log('handleSysError');
+        console.log(response);
+
+        let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
+            response.error;
+
+        errorText += '\n\nPress OK to continue.';
+        alert(errorText);
+        console.log(errorText);
+    }
+    */
 
     function handleScriptError(response) {
         let errorText = GM_info.script.name + ': An error has occurred submitting data:\n\n' +
