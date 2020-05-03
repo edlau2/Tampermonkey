@@ -74,12 +74,13 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
     var google_sheets_key = "";
     //var profileId = "";
     var spreadsheetURL = '';
-        //'https://script.google.com/macros/s/AKfycbyT0L4R0ewjEs0-1CeqUWeBUR---jhbcy-NaFZQinayEDZBLDI/exec';
+        //'https://script.google.com/macros/s/AKfycbxqfJ2FZcCvPvzvvJO-AupTq-mzTyX819589iBg-OYhbLKy_LY/exec';
 
     /////////////////////////////////////////////////////////////////
     // Look for an item that has been expanded, and grab it's info
     /////////////////////////////////////////////////////////////////
 
+    //var lastHash = 0;
     function trapBustDetails(e) { // Triggered on pressing the 'bust' button
         buildUI(); // If needed...
 
@@ -106,13 +107,29 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
             chance = chance + '%'; // Don't send this to sheets, just for temporary logging...
         }
 
-        console.log('Action: "' + action + '"');
+        //console.log('Action: "' + action + '"');
         console.log('Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
 
-        //let jsonData = JSON.stringify(newItem);
-        //let hash = jsonData.hashCode();
+        // {action: 'info', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
+        let newItem = getNewItem();
+        newItem.action = 'Info';
+        newItem.name = user;
+        newItem.level = level;
+        newItem.time = time;
+        newItem.chance = chance;
 
-        //console.log('Hashcode for the ' + newItem.name + ': ' + hash);
+        let jsonData = JSON.stringify(newItem);
+        let hash = jsonData.hashCode();
+
+        //console.log('Hashcode for ' + newItem.name + ': ' + hash);
+        //console.log('Last hashcode: ' + lastHash);
+        //if (hash == lastHash) {return;}
+        //lastHash = hash;
+        newItem.hash = hash.toString();
+        console.log(newItem);
+
+        jsonData = JSON.stringify(newItem);
+        submit(jsonData);
 
         // Rebind
         /*
@@ -127,9 +144,9 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
     // Functions to pick apart various nodes to get info we want
     /////////////////////////////////////////////////////////////////
 
-    // TBD
+    // Note: 'action' is 'info' (just info) or 'result', once a bust has been attempted.
     function getNewItem() {
-        return {name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
+        return {action: 'info', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
     }
 
     /////////////////////////////////////////////////////////////////
@@ -170,12 +187,7 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
     // Response TBD...
     /////////////////////////////////////////////////////////////////
 
-    function submitFunction() {
-        if (detectedItemsArray.length == 0) {
-            alert('No data to upload!');
-            return;
-        }
-
+    function submit(data) {
         let url = document.getElementById('xedx-google-key').value;
         if (url == '') {
             url = GM_getValue('xedx-google-key');
@@ -186,9 +198,8 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         }
         saveSheetsUrl(url);
 
-        let data = JSON.stringify(detectedItemsArray);
+        //let data = JSON.stringify(detectedItemsArray);
         console.log(GM_info.script.name + ' Posting data to ' + url);
-        disableButtons('xedx-submit-btn');
         let details = GM_xmlhttpRequest({
             method:"POST",
             url:url,
@@ -218,7 +229,6 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
 
     // Callback for above...
     function submitFunctionCB(responseText) {
-        enableButtons('xedx-submit-btn');
         if (responseText.indexOf('<!DOCTYPE html>') != -1) {
             var newWindow = window.open();
             newWindow.document.body.innerHTML = responseText;
@@ -229,20 +239,12 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         if (jsonResp.error) {return handleError(responseText);}
 
         let result = jsonResp.result;
-        let output = '';
-        if (result.indexOf('Success') != -1) {
-            clearInventoryData(true);
-            let start = result.indexOf('Processed');
-            let end = result.indexOf('.') + 1;
-            let msg1 = result.slice(start, end);
-            let start2 = result.indexOf('Found');
-            let msg2 = result.slice(start2);
-            output = 'Success!\n\n' + msg1 + '\n' + msg2;
-        } else {
-            output = 'An error has occurred!\nDetails:\n\n' + responseText;
+        let output = GM_info.script.name + ': ' + result;
+        if (result.indexOf('Success') == -1) {
+            output = GM_info.script.name + ': An error has occurred!\nDetails:\n\n' + responseText;
         }
 
-        alert(output);
+        console.log(output);
     }
 
     function handleScriptError(response) {
