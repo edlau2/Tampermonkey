@@ -24,6 +24,84 @@ const eventBoxStyle = '.event_box_style{' +
         'max-height: 30px;' +
         'box-sizing: border-box;' +
 	'}';
+	
+GM_addStyle(eventTextStyle);
+GM_addStyle(eventBoxStyle);
+GM_addStyle(eventBtnStyle);
+	
+// used for the 'info' hover-over/tool tip
+const modal = '.modal {' +
+  'display: none;' + /* Hidden by default */
+  //'position: fixed;' + /* Stay in place */
+  'float: left;' +
+  'position: absolute;' +
+  'margin-left: 580px;' +
+  'margin-top: 100px;' +
+  //'left: 100%;' +
+  //'top: 100%;' +
+  'transform: translate(-50%, -50%);' +
+  'z-index: 1;' + /* Sit on top */
+  'left: 0;' +
+  'top: 0;' +
+  //'width: 100%;' + /* Full width */
+  //'height: 100%;' + /* Full height */
+  'width: 300px;' + /* Full width */
+  'height: 150px;' + /* Full height */
+  'line-height: 150px;' +
+  'overflow: auto;' + /* Enable scroll if needed */
+  'background-color: rgb(0,0,0);' + /* Fallback color */
+  'background-color: rgba(0,0,0,0.4);' + /* Black w/ opacity */
+'}';
+GM_addStyle(modal);
+
+const modal_text = '.modal-text {' +
+    'display: inline-block;' +
+    'vertical-align: middle;' +
+    'line-height: normal;' +
+    'color: black;' +
+    //'overflow: auto;' +
+    'overflow-wrap: normal;' +
+    //'line-height: 150px;' +
+    'text-align: center;' +
+  '}';
+GM_addStyle(modal_text);
+
+/* Modal Content/Box */
+const modal_content = '.modal-content {' +
+  'text-align: center;' +
+  'background-color: #fefefe;' +
+  //'margin: 15% auto;' + /* 15% from the top and centered */
+  //'padding: 20px;' +
+  'border: 1px solid #888;' +
+  //'width: 80%;' + /* Could be more or less, depending on screen size */
+'}';
+GM_addStyle(modal_content);
+
+// Used for the 'Add New Event' dialog
+const addEventStyle = '.event-style {' +
+      'display:none;' +
+      'border: solid black 2px;' +
+      'border-radius: 0px;' +
+      'background-color: #000000;' +
+      'filter: alpha(opacity=80);' +
+      'opacity: 0.80;' +
+      'font-weight: bold;' +
+      'font-size: 12px;' +
+      'color: #fff;' +
+      '}';
+GM_addStyle(addEventStyle);
+
+const addEventCenter = '.event-center {' +
+	  //'display: none;' +
+	  'text-align: center;' +
+  '}';
+GM_addStyle(addEventCenter);
+
+const addEventLeft = '.event-center {' +
+	  //'display: none;' +
+	  'text-align: left;' +
+  '}';
+GM_addStyle(addEventLeft);
 
 // Used for the select box
 const customSelect =
@@ -39,7 +117,7 @@ const customSelect =
     }
 
     .select-selected {
-      background-color: black;
+      background-color: white;
       /* following over-ridden by .select-items */
       color: #aaa;
     }
@@ -93,3 +171,6 @@ const customSelect =
     .select-items div:hover, .same-as-selected {
       background-color: rgba(0, 0, 0, 0.1);
     }`;
+    
+
+    GM_addStyle(customSelect);
