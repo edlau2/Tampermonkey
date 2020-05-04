@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -18,19 +18,12 @@
 
 // This is just easier to read this way, instead of one line.
 // Could also have be @required from a separate .js....
+// Or imported as a pure CSS resource.
 const xedx_main_div =
   '<div class="t-blue-cont h" id="xedx-main-div">' +
       '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
           'Bust Stat Collector</div>' +
       '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto">' +
-          /*
-          '<div style="text-align: center; vertical-align: middle;">' +
-              '<span id="button-span">' +
-                  '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
-                  '<button id="xedx-view-btn" class="enabled-btn">View All</button>' +
-                  '<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
-              '</span>' +
-          */
           '</div><div style="text-align: center; vertical-align: middle;>' +
               '<span id="input-span">Google Sheets URL: ' +
                   '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
@@ -68,19 +61,18 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
       'border: 1px solid black;' +
       '}';
 
+let savedHashes = [];
 (function() {
     'use strict';
 
     var google_sheets_key = "";
-    //var profileId = "";
     var spreadsheetURL = '';
-        //'https://script.google.com/macros/s/AKfycbxqfJ2FZcCvPvzvvJO-AupTq-mzTyX819589iBg-OYhbLKy_LY/exec';
 
     /////////////////////////////////////////////////////////////////
     // Look for an item that has been expanded, and grab it's info
     /////////////////////////////////////////////////////////////////
 
-    //var lastHash = 0;
+    var lastHash = 0;
     function trapBustDetails(e) { // Triggered on pressing the 'bust' button
         buildUI(); // If needed...
 
@@ -90,29 +82,49 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         if (!target) {return;}
         if (!confBust) {return;}
 
-        //$(targetNode).unbind('DOMNodeInserted');
-
         let time = $(target).find('span > span.time')[0].innerText;
+
         let level = $(target).find('span > span.level')[0].innerText;
+        let at = level.indexOf('('); // When using my Torn Jail Scores script, strip out the score
+        if (at > 0) {level = level.slice(0, at-1).trim();}
+        let score = parseJailTimeStr(time) * parseInt(level);
         let user = $(target).find('a.user.name > span')[0].title;
         let action = $(confBust).text();
 
-        // Look for 'chance of success is', then move up to +2 past that for %number...
-        let search = 'chance of success is ';
-        let at = action.indexOf(search);
+        // Parse the 'action' - can be one of several things,
+        //
+        // Info - Do you want to try and break Beuthener out of jail? It will cost you 2 nerve yes no
+        //   -- may contain 'chance of success is n%'
+        // Success - You busted sonofabeach out of jail.
+        // Jail - While trying to bust Beuthener out, you were caught and put in jail yourself, maybe that will teach you for trying to break out your friends!
+        // Info - "This person is no longer in jail."
+        // ??? - failed (??? You failed - search failed? (haven't logged this yet, from memory)
+        //
+        console.log('Action: "' + action + '"');
         let chance = 'unknown';
-        if (at > 0) {
-            let end = action.indexOf('%');
-            chance = action.slice(at + search.length, end);
-            chance = chance + '%'; // Don't send this to sheets, just for temporary logging...
+        if (action.indexOf('out of jail') > 0) {
+            action = 'Success';
+        } else if (action.indexOf('no longer in jail') > 0) {
+            action = 'Info';
+        } else if (action.indexOf('While trying to bust') != -1) {
+            action = 'Jail';
+        } else if (action.indexOf('failed') != -1) {
+            action = 'Failed';
+        } else {
+            action = 'Info';
+            let search = 'chance of success is ';
+            at = action.indexOf(search);
+            if (at > 0) {
+                let end = action.indexOf('%');
+                chance = action.slice(at + search.length, end);
+                chance = chance + '%'; // Added the '%' back just for logging
+            }
         }
 
-        //console.log('Action: "' + action + '"');
-        console.log('Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
+        //console.log('Action: ' + action + ' Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
 
-        // {action: 'info', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
         let newItem = getNewItem();
-        newItem.action = 'Info';
+        newItem.action = action;
         newItem.name = user;
         newItem.level = level;
         newItem.time = time;
@@ -121,32 +133,24 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         let jsonData = JSON.stringify(newItem);
         let hash = jsonData.hashCode();
 
-        //console.log('Hashcode for ' + newItem.name + ': ' + hash);
-        //console.log('Last hashcode: ' + lastHash);
+        if (savedHashes.includes(hash)) {
+            console.log('Duplicate hash - not submitting.');
+            return;
+        }
+        savedHashes.push(hash);
+
         //if (hash == lastHash) {return;}
         //lastHash = hash;
+
         newItem.hash = hash.toString();
         console.log(newItem);
 
         jsonData = JSON.stringify(newItem);
         submit(jsonData);
-
-        // Rebind
-        /*
-        $(targetNode).bind('DOMNodeInserted', function(e) {
-            console.log(e.type + ' ==> trapBustDetails');
-            trapBustDetails(e);
-        });
-        */
     }
 
-    /////////////////////////////////////////////////////////////////
-    // Functions to pick apart various nodes to get info we want
-    /////////////////////////////////////////////////////////////////
-
-    // Note: 'action' is 'info' (just info) or 'result', once a bust has been attempted.
     function getNewItem() {
-        return {action: 'info', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
+        return {action: 'TBD', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
     }
 
     /////////////////////////////////////////////////////////////////
@@ -180,12 +184,33 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         }
     }
 
-    /////////////////////////////////////////////////////////////////
-    // Send to our content service provider
-    //
+     /////////////////////////////////////////////////////////////////////////
+    // Helper to parse a time string (33h 14m format), converting to minutes
+    /////////////////////////////////////////////////////////////////////////
+
+    function parseJailTimeStr(timeStr) {
+        var hour = 0;
+        var minute = 0;
+        var minuteStart = 0;
+        var end = timeStr.indexOf("h");
+        if (end != -1) {
+            hour = timeStr.slice(0, end);
+            minuteStart = end + 2;
+        }
+
+        end = timeStr.indexOf("m");
+        if (end != -1) {
+            minute = timeStr.slice(minuteStart, end);
+        }
+
+        var minutes = parseInt(hour) * 60 + parseInt(minute);
+        return minutes;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+    // Send to our content service provider (Google App Script, or GAS for short)
     // This POSTS to the entered Google Sheets Content Service provider.
-    // Response TBD...
-    /////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
 
     function submit(data) {
         let url = document.getElementById('xedx-google-key').value;
@@ -197,8 +222,6 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
             }
         }
         saveSheetsUrl(url);
-
-        //let data = JSON.stringify(detectedItemsArray);
         console.log(GM_info.script.name + ' Posting data to ' + url);
         let details = GM_xmlhttpRequest({
             method:"POST",
@@ -210,7 +233,7 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
             },
             onload: function(response) {
                 console.log(GM_info.script.name + ': submitFunctionCB: ' + response.responseText);
-                submitFunctionCB(response.responseText);
+                submitCallback(response.responseText);
             },
             onerror: function(response) {
                 console.log(GM_info.script.name + ': onerror');
@@ -227,39 +250,27 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
         });
     }
 
-    // Callback for above...
-    function submitFunctionCB(responseText) {
+    function submitCallback(responseText) {
+        // Check for Google generated errors supplied as HTML, dispay in a new tab.
+        // May be for authentication, especially if using Advanced Protection (OAuth2?)
+        // The button for 'Confirm Settings' doesn't seem to work in this case...
         if (responseText.indexOf('<!DOCTYPE html>') != -1 || responseText.indexOf('<html>') != -1) {
             var newWindow = window.open();
             newWindow.document.body.innerHTML = responseText;
             return;
         }
 
-        let jsonResp = JSON.parse(responseText); // Only needed is response is expected as stringified JSON
+        let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
         let result = jsonResp.result;
         let output = GM_info.script.name + ': ' + result;
-        if (result.indexOf('Success') == -1) {
+        if (result.indexOf('Success') == -1) { // What we explicitly return from the GAS on success.
             output = GM_info.script.name + ': An error has occurred!\nDetails:\n\n' + responseText;
         }
 
         console.log(output);
     }
-
-    /*
-    function handleSysError(response) {
-        console.log('handleSysError');
-        console.log(response);
-
-        let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
-            response.error;
-
-        errorText += '\n\nPress OK to continue.';
-        alert(errorText);
-        console.log(errorText);
-    }
-    */
 
     function handleScriptError(response) {
         let errorText = GM_info.script.name + ': An error has occurred submitting data:\n\n' +
@@ -290,7 +301,6 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
     //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
     // actually get to the page(s) - technically, when the page(s) change.
-    // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
@@ -306,16 +316,6 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
-
-    // Wait for the DOM to be loaded, need the 'user-wrapper'
-    // Prob don't need this on top of the mutation observer...
-    /*
-    window.onload = function () {
-        console.log('onLoad ==> buildUI');
-        buildUI();
-    };
-    */
-
 })();
 
 
