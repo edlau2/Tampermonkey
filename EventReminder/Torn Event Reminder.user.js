@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Event Reminder
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add an Event 'alarm clock' to all Torn pages
 // @include      https://www.torn.com/*
 // @author       xedx [2100735]
@@ -348,7 +348,8 @@ function insertAddEventDialogDiv() {
           '</div>';
           */
 
-    $(".body").append(event_original);
+    let bodyTags = document.getElementsByTagName('body');
+    $("#body").append(event_original);
 
     // Any options accepted can be specified here, see https://xdsoft.net/jqplugins/datetimepicker/
     $('#datetimepicker').datetimepicker( // Initialization
@@ -356,10 +357,6 @@ function insertAddEventDialogDiv() {
          format:'l d/m/y H:i', // Don't change this without changing everything else that relies on this specific format.
         }
     );
-
-    $('#datetimepicker').change(function () {
-        debugger;
-    });
 }
 
 /////////////////////////////////////////////////////////////////////////////////
