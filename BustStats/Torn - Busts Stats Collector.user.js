@@ -87,7 +87,7 @@ let savedHashes = [];
         let level = $(target).find('span > span.level')[0].innerText;
         let at = level.indexOf('('); // When using my Torn Jail Scores script, strip out the score
         if (at > 0) {level = level.slice(0, at-1).trim();}
-        let score = parseJailTimeStr(time) * parseInt(level);
+        let score = (parseJailTimeStr(time) * parseInt(level)).toString();;
         let user = $(target).find('a.user.name > span')[0].title;
         let action = $(confBust).text();
 
@@ -128,6 +128,7 @@ let savedHashes = [];
         newItem.name = user;
         newItem.level = level;
         newItem.time = time;
+        newItem.score = score;
         newItem.chance = chance;
 
         let jsonData = JSON.stringify(newItem);
@@ -150,7 +151,7 @@ let savedHashes = [];
     }
 
     function getNewItem() {
-        return {action: 'TBD', name: 'TBD', level: 'TBD', time: 'TBD', chance: 'TBD', hash: 0};
+        return {action: 'TBD', name: 'TBD', level: 'TBD', score:'TBD', time:'TBD', chance: 'TBD', hash: 0};
     }
 
     /////////////////////////////////////////////////////////////////
