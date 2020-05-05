@@ -103,6 +103,65 @@ const addEventLeft = '.event-center {' +
   '}';
 GM_addStyle(addEventLeft);
 
+// Used to provide faded color animation for the options box
+const fadeFrameGreen = '@keyframes fade-frame-green {' +
+    '0%   { opacity:.8; background:green;}' +
+    '50%  { opacity:.2; background:green;}' +
+    '100% { opacity:.8; background:green;}' +
+    '}';
+const fadeFrameYellow = '@keyframes fade-frame-yellow {' +
+    '0%   { opacity:.8; background:yellow;}' +
+    '50%  { opacity:.2; background:yellow;}' +
+    '100% { opacity:.8; background:yellow;}' +
+    '}';
+const fadeFrameOrange = '@keyframes fade-frame-orange {' +
+    '0%   { opacity:.8; background:orange;}' +
+    '50%  { opacity:.2; background:orange;}' +
+    '100% { opacity:.8; background:orange;}' +
+    '}';
+const fadeFrameRed = '@keyframes fade-frame-red {' +
+    '0%   { opacity:.8; background:red;}' +
+    '50%  { opacity:.2; background:red;}' +
+    '100% { opacity:.8; background:red;}' +
+    '}';
+
+GM_addStyle(fadeFrameGreen);
+GM_addStyle(fadeFrameYellow);
+GM_addStyle(fadeFrameOrange);
+GM_addStyle(fadeFrameRed);
+
+// Class names for above
+const fadeGreenClass = '.fade-green {' +
+      'animation: fade-frame-green 3s infinite;' +
+      '}';
+const fadeYellowClass = '.fade-yellow {' +
+      'animation: fade-frame-yellow 2s infinite;' +
+      '}';
+const fadeOrangeClass = '.fade-orange {' +
+      'animation: fade-frame-orange 3s infinite;' +
+      '}';
+const fadeRedClass = '.fade-red {' +
+      'animation: fade-frame-red 3s infinite;' +
+      '}';
+const rapidRedClass = '.rapid-red {' +
+      'animation: fade-frame-red .5s infinite;' +
+      '}';
+      
+GM_addStyle(fadeGreenClass);
+GM_addStyle(fadeYellowClass);
+GM_addStyle(fadeOrangeClass);
+GM_addStyle(fadeRedClass);
+GM_addStyle(rapidRedClass);
+
+// Additional tweaking for JQuery-UI classes
+const uiDialogExt = 
+    '.ui-dialog-ext {border: solid black 2px; border-radius: 5px; background-color: white;}';
+GM_addStyle(uiDialogExt);
+
+const uiDialogTitlebarExt = '.ui-dialog-titlebar-ext {' +
+    'text-align: center; margin: 5px; color: black; font-weight: bold;}';
+GM_addStyle(uiDialogTitlebarExt);
+
 // Used for the select box
 const customSelect =
   `.custom-select {
