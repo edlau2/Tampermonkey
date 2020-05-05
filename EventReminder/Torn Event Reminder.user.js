@@ -9,8 +9,8 @@
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/EventReminder/Torn%20Event%20Reminder.user.js
 //
 // Replace these with URL's when done testing!!! (the UNUSED ones are the local ones - swap as needed)
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
-// UNUSED @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
+// UNUSED @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
 //
 // @resource     datetimepickerCSS https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.min.css
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.full.min.js
@@ -163,14 +163,14 @@ const thirty_seconds = 30 * 1000;
         // Display details about event here.
         let modal = document.getElementById("myModal");
         modal.style.display = "block";
-        console.log('Event: "' + e.type + '" Text: "' + e.currentTarget.innerText + '" Value: "' + e.currentTarget.value + '"');
+        console.log(GM_info.script.name + ' Event: "' + e.type + '" Text: "' + e.currentTarget.innerText + '" Value: "' + e.currentTarget.value + '"');
     }, false);
 
     mySelect.addEventListener('mouseleave', function(e) {
         // Close the info dialog.
         let modal = document.getElementById("myModal");
         modal.style.display = "none";
-        console.log('Event: "' + e.type + '" Text: "' + e.currentTarget.innerText + '" Value: "' + e.currentTarget.value + '"');
+        console.log(GM_info.script.name + ' Event: "' + e.type + '" Text: "' + e.currentTarget.innerText + '" Value: "' + e.currentTarget.value + '"');
     }, false);
     */
 
@@ -184,6 +184,9 @@ const thirty_seconds = 30 * 1000;
 
     // Set up timers for upcoming events
     setEventTimer();
+
+    //$('#datetimepicker').change(function() {
+    //    debugger;});
 })();
 
 ///////////////////////////////////////////////////
@@ -201,16 +204,25 @@ function btnOnOkClick() {
 
     // Save it in our array and storage
     addSavedEvent(new savedEvent(count, timestamp, desc, date));
+
+    let target = $(".custom-select option:selected");
+    let currTime = new Date().getTime();
+    let expTime = $(target).attr('time');
+
+    // expTime forced to 'now', if close to currTime - assumes 'now' is in the past?
+    // ex: 7:00 AM GMT, 4:00 EST. Set for 4:15, assumes < 7:00, sets to 4:00... (minus a few ms)
+
+    try {
+        console.log(GM_info.script.name + ' OnOK - CurrTime: ' + new Date(parseInt(currTime)));
+        console.log(GM_info.script.name + ' OnOK - ExpTime: ' + new Date(parseInt(timestamp)));
+    } catch (e) {
+        console.log(e);
+    }
+
+    removeTimedClasses();
     sortCustomSelect();
     autoSizeSelect($('.custom-select'));
-
-    // Set a timer to go off 10 min. before it expires. Then
-    // we'll add a class to cycle the background opacity, a light yellow
-    // from say 20-80%. When that timer triggers, remove it and replace with
-    // one to cycle orange at 5 minutes before. Simlarly, replace that one
-    // with one to cycle red, then one to actually trigger at the exact time.
-    // This will need to be done at load time as well. We only need to set for the
-    // selected option.
+    $('#datetimepicker').datetimepicker('hide');
     setEventTimer();
 }
 
@@ -238,36 +250,50 @@ function setEventTimer() {
 
     // Decide what timer to set - 10 minute, 5 minute, or 2 minute.
     if (when > ten_minutes) {
-        console.log('Setting 10 minute timer');
+        console.log(GM_info.script.name + ' Setting 10 minute timer');
         currentTimer = executeAt(expTime-ten_minutes, tenMinuteTimer);
         return;
     } else if (ten_minutes >= when && when > five_minutes) {
         $('.custom-select').addClass('fade-yellow');
-        console.log('Setting 5 minute timer');
+        console.log(GM_info.script.name + ' Setting 5 minute timer');
         currentTimer = executeAt(expTime-five_minutes, fiveMinuteTimer);
         return;
     } else if (five_minutes >= when && when > two_minutes) {
         $('.custom-select').addClass('fade-orange');
-        console.log('Setting 2 minute timer');
+        console.log(GM_info.script.name + ' Setting 2 minute timer');
         currentTimer = executeAt(expTime-two_minutes, twoMinuteTimer);
         return;
     } else if (two_minutes >= when && when > thirty_seconds) {
         $('.custom-select').addClass('fade-red');
-        console.log('Setting Really Soon timer');
+        console.log(GM_info.script.name + ' Setting Really Soon timer');
         currentTimer = executeAt(expTime-thirty_seconds, reallySoonTimer);
         return;
     } else if (thirty_seconds > when && when > 0 && expTime > currTime) {
         $('.custom-select').addClass('rapid-red');
-        console.log('Setting Really Soon timer');
+        console.log(GM_info.script.name + ' Setting Really Soon timer');
         currentTimer = executeAt(expTime, reallySoonTimer);
         return;
     }
 
     removeTimedClasses();
-    console.log('Didn`t set any timers!!');
-    console.log('CurrTime: ' + new Date(parseInt(currTime)).toISOString().slice(11, 19));
-    //console.log('ExpTime: ' + new Date(parseInt(expTime)).toISOString().slice(11, 19));
-    console.log('Difference: ' + when + 'ms');
+    console.log(GM_info.script.name + ' setEventTimer Didn`t set any timers!!');
+    console.log(GM_info.script.name + ' setEventTimer - currTime: ' + new Date(parseInt(currTime)));
+
+    try {
+        let date = $('#datetimepicker').val(); // Formatted date
+        if (date != '') {
+            let timestamp = timestampFromDate(date);
+            console.log(GM_info.script.name + ' setEventTimer - timestamp: ' + new Date(parseInt(timestamp)));
+        }
+        if (typeof expTime != 'undefined') {
+            console.log(GM_info.script.name + ' setEventTimer - expTime: ' + new Date(parseInt(expTime)));
+        }
+        //let date = $('#datetimepicker').val(); // Formatted date
+        //console.log(GM_info.script.name + ' setEventTimer - ExpTime: ' + date);
+        console.log(GM_info.script.name + ' setEventTimer - Difference: ' + when + 'ms');
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 /* This Method executes a function certain time of the day
@@ -278,14 +304,14 @@ function setEventTimer() {
 function executeAt(time, func){
     let currentTime = new Date().getTime();
     if(currentTime>time){
-        console.log("executeAt: Time is in the Past!");
+        console.log(GM_info.script.name + " executeAt: Time is in the Past!");
         return null;
     }
     let diffMs = time-currentTime;
     let diffSec = Math.floor(diffMs/1000);
     let diff
-    console.log('Setting timeout for ' + new Date(parseInt(time)).toISOString().slice(11, 19) + ' - in ' + diffMs + 'ms');
-    console.log('Will go off in ' + msToTime(diffMs));
+    console.log(GM_info.script.name + ' Setting timeout for ' + new Date(parseInt(time)) + ' - in ' + diffMs + 'ms');
+    console.log(GM_info.script.name + ' Will go off in ' + msToTime(diffMs));
     let timer = setTimeout(func, diffMs);
     return timer;
 }
@@ -316,21 +342,21 @@ function removeTimedClasses() {
 function tenMinuteTimer() {
     removeTimedClasses();
     $('.custom-select').addClass('fade-yellow');
-    console.log('10 minute timer triggered!');
+    console.log(GM_info.script.name + ' 10 minute timer triggered!');
     setEventTimer();
 }
 
 function fiveMinuteTimer() {
     removeTimedClasses();
     $('.custom-select').addClass('fade-orange');
-    console.log('5 minute timer triggered!');
+    console.log(GM_info.script.name + ' 5 minute timer triggered!');
     setEventTimer();
 }
 
 function twoMinuteTimer() {
     removeTimedClasses();
     $('.custom-select').addClass('fade-red');
-    console.log('2 minute timer triggered!');
+    console.log(GM_info.script.name + ' 2 minute timer triggered!');
     setEventTimer();
 }
 
@@ -338,7 +364,7 @@ function reallySoonTimer() {
     removeTimedClasses();
     $('.custom-select').addClass('rapid-red');
     let currentTime = new Date().getTime();
-    console.log('Really Soon timer triggered!');
+    console.log(GM_info.script.name + ' Really Soon timer triggered!');
     currentTimer = executeAt(currentTime + thirty_seconds, timeOutEvent);
 }
 
@@ -367,7 +393,6 @@ function addSavedEvent(event, fromStorage=false) {
     eventArray.push(event);
 
     // In storage, save as 'xedx-event-<savedEvent.value>:savedEvent'
-    //let key = 'xedx-event-' + event.value;
     let value = JSON.stringify(event);
     if (!fromStorage) {
         GM_setValue(keyFromValue(event.value), value);
@@ -389,6 +414,7 @@ function removeSelectedEvent(automatic=false) {
         let text = 'Are you sure you`d like to remove this event reminder?';
         text = text + 'n\nDescription: ' + desc;
         if (confirm(text)) {
+            removeTimedClasses();
             $(".custom-select option:selected").remove();
             GM_deleteValue(keyFromValue(value));
             setEventTimer();
@@ -411,7 +437,7 @@ function loadSavedEvents() {
         if (allEvents[i].indexOf(/*'xedx-event-'*/ eventPrefix) == -1) {continue;}
         let event = JSON.parse(GM_getValue(allEvents[i]));
         if (event.timestamp < timenow) {
-            console.log('Removing expired event: ', allEvents[i]);
+            console.log(GM_info.script.name + ' Removing expired event: ', allEvents[i].name);
             GM_deleteValue(allEvents[i]);
             continue;
         }
@@ -515,11 +541,12 @@ function insertAddEventDialogDiv() {
     $("#body").append(event_original);
 
     // Any options accepted can be specified here, see https://xdsoft.net/jqplugins/datetimepicker/
-    // Need to set this to display in TCT (AKA GMT)
+    // Want to set this to display in TCT (AKA GMT)
     $('#datetimepicker').datetimepicker( // Initialization
         {theme:'dark',
          format:'l d/m/y H:i', // Don't change this without changing everything else that relies on this specific format.
-         showTimezone: true,
+         showTimezone:true,
+         validateOnBlur:false,
          step:5,
         }
     );
