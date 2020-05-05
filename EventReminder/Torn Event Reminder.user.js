@@ -46,7 +46,7 @@ const add_event_div =
           '<span id="xedx-add-event" class="header-bottom-text"><a href="#">&nbsp&nbspAdd Event&nbsp</a></span>' +
           '<span id="xedx-events" class="event_text_style event_box_style">test</span>' +
           selectBtnSpan +
-          infoDiv +
+          //infoDiv +
       '</div>';
 
 // Currently unused...
