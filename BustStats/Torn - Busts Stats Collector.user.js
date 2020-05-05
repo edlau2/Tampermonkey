@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -102,7 +102,7 @@ let savedHashes = [];
         //
         console.log('Action: "' + action + '"');
         let chance = 'unknown';
-        if (action.indexOf('out of jail') > 0) {
+        if (action.indexOf('You busted') > -1) {
             action = 'Success';
         } else if (action.indexOf('no longer in jail') > 0) {
             action = 'Info';
