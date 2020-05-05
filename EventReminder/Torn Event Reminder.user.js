@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Event Reminder
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add an Event 'alarm clock' to all Torn pages
 // @include      https://www.torn.com/*
 // @author       xedx [2100735]
@@ -9,8 +9,8 @@
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/EventReminder/Torn%20Event%20Reminder.user.js
 //
 // Replace these with URL's when done testing!!! (the UNUSED ones are the local ones - swap as needed)
-// UNUSED @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
-// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
+// UNUSED @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
 //
 // @resource     datetimepickerCSS https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.min.css
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.full.min.js
@@ -23,6 +23,14 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+// Usage: Use the 'Add Event' button to add an event, enter the name (brief description)
+// and time from the date picker. The date picker and display time are currently in local
+// time. Once selected, the event is added to the dropdown, which is kept in order of
+// coming up events. At 10 minutes before the event is due, the event will slowly flash
+// yellow, at 5 minutes before, orange, and 2 minutes, red, and finally at 30 seconds before,
+// a more rapid red flashing. Once expired, it will continue to flash for another 30
+// seconds before finally being removed.
+
 // The UI...
 const selectBtnSpan =
       '<span>' +
@@ -32,17 +40,6 @@ const selectBtnSpan =
           '<span id="xedx-remove-event" class="close-icon" style="margin-left:5px"></span>' +
       '</span>';
 
-const noEventsOpt = '<option value="0" time="0" title="test">No upcoming events...</option>';
-
-const infoDiv =
-      '<div id="myModal" class="modal">' +
-          //'<div class="modal-content">' +
-              '<span class="modal-text">' +
-                  '<p>Some long text, maybe explaing what, when, where, how and why this is here.<br><br>Maybe time left, other details.....</p>' +
-              '</span>' +
-          //'</div>' +
-      '</div>';
-
 // header at the top of the screen, that contains the above select.
 const add_event_div =
       '<div id="xedx-events-div" style="dispay=inline-block;">' +
@@ -50,7 +47,16 @@ const add_event_div =
           '<span id="xedx-events" class="event_text_style event_box_style">test</span>' +
           selectBtnSpan +
           infoDiv +
-          //'<span id="xedx-del-event" class="event_box_style"><a href="#">Del</a></span>' +
+      '</div>';
+
+// Currently unused...
+const noEventsOpt = '<option value="0" time="0" title="test">No upcoming events...</option>';
+
+const infoDiv =
+      '<div id="myModal" class="modal">' +
+          '<span class="modal-text">' +
+              '<p>Some long text, maybe explaing what, when, where, how and why this is here.<br><br>Maybe time left, other details.....</p>' +
+          '</span>' +
       '</div>';
 
 // Note: the classes used in the above are contained in the file
@@ -74,7 +80,7 @@ var eventArray = [];
 // Force the width of the 'select' to that of the displayed text.
 function autoSizeSelect(elem) {
     var text = $(elem).find('option:selected').text()
-    if (text.length == 0) {
+    if (text.length == 0) { // No text to match to...
         $(elem).width(60);
         return;
     }
@@ -107,7 +113,7 @@ const thirty_seconds = 30 * 1000;
 
     logScriptStart();
 
-    // Inline helper functions
+    // Inline helper functions to keep the clock ticking
     const format = (date) => date.toISOString().slice(11, 19);
     const display = (date = new Date()) => format(date) + ' TCT';
     const updateTime = () => target.textContent = display();
@@ -120,7 +126,8 @@ const thirty_seconds = 30 * 1000;
 
     // Remove the 'time' element (well, hide it) - make separate fn
     // This may be installed by the 'Add Time' script, by Mist3rM [2154120] & hannes3510 [2150804]
-    // Never tested with that script running *after* this one.
+    // Never tested with that script running *after* this one. That's where inspiration for the
+    // clock itself came from.
     let timeNode = $(parent).find('time').get();
     if (timeNode.length > 0) {$(timeNode).remove();}
 
@@ -144,9 +151,8 @@ const thirty_seconds = 30 * 1000;
     setInterval(updateTime, 1000); // Update every second, just the clock
     updateTime();
 
-    // ****** Set up the custom 'select' ******
+    // ****** Set up the custom 'select' ****** //
 
-    // Dynamically resize the select
     $('.custom-select').change(function(){
         autoSizeSelect(this);
         setEventTimer();
@@ -182,7 +188,7 @@ const thirty_seconds = 30 * 1000;
     // Load saved events from storage
     loadSavedEvents();
 
-    // Set up timers for upcoming events
+    // Set up timers for any saved upcoming events
     setEventTimer();
 
     //$('#datetimepicker').change(function() {
@@ -198,13 +204,14 @@ function btnOnOkClick() {
     let count = $('#xedx-select option').length; // 'count' is index into the options list - also the 'value'
     let desc = $('#event-name').val(); // Desciption
     let date = $('#datetimepicker').val(); // Formatted date
-    let timestamp = timestampFromDate(date);
+    let timestamp = timestampFromDate(date); // Time in ms, used for sorting and setting alarms
 
     $('.custom-select').prop('selectedIndex', count);
 
     // Save it in our array and storage
     addSavedEvent(new savedEvent(count, timestamp, desc, date));
 
+    // Debugging
     let target = $(".custom-select option:selected");
     let currTime = new Date().getTime();
     let expTime = $(target).attr('time');
@@ -218,11 +225,12 @@ function btnOnOkClick() {
     } catch (e) {
         console.log(e);
     }
+    // End debugging
 
-    removeTimedClasses();
+    clearTimers();
     sortCustomSelect();
     autoSizeSelect($('.custom-select'));
-    $('#datetimepicker').datetimepicker('hide');
+    $('#datetimepicker').datetimepicker('hide'); // ??? Seems to prevent the date picker from popping up again.
     setEventTimer();
 }
 
@@ -244,9 +252,7 @@ function setEventTimer() {
     let expTime = $(target).attr('time');
     let when = expTime - currTime;
 
-    if (currentTimer) {
-        clearTimeout(currentTimer);
-    }
+    clearTimers();
 
     // Decide what timer to set - 10 minute, 5 minute, or 2 minute.
     if (when > ten_minutes) {
@@ -275,7 +281,9 @@ function setEventTimer() {
         return;
     }
 
-    removeTimedClasses();
+    clearTimers();
+
+    // Debugging
     console.log(GM_info.script.name + ' setEventTimer Didn`t set any timers!!');
     console.log(GM_info.script.name + ' setEventTimer - currTime: ' + new Date(parseInt(currTime)));
 
@@ -294,6 +302,7 @@ function setEventTimer() {
     } catch (e) {
         console.log(e);
     }
+    // End debugging
 }
 
 /* This Method executes a function certain time of the day
@@ -330,6 +339,15 @@ function msToTime(duration) {
     return hours + ":" + minutes + ":" + seconds + "." + milliseconds;
 }
 
+// Helper to clear timers
+function clearTimers() {
+    console.log(GM_info.script.name + ': clearTimers: ' + currentTimer);
+    if (currentTimer) {
+        clearTimeout(currentTimer);
+    }
+    removeTimedClasses();
+}
+
 // Helper to remove certain classes
 function removeTimedClasses() {
     $('.custom-select').removeClass('fade-yellow');
@@ -339,29 +357,30 @@ function removeTimedClasses() {
 }
 
 // The timer functions. Available faders - 'fade-green', 'fade-yellow', 'fade-orange', 'fade-red', 'rapid-red'
+// Defined in 'Torn-Event-Reminder-CSS.js'
 function tenMinuteTimer() {
-    removeTimedClasses();
+    clearTimers();
     $('.custom-select').addClass('fade-yellow');
     console.log(GM_info.script.name + ' 10 minute timer triggered!');
     setEventTimer();
 }
 
 function fiveMinuteTimer() {
-    removeTimedClasses();
+    clearTimers();
     $('.custom-select').addClass('fade-orange');
     console.log(GM_info.script.name + ' 5 minute timer triggered!');
     setEventTimer();
 }
 
 function twoMinuteTimer() {
-    removeTimedClasses();
+    clearTimers();
     $('.custom-select').addClass('fade-red');
     console.log(GM_info.script.name + ' 2 minute timer triggered!');
     setEventTimer();
 }
 
 function reallySoonTimer() {
-    removeTimedClasses();
+    clearTimers();
     $('.custom-select').addClass('rapid-red');
     let currentTime = new Date().getTime();
     console.log(GM_info.script.name + ' Really Soon timer triggered!');
@@ -369,7 +388,7 @@ function reallySoonTimer() {
 }
 
 function timeOutEvent() {
-    removeTimedClasses();
+    clearTimers();
     removeSelectedEvent(true);
     setEventTimer();
 }
@@ -388,7 +407,7 @@ class savedEvent {
   }
 }
 
-// Add an event to an in-mem array and more permanent storage
+// Add an event to an in-mem array and more permanent storage (and the UI)
 function addSavedEvent(event, fromStorage=false) {
     eventArray.push(event);
 
@@ -402,7 +421,7 @@ function addSavedEvent(event, fromStorage=false) {
     $('.custom-select').append(newOption);
 }
 
-// Remove from storage, also after event is over.
+// Remove from storage, manually and also after event is over (expired).
 function removeSelectedEvent(automatic=false) {
     if ($(".custom-select option:selected").length == 0) {return;}
 
@@ -414,7 +433,7 @@ function removeSelectedEvent(automatic=false) {
         let text = 'Are you sure you`d like to remove this event reminder?';
         text = text + 'n\nDescription: ' + desc;
         if (confirm(text)) {
-            removeTimedClasses();
+            clearTimers();
             $(".custom-select option:selected").remove();
             GM_deleteValue(keyFromValue(value));
             setEventTimer();
@@ -425,7 +444,7 @@ function removeSelectedEvent(automatic=false) {
     $(".custom-select option:selected").remove();
     GM_deleteValue(keyFromValue(value));
 
-    removeTimedClasses();
+    clearTimers();
     setEventTimer();
 }
 
@@ -434,7 +453,7 @@ function loadSavedEvents() {
     let allEvents = GM_listValues();
     let timenow = new Date().getTime();
     for (let i=0; i<allEvents.length; i++) {
-        if (allEvents[i].indexOf(/*'xedx-event-'*/ eventPrefix) == -1) {continue;}
+        if (allEvents[i].indexOf(eventPrefix) == -1) {continue;}
         let event = JSON.parse(GM_getValue(allEvents[i]));
         if (event.timestamp < timenow) {
             console.log(GM_info.script.name + ' Removing expired event: ', allEvents[i].name);
@@ -461,9 +480,9 @@ function timestampFromDate(value) {
     let dateParts = remains.split("/");
     let timeParts = dateParts[2].split(" ")[1].split(":");
     dateParts[2] = dateParts[2].split(" ")[0];
-    let year = '20' + dateParts[2];
-    let month = dateParts[1] - 1;
-    let day = dateParts[0];
+    let year = '20' + dateParts[2]; // The following could all be squished together,
+    let month = dateParts[1] - 1;   // but was easier to debug this way, when changing
+    let day = dateParts[0];         // the format displayed.
     let hour = timeParts[0];
     let min = timeParts[1];
     let dateObject = new Date(year, month, day, hour, min);
@@ -517,6 +536,7 @@ function insertAddEventDialogDiv() {
           '</div>';
 
     /* This adds some checkboxes, to select alarm style - abs. time or timer-style (countdown)
+    // Not yet implemented...
     const event_new = '<div id="add-event-dlg" class="event-style">' +
               '<p>' +
                   '<div class="event-left"><br>' +
@@ -546,8 +566,8 @@ function insertAddEventDialogDiv() {
         {theme:'dark',
          format:'l d/m/y H:i', // Don't change this without changing everything else that relies on this specific format.
          showTimezone:true,
-         validateOnBlur:false,
-         step:5,
+         validateOnBlur:false, // This prevents the datetimepicker from 'fixing' the date when losing focus.
+         step:5,               // Seems to set the date to 'now', regardless. The 'fix', I mean...
         }
     );
 }
