@@ -164,10 +164,10 @@ var isItems = false;
             newItem.hash = hash.toString();
             detectedItemsArray.push(newItem);
             console.log('Pushed a "' + newItem.name + '" onto array');
-        }
 
-        if (INSTANT_UPLOAD) {
-            submitFunction();
+            if (INSTANT_UPLOAD) {
+                submitFunction();
+            }
         }
     }
 
