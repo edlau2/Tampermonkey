@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
+// @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      script.google.com
@@ -16,14 +17,18 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+// Set this to 'true' to upload each item as it is expanded,
+// of 'false' to require the 'submit' button to tbe pressed.
+var INSTANT_UPLOAD = true;
+
 // This is just easier to read this way, instead of one line.
 // Could also have be @required from a separate .js....
 const xedx_main_div =
   '<div class="t-blue-cont h" id="xedx-main-div">' +
       '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
           'TheMightyThor`s Inventory Builder</div>' +
-      '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto">' +
-          '<div style="text-align: center; vertical-align: middle;">' +
+      '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto";>' +
+          '<div id="button-div" style="text-align: center; vertical-align: middle; display: none;">' +
               '<span id="button-span">' +
                   '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
                   '<button id="xedx-view-btn" class="enabled-btn">View All</button>' +
@@ -69,6 +74,9 @@ const disabledBtnStyle = '.disabled-btn {font-size: 14px; ' +
 
 const strSuccess = 'Success';
 
+var isBazaar = false;
+var isItems = false;
+
 (function() {
     'use strict';
 
@@ -83,7 +91,7 @@ const strSuccess = 'Success';
     // Look for an item that has been expanded, and grab it's info
     /////////////////////////////////////////////////////////////////
 
-    function trapItemDetails() {
+    function trapItemDetails(observer) {
         if (doingBazaarMaintainance()) {
             if ($('#xedx-main-div').length > 0) {
                 $(targetNode).unbind('DOMNodeInserted');
@@ -93,19 +101,33 @@ const strSuccess = 'Success';
         }
         buildUI(); // If needed...
 
-        let parentDiv = $('div.ReactVirtualized__Grid').get();
+        console.log(GM_info.script.name + ': mutation observed ==> trapItemDetails', observer);
+
+        // Set up all vars here as they vary, bazaar or items.
+        let parentDiv = null;
+        let owlItem = null;
+        let clearfix = null;
+        let pricingUl = null;
+        let statsUl = null;
+
+        if (isItems) {
+            parentDiv = itemsGetActiveClass();
+        } else {
+            parentDiv = $('div.ReactVirtualized__Grid').get();
+        }
         if (!validPointer(parentDiv) || !parentDiv.length) {return;}
 
-        let owlItem = $(parentDiv).find('div.info___3-0WL').get();
+        owlItem = isBazaar ? $(parentDiv).find('div.info___3-0WL').get() :
+                             $(parentDiv).find('li.show-item-info.bottom-round').get();
         if (!owlItem.length || !validPointer(owlItem)) {return;}
 
-        let clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
+        clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
         if (!validPointer(clearfix)) {return;}
 
-        let pricingUl = $(clearfix).find('ul.info-cont')[0];
+        pricingUl = $(clearfix).find('ul.info-cont')[0];
         if (!validPointer(pricingUl)) {return;}
 
-        let statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
+        statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
         if (!validPointer(statsUl)) {return;}
 
         let newItem = getNewItem();
@@ -117,11 +139,11 @@ const strSuccess = 'Success';
         // saved in a separate array.
         if (isItemTagged(pricingUl, newItem)) {return;}
 
-        console.log('mutation observed ==> trapItemDetails');
-
         getNameTypeItemInfo(owlItem, newItem);
         getPricingInfo(pricingUl, newItem);
         getStatInfo(statsUl, newItem);
+
+        console.log('newItem: ', newItem);
 
         // Generate a unique hash value for this, so as not to add twice.
         // Should never get here if already added.
@@ -143,7 +165,19 @@ const strSuccess = 'Success';
             detectedItemsArray.push(newItem);
             console.log('Pushed a "' + newItem.name + '" onto array');
         }
+
+        if (INSTANT_UPLOAD) {
+            submitFunction();
+        }
     }
+
+    // For the items page, get active 'class' - melee,secondary, primary
+    function itemsGetActiveClass() {
+        if ($("#melee-items").attr('aria-hidden') == 'false') {return $("#melee-items").get();}
+        if ($("#secondary-items").attr('aria-hidden') == 'false') {return $("#secondary-items").get();}
+        if ($("#primary-items").attr('aria-hidden') == 'false') {return $("#primary-items").get();}
+    }
+
 
     /////////////////////////////////////////////////////////////////
     // Function to add an ID to items we've visited. This prevents us
@@ -153,11 +187,15 @@ const strSuccess = 'Success';
     /////////////////////////////////////////////////////////////////
 
     function isItemTagged(element, newItem) {
-        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
-
-        // Don't need *both* of these, do we?
-        let itemActiveParent = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
-        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2 > div.itemDescription___3bOmj')[0];
+        let itemActive = null;
+        if (isBazaar) {
+            let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+            // Don't need *both* of these, do we?
+            // let itemActiveParent = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+            let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2 > div.itemDescription___3bOmj')[0];
+        } else if (isItems) {
+            itemActive = element;
+        }
         if (!validPointer(itemActive)) {
             return false;
         }
@@ -196,7 +234,7 @@ const strSuccess = 'Success';
                 sell: 'TBD',       // <== getPricingInfo
                 value: 'TBD',      // <== getPricingInfo
                 circ: 'TBD',       // <== getPricingInfo
-                asking: 'TBD',     // <== getPricingInfo
+                asking: 'N/A',     // <== getPricingInfo
                 id: profileId,     // <== buildUi
                 hash: 0,
                 };
@@ -242,9 +280,11 @@ const strSuccess = 'Success';
         newItem.value = $(valueLi).find('div.desc').get()[0].innerText;
         newItem.circ = $(circLi).find('div.desc').get()[0].innerText;
 
-        let parentRowDiv = $(element).parents('div.row___3NY9_').get();
-        let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
-        newItem.asking = $(itemActive).find('p.price___8AdTw').get()[0].innerText;
+        if (isBazaar) {
+            let parentRowDiv = $(element).parents('div.row___3NY9_').get();
+            let itemActive = $(parentRowDiv).find('div.item___2GvHm.item___-mxOy.viewActive___1ODG2')[0];
+            newItem.asking = $(itemActive).find('p.price___8AdTw').get()[0].innerText;
+        }
     }
 
     /////////////////////////////////////////////////////////////////
@@ -289,16 +329,30 @@ const strSuccess = 'Success';
 
     /////////////////////////////////////////////////////////////////
     // Initializing the UI - display, install handlers, etc.
+    // Update: Now we build the same UI, but in three different
+    // places - the Bazaar screen, personal items page, and the
+    // item market page.
     /////////////////////////////////////////////////////////////////
 
     function buildUI() {
+        let parentDiv = null;
+        let nextDiv = null;
 
         GM_addStyle(enabledBtnStyle);
         GM_addStyle(disabledBtnStyle);
         GM_addStyle(blueBtnStyle);
 
-        let parentDiv = document.getElementsByClassName('searchBar___F1E8s')[0]; // Search/sort options
-        let nextDiv = document.getElementsByClassName('segment___38fN3')[0];     // Items grid
+        if (isBazaar) {
+            parentDiv = document.getElementsByClassName('searchBar___F1E8s')[0]; // Search/sort options
+            nextDiv = document.getElementsByClassName('segment___38fN3')[0];     // Items grid
+        } else if (isItems) {
+            parentDiv = $('#mainContainer').find('div.main-items-cont-wrap >' +  // "Your Items"
+                                                 'div.equipped-items-wrap').get();
+            nextDiv = $('#mainContainer').find('div.main-items-cont-wrap > div.items-wrap.primary-items');
+        } else {
+            return;
+        }
+
         if (!validPointer(parentDiv)) {return;}                                  // Wait until enough is loaded
         if (!validPointer(nextDiv)) {return;}                                    // ...
         if (validPointer(document.getElementById('xedx-main-div'))) {return;}    // Do only once
@@ -307,6 +361,11 @@ const strSuccess = 'Success';
         $(separator).insertAfter(parentDiv);
 
         $(targetNode).unbind('DOMNodeInserted');
+
+        if (!INSTANT_UPLOAD) {
+            let btnDiv = document.getElementById('button-div');
+            btnDiv.style.display = "block";
+        }
 
         let urlInput = document.getElementById('xedx-google-key');
         let value = GM_getValue('xedx-google-key');
@@ -320,7 +379,7 @@ const strSuccess = 'Success';
         //enableButtons();
 
         // Save the user ID of this bazaar
-        profileId = useridFromProfileURL(window.location.href);
+        profileId = isBazaar ? useridFromProfileURL(window.location.href) : 'me';
 
         return strSuccess; // Return value is currently unused
     }
@@ -475,7 +534,9 @@ const strSuccess = 'Success';
             output = 'An error has occurred!\nDetails:\n\n' + responseText;
         }
 
-        alert(output);
+        if (!INSTANT_UPLOAD) {
+            alert(output);
+        }
     }
 
     function handleScriptError(response) {
@@ -536,7 +597,6 @@ const strSuccess = 'Success';
     // Return 'true' if on our own bazaar page...
     function doingBazaarMaintainance() {
         let loc = window.location.href;
-        //console.log('Checking URL: ' + loc);
         if (loc.indexOf('add') > 0 || loc.indexOf('manage') > 0 || loc.indexOf('personalize') > 0) {
             console.log('Nothing to see here, just doing maintainace on my own Bazaar...');
             return true;
@@ -548,16 +608,31 @@ const strSuccess = 'Success';
     // Main entry point. Start an observer so that we trigger when we
     // actually get to the page(s) - technically, when the page(s) change.
     // As they do on load. Seems more reliable than onLoad().
+    //
+    // Update: Now we build the same UI, but in three different
+    // places - the Bazaar screen, personal items page, and the
+    // item market page.
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
 
-    var targetNode = document.getElementById('bazaarroot');
+    if (window.location.href.indexOf('bazaar') > 0) {
+        isBazaar = true;
+        isItems = false;
+    } else if (window.location.href.indexOf('item.php') > 0) {
+        isBazaar = false;
+        isItems = true;
+    } else {
+        return;
+    }
+
+    console.log(GM_info.script.name + ': Building UI for ' + (isBazaar ? 'Bazaar page' : 'Items page'));
+
+    var targetNode = isBazaar ? document.getElementById('bazaarroot') : document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         observer.disconnect();
-        //console.log('mutation observed ==> trapItemDetails');
-        trapItemDetails();
+        trapItemDetails(observer);
         observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
@@ -578,10 +653,12 @@ const strSuccess = 'Success';
     let goingAwayText = 'You have items yet to be uploaded. If you leave, you will lose any unsaved changes.';
     window.addEventListener('beforeunload', (event) => {
         if (detectedItemsArray.length) {
-            // Cancel the event as stated by the standard.
-            event.preventDefault();
-            // Chrome requires returnValue to be set.
-            event.returnValue = goingAwayText;
+            if (!INSTANT_UPLOAD) {
+                // Cancel the event as stated by the standard.
+                event.preventDefault();
+                // Chrome requires returnValue to be set.
+                event.returnValue = goingAwayText;
+            }
         }
         });
 
