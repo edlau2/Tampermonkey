@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - TheMightyThor's Catalog Builder
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Selects items in you invetory and docuemnts in an associated spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php*
@@ -459,7 +459,9 @@ var isItems = false;
 
     function submitFunction() {
         if (detectedItemsArray.length == 0) {
-            alert('No data to upload!');
+            if (!INSTANT_UPLOAD) {
+                alert('No data to upload!');
+            }
             return;
         }
 
