@@ -25,7 +25,10 @@ var INSTANT_UPLOAD = true;
 // Could also have be @required from a separate .js....
 const xedx_main_div =
   '<div class="t-blue-cont h" id="xedx-main-div">' +
-      '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
+      '<div id="xedx-header-div" class="title main-title title-black top-round active" role="heading" aria-level="5">' +
+          '<div id="xedx-arrow-div" class="arrow-999 right">' +
+              '<a role="button" href="#/"></a>' +
+          '</div>' +
           'TheMightyThor`s Inventory Builder</div>' +
       '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto";>' +
           '<div id="button-div" style="text-align: center; vertical-align: middle; display: none;">' +
@@ -101,33 +104,20 @@ var isItems = false;
         }
         buildUI(); // If needed...
 
-        console.log(GM_info.script.name + ': mutation observed ==> trapItemDetails', observer);
-
-        // Set up all vars here as they vary, bazaar or items.
-        let parentDiv = null;
-        let owlItem = null;
-        let clearfix = null;
-        let pricingUl = null;
-        let statsUl = null;
-
-        if (isItems) {
-            parentDiv = itemsGetActiveClass();
-        } else {
-            parentDiv = $('div.ReactVirtualized__Grid').get();
-        }
+        let parentDiv = isBazaar ? $('div.ReactVirtualized__Grid').get() : itemsGetActiveClass();
         if (!validPointer(parentDiv) || !parentDiv.length) {return;}
 
-        owlItem = isBazaar ? $(parentDiv).find('div.info___3-0WL').get() :
+        let owlItem = isBazaar ? $(parentDiv).find('div.info___3-0WL').get() :
                              $(parentDiv).find('li.show-item-info.bottom-round').get();
         if (!owlItem.length || !validPointer(owlItem)) {return;}
 
-        clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
+        let clearfix = $(owlItem).find('div.info-content > div.clearfix.info-wrap')[0];
         if (!validPointer(clearfix)) {return;}
 
-        pricingUl = $(clearfix).find('ul.info-cont')[0];
+        let pricingUl = $(clearfix).find('ul.info-cont')[0];
         if (!validPointer(pricingUl)) {return;}
 
-        statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
+        let statsUl = $(clearfix).find('ul.info-cont.list-wrap')[0];
         if (!validPointer(statsUl)) {return;}
 
         let newItem = getNewItem();
@@ -365,6 +355,21 @@ var isItems = false;
         if (!INSTANT_UPLOAD) {
             let btnDiv = document.getElementById('button-div');
             btnDiv.style.display = "block";
+        }
+
+        let arrowDiv = document.getElementById('xedx-arrow-div');
+        if (validPointer(arrowDiv)) {
+            arrowDiv.addEventListener("click", function() {
+                var bodyDiv = document.getElementById('xedx-content-div');
+                var headerDiv = document.getElementById('xedx-header-div');
+                if (bodyDiv.style.display === "block") {
+                    bodyDiv.style.display = "none";
+                    headerDiv.className = 'title main-title title-black border-round';
+                } else {
+                    bodyDiv.style.display = "block";
+                    headerDiv.className = 'title main-title title-black top-round active';
+                }
+            });
         }
 
         let urlInput = document.getElementById('xedx-google-key');
