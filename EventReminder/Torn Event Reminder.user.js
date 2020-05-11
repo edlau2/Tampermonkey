@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Event Reminder
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add an Event 'alarm clock' to all Torn pages
 // @include      https://www.torn.com/*
 // @author       xedx [2100735]
@@ -9,8 +9,8 @@
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/EventReminder/Torn%20Event%20Reminder.user.js
 //
 // Replace these with URL's when done testing!!! (the UNUSED ones are the local ones - swap as needed)
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
-// UNUSED @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
+// UNUSED @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/EventReminder/Torn-Event-Reminder-CSS.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/EventReminder/Torn-Event-Reminder-CSS.js
 //
 // @resource     datetimepickerCSS https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.min.css
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DateTimePicker/jquery.datetimepicker.full.min.js
@@ -53,8 +53,8 @@ const add_event_div =
 const noEventsOpt = '<option value="0" time="0" title="test">No upcoming events...</option>';
 
 const infoDiv =
-      '<div id="myModal" class="modal">' +
-          '<span class="modal-text">' +
+      '<div id="myModal" class="xedx-modal">' +
+          '<span class="xedx-modal-text">' +
               '<p>Some long text, maybe explaing what, when, where, how and why this is here.<br><br>Maybe time left, other details.....</p>' +
           '</span>' +
       '</div>';
@@ -341,7 +341,7 @@ function msToTime(duration) {
 
 // Helper to clear timers
 function clearTimers() {
-    console.log(GM_info.script.name + ': clearTimers: ' + currentTimer);
+    console.log(GM_info.script.name + ': clearTimers: current timer => ' + currentTimer);
     if (currentTimer) {
         clearTimeout(currentTimer);
     }

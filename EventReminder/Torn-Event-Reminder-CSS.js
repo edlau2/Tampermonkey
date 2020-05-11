@@ -30,7 +30,7 @@ GM_addStyle(eventBoxStyle);
 GM_addStyle(eventBtnStyle);
 	
 // used for the 'info' hover-over/tool tip
-const modal = '.modal {' +
+const xedx_modal = '.xedx-modal {' +
   'display: none;' + /* Hidden by default */
   //'position: fixed;' + /* Stay in place */
   'float: left;' +
@@ -52,9 +52,9 @@ const modal = '.modal {' +
   'background-color: rgb(0,0,0);' + /* Fallback color */
   'background-color: rgba(0,0,0,0.4);' + /* Black w/ opacity */
 '}';
-GM_addStyle(modal);
+GM_addStyle(xedx_modal);
 
-const modal_text = '.modal-text {' +
+const xedx_modal_text = '.xedx-modal-text {' +
     'display: inline-block;' +
     'vertical-align: middle;' +
     'line-height: normal;' +
@@ -64,10 +64,10 @@ const modal_text = '.modal-text {' +
     //'line-height: 150px;' +
     'text-align: center;' +
   '}';
-GM_addStyle(modal_text);
+GM_addStyle(xedx_modal_text);
 
 /* Modal Content/Box */
-const modal_content = '.modal-content {' +
+const xedx_modal_content = '.xedx-modal-content {' +
   'text-align: center;' +
   'background-color: #fefefe;' +
   //'margin: 15% auto;' + /* 15% from the top and centered */
@@ -75,7 +75,7 @@ const modal_content = '.modal-content {' +
   'border: 1px solid #888;' +
   //'width: 80%;' + /* Could be more or less, depending on screen size */
 '}';
-GM_addStyle(modal_content);
+GM_addStyle(xedx_modal_content);
 
 // Used for the 'Add New Event' dialog
 const addEventStyle = '.event-style {' +
@@ -231,5 +231,4 @@ const customSelect =
       background-color: rgba(0, 0, 0, 0.1);
     }`;
     
-
-    GM_addStyle(customSelect);
+GM_addStyle(customSelect);
