@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -73,17 +73,40 @@ let savedHashes = [];
     /////////////////////////////////////////////////////////////////
 
     var lastHash = 0;
-    function trapBustDetails(e) { // Triggered on pressing the 'bust' button
+    function trapBustDetails(e, t=null, c=null) { // Triggered on pressing the 'bust' button
         buildUI(); // If needed...
 
-        let target = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active");
-        let confBust = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active " +
+        let target = null;
+        let confBust = null;
+
+        if (t && c) {
+            target = t;
+            confBust = c;
+        } else {
+            target = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active:not(.info)");
+            confBust = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active " +
                                               " > div.confirm-bust > div");
+        }
         if (!target) {return;}
         if (!confBust) {return;}
 
-        let time = $(target).find('span > span.time')[0].innerText;
+        // Flag this as 'already processed'
+        $(target).addClass('info');
 
+        // Add on-click handlers for yes/no
+        //$(target).find('a.action-yes').click('yesClickHandler');
+        //$(target).find('a.action-no').click('noClickHandler');
+
+        let n = $(target).find('a.action-no');
+        if (n.length) {
+            n[0].addEventListener('click', function(e) {noClickHandler(e);}, false);
+        }
+        let y = $(target).find('a.action-yes');
+        if (y.length) {
+            y[0].addEventListener('click', function(e) {yesClickHandler(e);}, false);
+        }
+
+        let time = $(target).find('span > span.time')[0].innerText;
         let level = $(target).find('span > span.level')[0].innerText;
         let at = level.indexOf('('); // When using my Torn Jail Scores script, strip out the score
         if (at > 0) {level = level.slice(0, at-1).trim();}
@@ -121,8 +144,14 @@ let savedHashes = [];
                 let end = action.indexOf('%');
                 chance = action.slice(at + search.length, end);
                 chance = chance + '%'; // Added the '%' back just for logging
+                $(target).attr('chance', chance);
             }
             laction = 'Info';
+        }
+
+        if (chance == 'unknown') {
+            let ch = $(target).attr('chance');
+            if (validPointer(ch)) chance = ch;
         }
 
         //console.log('Action: ' + laction + ' Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
@@ -153,6 +182,38 @@ let savedHashes = [];
         jsonData = JSON.stringify(newItem);
         submit(jsonData);
     }
+
+    function handleClick(e) {
+        let elem = e.currentTarget;
+        console.log('Click handler for element: ', elem);
+        let conf = $(elem).parent().parent();
+        let target = $(conf).parent();
+        $(target).removeClass('info');
+    }
+
+    function yesClickHandler(e) {
+        let elem = e.currentTarget;
+        console.log('Clicked YES for element: ', elem);
+        handleClick(e);
+        /*
+        let conf = $(elem).parent().parent();
+        let target = $(conf).parent();
+        $(target).removeClass('info');
+        // trapBustDetails(null, target, conf); // No need to call directly, will get called when text changes.
+        */
+    }
+
+    function noClickHandler(e) {
+        let elem = e.currentTarget;
+        console.log('Clicked NO for element: ', elem);
+        handleClick(e);
+        /*
+        let conf = $(elem).parent().parent();
+        let target = $(conf).parent();
+        $(target).removeClass('info');
+        */
+    }
+
 
     function getNewItem() {
         return {action: 'TBD', name: 'TBD', level: 'TBD', score:'TBD', time:'TBD', chance: 'TBD', hash: 0};
