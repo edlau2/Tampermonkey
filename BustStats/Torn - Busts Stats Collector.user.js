@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -101,17 +101,20 @@ let savedHashes = [];
         // ??? - failed (??? You failed - search failed? (haven't logged this yet, from memory)
         //
         console.log('Action: "' + action + '"');
+        /*
+        Action: "Do you want to try and break deadvermin97 out of jail? It will cost you 2 nerve. You determine that the chance of success is 79%.Yes No"
+        */
         let chance = 'unknown';
-        if (action.indexOf('You busted') > -1) {
-            action = 'Success';
+        let laction = 'unknown';
+        if (action.indexOf('You busted') == 0) {
+            laction = 'Success';
         } else if (action.indexOf('no longer in jail') > 0) {
-            action = 'Info';
+            laction = 'Info';
         } else if (action.indexOf('While trying to bust') != -1) {
-            action = 'Jail';
+            laction = 'Jail';
         } else if (action.indexOf('failed') != -1) {
-            action = 'Failed';
+            laction = 'Failed';
         } else {
-            action = 'Info';
             let search = 'chance of success is ';
             at = action.indexOf(search);
             if (at > 0) {
@@ -119,12 +122,13 @@ let savedHashes = [];
                 chance = action.slice(at + search.length, end);
                 chance = chance + '%'; // Added the '%' back just for logging
             }
+            laction = 'Info';
         }
 
-        //console.log('Action: ' + action + ' Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
+        //console.log('Action: ' + laction + ' Target: ' + user + ' Level: ' + level + ' Time: ' + time + ' Chance: ' + chance);
 
         let newItem = getNewItem();
-        newItem.action = action;
+        newItem.action = laction;
         newItem.name = user;
         newItem.level = level;
         newItem.time = time;
@@ -224,6 +228,7 @@ let savedHashes = [];
         }
         saveSheetsUrl(url);
         console.log(GM_info.script.name + ' Posting data to ' + url);
+        console.log(GM_info.script.name + ' Data: ', data);
         let details = GM_xmlhttpRequest({
             method:"POST",
             url:url,
