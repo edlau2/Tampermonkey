@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn - Busts Stats Collector
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Collects busting info in real-time to analyze in a spreadsheet
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php
@@ -85,17 +85,14 @@ let savedHashes = [];
         } else {
             target = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active:not(.info)");
             confBust = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul > li.active " +
-                                              " > div.confirm-bust > div");
+                                              " > div.confirm-bust > div:not(.info)");
         }
         if (!target) {return;}
         if (!confBust) {return;}
 
         // Flag this as 'already processed'
         $(target).addClass('info');
-
-        // Add on-click handlers for yes/no
-        //$(target).find('a.action-yes').click('yesClickHandler');
-        //$(target).find('a.action-no').click('noClickHandler');
+        $(confBust).addClass('info');
 
         let n = $(target).find('a.action-no');
         if (n.length) {
@@ -123,10 +120,7 @@ let savedHashes = [];
         // Info - "This person is no longer in jail."
         // ??? - failed (??? You failed - search failed? (haven't logged this yet, from memory)
         //
-        console.log('Action: "' + action + '"');
-        /*
-        Action: "Do you want to try and break deadvermin97 out of jail? It will cost you 2 nerve. You determine that the chance of success is 79%.Yes No"
-        */
+        console.log('Action Text: "' + action + '"');
         let chance = 'unknown';
         let laction = 'unknown';
         if (action.indexOf('You busted') == 0) {
@@ -189,29 +183,19 @@ let savedHashes = [];
         let conf = $(elem).parent().parent();
         let target = $(conf).parent();
         $(target).removeClass('info');
+        $(conf).removeClass('info');
     }
 
     function yesClickHandler(e) {
         let elem = e.currentTarget;
         console.log('Clicked YES for element: ', elem);
         handleClick(e);
-        /*
-        let conf = $(elem).parent().parent();
-        let target = $(conf).parent();
-        $(target).removeClass('info');
-        // trapBustDetails(null, target, conf); // No need to call directly, will get called when text changes.
-        */
     }
 
     function noClickHandler(e) {
         let elem = e.currentTarget;
         console.log('Clicked NO for element: ', elem);
         handleClick(e);
-        /*
-        let conf = $(elem).parent().parent();
-        let target = $(conf).parent();
-        $(target).removeClass('info');
-        */
     }
 
 
