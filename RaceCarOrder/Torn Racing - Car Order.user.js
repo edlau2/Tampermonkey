@@ -9,6 +9,7 @@
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+// @require      https://raw.githubusercontent.com/lodash/lodash/4.17.15-npm/core.js
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -47,17 +48,65 @@
         return nameArray;
     }
 
+    /*
+    function deepEqual(object1, object2) {
+        const keys1 = Object.keys(object1);
+        const keys2 = Object.keys(object2);
+
+        if (keys1.length !== keys2.length) {
+            return false;
+        }
+
+        for (const key of keys1) {
+            const val1 = object1[key];
+            const val2 = object2[key];
+            const areObjects = isObject(val1) && isObject(val2);
+            if (
+                areObjects && !deepEqual(val1, val2) ||
+                !areObjects && val1 !== val2
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    */
+
+    function isObject(object) {
+        return object != null && typeof object === 'object';
+    }
+
+    function doesLiExistInArry(li) {
+        let len = savedCarsArray.length;
+        for (let i=0; i<len; ++i) {
+            let savedLi = savedCarsArray[i];
+             if (_.isEqual( li , savedLi)) {
+                 return true;
+                 }
+        }
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Order the cars.
     ///////////////////////////////////////////////////////////////////////
 
+    var savedCarsArray = [];
     function putCarsInOrder(carList) {
         var refDiv = document.getElementById(refDivId);
         var ul = refDiv.getElementsByClassName('enlist-list')[0];
         if (validPointer(ul)) {
-            var savedCarsArray = [];
             for (var i = 0, len = ul.children.length; i < len; i++ ) {
                 var li = ul.children[i];
+                console.log('putCarsInOrder: ');
+                console.dir(li);
+                console.log('innerText: ' + li.innerText);
+                if(savedCarsArray.includes(li, 0)){
+                    continue;
+                }
+                if (doesLiExistInArry(li)) {
+                    continue;
+                }
                 savedCarsArray.push(li);
             }
             $(ul).empty();
@@ -327,6 +376,73 @@
     // Button handlers
     //////////////////////////////////////////////////////////////////////
 
+    // Set up a handler for the page 2 button
+    //var pageTwoObserver = null;
+    //var pageTwoCallback = null;
+    function clickHandler() {
+        // Need page-value=10 and also active
+        let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left > a.page-number.active.t-gray-3.h.pager-link.page-show")
+        //let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left > a:nth-child(4)");
+        let page = element.getAttribute('page-value');
+        let active = element.hasAttribute('active');
+        let string = 'Page Change: page=' + page + ' Active: ' + active;
+        console.log(string);
+        if (page != 10) {
+            setTimeout(clickHandler, 1000);
+        } else {
+            populatePageTwo();
+        }
+    }
+
+    /*
+    var observerInstalled = false;
+    function installPageTwoObserver() {
+        if (observerInstalled) {return;}
+        let enlistList = document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist");
+        let config = { attributes: true, childList: true, subtree: true };
+        pageTwoCallback = function(mutationsList, observer) {
+            //observer.disconnect();
+            // Need page-value=10 and also active
+            let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left > a:nth-child(4)");
+            document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist")
+            let page = element.getAttribute('page-value');
+            let active = element.hasAttribute('active');
+            let string = 'Page Change: page=' + page + ' Active: ' + active;
+            console.log(string);
+            //observer.observe(enlistList, config);
+        };
+        pageTwoObserver = new MutationObserver(pageTwoCallback);
+        pageTwoObserver.observe(enlistList, config);
+        observerInstalled = true;
+    }
+    */
+
+    function populatePageTwo() {
+        let enlistList = document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist");
+        $(enlistList).empty();
+        for (let i=9; i < savedCarsArray.length; i++) {
+            let li = savedCarsArray[i];
+             if (validPointer(li)) {
+                 let element = li.getElementsByClassName('enlist-bars')[0];
+                 if (element) {
+                     element.parentNode.removeChild(element);
+                 }
+                 enlistList.appendChild(li);
+             }
+        }
+    }
+
+    // Add the handler for when page 2 is clicked. Hmmm ... the handler can't run until the page is loaded!
+    function addPage2Handler() {
+        // Path to "2" selector
+        let enlistList = document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist > ul");
+        let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left > a:nth-child(4)");
+        if (validPointer(element)) {
+            element.addEventListener('click', clickHandler); // associate the function above with the click event
+        }
+        //installPageTwoObserver();
+    }
+
     function handleSaveBtn() {
         console.log('handleSaveBtn - stopBlinkBtnId = ' + stopBlinkBtnId);
         let refDiv = document.getElementById(refDivId);
@@ -359,6 +475,7 @@
             let carList = JSON.parse(data);
             if (validPointer(carList) && carList.length > 0) {
                 putCarsInOrder(carList);
+                addPage2Handler();
             } else if (!silent) {
                 alert('No car list has been saved! Please see the "Help".');
             }
@@ -400,7 +517,7 @@
     // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Torn Racing - Car Order script started!");
+    logScriptStart();
     var targetNode = document.getElementById('racingMainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
