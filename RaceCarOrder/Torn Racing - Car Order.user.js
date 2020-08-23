@@ -1,7 +1,7 @@
 /// ==UserScript==
 // @name         Torn Racing - Car Order
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Allows cars to be sorted in any order when starting a race.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=racing*
