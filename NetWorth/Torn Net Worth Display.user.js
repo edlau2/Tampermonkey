@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
@@ -37,8 +37,12 @@
         let display = '$' + numberWithCommas(nw);
         let profileDiv = $('#profileroot').find('div.user-profile');
         let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
-        let ul = $(basicInfo).find('ul.basic-list');
-        if (!ul.length) {return;}
+        //let ul = $(basicInfo).find('ul.basic-list');
+        let ul = $(basicInfo).find('ul.info-table');
+        if (!ul.length) {
+            observer.observe(targetNode, config);
+            return;
+        }
 
         let li = '<li id="xedx-networth-li"><div class="user-information-section left width112">' +
             '<span class="bold">Net Worth</span></div><div><span>' + display + '</span></div></li>';
@@ -52,9 +56,7 @@
     // console so we know it has started
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Networth Display script started!");
-
-    // Make sure we have an API key
+    logScriptStart();
     validateApiKey();
 
     var targetNode = document.getElementById('profileroot');
