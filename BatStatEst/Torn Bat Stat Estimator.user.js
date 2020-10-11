@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Estimator
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
@@ -51,7 +51,7 @@
         if (validPointer(testDiv)) {return;} // Only do once
 
         let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-        let targetUL = rootDiv.getElementsByClassName('basic-list')[0];
+        let targetUL = rootDiv.getElementsByClassName('info-table')[0];
         if (!validPointer(targetUL)) {return;}
 
         let display = buildBatStatDisplay(); // Calculate bat stats estimate
