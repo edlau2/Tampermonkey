@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Numeric Rank Display
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Appends the numeric rank to a user's profile rank name
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js
@@ -80,7 +80,11 @@
 
     console.log("Numeric Rank Display script started!");
 
-    var targetNode = document.getElementById('profileroot');
+    debugger;
+
+    //var targetNode = document.getElementById('profileroot');
+    //var targetNode = document.getElementById('profile-information-wrapper');
+    var targetNode = document.getElementById('react-root');
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         addNumericRank();
