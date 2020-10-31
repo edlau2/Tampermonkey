@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         Torn User List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
+// @include      https://www.torn.com/page.php?sid=UserList*
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -23,7 +25,7 @@
     //////////////////////////////////////////////////////////////////////
 
     var totalRequests = 0;
-    function getRankFromId(ID, index) {
+    function getRankFromId(ID) {
         var details = GM_xmlhttpRequest({
             method:"POST",
             url:"https://api.torn.com/user/" + ID + "?selections=profile&key=" + api_key,
@@ -32,7 +34,7 @@
                 'Accept': 'application/json'
             },
             onload: function(response) {
-                updateUserLevelsCB(response.responseText, index, ID);
+                updateUserLevelsCB(response.responseText, ID);
             },
             onerror: function(response) {
                 handleRankError(response.responseText);
@@ -76,7 +78,7 @@
     //////////////////////////////////////////////////////////////////////
 
     var totalResponses = 0;
-    function updateUserLevelsCB(responseText, index, ID) {
+    function updateUserLevelsCB(responseText, ID) {
         totalResponses++;
         var jsonResp = JSON.parse(responseText);
 
@@ -226,7 +228,7 @@
                  'Outstanding',
                  'Celebrity',
                  'Supreme',
-                 'Idolised',
+                 'Idolized',
                  'Champion',
                  'Heroic',
                  'Legendary',
@@ -241,22 +243,12 @@
     // and we'll need to keep track of what has already been edited.
     //////////////////////////////////////////////////////////////////////
 
-    console.log("User List Extender script started!");
 
-    // Make sure we have an API key
-    var api_key = GM_getValue('gm_api_key');
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
-        GM_setValue('gm_api_key', api_key);
-    }
-
+    validateApiKey();
+    logScriptStart();
     var targetNode = document.getElementById('mainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
-        //console.log('Mutation observer triggered.');
-        //console.log('mutation.type = ' + mutationsList[0].type);
         updateUserLevels();
     };
     var observer = new MutationObserver(callback);
