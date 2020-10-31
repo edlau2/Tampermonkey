@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     1.8
+// @version     1.9
 // @license     MIT
 // ==/UserLibrary==
 
@@ -327,7 +327,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
-    console.log(GM_info.script.name + ' Querying ' + section + ':' + selection);
+    console.debug(GM_info.script.name + ' Querying ' + section + ':' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -342,14 +342,29 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             handleSysError(response);
         },
         onabort: function(response) {
-            console.log(GM_info.script.name + ': onabort');
+            console.debug(GM_info.script.name + ': onabort');
             handleSysError(response.responseText);
         },
         ontimeout: function(response) {
-            console.log(GM_info.script.name +': ontimeout');
+            console.debug(GM_info.script.name +': ontimeout');
             handleSysError(response.responseText);
         }
     });
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to create a hash for a string. Returns a positive
+// 32 bit int.
+//////////////////////////////////////////////////////////////////
+
+String.prototype.hashCode = function(){
+    var hash = 0;
+    for (var i = 0; i < this.length; i++) {
+        var character = this.charCodeAt(i);
+        hash = ((hash<<5)-hash)+character;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -426,12 +441,17 @@ function currentCountry() {
 
 // Return TRUE if travelling or not in Torn
 function awayFromHome() {
+    debugger;
     let country = currentCountry();
     if (country == '') {country = 'Torn';}
+    if (country == 'halloween') {country = 'Torn';}
     let travelling = areTraveling();
-    console.log(GM_info.script.name + 'Travelling: ' + travelling + ' Country: ' + country);
+    if (travelling)
+        console.log(GM_info.script.name + ': Travelling to: ' + country);
+    else
+        console.log(GM_info.script.name + ': not travelling, in ' + country);
     if (travelling || country != 'Torn') {
-        console.log(GM_info.script.name + 'Not in Torn!');
+        console.log(GM_info.script.name + ': Not in Torn!');
         return true;
     }
     return false;
