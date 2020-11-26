@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     1.9
+// @version     2.0
 // @license     MIT
 // ==/UserLibrary==
 
@@ -445,6 +445,7 @@ function awayFromHome() {
     let country = currentCountry();
     if (country == '') {country = 'Torn';}
     if (country == 'halloween') {country = 'Torn';}
+    if (country == 'thanks-giving') {country = 'Torn';}
     let travelling = areTraveling();
     if (travelling)
         console.log(GM_info.script.name + ': Travelling to: ' + country);
