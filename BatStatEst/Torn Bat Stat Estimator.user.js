@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Estimator
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
