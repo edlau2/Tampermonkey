@@ -22,8 +22,8 @@
     'use strict';
 
     function createBatStatLI(ul, display) {
-        let li = '<li id="'+ batStatLi + '"><div class="user-information-section left width112"><span class="bold">Est. Bat Stats</span>' +
-            '</div><div><span>' + display + '</span></div></li>';
+        let li = '<li id="'+ batStatLi + '"><div class="user-information-section"><span class="bold">Est. Bat Stats</span>' +
+            '</div><div class="user-info-value"><span>' + display + '</span></div></li>';
         $(ul).append(li);
 
         return li;
