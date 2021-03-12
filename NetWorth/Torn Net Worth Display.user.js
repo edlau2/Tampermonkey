@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
@@ -37,17 +37,21 @@
         let display = '$' + numberWithCommas(nw);
         let profileDiv = $('#profileroot').find('div.user-profile');
         let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
+        var targetNode = document.getElementById('profileroot');
         //let ul = $(basicInfo).find('ul.basic-list');
         let ul = $(basicInfo).find('ul.info-table');
-        if (!ul.length) {
+        if (!ul.length) {console.log('Target Node (43): ' + targetNode);
+            console.trace();
+            console.log('Target Node (45): ' + targetNode);
             observer.observe(targetNode, config);
             return;
         }
-
-        let li = '<li id="xedx-networth-li"><div class="user-information-section left width112">' +
-            '<span class="bold">Net Worth</span></div><div><span>' + display + '</span></div></li>';
+        let li = '<li id="xedx-networth-li"><div class="user-information-section">' +
+            '<span class="bold">Net Worth</span></div>' +
+            '<div class="user-info-value"><span>' + display + '</span></div></li>';
         $(ul).append(li);
-
+        console.trace();
+        console.log('Target Node (54): ' + targetNode);
         observer.observe(targetNode, config);
     }
 
@@ -60,6 +64,7 @@
     validateApiKey();
 
     var targetNode = document.getElementById('profileroot');
+    //let targetNode = document.getElementById('react-root');
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
@@ -67,6 +72,8 @@
 
     };
     var observer = new MutationObserver(callback);
+    console.trace();
+    console.log('Target Node (76): ' + targetNode);
     observer.observe(targetNode, config);
 
 })();
