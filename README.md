@@ -1,12 +1,6 @@
 # Torn Utilities
 Repository for Torn-related scripts, extensions, and more.
 
-** NOTE: There have recently been several changes to the naming of various things in torn, which broke several scripts.
-I have fixed the ones I have found, but there may be more that I missed. If you find any, let me know. Either msg
-me or send a PM, to me at xedx [2100735]. Thanks in advance!
-
-found more, the DIV ID of 'prfiledisplay' was changed to 'react-display', fixing where I find em
-
 # Installation
 
 1. Install Tampermonkey
