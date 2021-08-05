@@ -222,7 +222,6 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     function extendLatestAttacks() {
-        debugger;
         // Find first column
         let mainDiv = document.getElementById('column1');
         if (!validPointer(mainDiv)) {return;}
