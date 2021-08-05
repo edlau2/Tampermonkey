@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
@@ -154,7 +154,6 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     // This is where all the formatting of the latest attacks dialog takes place...
     // Any additional data from the response can be added here.
     function populateLatestAttacksList(responseText, ID, param) {
-        debugger;
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
