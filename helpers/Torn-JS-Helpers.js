@@ -5,14 +5,13 @@
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
-// @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.0
+// @version     2.1
 // @license     MIT
 // ==/UserLibrary==
 
@@ -430,7 +429,6 @@ function areTraveling() {
 }
 
 // Return what country we are in
-function currentCountry() {
     let header = $('body').find('.header.msg.responsive-sidebar-header').get();
     if (!validPointer(header)) {return '';}
     let className = $(header).attr('class');
@@ -441,7 +439,6 @@ function currentCountry() {
 
 // Return TRUE if travelling or not in Torn
 function awayFromHome() {
-    //debugger;
     let country = currentCountry();
     if (country == '') {country = 'Torn';}
     if (country == 'halloween') {country = 'Torn';}
