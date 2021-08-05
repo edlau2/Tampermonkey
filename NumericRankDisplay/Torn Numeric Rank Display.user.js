@@ -80,16 +80,15 @@
 
     console.log("Numeric Rank Display script started!");
 
-    debugger;
-
-    //var targetNode = document.getElementById('profileroot');
+    var targetNode = document.getElementById('profileroot');
     //var targetNode = document.getElementById('profile-information-wrapper');
-    var targetNode = document.getElementById('react-root');
+    //var targetNode = document.getElementById('react-root');
     var config = { attributes: true, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
         addNumericRank();
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
+    addNumericRank();
 
 })();
