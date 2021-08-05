@@ -24,8 +24,10 @@
     // Functions that do the tool tip adding to separate DIV's
     //////////////////////////////////////////////////////////////////////
 
-    //Somewher in here is hoe script.
+    //Somewhere in here is hoe script.
     //I assume 'NaN' eerrorg, oeprahos in/.
+    //
+    // Huh? Did I write this? Musta been drunk...
 
     function addCriminalRecordToolTips() {
 
@@ -50,8 +52,9 @@
                 dispComputerTT(items[i]);
             } else if (label.indexOf('Murder') != -1) {
                 dispMurderTT(items[i]);
-                debugger;
-            } else if (label.indexOf((attr*='Fraud (nerve') !=1) ) { // Try this...sintasticaly correct, but retuns nothing
+            } else if (label.indexOf(('Fraud (nerve') !=1) ) { // for altercoes script...
+                dispFraudTT(items[i]);
+            } else if (label.indexOf(('Fraud crimes') !=1) ) {
                 dispFraudTT(items[i]);
             } else if (label.indexOf('Other ') != -1) {
                 dispOtherTT(items[i]);
@@ -70,6 +73,12 @@
     function getPctForLi(li, value) {
         var span = li.getElementsByClassName('desc')[0];
         var spanText = span.innerText.replace(/,/g, "");
+
+        // If altercoes is installed, the spanText will be number\n text \nnumber, we need the second
+        let ks = spanText.split("\n");
+        if (validPointer(ks[2])) {
+            spanText = ks[2];
+        }
         var pctText = Number(spanText)/value * 100;
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
