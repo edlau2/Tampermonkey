@@ -429,6 +429,7 @@ function areTraveling() {
 }
 
 // Return what country we are in
+function currentCountry() {
     let header = $('body').find('.header.msg.responsive-sidebar-header').get();
     if (!validPointer(header)) {return '';}
     let className = $(header).attr('class');
