@@ -5,7 +5,8 @@
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @blah      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/index.php
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -153,8 +154,9 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     // This is where all the formatting of the latest attacks dialog takes place...
     // Any additional data from the response can be added here.
     function populateLatestAttacksList(responseText, ID, param) {
+        debugger;
         let jsonResp = JSON.parse(responseText);
-        //var count = Object.keys(jsonResp.attacks).length;
+        if (jsonResp.error) {return handleError(responseText);}
 
         let counter = 0;
         let ul = document.getElementById('latest-attacks-list');
@@ -220,6 +222,7 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
     function extendLatestAttacks() {
+        debugger;
         // Find first column
         let mainDiv = document.getElementById('column1');
         if (!validPointer(mainDiv)) {return;}
@@ -236,6 +239,7 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     // Main
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    validateApiKey();
     logScriptStart();
     let currentPage = window.location.href;
     if (currentPage.indexOf('torn.com/index.php') !== -1) {
