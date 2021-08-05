@@ -441,7 +441,7 @@ function currentCountry() {
 
 // Return TRUE if travelling or not in Torn
 function awayFromHome() {
-    debugger;
+    //debugger;
     let country = currentCountry();
     if (country == '') {country = 'Torn';}
     if (country == 'halloween') {country = 'Torn';}
