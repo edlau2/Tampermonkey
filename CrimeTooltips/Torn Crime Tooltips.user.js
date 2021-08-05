@@ -24,7 +24,11 @@
     // Functions that do the tool tip adding to separate DIV's
     //////////////////////////////////////////////////////////////////////
 
+    //Somewher in here is hoe script.
+    //I assume 'NaN' eerrorg, oeprahos in/.
+
     function addCriminalRecordToolTips() {
+
         var rootDiv = document.getElementsByClassName('cont-gray bottom-round criminal-record')[0];
         if (!validPointer(rootDiv)) {return;}
 
@@ -38,17 +42,18 @@
                 dispIllegalProductsTT(items[i]);
             } else if (label.indexOf('Theft') != -1) {
                 dispTheftTT(items[i]);
-            } else if (label.indexOf('Auto') != -1) {
+            } else if (label.indexOf('Auto theft') != -1) {
                 dispAutoTT(items[i]);
-            } else if (label.indexOf('Drug') != -1) {
+            } else if (label.indexOf('Drug deals') != -1) {
                 dispDrugTT(items[i]);
-            } else if (label.indexOf('Computer') != -1) {
+            } else if (label.indexOf('Computer crimes') != -1) {
                 dispComputerTT(items[i]);
             } else if (label.indexOf('Murder') != -1) {
                 dispMurderTT(items[i]);
-            } else if (label.indexOf('Fraud') != -1) {
+                debugger;
+            } else if (label.indexOf((attr*='Fraud (nerve') !=1) ) { // Try this...sintasticaly correct, but retuns nothing
                 dispFraudTT(items[i]);
-            } else if (label.indexOf('Other') != -1) {
+            } else if (label.indexOf('Other ') != -1) {
                 dispOtherTT(items[i]);
             } else if (label.indexOf('Total') != -1) {
                 dispTotalTT(items[i]);
@@ -64,7 +69,7 @@
     // span, which is a key/value string pair, as a percentage.
     function getPctForLi(li, value) {
         var span = li.getElementsByClassName('desc')[0];
-        var spanText = span.innerText.replace(/,/g, "")
+        var spanText = span.innerText.replace(/,/g, "");
         var pctText = Number(spanText)/value * 100;
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
