@@ -122,6 +122,8 @@ This script uses the method described here: https://www.torn.com/forums.php#/p=t
 
 Note: Removed for now, see the comments in the Scripting Rules section, above.
 
+New note: 'Loadouts' replace the functionality of this script, so now definitely retired.
+
 <details>
   <summary>Click to see description...</summary>
 
@@ -223,7 +225,7 @@ Images:
 - [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
 - [Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
 
-This script adds a new section to your Home page, and display beneaths the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
+This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
 
 **_Torn Jail Stats_**
 
