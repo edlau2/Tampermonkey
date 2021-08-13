@@ -18,7 +18,7 @@
 
     logScriptStart();
 
-    var hideChatDiv = '<hr class="delimiter___neME6"><div id="xedxShowHideChat"><span style="font-weight: 700; padding-bottom: 10px">Chat Icons</span>' +
+    var hideChatDiv = '<hr class="delimiter___neME6"><div id="xedxShowHideChat" style="padding-bottom: 5px"><span style="font-weight: 700;">Chat Icons</span>' +
         '<a id="showHideChat" class="t-blue show-hide">[hide]</a>';
 
     function hideChat(hide) {
