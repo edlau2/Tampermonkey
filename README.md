@@ -64,8 +64,14 @@ This script allows you to drag and drop your enlisted race cars into any order y
 
 **_Torn Hide-Show Chat Icons_**
 
-- [Torn Hide-Show Chat Icons.user.js](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChatIcons/Torn%20Hide-Show%20Chat%20Icons.user.js)
+- [Torn Hide-Show Chat Icons.user.js](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.user.js)
 
+Images:
+
+- [Torn Hide-Show Chat Icons.displayed.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.displayed.png)
+- [Torn Hide-Show Chat Icons.hidden.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.hidden.png)
+
+This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on amobile device yet. Please let me know if you do try it on a phone :-)
 
 **_Torn Latest Attacks Extender_**
 
