@@ -62,6 +62,11 @@ Images:
 
 This script allows you to drag and drop your enlisted race cars into any order you like. Saving this order will allow them to automatically appear in this order when starting a race. Or, you can reset to the Torn default.
 
+**_Torn Hide-Show Chat Icons_**
+
+- [Torn Hide-Show Chat Icons.user.js](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChatIcons/Torn%20Hide-Show%20Chat%20Icons.user.js)
+
+
 **_Torn Latest Attacks Extender_**
 
 - [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
