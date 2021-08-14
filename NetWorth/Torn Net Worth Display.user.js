@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Net Worth Display
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add net worth to a user's profile
 // @author       xedx
 // @include      https://www.torn.com/profiles.php*
@@ -32,13 +32,11 @@
     // Add the new <li>
     function addNetWorthToProfile(nw) {
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
-        observer.disconnect();
 
         let display = '$' + numberWithCommas(nw);
         let profileDiv = $('#profileroot').find('div.user-profile');
         let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
         var targetNode = document.getElementById('profileroot');
-        //let ul = $(basicInfo).find('ul.basic-list');
         let ul = $(basicInfo).find('ul.info-table');
         if (!ul.length) {console.log('Target Node (43): ' + targetNode);
             console.trace();
@@ -52,7 +50,10 @@
         $(ul).append(li);
         console.trace();
         console.log('Target Node (54): ' + targetNode);
-        observer.observe(targetNode, config);
+    }
+
+    function handlePageLoad() {
+        personalStatsQuery(xidFromProfileURL(window.location.href));
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -63,17 +64,11 @@
     logScriptStart();
     validateApiKey();
 
-    var targetNode = document.getElementById('profileroot');
-    //let targetNode = document.getElementById('react-root');
-    var config = { attributes: true, childList: true, subtree: true };
-    var callback = function(mutationsList, observer) {
-        if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
-        personalStatsQuery(xidFromProfileURL(window.location.href));
-
-    };
-    var observer = new MutationObserver(callback);
-    console.trace();
-    console.log('Target Node (76): ' + targetNode);
-    observer.observe(targetNode, config);
+    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', handlePageLoaded);
+    } else {
+        handlePageLoad();
+    }
 
 })();
