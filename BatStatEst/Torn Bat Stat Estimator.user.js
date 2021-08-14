@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Estimator
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
@@ -21,6 +21,33 @@
 (function() {
     'use strict';
 
+    // Constants and globals
+    const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
+    const crimeTriggers = [ 100, 5000, 10000, 20000, 30000, 50000 ];
+    const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
+
+    // From: https://wiki.torn.com/wiki/Ranks
+    // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
+    //
+    // These are from: https://www.tornstats.com/awards.php
+    const estimatedStats = [
+        "under 2k",
+        "2k - 20k",
+        "20k - 250k",
+        "250k - 2.5m",
+        "2.5m - 35m",
+        "35m - 200m",
+        "over 200m",
+    ];
+
+    const batStatLi = 'xedx-batstat-li';
+    var userNW = 0;
+    var userLvl = 0;
+    var userCrimes = 0;
+    var userRank = 0;
+    var targetNode = document.getElementById('profileroot');
+
+    // <li> to display...
     function createBatStatLI(ul, display) {
         let li = '<li id="'+ batStatLi + '"><div class="user-information-section"><span class="bold">Est. Bat Stats</span>' +
             '</div><div class="user-info-value"><span>' + display + '</span></div></li>';
@@ -29,6 +56,7 @@
         return li;
     }
 
+    // Get data used to calc bat stats
     function personalStatsQuery(ID) {
         xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
     }
@@ -97,6 +125,10 @@
         return estimated;
     }
 
+    function handlePageLoad() {
+        personalStatsQuery(xidFromProfileURL(window.location.href));
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Effectively 'main', where the script starts. Log this event in the
     // console so we know it has started
@@ -105,41 +137,12 @@
     logScriptStart();
     validateApiKey();
 
-    // Constants and globals
-    const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
-    const crimeTriggers = [ 100, 5000, 10000, 20000, 30000, 50000 ];
-    const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
-
-    // From: https://wiki.torn.com/wiki/Ranks
-    // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
-    //
-    // These are from: https://www.tornstats.com/awards.php
-    const estimatedStats = [
-        "under 2k",
-        "2k - 20k",
-        "20k - 250k",
-        "250k - 2.5m",
-        "2.5m - 35m",
-        "35m - 200m",
-        "over 200m",
-    ];
-
-    const batStatLi = 'xedx-batstat-li';
-    let userNW = 0;
-    let userLvl = 0;
-    let userCrimes = 0;
-    let userRank = 0;
-    let userID = xidFromProfileURL(window.location.href);
-    let targetNode = document.getElementById('profileroot');
-    let config = { attributes: true, childList: true, subtree: true };
-
     // Get the show on the road...
-    var callback = function(mutationsList, observer) {
-        observer.disconnect();
-        personalStatsQuery(userID);
-        observer.observe(targetNode, config);
-    };
-    var observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
+    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', handlePageLoaded);
+    } else {
+        handlePageLoad();
+    }
 
 })();
