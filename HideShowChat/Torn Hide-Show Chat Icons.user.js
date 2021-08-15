@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hide-Show Chat Icons
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Toggles the display of chat icons at the bottom of the screen
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -28,11 +28,18 @@
     }
 
     function handlePageLoaded() {
-        $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
-        $('#showHideChat').on('click', function () {
-            const hide = $('#showHideChat').text() == '[hide]';
-            hideChat(hide);
-        });
+        if (window.location.pathname.indexOf('loader.php') >= 0) {
+            hideChat(GM_getValue('xedxHideChat', false));
+        } else {
+            const savedHide = GM_getValue('xedxHideChat', false);
+            $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
+            hideChat(savedHide);
+            $('#showHideChat').on('click', function () {
+                const hide = $('#showHideChat').text() == '[hide]';
+                GM_setValue('xedxHideChat', hide);
+                hideChat(hide);
+            });
+        }
     }
 
     // Delay until DOM content load (not full page) complete, so that other scripts run first.
