@@ -71,7 +71,7 @@ Images:
 - [Torn Hide-Show Chat Icons.displayed.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.displayed.png)
 - [Torn Hide-Show Chat Icons.hidden.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.hidden.png)
 
-This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on amobile device yet. Please let me know if you do try it on a phone :-)
+This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on a mobile device yet. Please let me know if you do try it on a phone :-) It isn't exactly friendly with the Torn Tools show/hide chat balloon, there aren't conflicts but it is best to use or the other, as they achieve the same thing in different ways. In other words, if my script is used, it will hide and show when it is clicked - but won't re-show the icons if hidden by Torn Tools - and my 'show' option will not display icons hidden by Torn Tools. This may change n the future - on my end, at least.
 
 **_Torn Latest Attacks Extender_**
 
