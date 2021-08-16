@@ -393,11 +393,7 @@ String.prototype.hashCode = function(){
 // If travelling, the observer is reconnected on landing, and
 // hence this will be called again.
 //
-// Note that there is this HTML that could be leveraged instead (on index.php):
-//
-// <body id="body" class="d body webp-support r regular dark-mode" data-layout="regular" data-country="torn" data-celebration="none"
-// data-traveling="false" data-abroad="false" data-dark-mode-logo="regular"><div id="i4c-draggable-container"
-// style="position: fixed; z-index: 1499; width: 0px; height: 0px;">
+// TBD: This could be re-written to use the new simplified travel funcs, from below.
 //
 //////////////////////////////////////////////////////////////////////
 
@@ -431,10 +427,9 @@ function xedx_travelCB(responseText, ID, cbStruct) {
 }
 
 // Return TRUE if on the 'Traveling' screen
+// Left here for backwards compatibility.
 function areTraveling() {
-    let text = $("#skip-to-content").text().trim();
-    let areTravelling = text.indexOf('Travel') > -1; // Accomodate for US or UK spelling (1 or 2 'l's)
-    return areTravelling;
+    return travelling();
 }
 
 /*
@@ -456,46 +451,22 @@ data-country="cayman-islands" data-celebration="none" data-traveling="false" dat
 
 // Return what country we are in (or going to!)
 function currentCountry() {
-    /*
-    let header = $('body').find('.header.msg.responsive-sidebar-header').get();
-    if (!validPointer(header)) {return '';}
-    let className = $(header).attr('class');
-    let country = className.replace('header msg responsive-sidebar-header', '').trim();
-    if (country == '') {country = 'Torn';}
-    return country;
-    */
-    return $('body')[0].data-country;
+    return $('body')[0].getAttribute('data-country');
 }
 
 // Return TRUE if travelling or not in Torn
 function awayFromHome() {
-    /*
-    let country = currentCountry();
-    if (country == '') {country = 'Torn';}
-    if (country == 'halloween') {country = 'Torn';}
-    if (country == 'thanks-giving') {country = 'Torn';}
-    let travelling = areTraveling();
-    if (travelling)
-        console.log(GM_info.script.name + ': Travelling to: ' + country);
-    else
-        console.log(GM_info.script.name + ': not travelling, in ' + country);
-    if (travelling || country != 'Torn') {
-        console.log(GM_info.script.name + ': Not in Torn!');
-        return true;
-    }
-    return false;
-    */
     return abroad() || travelling();
 }
 
 // Return true if abroad (in the air or landed)
 function abroad() {
-    return $('body')[0].data-abroad == 'true';
+    return $('body')[0].getAttribute('data-abroad') == 'true';
 }
 
 // Return true if travelling (in the air)
 function travelling() {
-    return $('body')[0].data-travelling == 'true';
+    return $('body')[0].getAttribute('data-travelling') == 'true';
 }
 
 // Return true if in dark mode
