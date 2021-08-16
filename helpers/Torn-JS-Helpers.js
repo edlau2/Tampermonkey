@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.4
+// @version     2.5
 // @license     MIT
 // ==/UserLibrary==
 
@@ -466,7 +466,7 @@ function abroad() {
 
 // Return true if travelling (in the air)
 function travelling() {
-    return $('body')[0].getAttribute('data-travelling') == 'true';
+    return $('body')[0].getAttribute('data-traveling') == 'true';
 }
 
 // Return true if in dark mode
