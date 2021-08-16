@@ -471,7 +471,7 @@ function travelling() {
 
 // Return true if in dark mode
 function darkMode() {
-    $('body')[0].classList.contains('dark-mode');
+    return $('body')[0].classList.contains('dark-mode');
 }
 
 /////////////////////////////////////////////////////////////////////////////////
