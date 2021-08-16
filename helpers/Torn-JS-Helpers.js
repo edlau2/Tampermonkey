@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.3
+// @version     2.4
 // @license     MIT
 // ==/UserLibrary==
 
