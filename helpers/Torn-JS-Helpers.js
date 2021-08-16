@@ -5,13 +5,14 @@
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
+// @author       xedx [2100735]
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.1
+// @version     2.3
 // @license     MIT
 // ==/UserLibrary==
 
@@ -213,7 +214,8 @@ function numericRankFromFullRank(fullRank) {
     return numeric_rank;
 }
 
-// Add the style I use for tool-tips
+// Add the style(s) I use for tool-tips
+// tooltip3 is the correct one, with an opaque gray background
 function addToolTipStyle() {
     GM_addStyle(".tooltip2 {" +
               "radius: 4px !important;" +
@@ -390,6 +392,13 @@ String.prototype.hashCode = function(){
 //
 // If travelling, the observer is reconnected on landing, and
 // hence this will be called again.
+//
+// Note that there is this HTML that could be leveraged instead (on index.php):
+//
+// <body id="body" class="d body webp-support r regular dark-mode" data-layout="regular" data-country="torn" data-celebration="none"
+// data-traveling="false" data-abroad="false" data-dark-mode-logo="regular"><div id="i4c-draggable-container"
+// style="position: fixed; z-index: 1499; width: 0px; height: 0px;">
+//
 //////////////////////////////////////////////////////////////////////
 
 function checkTravelling(callback, observer, targetNode, config) {
@@ -428,18 +437,39 @@ function areTraveling() {
     return areTravelling;
 }
 
-// Return what country we are in
+/*
+This is in dark mode ('dark mode' will not be in the class otherwise), when in Torn:
+
+<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
+data-country="torn" data-celebration="none" data-traveling="false" data-abroad="false" data-dark-mode-logo="regular">
+
+While flying:
+
+<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
+data-country="cayman-islands" data-celebration="none" data-traveling="true" data-abroad="true" data-dark-mode-logo="">
+
+When landed:
+
+<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
+data-country="cayman-islands" data-celebration="none" data-traveling="false" data-abroad="true" data-dark-mode-logo="">
+*/
+
+// Return what country we are in (or going to!)
 function currentCountry() {
+    /*
     let header = $('body').find('.header.msg.responsive-sidebar-header').get();
     if (!validPointer(header)) {return '';}
     let className = $(header).attr('class');
     let country = className.replace('header msg responsive-sidebar-header', '').trim();
     if (country == '') {country = 'Torn';}
     return country;
+    */
+    return $('body')[0].data-country;
 }
 
 // Return TRUE if travelling or not in Torn
 function awayFromHome() {
+    /*
     let country = currentCountry();
     if (country == '') {country = 'Torn';}
     if (country == 'halloween') {country = 'Torn';}
@@ -454,6 +484,23 @@ function awayFromHome() {
         return true;
     }
     return false;
+    */
+    return abroad() || travelling();
+}
+
+// Return true if abroad (in the air or landed)
+function abroad() {
+    return $('body')[0].data-abroad == 'true';
+}
+
+// Return true if travelling (in the air)
+function travelling() {
+    return $('body')[0].data-travelling == 'true';
+}
+
+// Return true if in dark mode
+function darkMode() {
+    $('body')[0].classList.contains('dark-mode');
 }
 
 /////////////////////////////////////////////////////////////////////////////////
