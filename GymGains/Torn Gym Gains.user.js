@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -16,6 +16,8 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+var DEV_MODE = false;
 
 (function() {
     'use strict';
@@ -38,6 +40,86 @@
         // Populate perk info/gym gain info via the Torn API
         doUserQuery();
         addOnClickHandlers();
+
+        var add_minutes =  function (dt, minutes) {
+            return new Date(dt.getTime() + minutes*60000);
+        }
+
+        var now = function () {
+            return new Date().toString();
+        }
+
+        if (true) { //DEV_MODE) { // Spy on available e
+            let newDiv = '<div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-chk-div" >' +
+                '<span id="xedx-chk-span"><input type="checkbox" id="xedx-chk"><B> Dev Mode</B></span></div>';
+            $('#xedx-summary-body').append(newDiv);
+
+            var currTimeout = null;
+            var barEnergy = document.getElementById('barEnergy');
+            var dexBtn = document.querySelector("#gymroot > div.gym___3whZp > div.gymContentWrapper___2DeUj > div " +
+                                             "> ul > li.dexterity___1YdUM > div.propertyContent___1hg0- > div:nth-child(2) > button");
+            if (barEnergy == null) {return;}
+            var eConfig = { attributes: true, childList: true, subtree: true };
+            let eCallback = function(mutationsList, eObserver) {
+                eObserver.disconnect();
+                if (!DEV_MODE) {
+                    console.log(GM_info.script.name + ': DEV_MODE off, returning.');
+                    return;
+                }
+                let value = document.querySelector("#barEnergy > div.bar-stats___7G40O > p.bar-value___10oCu").innerText;
+                let numE = parseInt(value.slice(0, value.indexOf('/')));
+                console.log(now() + ': Energy is at: ' + numE);
+                //if (numE > 0 && (numE % 25) == 0) {
+                if (numE >= 25) {
+                    console.log(now() + ': Going for more dex (in 5 secs)!');
+                    currTimeout = setTimeout(function() {
+                        dexBtn = document.querySelector("#gymroot > div.gym___3whZp > div.gymContentWrapper___2DeUj > div >" +
+                                               "ul > li.dexterity___1YdUM > div.propertyContent___1hg0- > div:nth-child(2) > button")
+                        console.log('Clicking.');
+                        dexBtn.click();
+                    }, 5000); // Time to cancel...
+                }
+
+                // Turn back on in 3 mins. In reality, make 60 minutes, if not more.
+                // 5 e every 10 minutes, so 25 in 50, full in 18,000 secs
+                let time = 60 * 60 * 1000; // mins * secs/min * 1000 ms/sec
+                currTimeout = setTimeout(function() {eObserver.observe(barEnergy, eConfig);}, time);
+                console.log('setTimeout for: ' + add_minutes(new Date(), 60).toString());
+            };
+            var eObserver = new MutationObserver(eCallback);
+            eObserver.observe(barEnergy, eConfig);
+
+            if (darkMode()) {
+                debugger;
+                let table = document.querySelector("#xedx-bat-stat-table");
+                let border = '1px solid rgb(91, 91, 91)'; // #5B5B5B
+                let tds = table.getElementsByTagName('td');
+                for (let i = 0; i < tds.length; i++) {
+                        tds[i].style.borderBottom = border;
+                        tds[i].style.borderTop = border;
+                        tds[i].style.borderLeft = border;
+                        tds[i].style.borderRight = border;
+                        tds[i].style.color = '#FFFFFF';
+                };
+            }
+
+            $('#xedx-chk').click(function(){
+                console.log('Setting DEV_MODE to ', $('#xedx-chk').prop("checked"));
+                DEV_MODE = ($('#xedx-chk').prop("checked") == true);
+                if (DEV_MODE) {
+                    console.log('Turning on e-observer');
+                    eObserver.observe(barEnergy, eConfig);
+                } else {
+                    if (currTimeout) {
+                        console.log('Cancelling running timeout.');
+                        clearTimeout(currTimeout);
+                        currTimeout = null;
+                    }
+                    console.log('Turning off e-observer');
+                    eObserver.disconnect();
+                }
+            });
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +151,8 @@
                     bodyDiv.style.display = "block";
                     headerDiv.className = 'title main-title title-black top-round active';
                     if (headerDiv.id == 'xedx-bat-stats-hdr-div') {
-                        queryBatStats();
+                        //queryBatStats();
+                        doUserQuery();
                     }
                 }
             });
@@ -367,8 +450,6 @@
         let result = ' - Strength: ' + strength + ', Defense: ' + defense + ', Speed: ' + speed + ', Dexterity: ' + dexterity;
         s2.appendChild(document.createTextNode(result));
         content.appendChild(s2);
-
-        console.log('Gym Gains: enabling observer');
         observer.observe(targetNode, config);
     }
 
@@ -388,7 +469,6 @@
         buildGymGainsDiv();
     };
     var observer = new MutationObserver(callback);
-    console.log('Torn Gym Gains: starting observer');
     observer.observe(targetNode, config);
 })();
 
