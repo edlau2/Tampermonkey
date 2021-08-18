@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -325,10 +325,16 @@ var DEV_MODE = false;
     }
 
     var strengthPct = 0, defPct = 0, speedPct = 0, dexPct = 0;
+
+    function resetGains() {
+        strengthPct = 0, defPct = 0, speedPct = 0, dexPct = 0;
+    }
+
     function populateGymGainsDiv(responseText, id=null, unused=null) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleApiError(responseText);}
 
+        resetGains();
         const ul = document.getElementById('gym-gains-list');
         const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks'];
         const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks'];
