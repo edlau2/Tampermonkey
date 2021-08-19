@@ -169,6 +169,7 @@
 
     // Handle clicking the 'Accept' button (ev is the event)
     function handleAccept(ev) {
+        getSavedOptions();
         log('Accept button handler: ' + ev);
 
         /* Uncomment to prevent the trade from actually propogating
@@ -271,10 +272,26 @@
 
     // Check checkboxes to default.
     function setDefaultCheckboxes() {
-        log('Setting default state of chekboxes.');
+        log('Setting default state of checkboxes.');
         $("#xedx-logging-opt")[0].checked = GM_getValue("loggingEnabled", loggingEnabled);
         $("#xedx-autoupload-opt")[0].checked = GM_getValue("autoUpload", autoUpload);
         $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
+    }
+
+    // Read saved options values
+    function getSavedOptions() {
+        log('Getting saved options.');
+        loggingEnabled = GM_getValue("loggingEnabled", loggingEnabled);
+        autoUpload = GM_getValue("autoUpload", autoUpload);
+        xedxDevMode = GM_getValue("xedxDevMode", xedxDevMode);
+    }
+
+    // ReaWrited saved options values
+    function setSavedOptions() {
+        log('Getting saved options.');
+        GM_setValue("loggingEnabled", loggingEnabled);
+        GM_setValue("autoUpload", autoUpload);
+        GM_setValue("xedxDevMode", xedxDevMode);
     }
 
     // Show/hide opts page
@@ -350,6 +367,7 @@
 
     // Build our UI
     function buildUI() {
+        getSavedOptions();
         if (validPointer(document.getElementById('xedx-main-div'))) {
             log('UI already installed!');
             return;
@@ -419,6 +437,9 @@
     function getGridData() {
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
+            // Clear the array first, if needed.
+            dataArray = [];
+
             const names = ulRoot.querySelectorAll("div.name.left");
             log('Processing trade items:');
             names.forEach(element => processItem(element));
