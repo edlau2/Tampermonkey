@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/XanetTradeHelper/Xanet's%20Trade%20Helper.user.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -17,22 +18,30 @@
     'use strict';
 
     // DIV inserted at top of trade  page, to enter Sheets URL if not already saved.
+    // Eventually, separate into separate file to make this neater. The <div> will go into this file:
+    // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/XanetTradeHelper/Xanet-Trade-Helper-Div.js
+    // Leaving here for now to make it easier to edit, in the Tampermonkey editor.
     const xedx_main_div =
           '<div class="t-blue-cont h" id="xedx-main-div">' +
+
               // Header and title.
               '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
                   "<span>Xanet's Trade Helper</span>" +
+
                   // This displays the active/inactive status - active when data array is populated.
                   '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px;">' +
                       '<span>Active</span>' +
                   '</div>' +
+
                   // This displays the [hide] | [show] link
                   '<div class="right" style="margin-right: 10px">' +
                       '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
                   '</div>' +
               '</div>' +
+
           // This is the content that we want to hide when '[hide] | [show]' is clicked.
           '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: block";>' +
+
               // Google Sheets published URL, can be edited
               '<div style="text-align: center; vertical-align: middle;>' +
                   '<span id="input-span">Google Sheets URL: ' +
@@ -41,15 +50,33 @@
                       '<button id="xedx-save-btn" class="enabled-btn">Save</button>' +
                   '</span>' +
               '</div>' +
-              // Buttons for testing (development) - Submit, View, ...
-              '<div id="button-div" style="text-align: center; vertical-align: middle; display: block;">' +
+
+              // Links for testing (development) - Submit, View, ...
+              //'<div id="button-div" style="text-align: center; vertical-align: middle; display: block;">' +
+              '<div id="button-div" style="margin-left: 200px; vertical-align: middle; display: block;">' +
                   '<span id="button-span">Development Tools: ' +
                       '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
                       '<button id="xedx-view-btn" class="enabled-btn">View</button>' +
                       //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
                   '</span>' +
               '</div>' +
-          '</div>';
+
+              // Checkboxes for various options
+              '<div>' +
+                  '<input type="checkbox" id="xedx-devmode-opt" name="devmode" style="margin-left: 200px; margin-top: 10px;">' +
+                  '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-logging-opt" name="loggingEnabled" style="margin-left: 200px;">' +
+                  '<label for="loggingEnabled"><span style="margin-left: 15px;">Logging Enabled</span></label>' +
+              '</div>' +
+
+              '<div>' +
+                  '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="autoUpload"><span style="margin-left: 15px">Auto-Upload</span></label>' +
+              '</div>' +
+
+          '</div>'; // End xedx-content-div
 
     // Globals - the googleURL from comes from the script - Publish->Deploy as Web App. This allows us to POST
     // to the sheet's script.
@@ -60,11 +87,15 @@
     const tradeID = hash.split(/=|#|&/)[4]; // '6372852'
     var dataArray = []; // Data we are uploading per trade
     var activeFlag = false;
+    var observer = null; // Mutation observer
 
     // These can be modified as you see fit.
-    // xedxDevMode currently only allows the UI to display when travelling
-    const xedxDevMode = true; // true to enable any special dev mode code.
-    const loggingEnabled = true; // true to log to console, false otherwise
+    // xedxDevMode currently does the following:
+    //   Allows the UI to display when travelling.
+    //   Suppresses the 'Accept' button from being propogated. (commented out)
+    var xedxDevMode = true; // true to enable any special dev mode code.
+    var loggingEnabled = true; // true to log to console, false otherwise
+    var autoUpload = false;
 
     ////////////////////////////////////////////////////
     // Process each item in the trade. This is where we
@@ -136,6 +167,29 @@
         });
     }
 
+    // Handle clicking the 'Accept' button (ev is the event)
+    function handleAccept(ev) {
+        log('Accept button handler: ' + ev);
+
+        /* Uncomment to prevent the trade from actually propogating
+        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
+        if (xedxDevMode) {
+            log('Stopping event propogation.');
+            ev.stopPropagation();
+        }
+        */
+        if (!activeFlag || !dataArray.length) {
+            log('No data to POST, or inactive!');
+        } else {
+            if (autoUpload) {
+                log('Uploading data, ' + dataArray.length + ' items.');
+                uploadDataArray();
+            } else {
+                log('Not uploading, autoUpload is not enabled!');
+            }
+        }
+    }
+
     // Called when upload completes
     function uploadFunctionCB(responseText) {
         log('Upload Response:\n' + responseText);
@@ -176,32 +230,56 @@
 
     // View contents of data array to be uploaded, called via the 'View' link
     function viewDataArray() {
-        log('Displaying dataArray contents: Active ? ' + (activeFlag ? 'YES' : 'NO') + ' Data ? ' + (dataAray.length ? 'YES' : 'NO'));
+        log('Displaying dataArray contents: Active ? ' + (activeFlag ? 'YES' : 'NO') + ' Data ? ' + (dataArray.length ? 'YES' : 'NO'));
         let displayText = '';
         if (!activeFlag) {
             displayText = "There is no data to display when inactive!";
-        } else if (dataAray.length == 0) {
+        } else if (dataArray.length == 0) {
             displayText = "No data has been collected! Try refreshing the page.";
         } else {
-            var formatter = new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                  maximumFractionDigits: 0
-                });
-            displayText = 'Items ready to be uploaded for trade:';
+            displayText = 'Items ready to be uploaded for trade:\n';
             for (let i = 0; i < dataArray.length; i++) {
                 let item = dataArray[i];
-                let text = '\t\n' + item.name + ' x' + item.qty + ' ' + formatter.format(item.price);
+                let text = '\t\n' + item.name + ' x' + item.qty;
                 displayText += text;
             }
+        }
 
         log(displayText);
         alert(displayText);
     }
 
+    // Handle the selected options
+    function handleOptsClick() {
+        let option = this.id;
+        log('Handling checkbox change for ' + option);
+        switch (option) {
+            case "xedx-logging-opt":
+                loggingEnabled = this.checked;
+                GM_setValue("loggingEnabled", loggingEnabled);
+                break;
+            case "xedx-autoupload-opt":
+                autoUpload = this.checked;
+                GM_setValue("autoUpload", autoUpload);
+                break;
+            case "xedx-devmode-opt":
+                xedxDevMode = this.checked;
+                GM_setValue("xedxDevMode", xedxDevMode);
+                break;
+        }
+    }
+
+    // Check checkboxes to default.
+    function setDefaultCheckboxes() {
+        log('Setting default state of chekboxes.');
+        $("#xedx-logging-opt")[0].checked = GM_getValue("loggingEnabled", loggingEnabled);
+        $("#xedx-autoupload-opt")[0].checked = GM_getValue("autoUpload", autoUpload);
+        $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
+    }
+
     // Show/hide opts page
     function hideOpts(hide=true) {
-        console.log(GM_info.script.name + (hide ? ": hiding " : ": showing " + "options page."));
+        log((hide ? "hiding " : "showing ") + "options page.");
         $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
         document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'block';
     }
@@ -233,15 +311,41 @@
             GM_setValue('xedxHideOpts', hide);
             hideOpts(hide);
         });
+
+        // Options checkboxes
+        $("#xedx-logging-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-autoupload-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
+
+        // Accept button handler
+        trapAcceptButton();
+    }
+
+    // Add a listener to handle clicking the 'Accept' button
+    function trapAcceptButton() {
+        let link =
+            document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div.btn-wrap.green > span > a");
+        log('Trapping "Accept", link = ' + link);
+        if (validPointer(link)) {
+            if (typeof window.addEventListener != "undefined") {
+                link.addEventListener("click",handleAccept,false);
+            } else {
+                link.attachEvent("onclick",handleAccept);
+            }
+        }
     }
 
     // Toggle active/inactive status
     function indicateActive(active) {
         log('Toggling active status: ' + (active ? 'active' : 'inactive'));
-        var str = `[${active ? 'Active' : 'Inactive'}]`;
-        $('#xedx-active-light').text(str);
-        $('#xedx-active-light')[0].style.color = active ? "green" : "red";
-        activeFlag = active;
+        if (validPointer($('#xedx-active-light')[0])) {
+            var str = `[${active ? 'Active' : 'Inactive'}]`;
+            $('#xedx-active-light').text(str);
+            $('#xedx-active-light')[0].style.color = active ? "green" : "red";
+            activeFlag = active;
+        } else {
+            log('Active indicator not found!');
+        }
     }
 
     // Build our UI
@@ -269,6 +373,7 @@
             }
 
             installHandlers();
+            setDefaultCheckboxes();
             log('UI installed.');
         } else {
             log('Unable to find parent div!');
@@ -281,6 +386,16 @@
               hideOpts();
             }
         }
+
+        let mainDiv = document.getElementById('xedx-main-div');
+        let prevSib = validPointer(mainDiv) ? mainDiv.previousSibling : null;
+        log('Prev Sib: ' + prevSib + ' Type: ' + (validPointer(prevSib) ? prevSib.nodeType : 'undefined'));
+        if (validPointer(prevSib)) {
+            if (prevSib.nodeType == Node.ELEMENT_NODE) {
+                log('Removing node.');
+                prevSib.remove();
+            }
+        }
     }
 
     ///////////////////////////////////////////////////////////////////
@@ -288,10 +403,20 @@
     ///////////////////////////////////////////////////////////////////
 
     function handlePageLoad() {
+
+        window.addEventListener('hashchange', function() {
+            log('The hash has changed!');
+            //buildUI();
+            //getGridData();
+            addObserver();
+        }, false);
         
         buildUI();
+        getGridData();
+    }
 
-        // Get data from trade grid, if active.
+    // Get the data from the right-hand trade grid, if available
+    function getGridData() {
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             const names = ulRoot.querySelectorAll("div.name.left");
@@ -301,14 +426,31 @@
             // Indicate that we are 'active' - data saved
             indicateActive(true);
 
-            // TBD: decide when to upload.
-            uploadDataArray();
+            // TBD: decide when to upload. (moved to Accept button handler)
+            // if (autoUpload) {uploadDataArray();}
         }
-        // No items in trade, or not on an active trade page
+        // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
         else {
             indicateActive(false);
             log('Not on a trade page, or no items in trade!'); // Also hit when I initiate a trade.
+            log('ulRoot: ' + ulRoot);
+            log('div.user.right: ' + document.querySelector("#trade-container > div.trade-cont > div.user.right"));
+            log('div.trade-cont: ' + document.querySelector("#trade-container > div.trade-cont"));
         }
+    }
+
+    // Add an mutation observer
+    function addObserver() {
+        var targetNode = document.querySelector("#trade-container");
+        var config = { attributes: false, childList: true, subtree: true };
+        var callback = function(mutationsList, observer) {
+            log('Mutation observer triggered!');
+            observer.disconnect();
+            buildUI();
+            getGridData();
+        };
+        observer = new MutationObserver(callback);
+        observer.observe(targetNode, config);
     }
 
     // Simple logging helper
