@@ -8,8 +8,7 @@
   A library for calling a number of Torn API functions in one call. Functions include:
   This script is designed to be used inside of "Xanet's Price List".  It runs on a time-based trigger every minute.
 
-     batchAPI()            For use by end users to import a bulk JSON feed from URLs 
-     checkSheet10()
+     batchAPI            For use by end users to import a bulk JSON feed from URLs 
      
 =======================================================================================================================================*/
 
@@ -95,3 +94,64 @@ function checkSheet10() {
     up2();
   }
 }
+
+
+/** function up(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('Sheet10!F8').setValue(Math.random());
+
+} */
+function up2(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('Sheet10!C9').setValue(Math.random());
+
+}
+/** function up3(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a1').setValue(Math.random());
+
+}
+function up4(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a2').setValue(Math.random());
+
+}
+function up5(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a3').setValue(Math.random());
+
+}
+function up6(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a4').setValue(Math.random());
+
+}
+function up7(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a5').setValue(Math.random());
+
+}
+function up8(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a6').setValue(Math.random());
+
+}
+*/
+function ClearCells() {
+  var sheet = SpreadsheetApp.getActive().getSheetByName('Trade Calc');
+  sheet.getRange('A2:A100').clearContent();
+   
+}
+/*
+function up9(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a7').setValue(Math.random());
+
+}
+
+function up10(){
+
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a8').setValue(Math.random());
+
+}
+*/
