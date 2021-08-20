@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -82,9 +82,9 @@
     // to the sheet's script.
     var googleURL = null;
 
-    const hash = location.hash; // ex., '#step=view&ID=6372852'
-    const step = hash.split(/=|#|&/)[2]; // 'view'
-    const tradeID = hash.split(/=|#|&/)[4]; // '6372852'
+    var hash = location.hash; // ex., '#step=view&ID=6372852'
+    //const step = hash.split(/=|#|&/)[2]; // 'view'
+    var tradeID = hash.split(/=|#|&/)[4]; // '6372852'
     var dataArray = []; // Data we are uploading per trade
     var activeFlag = false;
     var observer = null; // Mutation observer
@@ -104,25 +104,52 @@
     // Uploading is done by calling 'uploadDataArray()'
     ////////////////////////////////////////////////////
 
+    // Reverse a string
+    function reverseString(str) {
+        return (str + '').split("").reverse().join("");
+    }
+
+    // Parse "red fox x2\n"
     function processItem(item) {
         let title = item.innerText;
-        let parsed = title.split(/x|\n/);
-        let name = parsed[0];
-        let qty = parsed[1];
+        let reversed = reverseString(title); // '\n2x xof der'
+        let parsed = reversed.replace(/\x/,'&').split('&');
+        let qty = reverseString(parsed[0]);
+        let name = reverseString(parsed[1]).trim();
+        log('processItem: parsed = "' + parsed + '" name = "' + name + '" qty = "' + qty + '"');
 
         let data = getDataItem(name, qty);
         log('New data item: ' + JSON.stringify(data));
+        log('ID: ' + (validPointer(data.id) ? data.id : 'undefined'));
         dataArray.push(data);
     }
 
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
         return {id: tradeID,  // OUT trade ID, from URL
-                name: name,           // OUT eg, "African Violet"
-                qty: qty,             // OUT amount in trade
+                name: name,   // OUT eg, "African Violet"
+                qty: qty,     // OUT amount in trade
                 price: "0",           // IN Unit price
                 total: "0"            // IN Total price (qty * price)
                 };
+    }
+
+    // Ensure there is a valid trade ID, if we are not on a page with a hash, this may fail.
+    function validateTradeIDs() {
+        let badHash = false;
+        if (!validPointer(tradeID)) {
+            hash = location.hash;
+            tradeID = hash.split(/=|#|&/)[4];
+        }
+        if (!validPointer(tradeID)) {
+            log('Error getting trade ID! location: ' + location + ' Hash: ' + hash);
+            badHash = true;
+        }
+        if (!validPointer(dataArray[0].id)) {
+            for (let i = 0; i < dataArray.length; i++) {
+                dataArray[i].id = badHash ? 'unknown' : tradeID;
+            }
+        }
     }
 
     // Upload data to the sheet
@@ -135,6 +162,9 @@
                 return;
             }
         }
+
+        // Validate the trade ID
+        validateTradeIDs();
 
         let data = JSON.stringify(dataArray);
         log('Posting data to ' + url);
@@ -439,6 +469,7 @@
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
             dataArray = [];
+            dataArray.length = 0;
 
             const names = ulRoot.querySelectorAll("div.name.left");
             log('Processing trade items:');
