@@ -5,14 +5,25 @@
   License:      GNU General Public License, version 3 (GPL-3.0) 
                 http://www.opensource.org/licenses/gpl-3.0.html
   ------------------------------------------------------------------------------------------------------------------------------------
-  A library for calling a number of Torn API functions in one call. Functions include:
+  A library for calling a number of Torn API functions in one call. 
   This script is designed to be used inside of "Xanet's Price List".  It runs on a time-based trigger every minute.
+  
+  Functions include:
 
-     batchAPI            For use by end users to import a bulk JSON feed from URLs 
+     batchAPI()      @desc For use by end users to import a bulk JSON feed from URLs 
+                     @param none
+                     @returns nothing
+                     
+     checkSheet10()  @desc I don't know, appears to set a random # (sometimes) at Sheet10!C9
+                     @param none
+                     @returns nothing
      
 =======================================================================================================================================*/
 
 function batchAPI() { 
+  
+  var importJSON_calls = 0; // counter for logging
+  console.log('batchAPI() called.');
 
   //Define the working sheets
   var ss = SpreadsheetApp.openById("1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k");
@@ -59,12 +70,16 @@ function batchAPI() {
       if (active_items_arr[i] == "Points") {
         apiCall = "https://api.torn.com/market/?selections=pointsmarket&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
+        console.log('batchAPI: call = ' + apiCall);
+        importJSON_calls++;
         points_tab.getRange("A1:B").clearContent();
         points_tab.getRange(1, 1, 2, bazaarListings[0].length).setValues(bazaarListings);
       }
       else {
         apiCall = "https://api.torn.com/market/" + item_id_arr[itemId][1] + "?selections=bazaar&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
+        console.log('batchAPI: call = ' + apiCall);
+        importJSON_calls++;
         bazaar_prices_tab.getRange(2, printIndex, 102, 3).clearContent();
         if (bazaarListings[0].length == 3){
         bazaar_prices_tab.getRange(2, printIndex, bazaarListings.length, 3).setValues(bazaarListings);
@@ -72,6 +87,7 @@ function batchAPI() {
       }
       if (bazaarListings[0][2] == "Error") {
         bazaar_prices_tab.getRange("A9").setValue("ERROR - API call returned an error.  View column " + printIndex + ".");
+        console.log('batchAPI FAILED, importJSON calls: ' + importJSON_calls);
         return 1;
       }
     }
@@ -84,6 +100,8 @@ function batchAPI() {
   }
   bazaar_prices_tab.getRange("A8").setValue(cycle_iter);
   bazaar_prices_tab.getRange("A9").setValue("Success!");
+  
+  console.log('batchAPI completed, importJSON calls: ' + importJSON_calls);
 }
 
 function checkSheet10() {
