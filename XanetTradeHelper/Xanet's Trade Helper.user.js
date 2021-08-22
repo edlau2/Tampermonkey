@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.7
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -43,25 +43,28 @@
           '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: block";>' +
 
               // Google Sheets published URL, can be edited
-              '<div style="text-align: center; vertical-align: middle;>' +
-                  '<span id="input-span">Google Sheets URL: ' +
+              '<div style="text-align: center; vertical-align: middle;">' +
+                  '<br>' +
+                  '<span id="input-span" style="margin-top: 30px;">Google Sheets URL: ' +
                   '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
                   'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 450px;">' +
-                      '<button id="xedx-save-btn" class="enabled-btn">Save</button>' +
+                      '<button id="xedx-save-btn" class="enabled-btn">Save URL</button>' +
                   '</span>' +
               '</div>' +
 
               // Links for testing (development) - Submit, View, ...
-              //'<div id="button-div" style="text-align: center; vertical-align: middle; display: block;">' +
-              '<div id="button-div" style="margin-left: 200px; vertical-align: middle; display: block;">' +
+              '<div id="devtools-div" style="margin-left: 200px; vertical-align: middle; display: block;">' +
                   '<span id="button-span">Development Tools: ' +
                       '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
                       '<button id="xedx-view-btn" class="enabled-btn">View</button>' +
+                      '<button id="xedx-prices-btn" class="enabled-btn">Prices (live)</button>' +
+                      '<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
                       //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
+                      '<p id="xedx-status-p" style="display:none; color: green;">Please Wait...</p>' +
+                      '<p>(This also allows the UI to display on the travel page, for testing.)</p>' +
                   '</span>' +
               '</div>' +
-
-              // Checkboxes for various options
+              '<p style="text-align: left; margin-left: 82px;">Options:</p>' +
               '<div>' +
                   '<input type="checkbox" id="xedx-devmode-opt" name="devmode" style="margin-left: 200px; margin-top: 10px;">' +
                   '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
@@ -70,10 +73,13 @@
                   '<input type="checkbox" id="xedx-logging-opt" name="loggingEnabled" style="margin-left: 200px;">' +
                   '<label for="loggingEnabled"><span style="margin-left: 15px;">Logging Enabled</span></label>' +
               '</div>' +
-
               '<div>' +
-                  '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px;">' +
                   '<label for="autoUpload"><span style="margin-left: 15px">Auto-Upload</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="itemInfo"><span style="margin-left: 15px">Display Item Info</span></label>' +
               '</div>' +
 
           '</div>'; // End xedx-content-div
@@ -81,6 +87,12 @@
     // Globals - the googleURL from comes from the script - Publish->Deploy as Web App. This allows us to POST
     // to the sheet's script.
     var googleURL = null;
+
+    // Array to push up for testing.
+    const testArray = [{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
     var hash = location.hash; // ex., '#step=view&ID=6372852'
     //const step = hash.split(/=|#|&/)[2]; // 'view'
@@ -95,7 +107,8 @@
     //   Suppresses the 'Accept' button from being propogated. (commented out)
     var xedxDevMode = true; // true to enable any special dev mode code.
     var loggingEnabled = true; // true to log to console, false otherwise
-    var autoUpload = false;
+    var autoUpload = false; // true to auto-upload when we have data - for pricing info.
+    var dispItemInfo = true; // true to display alert on missing items or 0 price.
 
     ////////////////////////////////////////////////////
     // Process each item in the trade. This is where we
@@ -111,12 +124,51 @@
 
     // Parse "red fox x2\n"
     function processItem(item) {
-        let title = item.innerText;
-        let reversed = reverseString(title); // '\n2x xof der'
-        let parsed = reversed.replace(/\x/,'&').split('&');
-        let qty = reverseString(parsed[0]);
-        let name = reverseString(parsed[1]).trim();
-        log('processItem: parsed = "' + parsed + '" name = "' + name + '" qty = "' + qty + '"');
+        // Compensate for TornTools, it may add pricing to the grid. So,
+        // 'title' may be something like 'Dahlia x2    $9,930.00'. Scrap
+        // everything after the '$', and trim.
+        let title = item.innerText.split('$')[0];
+        let qty = 0;
+        let name = '';
+        let found = false;
+
+        // The string reversal is to handle cases like Xanax x43 or Red Fox Plushie x2.
+        // There i another case, where ther may not be 'x#', for example with weapons.
+        //
+        // So, those may also have an 'x' in the name, such as neutrolux. But, if what is
+        // after the 'x' is non-numeric, we can assume that the quantity is 1.
+
+        // First case - no 'x's at all. qty = 1, name is title.
+        if (title.indexOf('x') == -1) {
+            qty = '1';
+            name = title.trim();
+            found = true;
+            log('Parsed, case 1: name = ' + name + ', qty = ' + qty);
+        }
+        // Second case - Search reversed string for 'x', preceeding char
+        // not numeric, same as above.
+        if (!found) {
+            let reversed = reverseString(title); // '\n2x xof der'
+            let at = reversed.indexOf('x');
+            if (at > 0) {
+                let char = reversed.charAt((at-1));
+                if (isNaN(char)) {
+                    qty = '1';
+                    name = title.trim();
+                    found = true;
+                    log('Parsed, case 2: name = ' + name + ', qty = ' + qty);
+                }
+            }
+        }
+        // Final case, normal 'item x2' (for example), but compensate for
+        // 'x's in the name itself.
+        if (!found) {
+            let reversed = reverseString(title); // '\n2x xof der'
+            let parsed = reversed.replace(/\x/,'&').split('&');
+            qty = reverseString(parsed[0]).trim();
+            name = reverseString(parsed[1]).trim();
+            log('Parsed, case 3: name = ' + name + ', qty = ' + qty);
+        }
 
         let data = getDataItem(name, qty);
         log('New data item: ' + JSON.stringify(data));
@@ -135,7 +187,7 @@
     }
 
     // Ensure there is a valid trade ID, if we are not on a page with a hash, this may fail.
-    function validateTradeIDs() {
+    function validateTradeIDs(useArray) {
         let badHash = false;
         if (!validPointer(tradeID)) {
             hash = location.hash;
@@ -145,15 +197,20 @@
             log('Error getting trade ID! location: ' + location + ' Hash: ' + hash);
             badHash = true;
         }
-        if (!validPointer(dataArray[0].id)) {
-            for (let i = 0; i < dataArray.length; i++) {
-                dataArray[i].id = badHash ? 'unknown' : tradeID;
+        if (!validPointer(useArray[0].id)) {
+            for (let i = 0; i < useArray.length; i++) {
+                useArray[i].id = badHash ? 'unknown' : tradeID;
             }
         }
     }
 
+    // Prform an array deep copy
+    function deepCopy(copyArray) {
+        return JSON.parse(JSON.stringify(copyArray));
+    }
+
     // Upload data to the sheet
-    function uploadDataArray() {
+    function uploadDataArray(cmd='data', altArray = null) {
         let url = document.getElementById('xedx-google-key').value;
         if (url == '') {
             url = GM_getValue('xedx-google-key');
@@ -163,10 +220,18 @@
             }
         }
 
-        // Validate the trade ID
-        validateTradeIDs();
+        // For testing, can use 'altArray' - the testArray defined above.
+        let useArray = altArray ? deepCopy(altArray) : deepCopy(dataArray);
 
-        let data = JSON.stringify(dataArray);
+        // Validate the trade ID
+        validateTradeIDs(useArray);
+
+        // Insert a command into the beginning of the array, as required.
+        var command = {command: cmd}; // Defaults to 'data'
+        useArray.unshift(command);
+        log('Adding command: ' + JSON.stringify(command));
+
+        let data = JSON.stringify(useArray);
         log('Posting data to ' + url);
         log('data = ' + data);
 
@@ -179,18 +244,22 @@
                 'Accept': 'application/json'
             },
             onload: function(response) {
+                hideStatus();
                 console.log(GM_info.script.name + ': submitFunctionCB: ' + response.responseText);
                 uploadFunctionCB(response.responseText);
             },
             onerror: function(response) {
+                hideStatus();
                 console.log(GM_info.script.name + ': onerror');
                 handleScriptError(response);
             },
             onabort: function(response) {
+                hideStatus();
                 console.log(GM_info.script.name + ': onabort');
                 handleSysError(response);
             },
             ontimeout: function(response) {
+                hideStatus();
                 console.log(GM_info.script.name +': ontimeout');
                 handleScriptError(response);
             }
@@ -229,6 +298,8 @@
             newWindow.document.body.innerHTML = responseText;
             return;
         }
+
+        processResponse(responseText);
     }
 
     // Called on script error
@@ -255,6 +326,17 @@
         alert(GM_info.script.name + ': URL saved!');
     }
 
+    // Handle the response on success
+    function processResponse(resp) {
+        log('processResponse: ' + resp);
+
+        if (dispItemInfo) {
+            let output = 'Success! Response:\n\n' + resp;
+            alert(output);
+        }
+
+    }
+
     ///////////////////////////////////////////////////////
     // UI stuff, such as it is.
     ///////////////////////////////////////////////////////
@@ -268,10 +350,10 @@
         } else if (dataArray.length == 0) {
             displayText = "No data has been collected! Try refreshing the page.";
         } else {
-            displayText = 'Items ready to be uploaded for trade:\n';
+            displayText = 'Items ready to be uploaded for trade:\n\n';
             for (let i = 0; i < dataArray.length; i++) {
                 let item = dataArray[i];
-                let text = '\t\n' + item.name + ' x' + item.qty;
+                let text = '\t' + item.name + ' x' + item.qty + '\n';
                 displayText += text;
             }
         }
@@ -296,6 +378,11 @@
             case "xedx-devmode-opt":
                 xedxDevMode = this.checked;
                 GM_setValue("xedxDevMode", xedxDevMode);
+                hideDevLinks(!xedxDevMode);
+                break;
+            case "xedx-iteminfo-opt":
+                dispItemInfo = this.checked;
+                GM_setValue("dispItemInfo", dispItemInfo);
                 break;
         }
     }
@@ -306,6 +393,7 @@
         $("#xedx-logging-opt")[0].checked = GM_getValue("loggingEnabled", loggingEnabled);
         $("#xedx-autoupload-opt")[0].checked = GM_getValue("autoUpload", autoUpload);
         $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
+        $("#xedx-iteminfo-opt")[0].checked = GM_getValue("dispItemInfo", dispItemInfo);
     }
 
     // Read saved options values
@@ -314,6 +402,7 @@
         loggingEnabled = GM_getValue("loggingEnabled", loggingEnabled);
         autoUpload = GM_getValue("autoUpload", autoUpload);
         xedxDevMode = GM_getValue("xedxDevMode", xedxDevMode);
+        dispItemInfo = GM_getValue("dispItemInfo", dispItemInfo);
     }
 
     // ReaWrited saved options values
@@ -322,6 +411,7 @@
         GM_setValue("loggingEnabled", loggingEnabled);
         GM_setValue("autoUpload", autoUpload);
         GM_setValue("xedxDevMode", xedxDevMode);
+        GM_setValue("dispItemInfo", dispItemInfo);
     }
 
     // Show/hide opts page
@@ -341,10 +431,26 @@
         // Submit data to Google Sheets (Submit link)
         myButton = document.getElementById('xedx-submit-btn'); // Dev only
         myButton.addEventListener('click',function () {
+            hideStatus(false);
             uploadDataArray();
         });
 
-        // View data ready to be uploaded - View link, TBD
+        // Submit data to Google Sheets for pricing info only (Prices link)
+        myButton = document.getElementById('xedx-prices-btn'); // Dev only
+        myButton.addEventListener('click',function () {
+            hideStatus(false);
+            uploadDataArray('price');
+        });
+
+        // Submit data to Google Sheets for pricing info only (Prices link)
+        // Uses the test data array, so no need for live data. For debugging.
+        myButton = document.getElementById('xedx-test-btn'); // Dev only
+        myButton.addEventListener('click',function () {
+            hideStatus(false);
+            uploadDataArray('price', testArray);
+        });
+
+        // View data ready to be uploaded - View link
         myButton = document.getElementById('xedx-view-btn'); // Dev only
         myButton.addEventListener('click',function () {
             viewDataArray();
@@ -363,6 +469,7 @@
         $("#xedx-logging-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-autoupload-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-iteminfo-opt")[0].addEventListener("click", handleOptsClick);
 
         // Accept button handler
         trapAcceptButton();
@@ -393,6 +500,18 @@
         } else {
             log('Active indicator not found!');
         }
+    }
+
+    // Show/hide status line
+    function hideStatus(hide=true) {
+        log('Hiding status line: ' + (hide? 'true' : 'false'));
+        $('#xedx-status-p')[0].style.display = hide ? 'none' : 'block';
+    }
+
+    // Show/hide the Dev Tools links
+    function hideDevLinks(hide) {
+        log('Hiding dev tools: ' + (hide? 'true' : 'false'));
+        $('#devtools-div')[0].style.display = hide ? 'none' : 'block';
     }
 
     // Build our UI
@@ -478,8 +597,9 @@
             // Indicate that we are 'active' - data saved
             indicateActive(true);
 
-            // TBD: decide when to upload. (moved to Accept button handler)
-            // if (autoUpload) {uploadDataArray();}
+            // Here, just upload for pricing info.
+            // Actually logged remotely when the param is 'data' (the default)
+            if (autoUpload) {uploadDataArray('price');}
         }
         // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
         else {
