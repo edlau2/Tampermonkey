@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -40,7 +40,8 @@
               '</div>' +
 
               '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
-                  "<span>Total Cost:</span>" +
+                  '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px;">0</span>' +
+                  '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
               '</div>' +
 
           // This is the content that we want to hide when '[hide] | [show]' is clicked.
@@ -64,8 +65,8 @@
                       '<button id="xedx-prices-btn" class="enabled-btn">Prices (live)</button>' +
                       '<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
                       //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
-                      '<p id="xedx-status-p" style="display:none; color: green;">Please Wait...</p>' +
                       '<p>(This also allows the UI to display on the travel page, for testing.)</p>' +
+
                   '</span>' +
               '</div>' +
               '<p style="text-align: left; margin-left: 82px;">Options:</p>' +
@@ -339,7 +340,7 @@
     function processResponse(resp) {
         log('processResponse: ' + resp);
 
-        if (dispItemInfo) {
+        if (true) {
             let output = 'Success! Response:\n\n' + resp;
             // Parse the response into a ensible output.
             // What we like to see is either complete success,
@@ -378,13 +379,18 @@
         let cmdObj = obj[0];
         let dataArray = obj.splice(1, len-1);
         let output = '';
+        let cmd = cmdObj.command;
+        let total = cmdObj.totalTrade;
+        log('Setting total price to ' + asCurrency(total).replace('$', ''));
+        $('#xedx-total-price')[0].innerText = asCurrency(total).replace('$', '');
 
         log('parseResponse: Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
-        log('parseResponse: Command: ' + cmdObj.command);
+        log('parseResponse: Command: ' + cmd);
+        log('parseResponse: Total Trade: ' + total);
         log('parseResponse: dataArray = ' + dataArray + ' Length: ' + dataArray.length);
         log('parseResponse: array data: ' + JSON.stringify(dataArray));
 
-        if (cmdObj.command == 'price') {
+        if (cmd == 'price' && dispItemInfo) {
             let noPrice = countPricesAt(dataArray, 0);
             let notInData = countPricesAt(dataArray, -1);
             log('Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
@@ -474,7 +480,7 @@
                 dispBadItemInfoOnly = this.checked;
                 GM_setValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
                 log('Saved value for dispBadItemInfoOnly');
-                break;break;
+                break;
             default:
                 log('Checkbox ID not found!');
 
@@ -565,6 +571,7 @@
         $("#xedx-autoupload-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-iteminfo-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-baditeminfo-opt")[0].addEventListener("click", handleOptsClick);
 
         // Accept button handler
         trapAcceptButton();
@@ -600,7 +607,7 @@
     // Show/hide status line
     function hideStatus(hide=true) {
         log('Hiding status line: ' + (hide? 'true' : 'false'));
-        $('#xedx-status-p')[0].style.display = hide ? 'none' : 'block';
+        $('#xedx-status-line')[0].style.display = hide ? 'none' : 'block';
     }
 
     // Show/hide the Dev Tools links
@@ -641,15 +648,16 @@
             log('Unable to find parent div!');
         }
 
-        // Display the options page as needed.
-        if (validPointer(document.getElementById('xedx-main-div'))) {
+        // Display the options page and status as needed.
+        let mainDiv = document.getElementById('xedx-main-div');
+        if (validPointer(mainDiv)) {
+            hideStatus();
             let url = document.getElementById('xedx-google-key').value;
             if (url != '' && url != null) {
               hideOpts();
             }
         }
 
-        let mainDiv = document.getElementById('xedx-main-div');
         let prevSib = validPointer(mainDiv) ? mainDiv.previousSibling : null;
         log('Prev Sib: ' + prevSib + ' Type: ' + (validPointer(prevSib) ? prevSib.nodeType : 'undefined'));
         if (validPointer(prevSib)) {
