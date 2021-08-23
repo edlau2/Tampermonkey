@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -78,8 +78,12 @@
                   '<label for="autoUpload"><span style="margin-left: 15px">Auto-Upload</span></label>' +
               '</div>' +
               '<div>' +
-                  '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px;">' +
                   '<label for="itemInfo"><span style="margin-left: 15px">Display Item Info</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-baditeminfo-opt" name="baditemInfo" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="baditemInfo"><span style="margin-left: 15px">Only missing items/prices</span></label>' +
               '</div>' +
 
           '</div>'; // End xedx-content-div
@@ -108,7 +112,8 @@
     var xedxDevMode = true; // true to enable any special dev mode code.
     var loggingEnabled = true; // true to log to console, false otherwise
     var autoUpload = false; // true to auto-upload when we have data - for pricing info.
-    var dispItemInfo = true; // true to display alert on missing items or 0 price.
+    var dispItemInfo = true; // true to display alert on missing items or 0 price, also on success.
+    var dispBadItemInfoOnly = true; // true to ONLY disp alert when missing data
 
     ////////////////////////////////////////////////////
     // Process each item in the trade. This is where we
@@ -332,9 +337,83 @@
 
         if (dispItemInfo) {
             let output = 'Success! Response:\n\n' + resp;
-            alert(output);
+            // Parse the response into a ensible output.
+            // What we like to see is either complete success,
+            // 'All x items logged and Running Averages updated!'
+            // or
+            // 'The following items are not in the price sheet, or
+            // do not have pricing information:'
+            // <nice list>
+            //
+            let newOutput = parseResponse(resp);
+            if (newOutput != "") {
+                alert(newOutput);
+            }
         }
 
+    }
+
+    // Format a number as currency. Move to my helper lib?
+    function asCurrency(num) {
+    var formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+
+    // These options are needed to round to whole numbers if that's what you want.
+    //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
+    maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+    });
+
+  return formatter.format(num);
+}
+
+
+    // Parse the response into legible text
+    function parseResponse(resp) {
+        let obj = JSON.parse(resp);
+        let len = obj.length;
+        let cmdObj = obj[0];
+        let dataArray = obj.splice(1, len-1);
+        let output = '';
+
+        log('parseResponse: Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
+        log('parseResponse: Command: ' + cmdObj.command);
+        log('parseResponse: dataArray = ' + dataArray + ' Length: ' + dataArray.length);
+        log('parseResponse: array data: ' + JSON.stringify(dataArray));
+
+        if (cmdObj.command == 'price') {
+            let noPrice = countPricesAt(dataArray, 0);
+            let notInData = countPricesAt(dataArray, -1);
+            log('Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
+            if (noPrice > 0 || notInData > 0) {
+                output += 'Warning: the following items are not in the list or missing prices.\n';
+
+                len = dataArray.length;
+                for (let i = 0; i < len; i++) {
+                    let item = dataArray[i];
+                    log('Processing item: ' + JSON.stringify(item));
+                    if (item.price > 0) {continue;}
+                    output += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
+                }
+            } else {
+                if (dispBadItemInfoOnly) {
+                    output = "";
+                } else {
+                    output = 'Success! ' + cmdObj.itemsProcessed + ' items processed for ' + asCurrency(cmdObj.totalTrade);
+                }
+            }
+        }
+
+        return output;
+    }
+
+    // Helper to count items in an array at a given price
+    function countPricesAt(arr, price) {
+        let counter = 0;
+        for (let i = 0; i < arr.length; i++) {
+            if (arr[i].price == price) {counter++;}
+        }
+        return counter;
     }
 
     ///////////////////////////////////////////////////////
@@ -384,6 +463,10 @@
                 dispItemInfo = this.checked;
                 GM_setValue("dispItemInfo", dispItemInfo);
                 break;
+            case "xedx-baditeminfo-opt":
+                dispBadItemInfoOnly = this.checked;
+                GM_setValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
+                break;
         }
     }
 
@@ -394,6 +477,7 @@
         $("#xedx-autoupload-opt")[0].checked = GM_getValue("autoUpload", autoUpload);
         $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
         $("#xedx-iteminfo-opt")[0].checked = GM_getValue("dispItemInfo", dispItemInfo);
+        $("#xedx-baditeminfo-opt")[0].checked = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
     }
 
     // Read saved options values
