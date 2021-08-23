@@ -39,6 +39,10 @@
                   '</div>' +
               '</div>' +
 
+              '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
+                  "<span>Total Cost:</span>" +
+              '</div>' +
+
           // This is the content that we want to hide when '[hide] | [show]' is clicked.
           '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: block";>' +
 
@@ -355,18 +359,17 @@
 
     // Format a number as currency. Move to my helper lib?
     function asCurrency(num) {
-    var formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+        var formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
 
-    // These options are needed to round to whole numbers if that's what you want.
-    //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-    maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-    });
+            // These options are needed to round to whole numbers if that's what you want.
+            //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
+            maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+        });
 
-  return formatter.format(num);
-}
-
+      return formatter.format(num);
+      }
 
     // Parse the response into legible text
     function parseResponse(resp) {
@@ -449,24 +452,32 @@
             case "xedx-logging-opt":
                 loggingEnabled = this.checked;
                 GM_setValue("loggingEnabled", loggingEnabled);
+                log('Saved value for loggingEnabled');
                 break;
             case "xedx-autoupload-opt":
                 autoUpload = this.checked;
                 GM_setValue("autoUpload", autoUpload);
+                log('Saved value for autoUpload');
                 break;
             case "xedx-devmode-opt":
                 xedxDevMode = this.checked;
                 GM_setValue("xedxDevMode", xedxDevMode);
+                log('Saved value for xedxDevMode');
                 hideDevLinks(!xedxDevMode);
                 break;
             case "xedx-iteminfo-opt":
                 dispItemInfo = this.checked;
                 GM_setValue("dispItemInfo", dispItemInfo);
+                log('Saved value for dispItemInfo');
                 break;
             case "xedx-baditeminfo-opt":
                 dispBadItemInfoOnly = this.checked;
                 GM_setValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
-                break;
+                log('Saved value for dispBadItemInfoOnly');
+                break;break;
+            default:
+                log('Checkbox ID not found!');
+
         }
     }
 
@@ -489,7 +500,7 @@
         dispItemInfo = GM_getValue("dispItemInfo", dispItemInfo);
     }
 
-    // ReaWrited saved options values
+    // Write saved options values
     function setSavedOptions() {
         log('Getting saved options.');
         GM_setValue("loggingEnabled", loggingEnabled);
