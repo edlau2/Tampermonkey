@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.5
+// @version     2.6
 // @license     MIT
 // ==/UserLibrary==
 
@@ -105,6 +105,29 @@ function isaNumber(x)
     }
     return false;
 }
+
+// Format a number as currency.
+function asCurrency(num) {
+    var formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+
+        // These options are needed to round to whole numbers if that's what you want.
+        //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
+        maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+    });
+
+  return formatter.format(num);
+  }
+
+// Function used to get time formatted for the running averages sheet
+// Formatted as: mm/dd/yyyy 00:00:00 TCT
+// This is stolenn from one of my Google Sheets App Scripts, never
+// tried in pure Javascript. This is in TCT, which is the same as UTC/GMT
+function timenow() {
+  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
+}
+
 
 // Add commas at thousand place - works with decimal numbers
 function numberWithCommas(x) {
