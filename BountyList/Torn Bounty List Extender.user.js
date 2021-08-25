@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -46,6 +46,7 @@
             return;
         }
 
+        //lvlNode.style.paddingRight = "2px";
         lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
         observer.observe(targetNode, config);
     }
@@ -82,12 +83,17 @@
                            .children[0] // li.b-info-wrap.head
                            .children[1] // div.target.left
                            .children[0]; // a
-            // let idNode = $(li).find('ul.item > li.b-info-wrap.head > div.target.left > a);
 
             let ID = idNode.getAttribute('href').split('=')[1];
-            //console.log('Locating rank for ID ' + ID);
             if (!getCachedRankFromId(ID, li)) {
-                getRankFromId(ID, li);
+                // Only get rank if status is 'Okay' ...
+                let statusSel = document.querySelector('#mainContainer > div.content-wrapper > div.newspaper-wrap> div.newspaper-body-wrap > div > div > ' +
+                                                       'div.page-template-cont > div.bounties-wrap > div.bounties-cont > ul.bounties-list.t-blue-cont.h > ' +
+                                                       'li:nth-child(1) > ul > li:nth-child(2) > div.left.user-info-wrap > div.status.right > span:nth-child(2)');
+                //console.log('ID: ' + ID + ' statusSel: ' + statusSel + ' Status: ' + statusSel.innerText);
+                if (validPointer(statusSel)) {
+                    if (statusSel.innerText == 'Okay') {getRankFromId(ID, li);}
+                }
             }
         }
     }
@@ -96,7 +102,7 @@
     // Main. 
     //////////////////////////////////////////////////////////////////////
 
-    console.log("Torn Bounty List Extender script started!");
+    logScriptStart();
     validateApiKey();
 
     var contentRootName = "content";
