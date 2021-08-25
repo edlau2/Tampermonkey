@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -152,6 +152,10 @@
         if (title.indexOf('x') == -1) {
             qty = '1';
             name = title.trim();
+            if (name == '') { // Nothing in trade
+                log('No items in trade!');
+                return;
+            }
             found = true;
             log('Parsed, case 1: name = ' + name + ', qty = ' + qty);
         }
@@ -199,19 +203,18 @@
     // Ensure there is a valid trade ID, if we are not on a page with a hash, this may fail.
     function validateTradeIDs(useArray) {
         let badHash = false;
+        let valid = false;
+
+        log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
         if (!validPointer(tradeID)) {
             hash = location.hash;
             tradeID = hash.split(/=|#|&/)[4];
+            if (validPointer(tradeID)) {valid = true;}
+        } else {
+            valid = true;
         }
-        if (!validPointer(tradeID)) {
-            log('Error getting trade ID! location: ' + location + ' Hash: ' + hash);
-            badHash = true;
-        }
-        if (!validPointer(useArray[0].id)) {
-            for (let i = 0; i < useArray.length; i++) {
-                useArray[i].id = badHash ? 'unknown' : tradeID;
-            }
-        }
+
+        return valid;
     }
 
     // Prform an array deep copy
@@ -233,8 +236,14 @@
         // For testing, can use 'altArray' - the testArray defined above.
         let useArray = altArray ? deepCopy(altArray) : deepCopy(dataArray);
 
+        // Nothing in trade, don't do this.
+        if (!useArray.length) {return;}
+
         // Validate the trade ID
-        validateTradeIDs(useArray);
+        if (validateTradeIDs(useArray)) {
+            log('Invalid trade ID!');
+            return;
+        }
 
         // Insert a command into the beginning of the array, as required.
         var command = {command: cmd}; // Defaults to 'data'
@@ -731,7 +740,7 @@
     // Simple logging helper
     function log(data) {
         if (loggingEnabled) {
-        console.log(GM_info.script.name + ': ' + data);
+            console.log(GM_info.script.name + ': ' + data);
         }
     }
 
