@@ -343,6 +343,8 @@ Note: It appears that this does not work well with the 'Stock Market Helper', be
 
 Note 2: I think this has subsequently been added to Torn itself, on the 'About' tab in the stock market or portfolio pages.
 
+Note 3: Obsoleted by stocks 3.0
+
 **_Stock Market Helper_**
 
 - [Stock Market Helper.user.js] <!-- (https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js) -->
@@ -350,6 +352,8 @@ Note 2: I think this has subsequently been added to Torn itself, on the 'About' 
 Note: the link is disabled as I do not have permission from Mafia to re-distribute. 
 He has taken down ALL of his scripts.
 Kept here for legacy purposes.
+
+Note 2: Obsoleted by Stocks 3.0
 
 <details>
   <summary>Click to see description...</summary>
