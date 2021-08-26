@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -130,6 +130,11 @@
 
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
+
+    // If *already* loaded, go ahead...
+    if (document.readyState === 'complete') {
+        updateUserLevels();
+    }
 
 })();
 
