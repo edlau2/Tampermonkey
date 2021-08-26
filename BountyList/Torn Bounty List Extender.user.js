@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -20,7 +20,10 @@
     var loggingEnabled = true;
 
     // Global cache of ID->Rank associations
-    var rank_cache = ['', 0];
+    var rank_cache = [{ID: 0, numeric_rank: 0}];
+    function newCacheItem(ID, rank) {
+        return {ID: ID, numeric_rank: rank};
+    }
 
     // Query profile information based on ID
     function getRankFromId(ID, li) {
@@ -33,8 +36,8 @@
         if (jsonResp.error) {return handleError(responseText);}
 
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-        //console.log("Caching rank: " + ID + " ==> " + numeric_rank);
-        rank_cache.push({ID, numeric_rank});
+        log("Caching rank: " + ID + " ==> " + numeric_rank);
+        rank_cache.push(newCacheItem(ID, numeric_rank));
         updateLiWithRank(li, numeric_rank);
     }
 
@@ -57,11 +60,12 @@
     function getCachedRankFromId(ID, li) {
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
-                //console.log("Returning cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
+                log("Returning cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
                 updateLiWithRank(li, rank_cache[i].numeric_rank);
                 return rank_cache[i].numeric_rank;
             }
         }
+        log("didn't find " + ID + " in cache.");
         return 0; // Not found!
     }
 
@@ -94,11 +98,14 @@
                 let statusSel = document.querySelector('#mainContainer > div.content-wrapper > div.newspaper-wrap> div.newspaper-body-wrap > div > div > ' +
                                                        'div.page-template-cont > div.bounties-wrap > div.bounties-cont > ul.bounties-list.t-blue-cont.h > ' +
                                                        'li:nth-child(1) > ul > li:nth-child(2) > div.left.user-info-wrap > div.status.right > span:nth-child(2)');
-                //console.log('ID: ' + ID + ' statusSel: ' + statusSel + ' Status: ' + statusSel.innerText);
                 if (validPointer(statusSel)) {
-                    if (statusSel.innerText == 'Okay') {getRankFromId(ID, li);}
+                    if (statusSel.innerText == 'Okay') {
+                        getRankFromId(ID, li);
+                    } else {
+                        log('player ' + ID + ' status is ' + statusSel.innerText + ', skipping.');
+                    }
                 } else {
-                    log("Invalid status selector can't query rank.");
+                    log("Invalid status selector, can't query rank.");
                 }
             }
         }
