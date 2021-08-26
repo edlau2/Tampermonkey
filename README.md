@@ -50,6 +50,17 @@ Note that the PNG files are not part of the installation, they are simple screen
 
 One of these days, I'll publish to my OpenUserJS account and ~~make them self-updateable.~~ (done!) ~~When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned.~~ Hmm - should probably put the version number in the name, as I usually do everywhere else for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions.
 
+**_Torn Weapon Experience Tracker_**
+
+- [Torn Weapon Experience Tracker.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WeaponExperience/Torn%20Weapon%20Experience%20Tracker.user.js)
+
+Images:
+
+- [WeaponExperienceSample.png](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/WeaponExperienceSample.png)
+- [WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/RaceCarOrder/WeaponExperienceSample.png)
+
+This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons.
+
 **_Torn Racing - Car Order_**
 
 - [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/raw/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
