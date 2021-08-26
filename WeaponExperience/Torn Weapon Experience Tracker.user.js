@@ -213,7 +213,7 @@
     logScriptStart(); // Logs even if logging disabled.
     log('Prompting for API key');
     validateApiKey();
-    log('Prompted (I hope...)');
+    log('Prompted (I hope...) API key: "' + api_key + '"');
 
     // Need to wait for full page load.
     window.onload = function(e){handlePageLoad();}
