@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -17,12 +17,14 @@
 (function() {
     'use strict';
 
+    var loggingEnabled = true;
+
     // Global cache of ID->Rank associations
     var rank_cache = ['', 0];
 
     // Query profile information based on ID
     function getRankFromId(ID, li) {
-        console.log("Querying Torn for rank, ID = " + ID);
+        log("Querying Torn for rank, ID = " + ID);
         xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
     }
 
@@ -69,11 +71,13 @@
     //////////////////////////////////////////////////////////////////////
 
     function updateUserLevels() {
+        log('Entering updateUserLevels');
         let ul = document.getElementsByClassName(ulRootClassName)[0];
         if (!validPointer(ul)) {return;}
         let items = ul.getElementsByTagName("li");
         if (!validPointer(items)) {return;}
 
+        log('detected ' + items.length + ' player entries');
         for (let i = 0; i < items.length; i++) {
             let li = items[i];
             if (!validPointer(li.getAttribute('data-id'))) {continue;}
@@ -93,8 +97,18 @@
                 //console.log('ID: ' + ID + ' statusSel: ' + statusSel + ' Status: ' + statusSel.innerText);
                 if (validPointer(statusSel)) {
                     if (statusSel.innerText == 'Okay') {getRankFromId(ID, li);}
+                } else {
+                    log("Invalid status selector can't query rank.");
                 }
             }
+        }
+    }
+
+    // Simple logging helper
+    // @param data - What to log.
+    function log(data) {
+        if (loggingEnabled) {
+            console.log(GM_info.script.name + ': ' + data);
         }
     }
 
