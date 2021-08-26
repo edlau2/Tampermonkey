@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Experience Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Displays a weapon's WE on the Itms page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -216,7 +216,11 @@
     log('Prompted (I hope...) API key: "' + api_key + '"');
 
     // Need to wait for full page load.
-    window.onload = function(e){handlePageLoad();}
+    if (document.readyState === 'complete') {
+        handlePageLoad();
+    } else {
+        window.onload = function(e){handlePageLoad();}
+    }
 
 
 })();
