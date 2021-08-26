@@ -31,7 +31,7 @@
 
     // Called once page is fully loaded
     function handlePageLoad() {
-        log('handlePageLoaded.'); // Logs even if logging disabled.
+        log('handlePageLoaded.'); 
 
         // Query weapons experience - once that completes,
         // we will call the function to modify the page.
@@ -100,22 +100,22 @@
             let category = itemLi.getAttribute('data-category');
             if (category == null) {continue;} // Child elem.
 
-            log('Item ID: ' + itemID + ' Category: ' + category);
+            //log('Item ID: ' + itemID + ' Category: ' + category);
 
             let nameSel = itemLi.querySelector('div.title-wrap > div > span.name-wrap > span.name');
             if (!validPointer(nameSel)) {continue;} // Child elem.
             let name = nameSel.innerHTML;
-            log('Name: ' + name);
+            //log('Name: ' + name);
 
-            log('Finding "' + name + '" by ID ' + itemID);
+            //log('Finding "' + name + '" by ID ' + itemID);
             let item = getItemByItemID(array, Number(itemID));
-            log('item found? -->' + item);
+            //log('item found? -->' + item);
             let WE = 0;
             if (validPointer(item)) {
                 WE = item.exp;
-                log('Weapon Exp.: ' + WE);
+                //log('Weapon Exp.: ' + WE);
             } else {
-                log('Assuming 0 WE.');
+                //log('Assuming 0 WE.');
             }
 
             let bonusUL = itemLi.querySelector('div.cont-wrap > div.bonuses.left > ul');
@@ -211,7 +211,9 @@
 
     // Full URL we trigger on https://www.torn.com/trade.php*
     logScriptStart(); // Logs even if logging disabled.
+    log('Prompting for API key');
     validateApiKey();
+    log('Prompted (I hope...)');
 
     // Need to wait for full page load.
     window.onload = function(e){handlePageLoad();}
