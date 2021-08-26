@@ -125,9 +125,9 @@ This script add a section to the Faction Stats area on your home page, listing t
 
 Images:
 
-- [Torn Bounty List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/Torn%20Bounty%20List%20Extender.png)
+- [BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
 
-This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. 
+This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
 
 **_Torn Bat Stat Estimator_**
 
