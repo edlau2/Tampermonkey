@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.7
+// @version     2.8
 // @license     MIT
 // ==/UserLibrary==
 
@@ -51,14 +51,17 @@ function getHelperVersion() {
     return '0.2';
 }
 
-// Simple logging helper
+// Simple logging helpers. Log regular events or debug-only events.
+// Set these two vars as appropriate in your script.
+var debugLoggingEnabled = true;
+var loggingEnabled = true;
+
 function log(data) {
     if (loggingEnabled) {
         console.log(GM_info.script.name + ': ' + data);
     }
 }
 
-// Simple logging helper
 function debug(data) {
     if (debugLoggingEnabled) {
         console.log(GM_info.script.name + ': ' + data);
