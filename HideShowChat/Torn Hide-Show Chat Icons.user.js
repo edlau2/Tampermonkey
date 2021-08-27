@@ -46,23 +46,25 @@
         }
         console.log('Appending #xedxShowHideChat.');
         $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
+        installClickHandler();
+    }
+
+    function installClickHandler() {
+        $('#showHideChat').on('click', function () {
+                const hide = $('#showHideChat').text() == '[hide]';
+                GM_setValue('xedxHideChat', hide);
+                hideChat(hide);
+            });
     }
 
     function handlePageLoaded() {
-        //disableTornToolsChatHide();
         appendHideShowChatDiv();
         if (window.location.pathname.indexOf('loader.php') >= 0) {
             hideChat(GM_getValue('xedxHideChat', false));
         } else {
             const savedHide = GM_getValue('xedxHideChat', false);
-            //$('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
             appendHideShowChatDiv();
             hideChat(savedHide);
-            $('#showHideChat').on('click', function () {
-                const hide = $('#showHideChat').text() == '[hide]';
-                GM_setValue('xedxHideChat', hide);
-                hideChat(hide);
-            });
         }
     }
 
