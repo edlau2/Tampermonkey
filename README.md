@@ -210,7 +210,7 @@ Note: I've removed this for now, as I'm not sure if it breaks the rules or not (
 
 Images:
 
-- [Torn One-Click Daily Dime.png](Coming Soon - when I have more tokens)
+- [DailyDimeSample.png](https://github.com/edlau2/Tampermonkey/blob/master/DailyDime/DailyDimeSample.png)
 
 This script lets you click the Daily Dime 'buy' button with one click - up to the number of casino tokens you have available. I am using it to get the 'Win a lottery' merit (Lucky Break), you can easily bet 75 times, refill, and bet 75 more times quickly. Or, as many tokens as you may have. 
 
