@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.7
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -20,6 +20,11 @@
 (function() {
     'use strict';
 
+    // Globals
+    debugLoggingEnabled = true;
+    loggingEnabled = true;
+
+
     //////////////////////////////////////////////////////////////////////
     // Functions that do the tool tip adding to separate DIV's
     //////////////////////////////////////////////////////////////////////
@@ -36,50 +41,59 @@
 
         addToolTipStyle();
 
-        var ul = rootDiv.getElementsByClassName("info-cont-wrap")[0];
-        var items = ul.getElementsByTagName("li");
-        for (var i = 0; i < items.length; ++i) {
-            var label = items[i].innerText;
-            if (label.indexOf('Illegal') != -1) {
-                dispIllegalProductsTT(items[i]);
-            } else if (label.indexOf('Theft') != -1) {
-                dispTheftTT(items[i]);
-            } else if (label.indexOf('Auto theft') != -1) {
-                dispAutoTT(items[i]);
-            } else if (label.indexOf('Drug deals') != -1) {
-                dispDrugTT(items[i]);
-            } else if (label.indexOf('Computer crimes') != -1) {
-                dispComputerTT(items[i]);
-            } else if (label.indexOf('Murder') != -1) {
-                dispMurderTT(items[i]);
-            } else if (label.indexOf(('Fraud (nerve') !=1) ) { // for altercoes script...
-                dispFraudTT(items[i]);
-            } else if (label.indexOf(('Fraud crimes') !=1) ) {
-                dispFraudTT(items[i]);
-            } else if (label.indexOf('Other ') != -1) {
-                dispOtherTT(items[i]);
-            } else if (label.indexOf('Total') != -1) {
-                dispTotalTT(items[i]);
+        let ul = rootDiv.getElementsByClassName("info-cont-wrap")[0];
+        let items = ul.getElementsByTagName("li");
+        for (let i = 0; i < items.length; ++i) {
+            let li = items[i];
+            let label = li.innerText;
+            let ariaLabel = li.getAttribute('aria-label');
+            let crimes = qtyFromAriaLabel(ariaLabel);
+
+            // Note - can just switch and pass # crimes.
+            // aria-label = "Drug deals: 255" for example.
+            //
+            // TBD: parseCrimesFromAriaLabel(), then pass to disp...TT
+            //
+            debug('li #' + i + '\nlabel = "' + label +'"\naria-label = "' + ariaLabel +'"');
+            if (ariaLabel.indexOf('Illegal') != -1) {
+                dispIllegalProductsTT(li, crimes);
+            } else if (ariaLabel.indexOf('Theft') != -1) {
+                dispTheftTT(li, crimes);
+            } else if (ariaLabel.indexOf('Auto theft') != -1) {
+                dispAutoTT(li, crimes);
+            } else if (ariaLabel.indexOf('Drug deals') != -1) {
+                dispDrugTT(li, crimes);
+            } else if (ariaLabel.indexOf('Computer crimes') != -1) {
+                dispComputerTT(li, crimes);
+            } else if (ariaLabel.indexOf('Murder') != -1) {
+                dispMurderTT(li, crimes);
+            } else if (ariaLabel.indexOf('Fraud crimes') != -1) {
+                dispFraudTT(li, crimes);
+            } else if (ariaLabel.indexOf('Other') != -1) {
+                dispOtherTT(li, crimes);
+            } else if (ariaLabel.indexOf('Total') != -1) {
+                dispTotalTT(li, crimes);
             }
         }
+        logScriptComplete();
     }
 
     //////////////////////////////////////////////////////////////////////
     // Functions for tool tips for each individual crime type
     //////////////////////////////////////////////////////////////////////
 
+    function qtyFromAriaLabel(ariaLabel) {
+        // ex. aria-label = "Drug deals: 255"
+        var parts = ariaLabel.split(':');
+        return Number(parts[1].replace(/,/g, ""));
+    }
+
     // Helper to get the value of the number associated with the
     // span, which is a key/value string pair, as a percentage.
     function getPctForLi(li, value) {
-        var span = li.getElementsByClassName('desc')[0];
-        var spanText = span.innerText.replace(/,/g, "");
-
-        // If altercoes is installed, the spanText will be number\n text \nnumber, we need the second
-        let ks = spanText.split("\n");
-        if (validPointer(ks[2])) {
-            spanText = ks[2];
-        }
-        var pctText = Number(spanText)/value * 100;
+        let ariaLabel = li.getAttribute('aria-label');
+        let crimes = qtyFromAriaLabel(ariaLabel);
+        let pctText = crimes/value * 100;
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
@@ -102,14 +116,15 @@
         })
     }
 
-    function dispIllegalProductsTT(li) {
+    function dispIllegalProductsTT(li, crimes) {
+        debug('dispIllegalProductsTT');
         var text = '<B>Illegal Products (Bottlegging):</B>' + CRLF + TAB + 'Sell Copied Media' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Civil Offence\",</B> ' + getPctForLi(li, 5000);
 
         displayToolTip(li, text);
     }
 
-    function dispTheftTT(li) {
+    function dispTheftTT(li, thefts) {
         var text = '<B>Theft:</B>' + CRLF +
             TAB + 'Shoplift, Pickpocket Someone, Larceny,' + CRLF + TAB + 'Armed Robberies, Kidnapping' + CRLF + CRLF;
         text = text + 'Honor Bars at:' + CRLF +
@@ -119,8 +134,7 @@
             TAB + '7,500: <B>\"Breaking And Entering\",</B> ' + getPctForLi(li, 7500) + CRLF +
             TAB + '10,000: <B>\"Stroke Bringer\",</B> ' + getPctForLi(li, 10000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var thefts = Number(span.innerText.replace(/,/g, ""));
+        debug('dispTheftTT, thefts = ' + thefts);
         var text2 = 'Medals at: <B>' +
             ((thefts > 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
             ((thefts > 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
@@ -137,12 +151,11 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispAutoTT(li) {
+    function dispAutoTT(li, crimes) {
         var text = '<B>Auto Theft:</B>' + CRLF + TAB + 'Grand Theft Auto' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Joy Rider\",</B> ' + getPctForLi(li, 5000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var crimes = Number(span.innerText.replace(/,/g, ""));
+        debug('dispAutoTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
             ((crimes > 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
             ((crimes > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
@@ -164,12 +177,11 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispDrugTT(li) {
+    function dispDrugTT(li, crimes) {
         var text = '<B>Drug deals:</B>' + CRLF + TAB + 'Transport Drugs' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Escobar\",</B> ' + getPctForLi(li, 5000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var crimes = Number(span.innerText.replace(/,/g, ""));
+        debug('dispDrugTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
             ((crimes > 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
             ((crimes > 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
@@ -183,13 +195,12 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispComputerTT(li) {
+    function dispComputerTT(li, crimes) {
         var text = '<B>Computer crimes:</B>' + CRLF + TAB + 'Plant a Computer Virus, Hacking' + CRLF + CRLF;
         text = text + 'Honor Bar at 1,000: <B>\"Bug\",</B> ' + getPctForLi(li, 1000) + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"We Have A Breach\",</B> ' + getPctForLi(li, 5000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var crimes = Number(span.innerText.replace(/,/g, ""));
+        debug('dispComputerTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
             ((crimes > 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
             ((crimes > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
@@ -209,12 +220,11 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispMurderTT(li) {
+    function dispMurderTT(li, frauds) {
         var text = '<B>Murder crimes:</B>' + CRLF + TAB + 'Assasination' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Professional\",</B> ' + getPctForLi(li, 5000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var frauds = Number(span.innerText.replace(/,/g, ""));
+        debug('dispMurderTT, crimes = ' + frauds);
         var text2 = 'Medals at: <B>' +
             ((frauds > 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
             ((frauds > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
@@ -230,13 +240,12 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispFraudTT(li) {
+    function dispFraudTT(li, frauds) {
         var text = '<B>Fraud crimes:</B>' + CRLF + TAB + 'Arson, Pawn Shop, Counterfeiting,' + CRLF + TAB +
             'Arms Trafficking, Bombings' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Fire Starter\",</B> ' + getPctForLi(li, 5000);
 
-        var span = li.getElementsByClassName('desc')[0];
-        var frauds = Number(span.innerText.replace(/,/g, ""));
+        debug('dispFraudTT, crimes = ' + frauds);
         var text2 = 'Medals at: <B>' +
             ((frauds > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
             ((frauds > 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
@@ -247,14 +256,16 @@
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
 
-    function dispOtherTT(li) {
+    function dispOtherTT(li, crimes) {
+        debug('dispOtherTT');
         var text = '<B>Other crimes:</B>' + CRLF + TAB + 'Search for cash' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Find A Penny, Pick It Up\",</B> ' + getPctForLi(li, 5000);
 
         displayToolTip(li, text);
     }
 
-    function dispTotalTT(li) {
+    function dispTotalTT(li, crimes) {
+        debug('dispTotalTT');
         var text = '<B>Total Criminal Offences:</B>' + CRLF + TAB + 'Well, everything.' + CRLF + CRLF;
         text = text + 'Honor Bar at 10,000: <B>\"Society\'s Worst\",</B> ' + getPctForLi(li, 10000);
 
