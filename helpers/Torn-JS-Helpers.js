@@ -5,14 +5,14 @@
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
-// @author       xedx [2100735]
+// @author      xedx [2100735]
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.6
+// @version     2.7
 // @license     MIT
 // ==/UserLibrary==
 
@@ -47,6 +47,20 @@ function getHelperVersion() {
     return '0.2';
 }
 
+// Simple logging helper
+function log(data) {
+    if (loggingEnabled) {
+        console.log(GM_info.script.name + ': ' + data);
+    }
+}
+
+// Simple logging helper
+function debug(data) {
+    if (debugLoggingEnabled) {
+        console.log(GM_info.script.name + ': ' + data);
+    }
+}
+
 // Date formatting 'constants'
 const date_formats = ["YYYY-MM-DD",
                       "YYYY-MONTH-DD DDD",
@@ -64,6 +78,7 @@ const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
 
 
 // Convert a date object into a readable format
+// Note: use 'Utilities.formatDate' instead.
 function dateConverter(dateobj, format){
     var year = dateobj.getFullYear();
     var month= ("0" + (dateobj.getMonth()+1)).slice(-2);
@@ -506,7 +521,7 @@ var errorLogged = false;
 function handleError(responseText) {
     if (!errorLogged) {
         let jsonResp = JSON.parse(responseText);
-        let errorText = GM_info.script.name + ': An error has occurred querying TornStats.\n' +
+        let errorText = GM_info.script.name + ': An error has occurred querying the Torn API.\n' +
             '\nCode: ' + jsonResp.error.code +
             '\nError: ' + jsonResp.error.error;
 
