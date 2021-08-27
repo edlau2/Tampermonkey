@@ -41,6 +41,10 @@ function logScriptStart() {
     console.log(GM_info.script.name + ' script started!');
 }
 
+function logScriptComplete() {
+    console.log(GM_info.script.name + ' script complete!');
+}
+
 // Get rid of this - returns hosting script version, not this library's version
 function getHelperVersion() {
     //return GM_info.script.version;
