@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -208,12 +208,12 @@
         log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
 
         tradeID = Number(tradeID);
-        if (!isaNumber(tradeID)) {
+        if (isNaN(tradeID)) {
             log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
             hash = location.hash;
             tradeID = Number(hash.split(/=|#|&/)[4]);
             log('New trade ID: ' + tradeID);
-            if (isaNumber(tradeID)) {valid = true;}
+            if (!isNaN(tradeID)) {valid = true;}
         }
 
         return valid;
@@ -245,7 +245,7 @@
         if (validateTradeIDs(useArray)) {
             log('Invalid trade ID!');
             log('tradeID = ' + tradeID);
-            if (isaNumber(tradeID)) {
+            if (!isNaN(tradeID)) {
                 log(tradeID + ' looks valid to me, ignoring.');
             } else {
                 log('Ignoring for now!!!');
