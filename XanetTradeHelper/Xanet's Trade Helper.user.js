@@ -411,7 +411,7 @@
             let noPrice = countPricesAt(dataArray, 0);
             let notInData = countPricesAt(dataArray, -1);
             log('Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
-            if ((noPrice > 0 || notInData > 0) && dispBadItemInfoOnly) {
+            if ((noPrice > 0 || notInData > 0) && !dispBadItemInfoOnly) {
                 output += 'Warning: the following items are not in the list or missing prices.\n';
 
                 len = dataArray.length;
