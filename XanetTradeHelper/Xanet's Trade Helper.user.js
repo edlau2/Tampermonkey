@@ -206,9 +206,12 @@
         let valid = false;
 
         log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
+
         if (!validPointer(tradeID)) {
+            log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
             hash = location.hash;
             tradeID = hash.split(/=|#|&/)[4];
+            log('New trade ID: ' + tradeID);
             if (validPointer(tradeID)) {valid = true;}
         } else {
             valid = true;
@@ -242,7 +245,9 @@
         // Validate the trade ID
         if (validateTradeIDs(useArray)) {
             log('Invalid trade ID!');
-            return;
+            log('tradeID = ' + tradeID);
+            log('Ignoring for now!!!');
+            //return;
         }
 
         // Insert a command into the beginning of the array, as required.
