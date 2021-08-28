@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -40,7 +40,8 @@
               '</div>' +
 
               '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
-                  '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px;">0</span>' +
+                  '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
+                  '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px;">0</span>' +
                   '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
               '</div>' +
 
@@ -106,6 +107,7 @@
     var hash = location.hash; // ex., '#step=view&ID=6372852'
     //const step = hash.split(/=|#|&/)[2]; // 'view'
     var tradeID = hash.split(/=|#|&/)[4]; // '6372852'
+    var totalPrice = 0;
     var dataArray = []; // Data we are uploading per trade
     var activeFlag = false;
     var observer = null; // Mutation observer
@@ -317,6 +319,23 @@
         }
     }
 
+    // Handle clicking the 'Cancel' button (ev is the event)
+    function handleCancel(ev) {
+        getSavedOptions();
+        log('Cancel button handler: ' + ev);
+
+        /* Uncomment to prevent the trade from actually propogating
+        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
+        if (xedxDevMode) {
+            log('Stopping event propogation.');
+            ev.stopPropagation();
+        }
+        */
+
+        tradeID = 0;
+        totalPrice = 0;
+    }
+
     // Called when upload completes
     function uploadFunctionCB(responseText) {
         log('Upload Response:\n' + responseText);
@@ -398,8 +417,16 @@
         let output = '';
         let cmd = cmdObj.command;
         let total = cmdObj.totalTrade;
-        log('Setting total price to ' + asCurrency(total).replace('$', ''));
-        $('#xedx-total-price')[0].innerText = asCurrency(total).replace('$', '');
+
+        // Set the 'Total Price' in the UI, unless 0.
+        let dispPrice = totalPrice; // totalPrice is global
+        if (total > 0) {
+            totalPrice = total;
+            dispPrice = total;
+        }
+        log('Setting total price to ' + asCurrency(dispPrice).replace('$', ''));
+        $('#xedx-total-price')[0].innerText = asCurrency(dispPrice).replace('$', '');
+        $('#xedx-trade-id')[0].innerText = tradeID;
 
         log('parseResponse: Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
         log('parseResponse: Command: ' + cmd);
@@ -590,20 +617,35 @@
         $("#xedx-iteminfo-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-baditeminfo-opt")[0].addEventListener("click", handleOptsClick);
 
-        // Accept button handler
+        // Accept/cancel button handler
         trapAcceptButton();
+        trapCancelButton();
     }
 
     // Add a listener to handle clicking the 'Accept' button
     function trapAcceptButton() {
         let link =
             document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div.btn-wrap.green > span > a");
-        log('Trapping "Accept", link = ' + link);
+        log('Trapping "Accept", link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
         if (validPointer(link)) {
             if (typeof window.addEventListener != "undefined") {
                 link.addEventListener("click",handleAccept,false);
             } else {
                 link.attachEvent("onclick",handleAccept);
+            }
+        }
+    }
+
+    // Add a listener for the 'Cancel' button, may be different on diff pages.
+    function trapCancelButton() {
+        let link =
+            document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div > div > button");
+        log('Trapping "Cancel", Link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
+        if (validPointer(link)) {
+            if (typeof window.addEventListener != "undefined") {
+                link.addEventListener("click",handleCancel,false);
+            } else {
+                link.attachEvent("onclick",handleCancel);
             }
         }
     }
@@ -692,7 +734,7 @@
     function handlePageLoad() {
 
         window.addEventListener('hashchange', function() {
-            log('The hash has changed!');
+            log('The hash has changed! Trade ID: ' + tradeID + ' Total Price: ' + totalPrice);
             //buildUI();
             //getGridData();
             addObserver();
@@ -728,6 +770,14 @@
             log('ulRoot: ' + ulRoot);
             log('div.user.right: ' + document.querySelector("#trade-container > div.trade-cont > div.user.right"));
             log('div.trade-cont: ' + document.querySelector("#trade-container > div.trade-cont"));
+        }
+
+        if (!isNaN(totalPrice) && !isNaN(tradeID)) {
+            log('Setting total price to ' + asCurrency(totalPrice).replace('$', ''));
+            $('#xedx-total-price')[0].innerText = asCurrency(totalPrice).replace('$', '');
+            $('#xedx-trade-id')[0].innerText = tradeID;
+        } else {
+            log('Failed to set price: total = "' + totalPrice + '" tradeID = "' + tradeID + '"');
         }
     }
 
