@@ -194,9 +194,9 @@
 
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
-        return {id: tradeID,  // OUT trade ID, from URL
+        return {id: '"' + Number(tradeID) + '"',  // OUT trade ID, from URL
                 name: name,   // OUT eg, "African Violet"
-                qty: qty,     // OUT amount in trade
+                qty: '"' + Number(qty) + '"',     // OUT amount in trade
                 price: "0",           // IN Unit price
                 total: "0"            // IN Total price (qty * price)
                 };
@@ -577,13 +577,15 @@
         myButton = document.getElementById('xedx-submit-btn'); // Dev only
         myButton.addEventListener('click',function () {
             hideStatus(false);
-            uploadDataArray();
+            log('SUBMIT clicked');
+            uploadDataArray('data');
         });
 
         // Submit data to Google Sheets for pricing info only (Prices link)
         myButton = document.getElementById('xedx-prices-btn'); // Dev only
         myButton.addEventListener('click',function () {
             hideStatus(false);
+            log('PRICE (live) clicked');
             uploadDataArray('price');
         });
 
@@ -592,12 +594,14 @@
         myButton = document.getElementById('xedx-test-btn'); // Dev only
         myButton.addEventListener('click',function () {
             hideStatus(false);
+            log('PRICE (test) clicked');
             uploadDataArray('price', testArray);
         });
 
         // View data ready to be uploaded - View link
         myButton = document.getElementById('xedx-view-btn'); // Dev only
         myButton.addEventListener('click',function () {
+            log('VIEW clicked');
             viewDataArray();
         });
 
