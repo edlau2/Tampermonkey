@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -194,11 +194,12 @@
 
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
-        return {id: '"' + Number(tradeID) + '"',  // OUT trade ID, from URL
+
+        return {id: tradeID,  // OUT trade ID, from URL
                 name: name,   // OUT eg, "African Violet"
-                qty: '"' + Number(qty) + '"',     // OUT amount in trade
-                price: "0",           // IN Unit price
-                total: "0"            // IN Total price (qty * price)
+                qty: qty,     // OUT amount in trade
+                price: "0",   // IN Unit price
+                total: "0"    // IN Total price (qty * price)
                 };
     }
 
@@ -241,10 +242,13 @@
         let useArray = altArray ? deepCopy(altArray) : deepCopy(dataArray);
 
         // Nothing in trade, don't do this.
-        if (!useArray.length) {return;}
+        if (!useArray.length) {
+            log('No data in trade, ignoring');
+            return;
+        }
 
         // Validate the trade ID
-        if (validateTradeIDs(useArray)) {
+        if (!validateTradeIDs(useArray)) {
             log('Invalid trade ID!');
             log('tradeID = ' + tradeID);
             if (!isNaN(tradeID)) {
