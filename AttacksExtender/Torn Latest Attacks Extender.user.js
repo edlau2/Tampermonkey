@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
-// @blah      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/index.php
 // @connect      api.torn.com
 // @grant        GM_addStyle
