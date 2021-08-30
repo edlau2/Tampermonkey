@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -95,14 +95,15 @@
             let ID = idNode.getAttribute('href').split('=')[1];
             if (!getCachedRankFromId(ID, li)) {
                 // Only get rank if status is 'Okay' ...
-                let statusSel = document.querySelector('#mainContainer > div.content-wrapper > div.newspaper-wrap> div.newspaper-body-wrap > div > div > ' +
-                                                       'div.page-template-cont > div.bounties-wrap > div.bounties-cont > ul.bounties-list.t-blue-cont.h > ' +
-                                                       'li:nth-child(1) > ul > li:nth-child(2) > div.left.user-info-wrap > div.status.right > span:nth-child(2)');
+                let statusSel = li.querySelector('ul > li:nth-child(2) > div.left.user-info-wrap > div.status.right > span:nth-child(2)');
+                let nameSel = li.querySelector('ul > li.b-info-wrap.head > div.target.left > a');
+                let name = validPointer(nameSel) ? nameSel.innerText : 'unknown';
                 if (validPointer(statusSel)) {
                     if (statusSel.innerText == 'Okay') {
+                        log('Querying rank for player ' + ID + ' ' + name);
                         getRankFromId(ID, li);
                     } else {
-                        log('player ' + ID + ' status is ' + statusSel.innerText + ', skipping.');
+                        log('player ' + ID + ', ' + name + ' status is ' + statusSel.innerText + ', skipping.');
                     }
                 } else {
                     log("Invalid status selector, can't query rank.");
