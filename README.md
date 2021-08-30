@@ -57,7 +57,7 @@ One of these days, I'll publish to my OpenUserJS account and ~~make them self-up
 Images:
 
 - [WeaponExperienceSample.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample.png)
-- [WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample.png)
+- [WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample2.png)
 
 This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons.
 
