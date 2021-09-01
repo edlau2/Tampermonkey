@@ -25,7 +25,7 @@ function getDocById() {
 }
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.1';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.2';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -398,7 +398,7 @@ function updateRunningAverage(item) {
     let name = avgSheet().getRange(row, 1).getValue(); // Make visible to the debugger
     if (item.name == name) {
       // Get a new range for just this item, covering the row.
-      let itemRange = avgSheet().getRange(row, 3, 1, 6); 
+      let itemRange = avgSheet().getRange(row, 2, 1, 7); 
       // let itemRange = ss.getRange("Running Averages!D" + row + ":G" + row);
       let data = itemRange.getValues(); // (Last Price Total) | (Last Count Total) | Avg
       
@@ -412,7 +412,7 @@ function updateRunningAverage(item) {
       let newPrice = Number(prevPrice) + (Number(item.price) * Number(item.qty)); // Goes into D:<row>, used next time through
       let newQty = Number(prevCount) + Number(item.qty); // Goes into E:<row>, used next time through
       let avg = Number(newPrice)/Number(newQty); // Running median average --> goes into F:<row>
-      itemRange.setValues([[timenow(), newPrice, newQty, avg, prevAvg, 'active']]); 
+      itemRange.setValues([[avg, timenow(), newPrice, newQty, avg, prevAvg, 'active']]); 
       
       /*
       myLogger('Calculated running average for ' + item.name + ': \nprev price: ' + prevPrice + 
