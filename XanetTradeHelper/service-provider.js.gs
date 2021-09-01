@@ -25,7 +25,7 @@ function getDocById() {
 }
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.2';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.3';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -374,7 +374,7 @@ function cleanRunningAverages() {
   for (let row = 2; row <= rows; row++) {
     var status = avgSheet().getRange(row, 8).getValue(); // 8 == 'H'
     if (status == '') { 
-      let dataRange = avgSheet().getRange(row, 2, 1, 7);
+      let dataRange = avgSheet().getRange(row, 3, 1, 6);
       let values = [[0, timenow(), 0, 0, 0, 0, 'cleared']];
       dataRange.setValues(values);            
     }
