@@ -25,7 +25,7 @@ function getDocById() {
 }
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.0';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.1';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -557,6 +557,7 @@ function parseJsonObject(objString) {
   let retArray = [];
   
   let counter = 0;
+  myLogger('parseJsonObject: ' + objString);
   while (checkStr != '') {
     let temp = '';
     let newItem = getNewItem();
@@ -566,7 +567,13 @@ function parseJsonObject(objString) {
       let pEnd = temp.indexOf('"'); 
       let temp2 = temp.slice(0, pEnd-1);
       newItem[keys[i]] = temp2.trim();
+      myLogger('parseJsonObject: key = ' + keys[i] + '\npAt: ' + pAt +
+               '\ntemp: ' + temp +
+               '\npEnd: ' + pEnd + 
+               '\ntemp2: ' + temp2 +
+               '\ntemp2.trim(): ' + temp2.trim());
       } // find next key.
+    myLogger('New Item = "' + JSON.stringify(newItem) + '"');
     
     counter++;
     retArray.push(newItem);
