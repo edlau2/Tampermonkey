@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -316,7 +316,7 @@
         } else {
             if (autoUpload) {
                 log('Uploading data, ' + dataArray.length + ' items.');
-                uploadDataArray();
+                uploadDataArray('data');
             } else {
                 log('Not uploading, autoUpload is not enabled!');
             }
