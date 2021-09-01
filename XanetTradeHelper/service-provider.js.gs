@@ -1,4 +1,11 @@
 // File: service-provider.js.gs
+
+// Versioning, internal
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.5';
+function getVersion() {
+  return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
+}
+
 //
 // This must be run before using this script. Select 'Run->Run Function->Setup' to do so.
 // It saves the script ID so it doesn't have to be hard-coded manually.
@@ -22,12 +29,6 @@ function getDocById() {
   } else {
     return SpreadsheetApp.openById(ssID);
   }
-}
-
-// Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.4';
-function getVersion() {
-  return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
 
 // Globals
@@ -374,7 +375,7 @@ function cleanRunningAverages() {
   for (let row = 2; row <= rows; row++) {
     var status = avgSheet().getRange(row, 8).getValue(); // 8 == 'H'
     if (status == '') { 
-      let dataRange = avgSheet().getRange(row, 3, 1, 6);
+      let dataRange = avgSheet().getRange(row, 2, 1, 7);
       let values = [[0, timenow(), 0, 0, 0, 0, 'cleared']];
       dataRange.setValues(values);            
     }
