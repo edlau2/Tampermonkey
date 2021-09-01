@@ -25,7 +25,7 @@ function getDocById() {
 }
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.3';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.4';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -404,9 +404,9 @@ function updateRunningAverage(item) {
       
       // timestamp is [0] in range, [1] is last price, [2] last count, [3] current RA
       // [4] is RA, [5] is status
-      let prevPrice = isNaN(data[0][0]) ? 0 : data[0][1];
-      let prevCount = isNaN(data[0][1]) ? 0 : data[0][2];
-      let prevAvg = isNaN(data[0][2]) ? 0 : data[0][3];
+      let prevPrice = isNaN(data[0][2]) ? 0 : data[0][2];
+      let prevCount = isNaN(data[0][3]) ? 0 : data[0][3];
+      let prevAvg = isNaN(data[0][4]) ? 0 : data[0][4];
       
       // Done for clarity, could do all this in one line.
       let newPrice = Number(prevPrice) + (Number(item.price) * Number(item.qty)); // Goes into D:<row>, used next time through
