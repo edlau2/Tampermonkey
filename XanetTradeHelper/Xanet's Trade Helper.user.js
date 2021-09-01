@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -195,7 +195,7 @@
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
 
-        return {id: tradeID,  // OUT trade ID, from URL
+        return {id: tradeID.toString(),  // OUT trade ID, from URL
                 name: name,   // OUT eg, "African Violet"
                 qty: qty,     // OUT amount in trade
                 price: "0",   // IN Unit price
