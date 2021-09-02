@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.8
+// @version     2.9
 // @license     MIT
 // ==/UserLibrary==
 
@@ -30,6 +30,18 @@ function validateApiKey() {
                          "Your key is kept private and not shared with anyone.", "");
         GM_setValue('gm_api_key', api_key);
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// Get the user's ID
+///////////////////////////////////////////////////////////////////////////////////
+
+function queryUsedId(callback) {
+    xedx_TornUserQuery(null, 'basic', function(responseText) {
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+        callback(jsonResp.player_id);
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -121,11 +133,15 @@ function dateConverter(dateobj, format){
 // Check if a var is numeric
 function isaNumber(x)
 {
+    /*
     var regex=/^[0-9]+$/;
-    if (x.match(regex)) {
+    if (!validPointer) {return false;}
+    if (x.match(regex)) { // Will crash on undefined, null, etc. The above checks for that
         return true;
     }
     return false;
+    */
+    return !isNaN(x);
 }
 
 // Format a number as currency.
