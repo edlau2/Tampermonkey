@@ -36,7 +36,7 @@ function validateApiKey() {
 // Get the user's ID
 ///////////////////////////////////////////////////////////////////////////////////
 
-function queryUsedId(callback) {
+function queryUserId(callback) {
     xedx_TornUserQuery(null, 'basic', function(responseText) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
