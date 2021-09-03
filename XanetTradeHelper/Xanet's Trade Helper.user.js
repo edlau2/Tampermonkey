@@ -271,6 +271,9 @@
         log('Posting data to ' + url);
         log('data = ' + data);
 
+        tradeID = '';
+        totalPrice = 0;
+
         let details = GM_xmlhttpRequest({
             method:"POST",
             url:url,
@@ -804,8 +807,8 @@
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
-            tradeID = '';
-            totalPrice = 0;
+            //tradeID = '';
+            //totalPrice = 0;
             dataArray = [];
             dataArray.length = 0;
 
