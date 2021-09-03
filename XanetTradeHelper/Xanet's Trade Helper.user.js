@@ -195,7 +195,8 @@
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
 
-        return {id: tradeID.toString(),  // OUT trade ID, from URL
+        let useID = validPointer(tradeID) ? tradeID.toString() : '';
+        return {id: useID,    // OUT trade ID, from URL
                 name: name,   // OUT eg, "African Violet"
                 qty: qty,     // OUT amount in trade
                 price: "0",   // IN Unit price
@@ -706,6 +707,12 @@
         if (value == '' || value == null || value == undefined) {
             log('Setting value to "' + totalPrice);
             target.setAttribute('value', totalPrice);
+
+            // Enable the 'Change' button
+            let btn = document.querySelector("#trade-container > div.init-trade.add-money > " +
+                                             "div.cont-gray.bottom-round > form > span > span > input");
+            btn.removeAttribute('disabled');
+            btn.classList.remove('disabled');
         }
     }
 
