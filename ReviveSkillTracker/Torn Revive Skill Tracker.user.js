@@ -75,7 +75,9 @@
 
     // The googleURL from comes from the script - Publish->Deploy as Web App. This allows us to POST
     // to the sheet's script.
-    var googleURL = null;
+    //
+    // This is defaulting to MY Google App Sheets spreadsheet, to use your own, set this to null or your own URL.
+    var googleURL = "https://script.google.com/macros/s/AKfycbxdqIM1WyegTIbiVura9V_-SpJj2r5kKZEcXgebwdk4sNs6cI8/exec";
 
     debugLoggingEnabled = true; // Define log output, used by Torn-JS-Helpers
     loggingEnabled = true;      // 'log()' and 'debug()' functions.
@@ -528,9 +530,10 @@
         $(xedx_main_div).insertAfter(parentDiv);
 
         let urlInput = document.getElementById('xedx-google-key');
-        let value = GM_getValue('xedx-google-key');
+        let value = (googleURL == null) ? GM_getValue('xedx-google-key') : googleURL;
         if (typeof value != 'undefined' && value != null && value != '') {
             urlInput.value = value;
+            GM_setValue('xedx-google-key', googleURL);
         }
 
         setCurrentRS(currentReviveSkill);
