@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -804,6 +804,8 @@
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
+            tradeID = '';
+            totalPrice = 0;
             dataArray = [];
             dataArray.length = 0;
 
