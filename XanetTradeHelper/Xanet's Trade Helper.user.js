@@ -271,8 +271,10 @@
         log('Posting data to ' + url);
         log('data = ' + data);
 
-        tradeID = '';
-        totalPrice = 0;
+        if (cmd == 'data') {
+            tradeID = '';
+            totalPrice = 0;
+        }
 
         let details = GM_xmlhttpRequest({
             method:"POST",
