@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      2.0
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -222,7 +222,7 @@
         return valid;
     }
 
-    // Prform an array deep copy
+    // Perform an array deep copy
     function deepCopy(copyArray) {
         return JSON.parse(JSON.stringify(copyArray));
     }
@@ -380,9 +380,10 @@
     function processResponse(resp) {
         log('processResponse: ' + resp);
 
+        // TBD...
         if (true) {
             let output = 'Success! Response:\n\n' + resp;
-            // Parse the response into a ensible output.
+            // Parse the response into a sensible output.
             // What we like to see is either complete success,
             // 'All x items logged and Running Averages updated!'
             // or
@@ -395,7 +396,6 @@
                 alert(newOutput);
             }
         }
-
     }
 
     // Format a number as currency. Move to my helper lib?
@@ -683,6 +683,32 @@
         $('#devtools-div')[0].style.display = hide ? 'none' : 'block';
     }
 
+    // Function to auto-fil the 'add money' page
+    function handleAddMoneyPage() {
+        let hash = location.hash;
+        let step = hash.split(/=|#|&/)[2];
+        log('handleAddMoneyPage: step = ' + step);
+        if (step == 'addmoney') {
+            let moneySel = document.querySelector("#trade-container > div.init-trade.add-money > div.cont-gray.bottom-round > " +
+                                                  "form > ul > li > div.input-money-group > input:nth-child(2)");
+
+            // Add a handler for when the money field is clicked
+            moneySel.addEventListener('click',function () {
+                addMoney(moneySel);
+            });
+        }
+    }
+
+    // Fill the money field with current price
+    function addMoney(target) {
+        log('addMoney');
+        let value = target.getAttribute('value');
+        if (value == '' || value == null || value == undefined) {
+            log('Setting value to "' + totalPrice);
+            target.setAttribute('value', totalPrice);
+        }
+    }
+
     // Build our UI
     function buildUI() {
         getSavedOptions();
@@ -743,6 +769,7 @@
 
         window.addEventListener('hashchange', function() {
             log('The hash has changed! Trade ID: ' + tradeID + ' Total Price: ' + totalPrice);
+            log('new hash: ' + location.hash);
             //buildUI();
             //getGridData();
             addObserver();
@@ -750,6 +777,7 @@
         
         buildUI();
         getGridData();
+        handleAddMoneyPage();
     }
 
     // Get the data from the right-hand trade grid, if available
@@ -798,6 +826,7 @@
             observer.disconnect();
             buildUI();
             getGridData();
+            handleAddMoneyPage();
         };
         observer = new MutationObserver(callback);
         observer.observe(targetNode, config);
