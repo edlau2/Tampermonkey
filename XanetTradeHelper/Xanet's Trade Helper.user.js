@@ -271,10 +271,7 @@
         log('Posting data to ' + url);
         log('data = ' + data);
 
-        if (cmd == 'data') {
-            tradeID = '';
-            totalPrice = 0;
-        }
+        if (cmd == 'data') {clearTradeID();}
 
         let details = GM_xmlhttpRequest({
             method:"POST",
@@ -344,8 +341,30 @@
         }
         */
 
-        tradeID = 0;
-        totalPrice = 0;
+        clearTradeID();
+        //tradeID = '0';
+        //totalPrice = '0';
+    }
+
+    // Helper to clear globals
+    function clearTradeID() {
+        log('Clearing TradeID and total price');
+        tradeID = '0';
+        totalPrice = '0';
+    }
+
+    // Helper to get TradeID from hash
+    function getTradeIDFromHash() {
+        if (!validPointer(tradeID)) {
+            hash = location.hash;
+            let temp = hash.split(/=|#|&/)[4];
+            log('getTradeIDFromHash: ID = "' + temp + '"');
+            if (validPointer(temp)) {
+                log('Setting tradeID to "' + temp + '"');
+                tradeID = temp;
+            }
+            return tradeID;
+        }
     }
 
     // Called when upload completes
@@ -809,8 +828,6 @@
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
-            //tradeID = '';
-            //totalPrice = 0;
             dataArray = [];
             dataArray.length = 0;
 
