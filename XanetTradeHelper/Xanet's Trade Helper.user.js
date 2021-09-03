@@ -260,6 +260,8 @@
             //return;
         }
 
+        hideStatus(false);
+
         // Insert a command into the beginning of the array, as required.
         var command = {command: cmd}; // Defaults to 'data'
         useArray.unshift(command);
@@ -693,20 +695,28 @@
             let moneySel = document.querySelector("#trade-container > div.init-trade.add-money > div.cont-gray.bottom-round > " +
                                                   "form > ul > li > div.input-money-group > input:nth-child(2)");
 
+            let moneyInput = document.querySelector("#trade-container > div.init-trade.add-money > div.cont-gray.bottom-round > " +
+                                                    "form > ul > li > div.input-money-group > input:nth-child(3)");
+
             // Add a handler for when the money field is clicked
             moneySel.addEventListener('click',function () {
-                addMoney(moneySel);
+                //addMoney(moneySel);
+                addMoney(moneySel, moneyInput);
             });
         }
     }
 
     // Fill the money field with current price
-    function addMoney(target) {
+    function addMoney(target1, target2) {
         log('addMoney');
-        let value = target.getAttribute('value');
+        let value = target2.getAttribute('value');
         if (value == '' || value == null || value == undefined) {
             log('Setting value to "' + totalPrice);
-            target.setAttribute('value', totalPrice);
+            target1.setAttribute('value', totalPrice);
+            target2.setAttribute('value', totalPrice);
+
+            let group = document.querySelector("#trade-container > div.init-trade.add-money > div.cont-gray.bottom-round > form > ul > li > div.input-money-group");
+            group.classList.add("success");
 
             // Enable the 'Change' button
             let btn = document.querySelector("#trade-container > div.init-trade.add-money > " +
@@ -783,11 +793,13 @@
         }, false);
         
         buildUI();
+        pageRetries = 0;
         getGridData();
         handleAddMoneyPage();
     }
 
     // Get the data from the right-hand trade grid, if available
+    var pageRetries = 0;
     function getGridData() {
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
@@ -807,14 +819,21 @@
             if (autoUpload) {uploadDataArray('price');}
         }
         // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
+        // Or the page hasn't fully loaded. Dammit. Adding an observer here seems overkill.
         else {
             indicateActive(false);
             log('Not on a trade page, or no items in trade!'); // Also hit when I initiate a trade.
             log('ulRoot: ' + ulRoot);
             log('div.user.right: ' + document.querySelector("#trade-container > div.trade-cont > div.user.right"));
             log('div.trade-cont: ' + document.querySelector("#trade-container > div.trade-cont"));
+            if (ulRoot == null && pageRetries <= 3) {
+                pageRetries++;
+                setTimeout(getGridData, 500);
+                return;
+            }
         }
 
+        pageRetries = 0;
         if (!isNaN(totalPrice) && !isNaN(tradeID)) {
             log('Setting total price to ' + asCurrency(totalPrice).replace('$', ''));
             $('#xedx-total-price')[0].innerText = asCurrency(totalPrice).replace('$', '');
@@ -832,6 +851,7 @@
             log('Mutation observer triggered!');
             observer.disconnect();
             buildUI();
+            pageRetries = 0;
             getGridData();
             handleAddMoneyPage();
         };
