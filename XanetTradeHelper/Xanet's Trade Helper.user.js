@@ -354,7 +354,7 @@
 
     // Helper to get TradeID from hash
     function getTradeIDFromHash() {
-        if (!validPointer(tradeID)) {
+        //if (!validPointer(tradeID)) {
             hash = location.hash;
             let temp = hash.split(/=|#|&/)[4];
             log('getTradeIDFromHash: ID = "' + temp + '"');
@@ -363,7 +363,7 @@
                 tradeID = temp;
             }
             return tradeID;
-        }
+        //}
     }
 
     // Called when upload completes
