@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -812,6 +812,7 @@
             log('new hash: ' + location.hash);
             //buildUI();
             //getGridData();
+            getTradeIDFromHash(); // New!
             addObserver();
         }, false);
         
