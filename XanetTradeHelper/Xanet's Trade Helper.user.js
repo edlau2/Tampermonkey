@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -342,15 +342,14 @@
         */
 
         clearTradeID();
-        //tradeID = '0';
-        //totalPrice = '0';
     }
 
     // Helper to clear globals
     function clearTradeID() {
-        log('Clearing TradeID and total price');
-        tradeID = '0';
+        log('Clearing TradeID and total price: TID = ' + tradeID + ' Price = ' + totalPrice);
+        //tradeID = '0';
         totalPrice = '0';
+        log('Cleared  total price, left TID alone: TID = ' + tradeID + ' Price = ' + totalPrice);
     }
 
     // Helper to get TradeID from hash
@@ -828,6 +827,7 @@
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
+            totalPrice = 0;
             dataArray = [];
             dataArray.length = 0;
 
