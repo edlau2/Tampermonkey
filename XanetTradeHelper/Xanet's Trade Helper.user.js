@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -105,8 +105,7 @@
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
     var hash = location.hash; // ex., '#step=view&ID=6372852'
-    //const step = hash.split(/=|#|&/)[2]; // 'view'
-    var tradeID = hash.split(/=|#|&/)[4]; // '6372852'
+    var tradeID = getTradeIDFromHash();
     var totalPrice = 0;
     var dataArray = []; // Data we are uploading per trade
     var activeFlag = false;
@@ -214,14 +213,13 @@
 
         tradeID = Number(tradeID);
         if (isNaN(tradeID)) {
+            valid = false;
             log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
-            hash = location.hash;
-            tradeID = Number(hash.split(/=|#|&/)[4]);
-            log('New trade ID: ' + tradeID);
+            getTradeIDFromHash();
             if (!isNaN(tradeID)) {valid = true;}
         }
 
-        return valid;
+        return true; // valid; // TEMPORAY - for debugging
     }
 
     // Perform an array deep copy
@@ -355,16 +353,24 @@
 
     // Helper to get TradeID from hash
     function getTradeIDFromHash() {
-        //if (!validPointer(tradeID)) {
-            hash = location.hash;
-            let temp = hash.split(/=|#|&/)[4];
-            log('getTradeIDFromHash: ID = "' + temp + '"');
-            if (validPointer(temp)) {
-                log('Setting tradeID to "' + temp + '"');
-                tradeID = temp;
+        log('getTradeIDFromHash');
+        hash = location.hash;
+        debug('hash = ' + hash);
+        debug('hash split, stringified: ' + JSON.stringify(hash.split(/=|#|&/)));
+        let tempArray = hash.split(/=|#|&/); //[4];
+        let temp = '0'
+        for (let i = 0; i < tempArray.length; i++) {
+            if (tempArray[i] == 'ID') {
+                temp = tempArray[i+1];
+                break;
             }
-            return tradeID;
-        //}
+        }
+        log('getTradeIDFromHash: ID = "' + temp + '"');
+        if (validPointer(temp)) {
+            log('Setting tradeID to "' + temp + '"');
+            tradeID = temp;
+        }
+        return tradeID;
     }
 
     // Called when upload completes
