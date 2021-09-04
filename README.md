@@ -61,6 +61,17 @@ Images:
 
 This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons.
 
+**_Torn Museum Set Helper_**
+
+- [Torn Museum Sets Helper.user.js](https://github.com/edlau2/Tampermonkey/raw/master/MuseumSetsHelper/Torn%20Museum%20Sets%20Helper.user.js)
+
+Images:
+
+- [SampleFlowerSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SampleFlowerSets.png)
+- [SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/SamplePlushieSets.png)
+
+This script displays on your Iteems pages the number of full sets, if any, you have collected and if not, what items are missing.
+
 **_Torn Racing - Car Order_**
 
 - [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/raw/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
