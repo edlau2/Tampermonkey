@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -139,6 +139,7 @@
         // Compensate for TornTools, it may add pricing to the grid. So,
         // 'title' may be something like 'Dahlia x2    $9,930.00'. Scrap
         // everything after the '$', and trim.
+        debug('processItem: ' + item.innerText);
         let title = item.innerText.split('$')[0];
         let qty = 0;
         let name = '';
@@ -154,12 +155,12 @@
         if (title.indexOf('x') == -1) {
             qty = '1';
             name = title.trim();
-            if (name == '') { // Nothing in trade
-                log('No items in trade!');
+            if (name == '') { // Invalid trade item, prob. cash
+                log('Invalid trade item, probably cash.');
                 return;
             }
             found = true;
-            log('Parsed, case 1: name = ' + name + ', qty = ' + qty);
+            debug('Parsed, case 1: name = ' + name + ', qty = ' + qty);
         }
         // Second case - Search reversed string for 'x', preceeding char
         // not numeric, same as above.
@@ -172,7 +173,7 @@
                     qty = '1';
                     name = title.trim();
                     found = true;
-                    log('Parsed, case 2: name = ' + name + ', qty = ' + qty);
+                    debug('Parsed, case 2: name = ' + name + ', qty = ' + qty);
                 }
             }
         }
@@ -825,7 +826,8 @@
     // Get the data from the right-hand trade grid, if available
     var pageRetries = 0;
     function getGridData() {
-        const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
+        const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul");
+        //const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
             totalPrice = 0;
@@ -833,7 +835,7 @@
             dataArray.length = 0;
 
             const names = ulRoot.querySelectorAll("div.name.left");
-            log('Processing trade items:');
+            log('Processing trade items. There are ' + names.length + ' elements');
             names.forEach(element => processItem(element));
 
             // Indicate that we are 'active' - data saved
