@@ -1,7 +1,7 @@
 // File: service-provider.js.gs
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.5';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.6';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -40,7 +40,8 @@ var opt_detectDuplicates = false; // Prevent duplicate ID's from being logged.
 var opt_maxTransactions = 5; // Unrealistic value, set to maybe 200?
 var opt_consoleLogging = true; // true to enable logging (need to call myLogger() intead of myLogger())
 var opt_colorDataCells = false; // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
-var opt_useLocks = false;
+var opt_useLocks = false; // true to lock processing path.
+var opt_logRemote = false; // true to log remote entries sent by the browser
 
 //
 // Moved 'doc = openById()' and 'sheet = getSheetByName()' calls
@@ -69,9 +70,10 @@ function lastTradeSheet() {
   return getDocById().getSheetByName('Last Trade');
 }
 
-//
+/////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things.
-//
+/////////////////////////////////////////////////////////////////////////////
+
 var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
   contextPath: '',
   parameter: { '[{"command":"data"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
@@ -147,7 +149,8 @@ function handleRequest(e) {
     // data: get the data (price data) into the array,
     //       write to the trade log, and update running averages.
     // price: get ad return price info only.
-    // clear_avg: clear running averages
+    // clear_avg: clear running averages (unsed, moved to clear cells in sheet)
+    // log: logs the supplied string to a new sheet ('console') or to the stackdriver log. (TBD)
     // 
 
     if (cmd == 'data' || cmd == 'price') {
@@ -159,6 +162,11 @@ function handleRequest(e) {
         tradeID = retArray[0].id;
         myLogger('Done parsing stringified JSON, trade ID = ' + tradeID + ', ' + retArray.length + ' Objects found');
       }   
+      
+      if (cmd == 'log') {
+        logEntry(stringified);
+        return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.JSON);
+      }
     
       // Now we have data to act upon...search for items in col A by name, prices
       // in matching row in col d. Then log the event. Before doing that, make sure 
@@ -242,10 +250,22 @@ function loadScriptOptions() {
   opt_maxTransactions = optsSheet().getRange("B4").getValue();
   opt_consoleLogging = optsSheet().getRange("B5").getValue();
   opt_colorDataCells = optsSheet().getRange("B6").getValue();
+  opt_logRemote = optsSheet().getRange("B7").getValue();
   
   myLogger('Read options: detect dups = "' + opt_detectDuplicates +
            '" max Xactions = "' + opt_maxTransactions +
            '" console logging= "' + opt_consoleLogging + '"');
+}
+    
+/////////////////////////////////////////////////////////////////////////
+// Log an entry from the browser to here
+/////////////////////////////////////////////////////////////////////////
+
+function logEntry(entry) {
+  if (!opt_logRemote) {return;}
+  
+  // For now, just dump to the console. Later, write to a separate worksheet.
+  console.log('BROWSER: ' + entry);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -319,13 +339,36 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   let nameRange = priceSheet().getRange(8, 1, sheetRange.getLastRow());
   let names = nameRange.getValues();
   let nameFound = false;
+  let transTotal = 0;
   
-  var transTotal = 0;
+  // Filter here: Quran scripts have diff names in the browser vs the API,
+  // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
+  // the Quran: Ibn Masud" in the API (and price sheet). 
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
+    var searchWord = array[i].name;
+    var isQuran = false;
+    if (array[i].name.indexOf('Quran') != -1) {isQuran = true;}
     
-    for (let j = 0; j < names.length; j++) { // to compare to all known names.     
-      if (array[i].name == names[j]) {
+    for (let j = 0; j < names.length; j++) { // to compare to all known names. 
+      if (names[j] == '') {break;}
+      
+      // Handle one of the Quran Scripts
+      if (isQuran) {
+        if (names[j].toString().includes('Quran')) {
+          let parts = names[j].toString().split(':');
+          if (parts[1] != null && parts[1] != undefined && parts[1] != '') {
+            searchWord = parts[1].trim();
+            if (names[j].toString().includes(searchWord)) {
+              nameFound = true;
+            }
+          }
+        }
+      // Handle everything else
+      } else if (searchWord == names[j]) {
         nameFound = true;
+      }
+      
+      if (nameFound) {
         // Found row - j + 8. Column is 4. Both are 1-indexed, not 0.
         // Will Pay price is col. 4,
         let price = priceSheet().getRange(j+8, 4).getValue();
@@ -336,6 +379,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
             cleanRunningAverages(); // Check for rows to be cleared.
             updateRunningAverage(array[i]);
           }
+          myLogger('***** break!');
           break;
         }
         array[i].price = price; // Case 1.
@@ -345,9 +389,10 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           cleanRunningAverages(); // Check for rows to be cleared.
           updateRunningAverage(array[i]);
         }
+        myLogger('***** break!');
         break;
       }
-    } // End for loop, name list.
+    } // End for loop, known name list.
     if (!nameFound) { //case 3.
       array[i].price = '-1';
       array[i].total = '-1';
