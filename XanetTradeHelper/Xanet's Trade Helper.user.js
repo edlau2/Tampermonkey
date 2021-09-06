@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -99,9 +99,12 @@
     var googleURL = null;
 
     // Array to push up for testing.
-    const testArray = [{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},
+    const testArray = [{"id":"6424407","name":"Blood Bag : BP","qty":"1","price":"0","total":"0"}, // Script changes 'B+' to 'BP'...
+                       {"id":"6424407","name":"Blood Bag : A-","qty":"1","price":"0","total":"0"},
+                       {"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
     var hash = location.hash; // ex., '#step=view&ID=6372852'
@@ -194,6 +197,13 @@
 
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
+        // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
+        if (name.indexOf('Blood Bag:') != -1) {
+          name = name.replace('A+', 'AP');
+          name = name.replace('B+', 'BP');
+          name = name.replace('O+', 'OP');
+          name = name.replace('AB+', 'ABP');
+        }
 
         let useID = validPointer(tradeID) ? tradeID.toString() : '';
         return {id: useID,    // OUT trade ID, from URL
@@ -269,7 +279,6 @@
         let data = JSON.stringify(useArray);
         log('Posting data to ' + url);
         log('data = ' + data);
-
         if (cmd == 'data') {clearTradeID();}
 
         let details = GM_xmlhttpRequest({
