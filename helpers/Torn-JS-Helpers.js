@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.9
+// @version     2.14
 // @license     MIT
 // ==/UserLibrary==
 
@@ -37,11 +37,15 @@ function validateApiKey() {
 ///////////////////////////////////////////////////////////////////////////////////
 
 function queryUserId(callback) {
-    xedx_TornUserQuery(null, 'basic', function(responseText) {
+    xedx_TornUserQuery(null, 'basic', function(responseText, id, callback) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-        callback(jsonResp.player_id);
-    });
+        try {
+          return callback(jsonResp.player_id);
+        } catch (e) {
+          debugger;
+        }
+    }, callback);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -389,7 +393,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
-    console.debug(GM_info.script.name + ' Querying ' + section + ':' + selection);
+    console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -404,11 +408,11 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             handleSysError(response);
         },
         onabort: function(response) {
-            console.debug(GM_info.script.name + ': onabort');
+            console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
             handleSysError(response.responseText);
         },
         ontimeout: function(response) {
-            console.debug(GM_info.script.name +': ontimeout');
+            console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
             handleSysError(response.responseText);
         }
     });
@@ -481,7 +485,7 @@ function xedx_travelCB(responseText, ID, cbStruct) {
         }
     } else {
         // If travelling, set timeout to re-connect the observer when we are scheduled to land.
-        console.log(GM_info.script.name + ' Destination: "' + stats.destination +
+        console.log('(JS-Helper) ' + GM_info.script.name + ' Destination: "' + stats.destination +
                 '" time_left: ' + stats.time_left + ' seconds.');
         setTimeout(function(){observer.observe(targetNode, config); }, stats.time_left * 1000);
     }
@@ -533,6 +537,12 @@ function travelling() {
 // Return true if in dark mode
 function darkMode() {
     return $('body')[0].classList.contains('dark-mode');
+}
+
+// Function to register a callback if the 'body' tag changes, which can trigger on dark-mode change
+function addDarkModeObserver(callback) {
+    var observer = new MutationObserver(function(){callback;});
+    observer.observe($('body')[0] ,{attributes: true, childList: false, subtree: false});
 }
 
 /////////////////////////////////////////////////////////////////////////////////
