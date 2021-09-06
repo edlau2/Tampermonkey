@@ -1,10 +1,13 @@
 // File: service-provider.js.gs
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.6';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.7';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
+
+// Function that calls the main unit test, here so I can set breakpoints here and not step in.
+function doIt() {doMainTest();}
 
 //
 // This must be run before using this script. Select 'Run->Run Function->Setup' to do so.
@@ -74,16 +77,16 @@ function lastTradeSheet() {
 // Stuff to test without the Tampermonkey script side of things.
 /////////////////////////////////////////////////////////////////////////////
 
-var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
+var params = { parameters: { '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
   contextPath: '',
-  parameter: { '[{"command":"data"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
+  parameter: { '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
   queryString: '',
   postData: 
-   { contents: '[{"command":"data"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]',
+   { contents: '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]',
      length: 373,
      name: 'postData',
      type: 'application/x-www-form-urlencoded' },
-  contentLength: 373 };  // 281?
+  contentLength: 373 };
 
 /////////////////////////////////////////////////////////////////////////////
 // Default entry points to handle POST or GET requests
@@ -297,9 +300,7 @@ function isDuplicate(id) {
   for (let i = 0; i < tradeIDs.length; i++) {
     if (tradeIDs[i] == "") {continue;}
     myLogger('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
-    if (tradeIDs[i] == '') {continue;}
-    if (isNaN(tradeIDs[i])) {continue;}
-    if (!(Number(tradeIDs[i]) > 0)) {continue;}    
+    if (tradeIDs[i] == '' || isNaN(tradeIDs[i]) || !(Number(tradeIDs[i]) > 0)) {continue;}  
     if (id == tradeIDs[i]) {
       myLogger('ID match: "' + id + '" to "' + tradeIDs[i] + '" !!!');
       myLogger('Duplicate ID ' + id + 'found! Not logging to sheet.');
@@ -346,8 +347,22 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   // the Quran: Ibn Masud" in the API (and price sheet). 
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
     var searchWord = array[i].name;
+    
+    // Triggers the 'Quran' filter
     var isQuran = false;
     if (array[i].name.indexOf('Quran') != -1) {isQuran = true;}
+    
+    // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
+    let junk = (array[i].name.toString()).indexOf('Blood Bag');
+    let junk2 = array[i].name.toString();
+    let junk3 = array[i].name.toString();
+    let junk4 = junk3.indexOf('Blood Bag');
+    if ((array[i].name.toString()).indexOf('Blood Bag') != -1) {
+      array[i].name = (array[i].name.toString()).replace('AP', 'A+');
+      array[i].name = (array[i].name.toString()).replace('BP', 'B+');
+      array[i].name = (array[i].name.toString()).replace('OP', 'O+');
+      array[i].name = (array[i].name.toString()).replace('ABP', 'AB+');
+    }
     
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
       if (names[j] == '') {break;}
@@ -427,12 +442,26 @@ function cleanRunningAverages() {
   }
 }
 
+// Function to clear the running averages sheet.
+// Intended to be called from the sheet via a button.
+function clearAllRunningAverages() {
+  let sheetRange = avgSheet().getDataRange();
+  let rows = sheetRange.getLastRow();
+  
+  let startRow = 2, startColumn = 2, numRows = rows-1, numCols = 7;
+  let dataRange = avgSheet().getRange(startRow, startColumn, numRows, numCols);
+  let data = [];
+  let time = timenow();
+  for (let i = 0; i < numRows; i++) {
+    data.push([0, time, 0, 0, 0, 0, 'cleared']);
+  }
+  dataRange.setValues(data); 
+}
+
+
 // Handle calculating the running average - this is dynamically calculated
 // using data stored as 'scratch data' on the 'Running Averages' sheet - the
 // avarages per item are also stored there.
-//
-// TBD: Handle missing items!!
-//
 function updateRunningAverage(item) {
   // Locate column (create range) in the 'Running Averages' sheet (avgSheet)
   // D:row is last price, E:row last qty. Running avg: (last price total + new price total)/(last qty + new qty)
