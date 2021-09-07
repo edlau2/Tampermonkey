@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.14
+// @version     2.15
 // @license     MIT
 // ==/UserLibrary==
 
@@ -539,11 +539,13 @@ function darkMode() {
     return $('body')[0].classList.contains('dark-mode');
 }
 
+/*
 // Function to register a callback if the 'body' tag changes, which can trigger on dark-mode change
 function addDarkModeObserver(callback) {
-    var observer = new MutationObserver(function(){callback;});
+    var observer = new MutationObserver(callback);
     observer.observe($('body')[0] ,{attributes: true, childList: false, subtree: false});
 }
+*/
 
 /////////////////////////////////////////////////////////////////////////////////
 // Very simple error handler; only displayed (and logged) once <== this is a lie.
