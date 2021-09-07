@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Torn User List Extender v2
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
 // @include      https://www.torn.com/page.php?sid=UserList*
-// @require      file:////Users/edlau/documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
-// @blah      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @blah         file:////Users/edlau/documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
