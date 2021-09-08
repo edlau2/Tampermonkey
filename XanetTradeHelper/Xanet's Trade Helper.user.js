@@ -198,7 +198,7 @@
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
         // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
-        if (name.indexOf('Blood Bag:') != -1) {
+        if (name.indexOf('Blood Bag :') != -1) {
           name = name.replace('A+', 'AP');
           name = name.replace('B+', 'BP');
           name = name.replace('O+', 'OP');
