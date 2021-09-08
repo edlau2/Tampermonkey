@@ -358,10 +358,12 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     let junk3 = array[i].name.toString();
     let junk4 = junk3.indexOf('Blood Bag');
     if ((array[i].name.toString()).indexOf('Blood Bag') != -1) {
-      array[i].name = (array[i].name.toString()).replace('AP', 'A+');
-      array[i].name = (array[i].name.toString()).replace('BP', 'B+');
-      array[i].name = (array[i].name.toString()).replace('OP', 'O+');
-      array[i].name = (array[i].name.toString()).replace('ABP', 'AB+');
+      let test = (array[i].name.toString()).replace('AP', 'A+');
+      array[i].name = (array[i].name.toString()).replace('AP', 'A+').toString();
+      array[i].name = (array[i].name.toString()).replace('BP', 'B+').toString();
+      array[i].name = (array[i].name.toString()).replace('OP', 'O+').toString();
+      array[i].name = (array[i].name.toString()).replace('ABP', 'AB+').toString();
+      searchWord = array[i].name;
     }
     
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
@@ -379,8 +381,8 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           }
         }
       // Handle everything else
-      } else if (searchWord == names[j]) {
-        nameFound = true;
+      } else if (searchWord == names[j].toString()) {
+          nameFound = true;
       }
       
       if (nameFound) {
@@ -394,7 +396,6 @@ function fillPrices(array, updateAverages) { // A8:<last row>
             cleanRunningAverages(); // Check for rows to be cleared.
             updateRunningAverage(array[i]);
           }
-          myLogger('***** break!');
           break;
         }
         array[i].price = price; // Case 1.
@@ -404,7 +405,6 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           cleanRunningAverages(); // Check for rows to be cleared.
           updateRunningAverage(array[i]);
         }
-        myLogger('***** break!');
         break;
       }
     } // End for loop, known name list.
