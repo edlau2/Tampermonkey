@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Experience Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Displays a weapon's WE on the Itms page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -15,6 +15,9 @@
 
 (function() {
     'use strict';
+
+     debugLoggingEnabled = false;
+     loggingEnabled = true;
 
     // Selectors
     const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
@@ -50,9 +53,19 @@
 
     // Write out WE onto the page
     function modifyPage(array, pageChange = false) {
+        if (pageObserver == null) { // Watch for active page changes.
+            pageDiv = document.querySelector(pageDivSelector);
+            var callback = function(mutationsList, observer) {
+                log('Observer triggered - page change!');
+                log('Setting onload function.');
+                modifyPage(weArray, true);
+            };
+            pageObserver = new MutationObserver(callback);
+        }
+
         let lastPage = pageName;
         pageName = getPageName();
-        log('modifyPage: array = "' + array + '" pageChange = "' + pageChange + '"');
+        log('modifyPage: pageName = "' + pageName + '" pageChange = "' + pageChange + '"');
         if ((lastPage != '') && (pageName.indexOf(lastPage) == -1) && (pageChange == false)) {
             log('Went from page "' + lastPage + '" to "' + pageName +'"');
         } else if (array && pageChange) {
@@ -64,26 +77,23 @@
         var itemUL = null;
 
         if (pageName == 'Primary') {
-            //itemUL = document.querySelector("#primary-items");
             itemUL = $("#primary-items")[0];
         } else if (pageName == 'Secondary') {
-            //itemUL = document.querySelector("#secondary-items");
             itemUL = $("#secondary-items")[0];
         } else if (pageName == 'Melee') {
-            //itemUL = document.querySelector("#temporary-items");
             itemUL = $("#melee-items")[0];
         } else if (pageName == 'Temporary') {
-            //itemUL = document.querySelector("#melee-items");
             itemUL = $("#temporary-items")[0];
         } else {
+            observeOn();
             return; // Not on a weapons page
         }
 
         let items = itemUL.getElementsByTagName("li");
         let itemLen = items.length;
         log(pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
-        if (itemLen <= 1) {
-            setTimeout(function(){ modifyPage(null, true); }, 1000);
+        if (itemLen <= 1) { // Not fully loaded: come back later
+            setTimeout(function(){ modifyPage(null, true); }, 500);
             return;
         }
 
@@ -94,22 +104,17 @@
             let itemLi = items[i]; // <li> selector
             let itemID = itemLi.getAttribute('data-item');
             if (itemID == null) {continue;} // Not an item
-
-            //let info = items[i].getAttribute('data-weaponinfo');
-            //if (!items[i].getAttribute('data-weaponinfo')) {continue;} // Child elem.
             let category = itemLi.getAttribute('data-category');
             if (category == null) {continue;} // Child elem.
 
-            //log('Item ID: ' + itemID + ' Category: ' + category);
+            debug('Item ID: ' + itemID + ' Category: ' + category);
 
             let nameSel = itemLi.querySelector('div.title-wrap > div > span.name-wrap > span.name');
             if (!validPointer(nameSel)) {continue;} // Child elem.
             let name = nameSel.innerHTML;
-            //log('Name: ' + name);
+            debug('Name: ' + name);
 
-            //log('Finding "' + name + '" by ID ' + itemID);
             let item = getItemByItemID(array, Number(itemID));
-            //log('item found? -->' + item);
             let WE = 0;
             if (validPointer(item)) {
                 WE = item.exp;
@@ -127,17 +132,6 @@
 
 
         } // End 'for' loop. iterating LI's
-
-        // Watch for active page changes.
-        if (pageObserver == null) {
-            pageDiv = document.querySelector(pageDivSelector);
-            var callback = function(mutationsList, observer) {
-                log('Observer triggered - page change!');
-                log('Setting onload function.');
-                modifyPage(weArray, true);
-            };
-            pageObserver = new MutationObserver(callback);
-        }
 
         observeOn();
     }
@@ -211,9 +205,7 @@
 
     // Full URL we trigger on https://www.torn.com/trade.php*
     logScriptStart(); // Logs even if logging disabled.
-    log('Prompting for API key');
     validateApiKey();
-    log('Prompted (I hope...) API key: "' + api_key + '"');
 
     // Need to wait for full page load.
     if (document.readyState === 'complete') {
