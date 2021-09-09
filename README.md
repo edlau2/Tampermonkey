@@ -344,6 +344,9 @@ Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via od
 
 Allows you to claim 'dibs' on wall targets during territory wars/chaining. Basically, if all parties have the script installed, the first person to attack a target will have claimed 'dibs' on it, preventing others (who are using the script as well) from attacking - this prevents unwanted assists and wasted energy. Written by sullengenie [1946152]
 
+<details>
+  <summary>Stock Helpers, obsoleted by Stocks 3.0. Click to see details...</summary>
+
 **_Stock Block Price_**
 
 - [Stock Block Price.user.js](https://github.com/Nepherius/userscrips/raw/master/stock_block_price.user.js)
@@ -354,8 +357,6 @@ Note: It appears that this does not work well with the 'Stock Market Helper', be
 
 Note 2: I think this has subsequently been added to Torn itself, on the 'About' tab in the stock market or portfolio pages.
 
-Note 3: Obsoleted by stocks 3.0
-
 **_Stock Market Helper_**
 
 - [Stock Market Helper.user.js] <!-- (https://greasyfork.org/scripts/384161-stock-market-helper/code/Stock%20Market%20Helper.user.js) -->
@@ -363,11 +364,6 @@ Note 3: Obsoleted by stocks 3.0
 Note: the link is disabled as I do not have permission from Mafia to re-distribute. 
 He has taken down ALL of his scripts.
 Kept here for legacy purposes.
-
-Note 2: Obsoleted by Stocks 3.0
-
-<details>
-  <summary>Click to see description...</summary>
  
 Torn Stock Helper that calculates your profit/loss in your portfolio, highlights forecasts that are poor, very poor, good and very good in the Stock Exchange, and lists the amount of $$ you have invested in stocks you have shares in. Also marks the stock's worth, as ($) 0 < 20b < 50b < 100b. And gets new data everytime stock profile reexpanded in Stock Exchange or your portfolio. Written by Mafia [610357]
 
@@ -414,6 +410,9 @@ Originally written by Mafia [610357], this is a slightly modified version as his
 Extensions allow for things that aren't neccesarily page-specific, although these are Torn specific. They can be installed in two ways. When still in testing, or I haven't yet bothered to publish to the Chrome App Store, I'll distribute as a .zip file of all the required files. From chrome://extension, enable "developer mode". You will then see an option, "Load Unpacked". Browse from there to the directory containg the files extracted from the .zip file. My extensions all have an Options page which can be accessed via the "Details" menu of the extension. 
 
 Once in the Chrome App Store, the link will point there instead, and should install from there.
+ 
+ <details>
+  <summary>Deprecated, no longer updated/supported. Click to see details...</summary>
 
 **_Torn Loot Level Notifier_**
 
@@ -438,6 +437,8 @@ This extension requires you to enter your API key in the Options dialog. If not 
 There is a warning Idisplays as an error) about an synchronous call, this can be ignored. I will address this later, given time. Async is partially implemented but still in alpha, so not enabled at this time.
 
 I have re-written this to use the YATA API, but the most recent version (1.6.3) has not been uploaded yet.
+  
+ </details>
 
 # Third Party Extensions
 
@@ -463,11 +464,15 @@ This allows you to view your inventory regardless of whether you are in Torn or 
  
  - [Inventory by XedX](https://docs.google.com/spreadsheets/d/1_5lz3NYCMb_5tlwGVJ-B7icSt9eUbfQwWUu4eBEKQBA/edit?usp=sharing)
  
+ Images: Coming soon!
+ 
  **_Bazaar Inventory, by XedX_**
  
 This allows you to view your Bazaar regardless of whether you are in Torn or not. It is a simple Google Apps Script and sheet(s) (created automatically) that uses one API call to retrieve your inventory and display it in worksheets titled by item type, just as on the Torn inventory page. Note that if you Bazar is closed (or has nothing in it), nothing is displayed. Three is no way I know of to differentiate between the two situations. If anyone does, please let me know.
  
  - [Bazaar Inventory, by XedX](https://docs.google.com/spreadsheets/d/1oxgXPYQOS-0EoPA4kKA4rdXB9JxRuMweIfOHh0z4E8w/edit?usp=sharing)
+ 
+  Images: Coming soon!
 
 **_Torn Stock Ticker_**
  
