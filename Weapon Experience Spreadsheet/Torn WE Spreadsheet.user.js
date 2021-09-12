@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn WE Spreadsheet
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Creates a new expandable DIV on the Items page with Weapon Experience info in a table
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/GymGains/Torn-Gym-Gains-Div.js
@@ -26,20 +26,41 @@
                      '<div class="title main-title title-black top-round active" role="table" aria-level="5" id="xedx-we-spreadsheet-hdr-div">' +
                          '<div class="arrow-wrap sortable-list">' +
                              '<a role="button" href="#/" class="accordion-header-arrow right"></a>' +
-                             '</div>Weapon Experience</div>' +
+                         '</div><span id="xedx-we-title">Weapon Experience and Finishing Hits</span>' +
+                     '</div>' +
+
+                             '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-fh-spreadsheet-body">' +
+                                 '<div class="cont-gray" style="height: auto;" id="xedx-fh-spreadsheet-cont">' +
+                                     // Finishing hits table
+                                     '<table id="xedx-fh-spreadsheet-table" style="width: 782px;">' +
+                                         '<thead><tr>' +
+                                             '<th class="xthx" colspan="4" scope="colgroup">Finishing Hits</th>' +
+                                         '</tr></thead>' +
+                                         '<tbody>'; // Start table
+
+                                             /* Rows (fhRows) will be inserted here */
+
+    var newMiddleDiv =                   '</tbody>' + // End table
+                                     '</table>' +
+                                 '</div>' +
+                             '</div>' +
 
                              '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-we-spreadsheet-body">' +
                                  '<div class="cont-gray" style="height: auto;" id="xedx-we-spreadsheet-cont">' +
+                                     // Weapon Experience table
                                      '<table id="xedx-we-spreadsheet-table" style="width: 782px;">' +
+                                         //'<thead><tr>' +
+                                         //    '<th class="xthx" colspan="4" scope="colgroup">Weapon Experience</th>' +
+                                         //'</tr></thead>' +
                                          '<thead><tr>' +
-                                             '<th class="xthx" style="color: white;">Primary</th>' +
-                                             '<th class="xthx" style="color: white;">Secondary</th>' +
-                                             '<th class="xthx" style="color: white;">Melee</th>' +
-                                             '<th class="xthx" style="color: white;">Temporary</th>' +
+                                             '<th class="xthx">Primary</th>' +
+                                             '<th class="xthx">Secondary</th>' +
+                                             '<th class="xthx">Melee</th>' +
+                                             '<th class="xthx">Temporary</th>' +
                                          '</tr></thead>' +
-                                         '<tbody>';  // Start table
+                                         '<tbody>'; // Start table
 
-                                           /* Rows will be inserted here */
+                                           /* Rows (weRows) will be inserted here */
 
        var newBottomDiv =                '</tbody>' + // End table
                                      '</table>' +
@@ -50,6 +71,28 @@
                  '</div>' +
                  '<hr class="delimiter-999 m-top10 m-bottom10"></hr>';
 
+    // Will be table rows
+    var fhRows = null;
+    var weRows = null;
+
+    // Globals
+    var itemsArray = null; // Array of all Torn items
+    var inventoryArray = null; // Array of inventory items
+    var weArray = null;  // Array of weapon experience
+    var fhArray = null; // Array of personalstats, including finishing hits
+    var weAt100pct = 0; // Count of weapons at 100%
+
+    var useCellBackground = false; // true to color background, else text itself.
+
+    var primaryArray = [];
+    var secondaryArray = [];
+    var meleeArray = [];
+    var temporaryArray = [];
+
+    // Declared in Torn-JS-Helpers
+    debugLoggingEnabled = true;
+    loggingEnabled = true;
+
     function loadTableStyles() {
         log('Loading table styles.');
         GM_addStyle(".xthx, .xtdx {" +
@@ -59,6 +102,7 @@
                     "border-color: #5B5B5B !important;" +
                     "padding: 0.5rem !important;" +
                     "vertical-align: middle !important;" +
+                    "color: white; !important;" +
                     "text-align: center;" +
                     "}");
 
@@ -96,21 +140,6 @@
         }
     }
 
-    // Globals
-    var itemsArray = null; // Array of all Torn items
-    var weArray = null;  // Array of weapon experience
-
-    var useCellBackground = false; // true to colr background, else text itself.
-
-    var primaryArray = [];
-    var secondaryArray = [];
-    var meleeArray = [];
-    var temporaryArray = [];
-
-    // Declared in Torn-JS-Helpers
-    debugLoggingEnabled = false;
-    loggingEnabled = true;
-
     //////////////////////////////////////////////////////////////////////
     // Real meat of the code. Labelled in order for convenience, Each
     // async call is chained, could use promises instead.
@@ -122,6 +151,10 @@
         log('handlePageLoad.');
         loadTableStyles();
 
+        // Query inventory, to see what is equipped.
+        xedx_TornUserQuery(null, 'inventory', inventoryCB);
+
+        /*
         // Query weapons experience - once that completes,
         // we will call the function to modify the page.
         if (itemsArray == null) {
@@ -129,52 +162,74 @@
         } else {
             xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
         }
+
+        // Query personal stats, for finishing hits
+        xedx_TornUserQuery(null, 'personalstats', userPersonalstatsCB);
+        */
+    }
+
+    // Step 1a: Callback for inventory query.
+    // Launches other queries.
+    function inventoryCB(responseText, ID, param) {
+        log('User inventory query callback.');
+        var jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+        inventoryArray = jsonResp.inventory;
+
+        // Query weapons experience - once that completes,
+        // we will call the function to modify the page.
+        if (itemsArray == null) {
+            xedx_TornTornQuery(null, 'items', tornQueryCB);
+        } else {
+            xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
+        }
+
+        // Query personal stats, for finishing hits
+        xedx_TornUserQuery(null, 'personalstats', userPersonalstatsCB);
     }
 
     // Step 2:
     // Response handler for Torn API 'torn' query, above.
     function tornQueryCB(responseText, ID, param) {
-        log('Torn query callback.');
+        log('Torn items query callback.');
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
         // This will be an array of "key (item ID)" : {...}
-        // For example:
-        /*
-        "1": {
-			"name": "Hammer",
-			"description": "A small, lightweight tool used in the building industry. Can also be used as a weapon.",
-			"effect": "",
-			"requirement": "",
-			"type": "Melee",
-			"weapon_type": "Clubbing",
-			"buy_price": 75,
-			"sell_price": 50,
-			"market_value": 106,
-			"circulation": 1839375,
-			"image": "https://www.torn.com/images/items/1/large.png"
-		},
-        */
         // We just save this for now, to locate weapon type, later.
         itemsArray = jsonResp.items;
         xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
     }
 
-    // Step 3:
+    // Step 3a:
     // Response handler for Torn API 'user' query, above.
     function userQueryCB(responseText, ID, param) {
-        log('User query callback.');
+        log('User weaponexperience callback.');
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
         weArray = jsonResp.weaponexp; // Array of 'weaponexperience' objects: {"itemID", "name", "Exp"}
         sortArrays();
     }
 
-    // Step 4:
+    // Step 3b:
+    // Response handler for personal stats query
+    function userPersonalstatsCB(responseText, ID, param) {
+        log('User personalstats callback.');
+        var jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+        fhArray = jsonResp.personalstats; // Array of 'personalstats', including finishing hits
+
+        fhRows = buildFhTableRows(fhArray);
+        modifyPage();
+    }
+
+    // Step 3a helper:
     // Sorts and merges the two arrays, items and experience, into 4 new arrays,
     // primary, secondary, melee and temporary weapons and their WE.
+    // Also count the ## at 100% (weAt100pct)
     function sortArrays() {
         for (let i =0; i < weArray.length; i++) {
+            if (weArray[i].exp == 100) {weAt100pct++;}
             let ID = weArray[i].itemID;
             let itemObj = getItemById(ID);
             if (validPointer(itemObj)) {
@@ -194,6 +249,7 @@
             }
         }
 
+        weRows = buildWeTableRows();
         modifyPage();
     }
 
@@ -210,10 +266,28 @@
             return;
         }
 
-        let rows = buildTableRows();
-        let newDiv = newTopDiv + rows + newBottomDiv;
+        // Wait until -both- tables have been built
+        if (fhRows ==  null || weRows ==  null) {
+            log('Not all rows complete - will return.');
+            setTimeout(modifyPage, 500);
+            return;
+        } else {
+            log('Both weRows and fhRows complete.');
+            log('Weapons at 100%: ' + weAt100pct);
+        }
+
+        if (validPointer(document.querySelector("#xedx-we-spreadsheet-div"))) {
+            debug('New WE and FH div already installed!');
+            return;
+        }
+        let newDiv = newTopDiv + fhRows + newMiddleDiv + weRows + newBottomDiv;
 
         $(newDiv).insertBefore(refDiv);
+        //let titleSel = document.querySelector("#xedx-we-title");
+        //titleSel.innerText = "Weapon Experience and Finishing Hits (" +
+        //    weAt100pct + " weapons at 100%)";
+        document.querySelector("#xedx-we-title").innerText = "Weapon Experience and Finishing Hits (" +
+            weAt100pct + " weapons at 100%)";
         installClickHandler();
     }
 
@@ -221,8 +295,8 @@
     // Helper functions
     //////////////////////////////////////////////////////////////////////
 
-    // Function to build the table rows from our arrays
-    function buildTableRows() {
+    // Function to build the table rows from our arrays for Weapon Experience
+    function buildWeTableRows() {
         let maxRows = Math.max(primaryArray.length, secondaryArray.length, meleeArray.length, temporaryArray.length);
         if (maxRows < 1) {return;}
 
@@ -234,7 +308,7 @@
             for (let j = 0; j < 4; j++) {
                 let useArray = arrays[j];
                 if (validPointer(useArray[i])) {
-                    result += buildCell(useArray[i].name, useArray[i].exp);
+                    result += buildWeCell(useArray[i]);
                 } else {
                     result += '<td class="xtdx"></td>'; // Empty cell
                 }
@@ -244,17 +318,53 @@
         return result;
     }
 
-    // Helper to build and color-code an individual cell
-    function buildCell(name, exp) {
-        let color = (exp == 100) ? 'xtdx-green' :
-            (exp >= 75) ? 'xtdx-yellow' :
-            (exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
+    // Helper to build and color-code an individual cell for WE
+    function buildWeCell(weItem) {
+        let itemObj = getInventoryById(weItem.itemID);
+        let color = (weItem.exp == 100) ? 'xtdx-green' :
+            (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
+        if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
 
         let output = '<td class="xtdx ' + color + '">' +
-            '<span style="float:left">' + name +
-            '</span><span style="float:right">' + exp + '%</span></td>';
+            '<span style="float:left">' + weItem.name +
+            '</span><span style="float:right">' + weItem.exp + '%</span></td>';
 
         return output;
+    }
+
+    // Helper for below, put in helper lib!!!
+    function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+    // Function to build the table rows from our arrays for Finishing Hits
+   function buildFhTableRows(obj) { // obj is a personalstats object
+        let result = '<tr>';
+        result += buildFhCell('Machine Guns', obj.machits);
+        result += buildFhCell('Rifles', obj.rifhits);
+        result += buildFhCell('Piercing', obj.piehits);
+        result += buildFhCell('Clubbing', obj.axehits);
+        result += '</tr><tr>';
+        result += buildFhCell('Sub Machine Guns', obj.smghits);
+        result += buildFhCell('Pistols', obj.pishits);
+        result += buildFhCell('Mechanical', obj.chahits);
+        result += buildFhCell('Temporary', obj.grehits);
+        result += '</tr><tr>';
+        result += buildFhCell('Heavy Artillery', obj.heahits);
+        result += buildFhCell('Shotguns', obj.shohits);
+        result += buildFhCell('Slashing', obj.slahits);
+        result += buildFhCell('Hand to Hand', obj.h2hhits);
+        result += '</tr>';
+
+        return result;
+    }
+
+    // Helper to build and color-code an individual cell for FH
+    function buildFhCell(name, count) {
+        let color = (count >= 1000) ? 'xtdx-green' : 'xtdx-red';
+        let result = '<td class="xtdx ' + color + '"><span style="float:left">' + name +
+            '</span><span style="float:right">' + numberWithCommas(count) + '</span></td>';
+        return result;
     }
 
     // Helper to get item object by ID
@@ -263,18 +373,27 @@
         return itemObj;
     }
 
+    // Helper to get inventory object by ID
+    function getInventoryById(itemID) {
+        let itemObjs = inventoryArray.filter(item => item.ID == itemID);
+        return itemObjs[0];
+    }
+
     // Helper to toggle body div on arrow click
     function installClickHandler() {
         const bodyDiv = document.getElementById('xedx-we-spreadsheet-body');
+        const bodyDiv2 = document.getElementById('xedx-fh-spreadsheet-body');
         const headerDiv = document.getElementById('xedx-we-spreadsheet-hdr-div');
         const arrowDiv = headerDiv.parentElement; // xedx-we-spreadsheet-div ??
 
         arrowDiv.addEventListener("click", function() {
             if (bodyDiv.style.display === "block") {
                 bodyDiv.style.display = "none";
+                bodyDiv2.style.display = "none";
                 headerDiv.className = 'title main-title title-black border-round';
             } else {
                 bodyDiv.style.display = "block";
+                bodyDiv2.style.display = "block";
             }
         });
     }
