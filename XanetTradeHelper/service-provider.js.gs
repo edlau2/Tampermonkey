@@ -1,7 +1,9 @@
+/////////////////////////////////////////////////////////////////////////////
 // File: service-provider.js.gs
+/////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.7';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.9';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -34,7 +36,10 @@ function getDocById() {
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////
 // Globals
+/////////////////////////////////////////////////////////////////////////////
+
 var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
 var itemsInserted = 0; // Count of logged entries
 
@@ -44,49 +49,15 @@ var opt_maxTransactions = 5; // Unrealistic value, set to maybe 200?
 var opt_consoleLogging = true; // true to enable logging (need to call myLogger() intead of myLogger())
 var opt_colorDataCells = false; // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
 var opt_useLocks = false; // true to lock processing path.
-var opt_logRemote = false; // true to log remote entries sent by the browser
+var opt_logRemote = false; // true to log remote entries sent by the browser (not yet implemented)
+var opt_calcSetItemPrices = true; // Calculate sets automatically, item prices
+var opt_calcSetPointPrices = false; // Calculate sets automatically, point prices
 
-//
-// Moved 'doc = openById()' and 'sheet = getSheetByName()' calls
-// to functions, for easier debugging, and if they are sepcified
-// as global vars (e.g. var datasheet = getDocById().getSheetByName('Data');")
-// in global scope, it will be evaluated when other scripts in this project
-// are run, and may cause permission errors.
-//
-function datasheet() {
-  return getDocById().getSheetByName('Data');
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function priceSheet() {
-  return getDocById().getSheetByName('Price Calc');
-}
-
-function avgSheet() {
-  return getDocById().getSheetByName('Running Averages');
-}
-
-function optsSheet() {
-  return getDocById().getSheetByName('Options');
-}
-
-function lastTradeSheet() {
-  return getDocById().getSheetByName('Last Trade');
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Stuff to test without the Tampermonkey script side of things.
-/////////////////////////////////////////////////////////////////////////////
-
-var params = { parameters: { '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
-  contextPath: '',
-  parameter: { '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
-  queryString: '',
-  postData: 
-   { contents: '[{"command":"data"},{"id":"6424407","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"6424407","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]',
-     length: 373,
-     name: 'postData',
-     type: 'application/x-www-form-urlencoded' },
-  contentLength: 373 };
+/* moved to the end of this file */
 
 /////////////////////////////////////////////////////////////////////////////
 // Default entry points to handle POST or GET requests
@@ -124,51 +95,24 @@ function handleRequest(e) {
   }
     
   /////////////////////////////////////////////////////////////////////////
-  //Parse the data and log it, in exception handler.
+  // Parse the data and log it, in exception handler.
   /////////////////////////////////////////////////////////////////////////
 
   try {
     let jsonResp = e.parameter; // Object
-    let stringified = '';
-    var retArray = null;
-    var cmd = '';
     var Success = false;
-    var tradeID = 0; // Current trade
+    var retArray = JSON.parse(Object.keys(jsonResp)[0]);
+    var commandObj = retArray.shift();
+    var cmd = commandObj.command;
+    var tradeID = retArray[0].id;
     
-    if (Object.keys(jsonResp).length) {
-      stringified = JSON.stringify(Object.keys(jsonResp));
-      myLogger('Stringified data: ' + stringified);
-      myLogger('Stringified data length=' + stringified.length);
-    }
-    
-    // Before parsing, strip out the command. The parser ignores it,
-    // it will not be in retArray.
-    let start = stringified.indexOf(':');
-    let end = stringified.indexOf('}');
-    cmd = stringified.substring(start+1, end).replace(/['"\\]+/g, '')
-    
-    // TBD: modify to accept comma-separated commands.
-    //
-    // data: get the data (price data) into the array,
-    //       write to the trade log, and update running averages.
-    // price: get ad return price info only.
-    // clear_avg: clear running averages (unsed, moved to clear cells in sheet)
-    // log: logs the supplied string to a new sheet ('console') or to the stackdriver log. (TBD)
-    // 
-
+    // data: get the data (price data) into the array, write to the trade log, and update running averages.
+    // price: get ad return price info only.    
     if (cmd == 'data' || cmd == 'price') {
-      if (!stringified.length) {
-        myLogger('Not parsing: no data!');
-      } else { 
-        myLogger('Preparing to parse JSON data: ' + stringified);
-        var retArray = parseJsonObject(stringified); 
-        tradeID = retArray[0].id;
-        myLogger('Done parsing stringified JSON, trade ID = ' + tradeID + ', ' + retArray.length + ' Objects found');
-      }   
-      
-      if (cmd == 'log') {
-        logEntry(stringified);
-        return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.JSON);
+      if (!retArray.length) {
+        myLogger('Trade ID = ' + tradeID + ' No items found!');
+      } else {
+        myLogger('Trade ID = ' + tradeID + ', ' + retArray.length + ' Objects found');  
       }
     
       // Now we have data to act upon...search for items in col A by name, prices
@@ -182,11 +126,18 @@ function handleRequest(e) {
       myLogger('Filling in prices and preparing to log.');
       if (cmd == 'price') {myLogger('Price info only requested, not logging.');}
       
+      // If looking for sets, modify the array accordingly.
+      // Count items that belong in sets, and how many full sets.
+      // If we have full sets, add a new item entry to the array ('Flower Set (item price)', for example.
+      // "", reduce qty of items in sets from array entries, if 0 (all are in a set), remove that entry.
+      if (opt_calcSetItemPrices) {
+        retArray = deepCopy(processSetItemPrices(retArray));
+      }
+      
       // fillPrices reads from the 'price data' spreadsheet.
       // If the command is 'data', it will also write to the
-      // Running Averages spreadsheet. The call to logTransaction
-      // writes it the Data spreadsheet.
-      
+      // Running Averages and Data worksheets. (the call to logTransaction
+      // writes it the Data worksheet).      
       let calcAvgs = (cmd == 'data') ? true : false; // Don't write avgs if just getting price info
       var totalCost = fillPrices(retArray, calcAvgs); // Also updates running averages (second param).
       
@@ -194,7 +145,7 @@ function handleRequest(e) {
       myLogger('Total price of all items: ' + asCurrency(totalCost));
       
       if (!isDuplicate(tradeID) && cmd == 'data') { // Only need to check one ID...
-        let newRange = logTransaction(retArray);
+        let newRange = logTransaction(retArray); // Actually writes to the 'Data' worksheet.
         copyLastTrade(newRange); // Copy the latest trade to the 'Last Trade' worksheet
         
         // Check to see if we have exceed our max # logged trades, and if so, clean up.
@@ -231,7 +182,114 @@ function handleRequest(e) {
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// If looking for sets, modify the array accordingly.
+// Count items that belong in sets, and how many full sets.
+// If we have full sets, add a new item entry to the array ('Flower Set (item price)', for example.
+// "", reduce qty of items in sets from array entries, if 0 (all are in a set), remove that entry
+/////////////////////////////////////////////////////////////////////////////
+
+const flowerSetName = 'Flower Set (item based)';
+const plushieSetName = 'Plushie Set Price (item based)';
+
+function processSetItemPrices(retArray) {
+  let myFlowerSet = deepCopy(flowersInSet);
+  let myPlushieSet = deepCopy(plushiesInSet);
+  var tradeID = retArray[0].id;
+  
+  // For each retArray element, see if it is in a set array.
+  // If so, modify qty. in the set array.
+  // If the set array is full, add a set item to retArray, 
+  // and reduce the qty of items in retArray appropriatelyremoving if qty drops to 0.
+  // Do for all sets we are interested in.
+  
+  for (var i = 0; i < retArray.length; i++) {
+    
+    myFlowerSet.forEach((element, index, array) => { // Scan flower sets.
+      if (element.name == retArray[i].name.trim()) {
+        myFlowerSet[index].quantity = retArray[i].qty;
+        retArray[i].inFlowerSet = true;
+        //Object.assign(retArray[i], {inFlowerSet: true});
+      }
+    });
+  
+    myPlushieSet.forEach((element, index, array) => { // Scan plushie sets.
+      if (element.name == retArray[i].name.trim()) {
+        myPlushieSet[index].quantity = retArray[i].qty;
+        retArray[i].inPlushieSet = true;
+        //Object.assign(retArray[i], {inPlushieSet: true});
+      }
+    });
+
+  } // end retArray for loop.
+
+  // See how many sets we have, if any.
+  let flowerSets = countCompleteSets(myFlowerSet);
+  let plushieSets = countCompleteSets(myPlushieSet);
+
+  if (!flowerSets && !plushieSets) {return retArray;}
+
+  // If we have full sets, create an object for them and push onto our array
+  if (flowerSets) {
+    myLogger('Found ' + flowerSets + ' flower sets.');
+    let obj = newSetItem(tradeID, flowerSetName, flowerSets);
+    retArray.push(obj);
+  }
+
+  if (plushieSets) {
+    myLogger('Found ' + plushieSets + ' plushie sets.');
+    let obj = newSetItem(tradeID, plushieSetName, plushieSets);
+    retArray.push(obj);
+  }
+
+  // Filter the items in the array, that are in the sets.
+  // Note: to remove, use array.splice(start, deleteCount);
+  // Can't do that - if qty > 0, push onto new array.
+  let newArray = [];
+  for (let i = 0; i < retArray.length; i++) {
+    if (retArray[i].inFlowerSet == true) {
+      retArray[i].qty -=  flowerSets;
+      if (retArray[i].qty > 0) {
+        newArray.push(retArray[i]);
+      }
+    } else if (retArray[i].inplushieSet == true) {
+      retArray[i].qty -=  plushieSets;
+      if (retArray[i].qty > 0) {newArray.push(retArray[i]);}
+    } else {
+      newArray.push(retArray[i]);
+    }
+  }
+  retArray = deepCopy(newArray);
+  return retArray;
+}
+
+// Helper to count complete sets
+function countCompleteSets(itemArray) {
+  let totalSets = 99999999;
+  for (let i = 0; i < itemArray.length; i++) {              
+    let amt = Number(itemArray[i].quantity);
+    if (!amt || amt == null) {
+      return 0;
+    }
+    if (amt < totalSets) {totalSets = amt;}
+  }
+  return totalSets;
+}
+
+// Helper to create a new set item
+function newSetItem(ID, name, qty) {
+  return {id: ID.toString(),       
+          name: name,       
+          qty: qty.toString(),        
+          price: '0',
+          total: '0'
+          };
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Provide a result back to the requestor.
+/////////////////////////////////////////////////////////////////////////////
+
 function provideResult(ev, XanetResult, retArray) {
   let fullRetArray = XanetResult.concat(retArray);
   let output = JSON.stringify(fullRetArray);
@@ -247,13 +305,18 @@ function provideResult(ev, XanetResult, retArray) {
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////
 // Load script options
+/////////////////////////////////////////////////////////////////////////////
+
 function loadScriptOptions() {
   opt_detectDuplicates = optsSheet().getRange("B3").getValue();
   opt_maxTransactions = optsSheet().getRange("B4").getValue();
   opt_consoleLogging = optsSheet().getRange("B5").getValue();
   opt_colorDataCells = optsSheet().getRange("B6").getValue();
   opt_logRemote = optsSheet().getRange("B7").getValue();
+  opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
+  opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
   
   myLogger('Read options: detect dups = "' + opt_detectDuplicates +
            '" max Xactions = "' + opt_maxTransactions +
@@ -261,7 +324,7 @@ function loadScriptOptions() {
 }
     
 /////////////////////////////////////////////////////////////////////////
-// Log an entry from the browser to here
+// Log an entry from the browser to here (currently unused)
 /////////////////////////////////////////////////////////////////////////
 
 function logEntry(entry) {
@@ -272,7 +335,7 @@ function logEntry(entry) {
 }
 
 /////////////////////////////////////////////////////////////////////////
-// Helpers for above.    
+// Helper functions  
 /////////////////////////////////////////////////////////////////////////
 
 // Format a number as currency
@@ -310,6 +373,8 @@ function isDuplicate(id) {
   return false;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//
 // Find the items in our 'Price Calc' sheet, and add prices to our array
 // Don't get confuesd by the fact that sheet indices are 1-based, while
 // our Java arrays are 0 based.
@@ -333,8 +398,15 @@ function isDuplicate(id) {
 //       -1, logged in Data with price 0, and does NOT get
 //       added to the RA sheet.
 //
+// Added 2 new cases:
+//
+//    1. Quran scripts
+//    2. Positive blood bags.
+//
 //    In cases 2 and 3, a warning is optionally given to the end user.
 //
+/////////////////////////////////////////////////////////////////////////////
+
 function fillPrices(array, updateAverages) { // A8:<last row>
   let sheetRange = priceSheet().getDataRange();
   let nameRange = priceSheet().getRange(8, 1, sheetRange.getLastRow());
@@ -346,17 +418,13 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
   // the Quran: Ibn Masud" in the API (and price sheet). 
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
-    var searchWord = array[i].name;
+    var searchWord = array[i].name.trim();
     
     // Triggers the 'Quran' filter
     var isQuran = false;
     if (array[i].name.indexOf('Quran') != -1) {isQuran = true;}
     
     // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
-    let junk = (array[i].name.toString()).indexOf('Blood Bag');
-    let junk2 = array[i].name.toString();
-    let junk3 = array[i].name.toString();
-    let junk4 = junk3.indexOf('Blood Bag');
     if ((array[i].name.toString()).indexOf('Blood Bag') != -1) {
       let test = (array[i].name.toString()).replace('AP', 'A+');
       array[i].name = (array[i].name.toString()).replace('AP', 'A+').toString();
@@ -381,7 +449,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           }
         }
       // Handle everything else
-      } else if (searchWord == names[j].toString()) {
+      } else if (searchWord == names[j].toString().trim()) {
           nameFound = true;
       }
       
@@ -417,33 +485,11 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   return transTotal;
 }
 
-// Fundtion used to get time formatted for the running averages sheet
-// Formatted as: mm/dd/yyyy 00:00:00 TCT
-function timenow() {
-  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
-}
-
-// Clean up the Running Averages worksheet, if needed.
-// If the column H2 is empty, clear (or set to '0') 
-// cells (columns) B-F. Set cell H to 'cleared;. When 
-// average data is filled in for that row, the status 
-// will be set to 'active'
-function cleanRunningAverages() {
-  let sheetRange = avgSheet().getDataRange();
-  let rows = sheetRange.getLastRow();
-  
-  for (let row = 2; row <= rows; row++) {
-    var status = avgSheet().getRange(row, 8).getValue(); // 8 == 'H'
-    if (status == '') { 
-      let dataRange = avgSheet().getRange(row, 2, 1, 7);
-      let values = [[0, timenow(), 0, 0, 0, 0, 'cleared']];
-      dataRange.setValues(values);            
-    }
-  }
-}
-
+/////////////////////////////////////////////////////////////////////////////
 // Function to clear the running averages sheet.
 // Intended to be called from the sheet via a button.
+/////////////////////////////////////////////////////////////////////////////
+
 function clearAllRunningAverages() {
   let sheetRange = avgSheet().getDataRange();
   let rows = sheetRange.getLastRow();
@@ -458,10 +504,35 @@ function clearAllRunningAverages() {
   dataRange.setValues(data); 
 }
 
+// Helper function used to get time formatted for the running averages sheet
+// Formatted as: mm/dd/yyyy 00:00:00 TCT
+function timenow() {
+  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
+}
 
+// Clean up the Running Averages worksheet, if needed.
+function cleanRunningAverages() {
+  let sheetRange = avgSheet().getDataRange();
+  let rows = sheetRange.getLastRow();
+  
+  for (let row = 2; row <= rows; row++) {
+    var status = avgSheet().getRange(row, 8).getValue(); // 8 == 'H'
+    if (status == '') { 
+      let dataRange = avgSheet().getRange(row, 2, 1, 7);
+      let values = [[0, timenow(), 0, 0, 0, 0, 'cleared']];
+      dataRange.setValues(values);            
+    }
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Handle calculating the running average - this is dynamically calculated
 // using data stored as 'scratch data' on the 'Running Averages' sheet - the
 // avarages per item are also stored there.
+//
+/////////////////////////////////////////////////////////////////////////////
+
 function updateRunningAverage(item) {
   // Locate column (create range) in the 'Running Averages' sheet (avgSheet)
   // D:row is last price, E:row last qty. Running avg: (last price total + new price total)/(last qty + new qty)
@@ -471,10 +542,10 @@ function updateRunningAverage(item) {
   // ^^ could use getValues() to get array of all values .. or get values cell by cell.
   for (let row = 3; row < rows; row++) {
     let name = avgSheet().getRange(row, 1).getValue(); // Make visible to the debugger
-    if (item.name == name) {
+    if (item.name.trim() == name.trim()) {
       // Get a new range for just this item, covering the row.
       let itemRange = avgSheet().getRange(row, 2, 1, 7); 
-      // let itemRange = ss.getRange("Running Averages!D" + row + ":G" + row);
+      // let itemRange = ss.getRange("Running Averages!D" + row + ":G" + row); // alt method
       let data = itemRange.getValues(); // (Last Price Total) | (Last Count Total) | Avg
       
       // timestamp is [0] in range, [1] is last price, [2] last count, [3] current RA
@@ -487,25 +558,21 @@ function updateRunningAverage(item) {
       let newPrice = Number(prevPrice) + (Number(item.price) * Number(item.qty)); // Goes into D:<row>, used next time through
       let newQty = Number(prevCount) + Number(item.qty); // Goes into E:<row>, used next time through
       let avg = Number(newPrice)/Number(newQty); // Running median average --> goes into F:<row>
-      itemRange.setValues([[avg, timenow(), newPrice, newQty, avg, prevAvg, 'active']]); 
-      
-      /*
-      myLogger('Calculated running average for ' + item.name + ': \nprev price: ' + prevPrice + 
-                  '\nNew price and qty: ' + item.qty + ' at $' + item.price + ' = $' + newPrice +
-                  '\nNew qty = ' + prevCount + ' + ' + item.qty + ', = ' + newQty +
-                  '\nSo running avg for ' + item.name + ' = ' + newPrice + '/' + newQty + ' = ' + avg);
-      */
+      itemRange.setValues([[avg, timenow(), newPrice, newQty, avg, prevAvg, 'active']]);
       break;
     }
   }
 }
 
-// Return a count of the number of transactions that have been logged.
+/////////////////////////////////////////////////////////////////////////////
+// Helper functions
+/////////////////////////////////////////////////////////////////////////////
+
+// Helper: Return a count of the number of transactions that have been logged.
 function countTransactions() {
   let count = 0;
   var sheetRange = datasheet().getDataRange();
   var lastRow = sheetRange.getLastRow();
-  //var idRange = datasheet().getRange("B0:B" + lastRow);
   for (let i = 3; i < lastRow; i++) { // Start at 3 to skip header
     let id = datasheet().getRange(i, 2).getValue();
     if (id != "") {count++;}
@@ -514,7 +581,7 @@ function countTransactions() {
   return count;
 }
 
-// Function to delete the first trade in the sheet.
+// Helper: Function to delete the first trade in the sheet.
 // This could be changed to delete 'x' transactions.
 function deleteFirstTrade() {
   let startRow = findXactionRow(1); 
@@ -523,7 +590,7 @@ function deleteFirstTrade() {
   datasheet().deleteRows(startRow, numRows);
 }
 
-// Function to locate the starting row of the indexed logged transaction.
+// Helper: Function to locate the starting row of the indexed logged transaction.
 // This is used to keep a 'rolling log', if we exceed the max # of transactions,
 // delete logged transactions one at a time until we no longr exceed that limit.
 // To find the indexed one, iterate rows in col. B (Trade ID) until we hit the indexed
@@ -533,9 +600,7 @@ function findXactionRow(index) {
     return 0;
   }
   
-  let count = 0;
-  let row = 0;
-  let cellValue = "";
+  let count = 0, row = 0, cellValue = "";
   var sheetRange = datasheet().getDataRange();
   var lastRow = sheetRange.getLastRow();
   for (row = 3; row < lastRow; row++) { // Start at 3 to skip header
@@ -547,8 +612,8 @@ function findXactionRow(index) {
   return row;
 }
 
-// Load script options
-
+/////////////////////////////////////////////////////////////////////////////
+//
 // Log the data we've accumulated to the spreadsheet.
 // Format: |Timestamp|Trade ID|Item|Quantity|Price Paid|Total Paid	|Item Avg. Price|
 // This return the range where the data was inserted, for use in copying
@@ -556,6 +621,8 @@ function findXactionRow(index) {
 //
 // See the function fillPrices() for the cases that are logged and those that aren't.
 //
+/////////////////////////////////////////////////////////////////////////////
+
 function logTransaction(array) { 
   var sheetRange = datasheet().getDataRange();
   var lastRow = sheetRange.getLastRow();
@@ -605,9 +672,11 @@ function logTransaction(array) {
   return newRange;
 }
 
+/////////////////////////////////////////////////////////////////////////////
 // This function copies the latest trade to the 'Last Trade' worksheet
+/////////////////////////////////////////////////////////////////////////////
+
 function copyLastTrade(src) {
-  // Clear old data
   let sheetRange = lastTradeSheet().getDataRange();
   let lastRow = sheetRange.getLastRow();
   if (lastRow >= 3) { // Allow for empty sheet
@@ -615,7 +684,6 @@ function copyLastTrade(src) {
     lastTradeSheet().deleteRows(3, numRows);
   }
     
-  // Copy
   let srcRange = datasheet().getRange(src);
   let dstRange = lastTradeSheet().getRange('A3');
   srcRange.copyTo(dstRange);
@@ -623,57 +691,121 @@ function copyLastTrade(src) {
   myLogger('Copied last trade ("' + src +'") to Last Trade sheet, range "A3"');
 }
 
-//  Parse this input, See 'getNewItem()' for format of JSON in result array.
-// 'keys' must match what is defined in the Tampermonkey script that
-//  POSTs to this - "Xanet's Trade Helper.user.js"
-function parseJsonObject(objString) {
-  let keys = ['id', 'name', 'qty', 'price', 'total'];
-  let checkStr = objString;
-  let retArray = [];
-  
-  let counter = 0;
-  myLogger('parseJsonObject: ' + objString);
-  while (checkStr != '') {
-    let temp = '';
-    let newItem = getNewItem();
-    for (let i=0; i < keys.length; i++) {
-      let pAt = checkStr.indexOf(keys[i]);
-      temp = checkStr.slice(pAt+ keys[i].length + 5);
-      let pEnd = temp.indexOf('"'); 
-      let temp2 = temp.slice(0, pEnd-1);
-      newItem[keys[i]] = temp2.trim();
-      myLogger('parseJsonObject: key = ' + keys[i] + '\npAt: ' + pAt +
-               '\ntemp: ' + temp +
-               '\npEnd: ' + pEnd + 
-               '\ntemp2: ' + temp2 +
-               '\ntemp2.trim(): ' + temp2.trim());
-      } // find next key.
-    myLogger('New Item = "' + JSON.stringify(newItem) + '"');
-    
-    counter++;
-    retArray.push(newItem);
-    if ((pAt = temp.indexOf('},{')) != -1) {checkStr = temp.slice(pAt+3);
-    } else {checkStr = '';} // Trigger as completed.
-  } 
-  
-  return retArray;
+/////////////////////////////////////////////////////////////////////////////
+//
+// Helpers.
+//
+// Moved 'doc = openById()' and 'sheet = getSheetByName()' calls
+// to functions, for easier debugging, and if they are sepcified
+// as global vars (e.g. var datasheet = getDocById().getSheetByName('Data');")
+// in global scope, it will be evaluated when other scripts in this project
+// are run, and may cause permission errors.
+//
+/////////////////////////////////////////////////////////////////////////////
+function datasheet() {
+  return getDocById().getSheetByName('Data');
 }
 
-// Expected object format of what we receive - an array of these.
-// Must match what is defined in the Tampermonkey script that
-// writes to this - "Xanet's Trade Helper.user.js"
-function getNewItem() {
-  return {id: 'TBD',       
-          name: 'TBD',       
-          qty: 'TBD',        
-          price: 'TBD',
-          total: 'TBD'
-          };
+function priceSheet() {
+  return getDocById().getSheetByName('Price Calc');
 }
 
-// TBD: replace all myLogger(data) with this function.
-// THen , we can optionally turn it on and off.
+function avgSheet() {
+  return getDocById().getSheetByName('Running Averages');
+}
+
+function optsSheet() {
+  return getDocById().getSheetByName('Options');
+}
+
+function lastTradeSheet() {
+  return getDocById().getSheetByName('Last Trade');
+}
+
+// Helper to optionally log.
 function myLogger(data) {
   if (opt_consoleLogging) console.log(data);
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Names of items in various sets. 
+/////////////////////////////////////////////////////////////////////////////
+
+// Helper: Perform an array deep copy
+function deepCopy(copyArray) {
+    return JSON.parse(JSON.stringify(copyArray));
+}
+
+// Helper to see how many complete sets we have of a given type.
+// 'flowersInSet' or 'plushiesInSet' are passed to this fn.
+/*
+function countCompleteSets(itemArray) {
+    var totalSets = 999999999;
+    itemArray.forEach((element, index, array) => {
+        let amt = element.quantity;
+        if (!amt || amt == null) {totalSets = 0;} // Too bad we can't 'break' here, or 'return'.
+        if (amt < totalSets) {totalSets = amt;}
+    });
+    return totalSets;
+}
+*/
+
+const flowersInSet = [{"name":"Dahlia", "id": 260, "quantity": 0},
+                      {"name":"Orchid", "id": 264, "quantity": 0},
+                      {"name":"African Violet", "id": 282, "quantity": 0},
+                      {"name":"Cherry Blossom", "id": 277, "quantity": 0},
+                      {"name":"Peony", "id": 276, "quantity": 0},
+                      {"name":"Ceibo Flower", "id": 271, "quantity": 0},
+                      {"name":"Edelweiss", "id": 272, "quantity": 0},
+                      {"name":"Crocus", "id": 263, "quantity": 0},
+                      {"name":"Heather", "id": 267, "quantity": 0},
+                      {"name":"Tribulus Omanense","id": 385, "quantity": 0},
+                      {"name":"Banana Orchid", "id": 617, "quantity": 0}];
+
+const plushiesInSet = [{"name":"Jaguar Plushie", "id": 258, "quantity": 0},
+                       {"name":"Lion Plushie", "id": 281, "quantity": 0},
+                       {"name":"Panda Plushie", "id": 274, "quantity": 0},
+                       {"name":"Monkey Plushie", "id": 269, "quantity": 0},
+                       {"name":"Chamois Plushie", "id": 273, "quantity": 0},
+                       {"name":"Wolverine Plushie", "id": 261, "quantity": 0},
+                       {"name":"Nessie Plushie", "id": 266, "quantity": 0},
+                       {"name":"Red Fox Plushie", "id": 268, "quantity": 0},
+                       {"name":"Camel Plushie", "id": 384, "quantity": 0},
+                       {"name":"Kitten Plushie", "id": 215, "quantity": 0},
+                       {"name":"Teddy Bear Plushie", "id": 187, "quantity": 0},
+                       {"name":"Sheep Plushie", "id": 186, "quantity": 0},
+                       {"name":"Stingray Plushie", "id": 618, "quantity": 0}];
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Unused, for testing. Can't concat inside the 'params' declaration, for some reason.
+let str_parameters = '[{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},' + 
+                            '{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},' +
+                            '{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]';
+
+
+var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
+  contextPath: '',
+  parameter: { '[{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
+  queryString: '',
+  postData: 
+   { contents: [{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
+     length: 373,
+     name: 'postData',
+     type: 'application/x-www-form-urlencoded' },
+  contentLength: 373 };
