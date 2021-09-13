@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -124,17 +124,12 @@
     var dispItemInfo = true; // true to display alert on missing items or 0 price, also on success.
     var dispBadItemInfoOnly = true; // true to ONLY disp alert when missing data
 
-    ////////////////////////////////////////////////////
-    // Process each item in the trade. This is where we
-    // do stuff - build the array we will be uploading.
-    //
-    // Uploading is done by calling 'uploadDataArray()'
-    ////////////////////////////////////////////////////
-
-    // Reverse a string
-    function reverseString(str) {
-        return (str + '').split("").reverse().join("");
-    }
+    /**************************************************************************
+    * Process each item in the trade. This is where we do stuff - build the aray
+    * array we will be uploading. Uploading is done by calling 'uploadDataArray()'
+    * This is called from getGridData() for each item. This mostly handles
+    * sanitizing the data, one item at a time.
+    /*************************************************************************/
 
     // Parse "red fox x2\n"
     function processItem(item) {
@@ -197,7 +192,7 @@
 
     // Helper to build an item (element of trade) to push onto a data array for upload
     function getDataItem(name, qty) {
-        // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
+        // Handle the blood bags with a '+' in them...(A+, B+, O+, AB+)
         if (name.indexOf('Blood Bag :') != -1) {
           name = name.replace('A+', 'AP');
           name = name.replace('B+', 'BP');
@@ -212,29 +207,6 @@
                 price: "0",   // IN Unit price
                 total: "0"    // IN Total price (qty * price)
                 };
-    }
-
-    // Ensure there is a valid trade ID, if we are not on a page with a hash, this may fail.
-    function validateTradeIDs(useArray) {
-        let badHash = false;
-        let valid = true;
-
-        log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
-
-        tradeID = Number(tradeID);
-        if (isNaN(tradeID)) {
-            valid = false;
-            log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
-            getTradeIDFromHash();
-            if (!isNaN(tradeID)) {valid = true;}
-        }
-
-        return true; // valid; // TEMPORAY - for debugging
-    }
-
-    // Perform an array deep copy
-    function deepCopy(copyArray) {
-        return JSON.parse(JSON.stringify(copyArray));
     }
 
     // Upload data to the sheet
@@ -312,75 +284,9 @@
         });
     }
 
-    // Handle clicking the 'Accept' button (ev is the event)
-    function handleAccept(ev) {
-        getSavedOptions();
-        log('Accept button handler: ' + ev);
-
-        /* Uncomment to prevent the trade from actually propogating
-        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
-        if (xedxDevMode) {
-            log('Stopping event propogation.');
-            ev.stopPropagation();
-        }
-        */
-        if (!activeFlag || !dataArray.length) {
-            log('No data to POST, or inactive!');
-        } else {
-            if (autoUpload) {
-                log('Uploading data, ' + dataArray.length + ' items.');
-                uploadDataArray('data');
-            } else {
-                log('Not uploading, autoUpload is not enabled!');
-            }
-        }
-    }
-
-    // Handle clicking the 'Cancel' button (ev is the event)
-    function handleCancel(ev) {
-        getSavedOptions();
-        log('Cancel button handler: ' + ev);
-
-        /* Uncomment to prevent the trade from actually propogating
-        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
-        if (xedxDevMode) {
-            log('Stopping event propogation.');
-            ev.stopPropagation();
-        }
-        */
-
-        clearTradeID();
-    }
-
-    // Helper to clear globals
-    function clearTradeID() {
-        log('Clearing TradeID and total price: TID = ' + tradeID + ' Price = ' + totalPrice);
-        //tradeID = '0';
-        totalPrice = '0';
-        log('Cleared  total price, left TID alone: TID = ' + tradeID + ' Price = ' + totalPrice);
-    }
-
-    // Helper to get TradeID from hash
-    function getTradeIDFromHash() {
-        log('getTradeIDFromHash');
-        hash = location.hash;
-        debug('hash = ' + hash);
-        debug('hash split, stringified: ' + JSON.stringify(hash.split(/=|#|&/)));
-        let tempArray = hash.split(/=|#|&/); //[4];
-        let temp = '0'
-        for (let i = 0; i < tempArray.length; i++) {
-            if (tempArray[i] == 'ID') {
-                temp = tempArray[i+1];
-                break;
-            }
-        }
-        log('getTradeIDFromHash: ID = "' + temp + '"');
-        if (validPointer(temp)) {
-            log('Setting tradeID to "' + temp + '"');
-            tradeID = temp;
-        }
-        return tradeID;
-    }
+    /**************************************************************************
+    / Response processing
+    /**************************************************************************/
 
     // Called when upload completes
     function uploadFunctionCB(responseText) {
@@ -401,21 +307,6 @@
 
         log(errorText);
         alert(errorText + '\n\nPress OK to continue.');
-    }
-
-    // Save the Sheets URL in permanent storage (from the 'Save' link)
-    function saveSheetsUrl(useUrl=null) {
-        let url = useUrl;
-        if (url == null) {
-            url = document.getElementById('xedx-google-key').value;
-        }
-        if (url == '' || url == null) {
-            alert('You must enter the Google Sheets URL!');
-            return;
-        }
-        googleURL = url;
-        GM_setValue('xedx-google-key', url);
-        alert(GM_info.script.name + ': URL saved!');
     }
 
     // Handle the response on success
@@ -439,20 +330,6 @@
             }
         }
     }
-
-    // Format a number as currency. Move to my helper lib?
-    function asCurrency(num) {
-        var formatter = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-
-            // These options are needed to round to whole numbers if that's what you want.
-            //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-            maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-        });
-
-      return formatter.format(num);
-      }
 
     // Parse the response into legible text
     function parseResponse(resp) {
@@ -506,7 +383,64 @@
         return output;
     }
 
-    // Helper to count items in an array at a given price
+    /**************************************************************************
+    / misc. helpers
+    /**************************************************************************/
+
+    // Helper: Ensure there is a valid trade ID, if we are not on a page with a hash, this may fail.
+    function validateTradeIDs(useArray) {
+        let badHash = false;
+        let valid = true;
+
+        log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
+
+        tradeID = Number(tradeID);
+        if (isNaN(tradeID)) {
+            valid = false;
+            log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
+            getTradeIDFromHash();
+            if (!isNaN(tradeID)) {valid = true;}
+        }
+
+        return true; // valid; // TEMPORAY - for debugging
+    }
+
+    // Helper: Perform an array deep copy
+    function deepCopy(copyArray) {
+        return JSON.parse(JSON.stringify(copyArray));
+    }
+
+    // Helper to clear globals
+    function clearTradeID() {
+        log('Clearing TradeID and total price: TID = ' + tradeID + ' Price = ' + totalPrice);
+        //tradeID = '0';
+        totalPrice = '0';
+        log('Cleared  total price, left TID alone: TID = ' + tradeID + ' Price = ' + totalPrice);
+    }
+
+    // Helper to get TradeID from hash
+    function getTradeIDFromHash() {
+        log('getTradeIDFromHash');
+        hash = location.hash;
+        debug('hash = ' + hash);
+        debug('hash split, stringified: ' + JSON.stringify(hash.split(/=|#|&/)));
+        let tempArray = hash.split(/=|#|&/); //[4];
+        let temp = '0'
+        for (let i = 0; i < tempArray.length; i++) {
+            if (tempArray[i] == 'ID') {
+                temp = tempArray[i+1];
+                break;
+            }
+        }
+        log('getTradeIDFromHash: ID = "' + temp + '"');
+        if (validPointer(temp)) {
+            log('Setting tradeID to "' + temp + '"');
+            tradeID = temp;
+        }
+        return tradeID;
+    }
+
+    // Helper for 'parseResponse() to count items in an array at a given price ('0' or '-1')
     function countPricesAt(arr, price) {
         let counter = 0;
         for (let i = 0; i < arr.length; i++) {
@@ -515,11 +449,85 @@
         return counter;
     }
 
-    ///////////////////////////////////////////////////////
-    // UI stuff, such as it is.
-    ///////////////////////////////////////////////////////
+    // Format a number as currency. Move to my helper lib?
+    function asCurrency(num) {
+        var formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
 
-    // View contents of data array to be uploaded, called via the 'View' link
+            // These options are needed to round to whole numbers if that's what you want.
+            //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
+            maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+        });
+
+      return formatter.format(num);
+      }
+
+    // Helper: Reverse a string
+    function reverseString(str) {
+        return (str + '').split("").reverse().join("");
+    }
+
+    /**************************************************************************
+    / UI helpers
+    /**************************************************************************/
+
+    // Save the Sheets URL in permanent storage (from the 'Save' link)
+    function saveSheetsUrl(useUrl=null) {
+        let url = useUrl;
+        if (url == null) {
+            url = document.getElementById('xedx-google-key').value;
+        }
+        if (url == '' || url == null) {
+            alert('You must enter the Google Sheets URL!');
+            return;
+        }
+        googleURL = url;
+        GM_setValue('xedx-google-key', url);
+        alert(GM_info.script.name + ': URL saved!');
+    }
+
+    // Helper: Handle clicking the 'Accept' button (ev is the event)
+    function handleAccept(ev) {
+        getSavedOptions();
+        log('Accept button handler: ' + ev);
+
+        /* Uncomment to prevent the trade from actually propogating
+        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
+        if (xedxDevMode) {
+            log('Stopping event propogation.');
+            ev.stopPropagation();
+        }
+        */
+        if (!activeFlag || !dataArray.length) {
+            log('No data to POST, or inactive!');
+        } else {
+            if (autoUpload) {
+                log('Uploading data, ' + dataArray.length + ' items.');
+                uploadDataArray('data');
+            } else {
+                log('Not uploading, autoUpload is not enabled!');
+            }
+        }
+    }
+
+    // Helper: Handle clicking the 'Cancel' button (ev is the event)
+    function handleCancel(ev) {
+        getSavedOptions();
+        log('Cancel button handler: ' + ev);
+
+        /* Uncomment to prevent the trade from actually propogating
+        // (when xedxDevMode selected). Just as easy to press 'Cancel'.
+        if (xedxDevMode) {
+            log('Stopping event propogation.');
+            ev.stopPropagation();
+        }
+        */
+
+        clearTradeID();
+    }
+
+    // Helper: View contents of data array to be uploaded, called via the 'View' link
     function viewDataArray() {
         log('Displaying dataArray contents: Active ? ' + (activeFlag ? 'YES' : 'NO') + ' Data ? ' + (dataArray.length ? 'YES' : 'NO'));
         let displayText = '';
@@ -540,7 +548,7 @@
         alert(displayText);
     }
 
-    // Handle the selected options
+    // Helper: Handle the selected options
     function handleOptsClick() {
         let option = this.id;
         log('Handling checkbox change for ' + option);
@@ -577,7 +585,7 @@
         }
     }
 
-    // Check checkboxes to default.
+    // Helper: Check checkboxes to default.
     function setDefaultCheckboxes() {
         log('Setting default state of checkboxes.');
         $("#xedx-logging-opt")[0].checked = GM_getValue("loggingEnabled", loggingEnabled);
@@ -587,7 +595,7 @@
         $("#xedx-baditeminfo-opt")[0].checked = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
     }
 
-    // Read saved options values
+    // Helper: Read saved options values
     function getSavedOptions() {
         log('Getting saved options.');
         loggingEnabled = GM_getValue("loggingEnabled", loggingEnabled);
@@ -596,7 +604,7 @@
         dispItemInfo = GM_getValue("dispItemInfo", dispItemInfo);
     }
 
-    // Write saved options values
+    // Helper: Write saved options values
     function setSavedOptions() {
         log('Getting saved options.');
         GM_setValue("loggingEnabled", loggingEnabled);
@@ -605,14 +613,14 @@
         GM_setValue("dispItemInfo", dispItemInfo);
     }
 
-    // Show/hide opts page
+    // Helper: Show/hide opts page
     function hideOpts(hide=true) {
         log((hide ? "hiding " : "showing ") + "options page.");
         $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
         document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'block';
     }
 
-    // Add button handler(s).
+    // Helper: Add button handler(s).
     function installHandlers() {
         let myButton = document.getElementById('xedx-save-btn');
         myButton.addEventListener('click',function () {
@@ -672,7 +680,7 @@
         trapCancelButton();
     }
 
-    // Add a listener to handle clicking the 'Accept' button
+    // Helper: Add a listener to handle clicking the 'Accept' button
     function trapAcceptButton() {
         let link =
             document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div.btn-wrap.green > span > a");
@@ -686,7 +694,7 @@
         }
     }
 
-    // Add a listener for the 'Cancel' button, may be different on diff pages.
+    // Helper: Add a listener for the 'Cancel' button, may be different on diff pages.
     function trapCancelButton() {
         let link =
             document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div > div > button");
@@ -700,7 +708,7 @@
         }
     }
 
-    // Toggle active/inactive status
+    // Helper: Toggle active/inactive status
     function indicateActive(active) {
         log('Toggling active status: ' + (active ? 'active' : 'inactive'));
         if (validPointer($('#xedx-active-light')[0])) {
@@ -713,19 +721,25 @@
         }
     }
 
-    // Show/hide status line
+    // Helper: Show/hide status line
     function hideStatus(hide=true) {
         log('Hiding status line: ' + (hide? 'true' : 'false'));
         $('#xedx-status-line')[0].style.display = hide ? 'none' : 'block';
     }
 
-    // Show/hide the Dev Tools links
+    // Helper: Show/hide the Dev Tools links
     function hideDevLinks(hide) {
         log('Hiding dev tools: ' + (hide? 'true' : 'false'));
         $('#devtools-div')[0].style.display = hide ? 'none' : 'block';
     }
 
-    // Function to auto-fil the 'add money' page
+    /**************************************************************************
+    / Fill the money field with current price. This happens when yo click
+    / in the field, and uses the price sent back from the spreadsheet.
+    /**************************************************************************/
+
+    // Helper to handle the page asking for how much $$ to add to the trade.
+    // This basically adds a listener.
     function handleAddMoneyPage() {
         let hash = location.hash;
         let step = hash.split(/=|#|&/)[2];
@@ -745,7 +759,7 @@
         }
     }
 
-    // Fill the money field with current price
+    // Helper for above, actually fills the field.
     function addMoney(target1, target2) {
         log('addMoney');
         let value = target2.getAttribute('value');
@@ -765,7 +779,9 @@
         }
     }
 
-    // Build our UI
+    /**************************************************************************
+    * Build our UI
+    **************************************************************************/
     function buildUI() {
         getSavedOptions();
         if (validPointer(document.getElementById('xedx-main-div'))) {
@@ -817,9 +833,9 @@
         }
     }
 
-    ///////////////////////////////////////////////////////////////////
-    // Triggered on page load. Start the show.
-    ///////////////////////////////////////////////////////////////////
+    /**************************************************************************
+    * Triggered on page load. Start the show.
+    /*************************************************************************/
 
     function handlePageLoad() {
 
@@ -838,7 +854,19 @@
         handleAddMoneyPage();
     }
 
-    // Get the data from the right-hand trade grid, if available
+    /**************************************************************************
+    * Determine what sets, if any, are in the trade.
+    /*************************************************************************/
+
+    function processDataSets() {
+
+    }
+
+    /**************************************************************************
+    * Get the data from the right-hand trade grid, if available.
+    * This buids the dataArray that will be uloaded later, for either
+    * pricing info, or insertion into the spreadsheet, or both.
+    **************************************************************************/
     var pageRetries = 0;
     function getGridData() {
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul");
@@ -853,11 +881,14 @@
             log('Processing trade items. There are ' + names.length + ' elements');
             names.forEach(element => processItem(element));
 
+            // Data array is all set - process any sets that may or may not be in it.
+            processDataSets();
+
             // Indicate that we are 'active' - data saved
             indicateActive(true);
 
             // Here, just upload for pricing info.
-            // Actually logged remotely when the param is 'data' (the default)
+            // Actually stored remotely when the param is 'data' (the default)
             if (autoUpload) {uploadDataArray('price');}
         }
         // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
@@ -885,7 +916,7 @@
         }
     }
 
-    // Add an mutation observer
+    // Add a mutation observer
     function addObserver() {
         var targetNode = document.querySelector("#trade-container");
         var config = { attributes: false, childList: true, subtree: true };
