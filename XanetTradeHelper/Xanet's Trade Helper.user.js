@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -41,7 +41,8 @@
 
               '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
                   '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
-                  '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px;">0</span>' +
+                  '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
+                  '<span>Total Sets:</span><span id="xedx-total-sets" style="color: green; margin-left: 10px;">0</span>' +
                   '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
               '</div>' +
 
@@ -63,8 +64,8 @@
                   '<span id="button-span">Development Tools: ' +
                       '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
                       '<button id="xedx-view-btn" class="enabled-btn">View</button>' +
-                      '<button id="xedx-prices-btn" class="enabled-btn">Prices (live)</button>' +
-                      '<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
+                      '<button id="xedx-prices-btn" class="enabled-btn">Prices</button>' +
+                      //'<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
                       //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
                       '<p>(This also allows the UI to display on the travel page, for testing.)</p>' +
 
@@ -81,15 +82,19 @@
               '</div>' +
               '<div>' +
                   '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px;">' +
-                  '<label for="autoUpload"><span style="margin-left: 15px">Auto-Upload</span></label>' +
+                  '<label for="autoUpload"><span style="margin-left: 15px;">Auto-Upload</span></label>' +
               '</div>' +
               '<div>' +
                   '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px;">' +
-                  '<label for="itemInfo"><span style="margin-left: 15px">Display Item Info</span></label>' +
+                  '<label for="itemInfo"><span style="margin-left: 15px;">Display Item Info</span></label>' +
               '</div>' +
               '<div>' +
-                  '<input type="checkbox" id="xedx-baditeminfo-opt" name="baditemInfo" style="margin-left: 200px; margin-bottom: 10px;">' +
-                  '<label for="baditemInfo"><span style="margin-left: 15px">Only missing items/prices</span></label>' +
+                  '<input type="checkbox" id="xedx-baditeminfo-opt" name="baditemInfo" style="margin-left: 200px;">' +
+                  '<label for="baditemInfo"><span style="margin-left: 15px;">Only missing items/prices</span></label>' +
+              '</div>' +
+              '<div id="xedx-testdata-div" style="display: block;">' +
+                  '<input type="checkbox" id="xedx-testdata-opt" name="testData" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="testData"><span style="margin-left: 15px;">Use test data</span></label>' +
               '</div>' +
 
           '</div>'; // End xedx-content-div
@@ -104,12 +109,21 @@
                        {"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Banana Orchid ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Dahlia ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},
+                       {"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},
+                       {"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},
+                       {"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},
+                       {"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},
+                       {"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},
+                       {"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},
                        {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
     var hash = location.hash; // ex., '#step=view&ID=6372852'
     var tradeID = getTradeIDFromHash();
     var totalPrice = 0;
+    var totalSets = 0;
     var dataArray = []; // Data we are uploading per trade
     var activeFlag = false;
     var observer = null; // Mutation observer
@@ -119,10 +133,12 @@
     //   Allows the UI to display when travelling.
     //   Suppresses the 'Accept' button from being propogated. (commented out)
     var xedxDevMode = true; // true to enable any special dev mode code.
-    var loggingEnabled = true; // true to log to console, false otherwise
+    loggingEnabled = true; // Declared in Torn-JS-helpers, true to log to console, false otherwise
+    debugLoggingEnabled = true; // Declared in Torn-JS-helpers, turn of to disable debug() output
     var autoUpload = false; // true to auto-upload when we have data - for pricing info.
     var dispItemInfo = true; // true to display alert on missing items or 0 price, also on success.
     var dispBadItemInfoOnly = true; // true to ONLY disp alert when missing data
+    var testData = false; // TRUE to emulate using test data
 
     /**************************************************************************
     * Process each item in the trade. This is where we do stuff - build the aray
@@ -210,7 +226,7 @@
     }
 
     // Upload data to the sheet
-    function uploadDataArray(cmd='data', altArray = null) {
+    function uploadDataArray(cmd='data') {
         let url = document.getElementById('xedx-google-key').value;
         if (url == '') {
             url = GM_getValue('xedx-google-key');
@@ -221,11 +237,15 @@
         }
 
         // For testing, can use 'altArray' - the testArray defined above.
-        let useArray = altArray ? deepCopy(altArray) : deepCopy(dataArray);
+        //let useArray = testData ? deepCopy(testArray) : deepCopy(dataArray);
+        let useArray = deepCopy(testData ? testArray : dataArray);
 
         // Nothing in trade, don't do this.
         if (!useArray.length) {
-            log('No data in trade, ignoring');
+            hideStatus();
+            let msg = 'No ' + (testData ? 'test' : 'live') + ' data in trade, unable to upload!';
+            log(msg);
+            alert(msg);
             return;
         }
 
@@ -347,6 +367,11 @@
             totalPrice = total;
             dispPrice = total;
         }
+        log('Setting total sets to ' + totalSets);
+        processDataSets(dataArray);
+
+        if (Number(tradeID) == 0) {tradeID = dataArray[0].id;}
+
         log('Setting total price to ' + asCurrency(dispPrice).replace('$', ''));
         $('#xedx-total-price')[0].innerText = asCurrency(dispPrice).replace('$', '');
         $('#xedx-trade-id')[0].innerText = tradeID;
@@ -355,32 +380,50 @@
         log('parseResponse: Command: ' + cmd);
         log('parseResponse: Total Trade: ' + total);
         log('parseResponse: dataArray = ' + dataArray + ' Length: ' + dataArray.length);
-        log('parseResponse: array data: ' + JSON.stringify(dataArray));
+        debug('parseResponse: array data: ' + JSON.stringify(dataArray));
 
-        if (cmd == 'price' && dispItemInfo) {
+        let missingPriceWarning = "";
+        let dataReceived = 'Result data:\n';
+        let fullDataReceived = dataReceived;
+        let successText = 'Success! ' + cmdObj.itemsProcessed + ' items processed for ' + asCurrency(cmdObj.totalTrade);
+        if (dispItemInfo || dispBadItemInfoOnly) {
+            // Text for missing items.
             let noPrice = countPricesAt(dataArray, 0);
             let notInData = countPricesAt(dataArray, -1);
             log('Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
             if ((noPrice > 0 || notInData > 0)) {
-                output += 'Warning: the following items are not in the list or missing prices.\n';
-
-                len = dataArray.length;
-                for (let i = 0; i < len; i++) {
+                missingPriceWarning += 'Warning: the following items are not in the list or missing prices.\n';
+                for (let i = 0; i < dataArray.length; i++) {
                     let item = dataArray[i];
-                    log('Processing item: ' + JSON.stringify(item));
+                    debug('Processing item: ' + JSON.stringify(item));
                     if (item.price > 0) {continue;}
-                    output += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
+                    missingPriceWarning += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
                 }
-            } else {
-                if (dispBadItemInfoOnly) {
-                    output = "";
-                } else {
-                    output = 'Success! ' + cmdObj.itemsProcessed + ' items processed for ' + asCurrency(cmdObj.totalTrade);
-                }
+            }
+
+            // Text for received data array
+            for (let i = 0; i < dataArray.length; i++) {
+                let item = dataArray[i];
+                if (item.price <= 0) {continue;}
+                let text = '\t' + item.name + ' x' + item.qty;
+                let fullText = text + ' - ' + asCurrency(item.price) +
+                    ' each, ' + asCurrency(item.total) + ' total.\n';
+                dataReceived += (text + '\n');
+                fullDataReceived += fullText;
             }
         }
 
-        return output;
+        if (dispBadItemInfoOnly && cmd == 'price' && missingPriceWarning != "") {
+           return successText + '\n\n'+ missingPriceWarning;
+        } else if (dispBadItemInfoOnly) {
+            return '';
+        } else if (dispItemInfo  && missingPriceWarning != "") {
+            output = successText + '\n\n'+ missingPriceWarning + '\n' + fullDataReceived;
+        } else if (dispItemInfo) {
+            output = successText + '\n\n' + fullDataReceived;
+        }
+
+    return output;
     }
 
     /**************************************************************************
@@ -529,16 +572,17 @@
 
     // Helper: View contents of data array to be uploaded, called via the 'View' link
     function viewDataArray() {
-        log('Displaying dataArray contents: Active ? ' + (activeFlag ? 'YES' : 'NO') + ' Data ? ' + (dataArray.length ? 'YES' : 'NO'));
+        let useArray = testData ? testArray : dataArray;
+        log('Displaying dataArray contents: Active ? ' + (activeFlag ? 'YES' : 'NO') + ' Data ? ' + (useArray.length ? 'YES' : 'NO'));
         let displayText = '';
-        if (!activeFlag) {
+        if (!activeFlag && !testData) {
             displayText = "There is no data to display when inactive!";
-        } else if (dataArray.length == 0) {
+        } else if (useArray.length == 0) {
             displayText = "No data has been collected! Try refreshing the page.";
         } else {
             displayText = 'Items ready to be uploaded for trade:\n\n';
-            for (let i = 0; i < dataArray.length; i++) {
-                let item = dataArray[i];
+            for (let i = 0; i < useArray.length; i++) {
+                let item = useArray[i];
                 let text = '\t' + item.name + ' x' + item.qty + '\n';
                 displayText += text;
             }
@@ -579,6 +623,12 @@
                 GM_setValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
                 log('Saved value for dispBadItemInfoOnly');
                 break;
+            case "xedx-testdata-opt":
+                testData = this.checked;
+                GM_setValue("testData", testData);
+                log('Saved value for testData');
+                indicateActive(activeFlag);
+                break;
             default:
                 log('Checkbox ID not found!');
 
@@ -593,6 +643,7 @@
         $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
         $("#xedx-iteminfo-opt")[0].checked = GM_getValue("dispItemInfo", dispItemInfo);
         $("#xedx-baditeminfo-opt")[0].checked = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
+        $("#xedx-testdata-opt")[0].checked = GM_getValue("testData", testData);
     }
 
     // Helper: Read saved options values
@@ -602,6 +653,8 @@
         autoUpload = GM_getValue("autoUpload", autoUpload);
         xedxDevMode = GM_getValue("xedxDevMode", xedxDevMode);
         dispItemInfo = GM_getValue("dispItemInfo", dispItemInfo);
+        dispBadItemInfoOnly = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
+        testData = GM_getValue("testData", testData);
     }
 
     // Helper: Write saved options values
@@ -611,6 +664,7 @@
         GM_setValue("autoUpload", autoUpload);
         GM_setValue("xedxDevMode", xedxDevMode);
         GM_setValue("dispItemInfo", dispItemInfo);
+        GM_setValue("testData", testData);
     }
 
     // Helper: Show/hide opts page
@@ -631,7 +685,7 @@
         myButton = document.getElementById('xedx-submit-btn'); // Dev only
         myButton.addEventListener('click',function () {
             hideStatus(false);
-            log('SUBMIT clicked');
+            log('SUBMIT clicked, testData = ' + testData);
             uploadDataArray('data');
         });
 
@@ -639,24 +693,15 @@
         myButton = document.getElementById('xedx-prices-btn'); // Dev only
         myButton.addEventListener('click',function () {
             hideStatus(false);
-            log('PRICE (live) clicked');
+            log('PRICE clicked, testData = ' + testData);
             uploadDataArray('price');
-        });
-
-        // Submit data to Google Sheets for pricing info only (Prices link)
-        // Uses the test data array, so no need for live data. For debugging.
-        myButton = document.getElementById('xedx-test-btn'); // Dev only
-        myButton.addEventListener('click',function () {
-            hideStatus(false);
-            log('PRICE (test) clicked');
-            uploadDataArray('price', testArray);
         });
 
         // View data ready to be uploaded - View link
         myButton = document.getElementById('xedx-view-btn'); // Dev only
         myButton.addEventListener('click',function () {
-            log('VIEW clicked');
-            viewDataArray();
+            log('VIEW clicked, testData = ' + testData);
+            viewDataArray('live');
         });
 
         // Show/Hide options link
@@ -674,6 +719,7 @@
         $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-iteminfo-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-baditeminfo-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-testdata-opt")[0].addEventListener("click", handleOptsClick);
 
         // Accept/cancel button handler
         trapAcceptButton();
@@ -710,9 +756,9 @@
 
     // Helper: Toggle active/inactive status
     function indicateActive(active) {
-        log('Toggling active status: ' + (active ? 'active' : 'inactive'));
+        log('Toggling active status: ' + (testData ? 'Using Test Data' : active ? 'active' :  'inactive'));
         if (validPointer($('#xedx-active-light')[0])) {
-            var str = `[${active ? 'Active' : 'Inactive'}]`;
+            var str = `[${testData ? 'Using Test Data' : active ? 'Active' : 'Inactive'}]`;
             $('#xedx-active-light').text(str);
             $('#xedx-active-light')[0].style.color = active ? "green" : "red";
             activeFlag = active;
@@ -731,6 +777,8 @@
     function hideDevLinks(hide) {
         log('Hiding dev tools: ' + (hide? 'true' : 'false'));
         $('#devtools-div')[0].style.display = hide ? 'none' : 'block';
+        $('#xedx-testdata-div')[0].display = hide ? 'none' : 'block';
+        if (hide) {testData = false;}
     }
 
     /**************************************************************************
@@ -858,8 +906,17 @@
     * Determine what sets, if any, are in the trade.
     /*************************************************************************/
 
-    function processDataSets() {
-
+    function processDataSets(useArray) {
+        log('processDataSets');
+        totalSets = 0;
+        for (let i = 0; i < useArray.length; i++) {
+            let item = useArray[i];
+            let name = item.name.toString();
+            if (name.includes('Plushie Set') || name.includes('Flower Set')) {
+                totalSets += item.qty;
+            }
+        }
+        $('#xedx-total-sets')[0].innerText = Number(totalSets).toString();
     }
 
     /**************************************************************************
@@ -911,6 +968,7 @@
             log('Setting total price to ' + asCurrency(totalPrice).replace('$', ''));
             $('#xedx-total-price')[0].innerText = asCurrency(totalPrice).replace('$', '');
             $('#xedx-trade-id')[0].innerText = tradeID;
+            $('#xedx-total-sets')[0].innerText = totalSets;
         } else {
             log('Failed to set price: total = "' + totalPrice + '" tradeID = "' + tradeID + '"');
         }
