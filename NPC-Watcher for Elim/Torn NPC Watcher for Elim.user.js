@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Watcher for Elim
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -30,7 +30,9 @@
                    20: 'Fernando',
                    10: 'Tiny',
                   };
-    const userName = names[playerID];
+    const userName = names[playerID]; // Determine which NPC we are watching
+
+    debugLoggingEnabled = true; // Declared in Torn-JS-Helpers, set to false to suppress debug() statements.
 
     // Where we actually do stuff.
     function handlePageLoad() {
@@ -38,8 +40,10 @@
         if (!validPointer(target)) {setTimeout(function() {handlePageLoaded();}, 1000)};
 
         if (Number(target.innerText) > maxAttackers) {
+            log('Target has hit ' + target.innerText + ' attackers, notifying!');
             GM_notification ( {title: userName + ' is ready!', text: target.innerText + ' user attacking.'} );
         } else {
+            debug('Checking target, ' + target.innerText + ' attackers.');
             setTimeout(function() {handlePageLoad();}, 20000); // Come back in 20 secs
         }
     }
