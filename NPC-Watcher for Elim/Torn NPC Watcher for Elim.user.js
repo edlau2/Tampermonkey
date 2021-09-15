@@ -37,11 +37,13 @@
     // Where we actually do stuff.
     function handlePageLoad() {
         let target = document.querySelector("#stats-header > div.titleNumber___2ZLSJ");
-        if (!validPointer(target)) {setTimeout(function() {handlePageLoaded();}, 1000)};
+        if (!validPointer(target)) {setTimeout(function() {handlePageLoad();}, 1000)};
+        document.title = userName + ' | ' + target.innerText;
 
         if (Number(target.innerText) > maxAttackers) {
             log('Target has hit ' + target.innerText + ' attackers, notifying!');
             GM_notification ( {title: userName + ' is ready!', text: target.innerText + ' user attacking.'} );
+            alert(userName + ' is ready to attack!');
         } else {
             debug('Checking target, ' + target.innerText + ' attackers.');
             setTimeout(function() {handlePageLoad();}, 20000); // Come back in 20 secs
@@ -54,5 +56,9 @@
 
     logScriptStart();
     log('Tracking ' + userName);
-    window.onload = function(e){handlePageLoad();}
+    if (Document.readyState == 'complete') {
+        handlePageLoad();
+    } else {
+        window.onload = function(e){handlePageLoad();}
+    }
 })();
