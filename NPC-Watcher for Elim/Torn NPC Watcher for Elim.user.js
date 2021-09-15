@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Watcher for Elim
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -37,7 +37,7 @@
     // Where we actually do stuff.
     function handlePageLoad() {
         let target = document.querySelector("#stats-header > div.titleNumber___2ZLSJ");
-        if (!validPointer(target)) {setTimeout(function() {handlePageLoad();}, 1000)};
+        if (!validPointer(target)) {setTimeout(function() {handlePageLoad();}, 3000)};
         document.title = userName + ' | ' + target.innerText;
 
         if (Number(target.innerText) > maxAttackers) {
@@ -56,9 +56,11 @@
 
     logScriptStart();
     log('Tracking ' + userName);
-    if (Document.readyState == 'complete') {
+    //if (Document.readyState == 'complete') {
         handlePageLoad();
-    } else {
-        window.onload = function(e){handlePageLoad();}
-    }
+    //} else {
+    //    window.onload = function(e){handlePageLoad();}
+    //}
+
+
 })();
