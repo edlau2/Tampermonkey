@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Watcher for Elim
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -9,7 +9,7 @@
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=15
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=19
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID=20
-// @match        https://www.torn.com/loader.php?sid=attack&user2ID=10
+// @match        https://www.torn.com/loader.php?sid=attack&user2ID=21
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -28,7 +28,7 @@
                    15: 'Leslie',
                    19: 'Jimmy',
                    20: 'Fernando',
-                   10: 'Tiny',
+                   21: 'Tiny',
                   };
     const userName = names[playerID]; // Determine which NPC we are watching
 
