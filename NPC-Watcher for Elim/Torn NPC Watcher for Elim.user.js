@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Watcher for Elim
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -37,16 +37,36 @@
     // Where we actually do stuff.
     function handlePageLoad() {
         let target = document.querySelector("#stats-header > div.titleNumber___2ZLSJ");
-        if (!validPointer(target)) {setTimeout(function() {handlePageLoad();}, 3000)};
+        if (!validPointer(target)) {
+            setTimeout(function() {handlePageLoad();}, 3000);
+            return;
+        }
         document.title = userName + ' | ' + target.innerText;
 
         if (Number(target.innerText) > maxAttackers) {
             log('Target has hit ' + target.innerText + ' attackers, notifying!');
             GM_notification ( {title: userName + ' is ready!', text: target.innerText + ' user attacking.'} );
             alert(userName + ' is ready to attack!');
+            setTimeout(function() {updateUserCount();},5000); // Come back later, just update user counts
         } else {
             debug('Checking target, ' + target.innerText + ' attackers.');
-            setTimeout(function() {handlePageLoad();}, 20000); // Come back in 20 secs
+            setTimeout(function() {handlePageLoad();},5000); // Come back later, notifications
+        }
+    }
+
+    // Updates title only, no notifications.
+    function updateUserCount() {
+        let target = document.querySelector("#stats-header > div.titleNumber___2ZLSJ");
+        if (!validPointer(target)) {
+            setTimeout(function() {handlePageLoad();}, 3000); // Go back to notifications
+            return;
+        }
+
+        document.title = userName + ' | ' + target.innerText;
+        if (Number(target.innerText) > maxAttackers) {
+            setTimeout(function() {updateUserCount();},5000); // Come back later, just user count
+        } else {
+            setTimeout(function() {handlePageLoad();},5000); // Come back later, notifications
         }
     }
 
