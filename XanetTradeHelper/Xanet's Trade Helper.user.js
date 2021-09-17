@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      3.0
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -956,7 +956,12 @@
 
             // Here, just upload for pricing info.
             // Actually stored remotely when the param is 'data' (the default)
-            if (autoUpload) {uploadDataArray('price');}
+            if (autoUpload) {
+                log('Preparing to upload for "price" data.');
+                uploadDataArray('price');
+            } else {
+                log('Not auto uploading for price check, not enabled!');
+            }
         }
         // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
         // Or the page hasn't fully loaded. Dammit. Adding an observer here seems overkill.
