@@ -918,6 +918,7 @@
 
     function processDataSets(useArray) {
         log('processDataSets');
+        try {
         totalSets = 0;
         for (let i = 0; i < useArray.length; i++) {
             let item = useArray[i];
@@ -927,6 +928,10 @@
             }
         }
         $('#xedx-total-sets')[0].innerText = Number(totalSets).toString();
+        } catch(e) {
+            log('Exception: ' + e.stack);
+            log('useArray: ' + useArray);
+        }
     }
 
     /**************************************************************************
@@ -951,7 +956,8 @@
             names.forEach(element => processItem(element));
 
             // Data array is all set - process any sets that may or may not be in it.
-            processDataSets();
+            log('Preparing to processDataSets. dataArray = ' + dataArray + ' length: ' + dataArray.length);
+            processDataSets(dataArray);
 
             // Indicate that we are 'active' - data saved
             indicateActive(true);
