@@ -936,15 +936,17 @@
     **************************************************************************/
     var pageRetries = 0;
     function getGridData() {
+        var names = null;
         const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul");
         //const ulRoot = document.querySelector("#trade-container > div.trade-cont > div.user.right > ul > li > ul");
+        try {
         if (validPointer(ulRoot)) {
             // Clear the array first, if needed.
             totalPrice = 0;
             dataArray = [];
             dataArray.length = 0;
 
-            const names = ulRoot.querySelectorAll("div.name.left");
+            names = ulRoot.querySelectorAll("div.name.left");
             log('Processing trade items. There are ' + names.length + ' elements');
             names.forEach(element => processItem(element));
 
@@ -976,6 +978,9 @@
                 setTimeout(getGridData, 500);
                 return;
             }
+        }
+        } catch(e) {
+            log('Exception detected! names = ' + names + ' Call stack: ' + e.stack);
         }
 
         pageRetries = 0;
