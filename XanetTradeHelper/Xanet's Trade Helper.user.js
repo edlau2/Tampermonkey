@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.9
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -657,9 +657,19 @@
         testData = GM_getValue("testData", testData);
     }
 
+    function logSavedOptions() {
+        log('Saved options:');
+        log('loggingEnabled: ' + GM_getValue("loggingEnabled", loggingEnabled));
+        log('autoUpload: ' + GM_getValue("autoUpload", autoUpload));
+        log('xedxDevMode: ' + GM_getValue("xedxDevMode", xedxDevMode));
+        log('dispItemInfo: ' + GM_getValue("dispItemInfo", dispItemInfo));
+        log('dispBadItemInfoOnly: ' + GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly));
+        log('testData: ' + GM_getValue("testData", testData));
+    }
+
     // Helper: Write saved options values
     function setSavedOptions() {
-        log('Getting saved options.');
+        log('Setting saved options.');
         GM_setValue("loggingEnabled", loggingEnabled);
         GM_setValue("autoUpload", autoUpload);
         GM_setValue("xedxDevMode", xedxDevMode);
@@ -1004,6 +1014,8 @@
     // Full URL we trigger on https://www.torn.com/trade.php*
     logScriptStart();
     validateApiKey();
+
+    logSavedOptions(); // For debugging
 
     // Need to wait for full page load.
     window.onload = function(e){handlePageLoad();}
