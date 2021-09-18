@@ -73,6 +73,17 @@ Images:
 
 This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons, alonside each weapon, before the damage and accuracy stats.
 
+**_Torn Personal Profile Stats_**
+
+- [Torn Personal Profile Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/PersonalProfileStats/Torn%20Personal%20Profile%20Stats.user.js)
+
+Images:
+
+- [Numeric Rank](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Numeric%20Rank%20Display.png)
+- [Bat Stats and NetWorth](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Bat%20Stat%20Estimator-horokeu.png)
+
+This script combines what was previously three separate scripts. On a person's Profile page, it display the numeric equivalent of their rank, their net worth, and their estimated bat stats. This replaces the 'Torn Bat Stat Estimator', 'Torn Numeric Rank Display', and 'Torn Net Woth Display' scripts.
+
 **_Torn Museum Set Helper_**
 
 - [Torn Museum Sets Helper.user.js](https://github.com/edlau2/Tampermonkey/raw/master/MuseumSetsHelper/Torn%20Museum%20Sets%20Helper.user.js)
@@ -151,8 +162,11 @@ Images:
 - [BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
 
 This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
-
+ 
 **_Torn Bat Stat Estimator_**
+
+<details>
+ <summary>Deprecated: moved into <b>Torn Personal Profile Stats</b></summary>
 
 - [Torn Bat Stat Estimator.user.js](https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js)
 
@@ -162,6 +176,8 @@ Images:
 - [Torn Bat Stat Estimator-xedx.png](https://github.com/edlau2/Tampermonkey/blob/master/BatStatEst/Torn%20Bat%20Stat%20Estimator-xedx.png)
 
 This script uses the method described here: https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0 to estimate a user's bat stats, as best as can be estimated with publicly available stats. The possible range of bat stats is displayed on the user's profile page. This is most useful for lower level players, due to the ranges involved at higher levels. Also, 'ghost' triggers can't be helped, for instance if you hit a NW trigger and then lose it. Also, level holding will also throw off the results, usually resulting in an 'N/A' result. Always check things like Xanax and refills used, and other indicators also before relying on this estimate to pick a fight!
+ 
+ </details>
 
 **_Torn Get Naked_**
 
@@ -201,8 +217,11 @@ Note: The ability to restore weapons modes may wind up being a separate script, 
 
 </details>
 </details>
-
+ 
 **_Torn Net Worth Display_**
+
+<details>
+ <summary>Deprecated: moved into <b>Torn Personal Profile Stats</b></summary>
 
 - [Torn Net Worth Display.user.js](https://github.com/edlau2/Tampermonkey/raw/master/NetWorth/Torn%20Net%20Worth%20Display.user.js)
 
@@ -211,8 +230,13 @@ Images:
 - [Torn Net Worth Display.png](https://github.com/edlau2/Tampermonkey/blob/master/NetWorth/Torn%20Net%20Worth%20Display.png)
 
 This simple script display a user's net worth on their profile page, immediately beneath their "last action". Note that this is net worth, not cash on hand. Updated at new day.
+ 
+</details>
 
 **_Torn Numeric Rank Display_**
+
+<details>
+  <summary>Deprecated: moved into <b>Torn Personal Profile Stats</b></summary>
 
 - [Torn Numeric Rank Display.user.js](https://github.com/edlau2/Tampermonkey/raw/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.user.js)
 
@@ -221,6 +245,8 @@ Images:
 - [Torn Numeric Rank Display.png](https://github.com/edlau2/Tampermonkey/blob/master/NumericRankDisplay/Torn%20Numeric%20Rank%20Display.png)
 
 This simple script appends a user's rank number next to the rank in the User Information section of a user's profile. I find it easier than scrolling down to look at the rank that is also displayed in the Medals section (which is off by one from the actual titled rank). 
+ 
+</details>
 
 **_Torn One-Click Daily Dime_**
 
