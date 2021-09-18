@@ -24,11 +24,11 @@ This is somewhat vague, so I consulted with Bogie on some of the scripts I was u
 <details>
   <summary>Click to see conversation...</summary>
   
-xedx: If I have a script that loads only when a user visits the page the script runs on, can the script use the Javascript         click() function to click more than one button/link in succession? In particular, I 'get naked' often when wall             sitting, so would like to un-equip with a single click. Is something like that legal, or illegal?
+xedx: If I have a script that loads only when a user visits the page the script runs on, can the script use the Javascript click() function to click more than one button/link in succession? In particular, I 'get naked' often when wall sitting, so would like to un-equip with a single click. Is something like that legal, or illegal?
 
 bogie: That wouldn't be legal, sorry.
 
-xedx: Would having 5 separate buttons on the items page - one to un-equip primary, one for secondary, one melee, etc. be           legit? What exactly is the rule for this situation?
+xedx: Would having 5 separate buttons on the items page - one to un-equip primary, one for secondary, one melee, etc. be legit? What exactly is the rule for this situation?
 
 bogie: thats fine
 
@@ -46,9 +46,7 @@ So that script has been modified to have 5 buttons, on one simple bar, to rapidl
 
 # Scripts 
 
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/)
-
-One of these days, I'll publish to my OpenUserJS account and ~~make them self-updateable.~~ (done!) ~~When I have the time and inclination to go to the effort, for now, you'd have to go look for an update, they are all versioned.~~ Hmm - should probably put the version number in the name, as I usually do everywhere else for open source stuff. Not sure why I didn't. Probably beacuse I would then have to edit this file as well, every time I uploaded newer versions.
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/). Every script of mine logs the start of script execution, and if required, will prompt for an API key which is saved in your private local storage so you are not prompted again. It is never shared in any manner.
 
 **_Torn Weapon Experience Spreadsheet_**
 
@@ -60,7 +58,7 @@ Images:
 - [SS-Sample-collapsed.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-collapsed.png)
 - [SS-Sample-expanded.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-expanded.png)
 
-This script displays your current Weapons Experience in a table or spreadsheet format, as well as finishing hits for each category. I used it to cut and paste the table as an image onto my profile page while merit hunting those two merits, 'Specialized' and 'War Machne'. The table is in a dropdown DIV on the page. The first sample image shows it collapsed (not visible), the arrow on the DIV's header expands it, that is visible in the second sample image.
+This script displays your current Weapons Experience in a table or spreadsheet format, as well as finishing hits for each category. I used it to cut and paste the table as an image onto my profile page while merit hunting those two merits, 'Specialized' and 'War Machine'. The table is in a dropdown DIV on the page. The first sample image shows it collapsed (not visible), the arrow on the DIV's header expands it, that is visible in the second sample image.
 
 **_Torn Weapon Experience Tracker_**
 
@@ -71,7 +69,7 @@ Images:
 - [WeaponExperienceSample.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample.png)
 - [WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample2.png)
 
-This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons, alonside each weapon, before the damage and accuracy stats.
+This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons, alongside each weapon, before the damage and accuracy stats.
 
 **_Torn Personal Profile Stats_**
 
@@ -116,7 +114,7 @@ Images:
 - [Torn Hide-Show Chat Icons.displayed.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.displayed.png)
 - [Torn Hide-Show Chat Icons.hidden.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.hidden.png)
 
-This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on a mobile device yet. Please let me know if you do try it on a phone :-) It isn't exactly friendly with the Torn Tools show/hide chat balloon, there aren't conflicts but it is best to use or the other, as they achieve the same thing in different ways. In other words, if my script is used, it will hide and show when it is clicked - but won't re-show the icons if hidden by Torn Tools - and my 'show' option will not display icons hidden by Torn Tools. This may change n the future - on my end, at least.
+This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on a mobile device yet. Please let me know if you do try it on a phone :-) It isn't exactly friendly with the Torn Tools show/hide chat balloon, there aren't conflicts but it is best to use or the other, as they achieve the same thing in different ways. In other words, if my script is used, it will hide and show when it is clicked - but won't re-show the icons if hidden by Torn Tools - and my 'show' option will not display icons hidden by Torn Tools. This may change in the future - on my end, at least.
 
 **_Torn Latest Attacks Extender_**
 
@@ -161,7 +159,7 @@ Images:
 
 - [BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
 
-This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
+This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect each user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
  
 **_Torn Bat Stat Estimator_**
 
