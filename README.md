@@ -71,7 +71,7 @@ Images:
 
 This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons, alongside each weapon, before the damage and accuracy stats.
 
-#**_Torn Personal Profile Stats_**
+#### **_Torn Personal Profile Stats_**
 
 - [Torn Personal Profile Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/PersonalProfileStats/Torn%20Personal%20Profile%20Stats.user.js)
 
