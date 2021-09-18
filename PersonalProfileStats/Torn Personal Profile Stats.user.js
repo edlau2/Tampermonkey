@@ -207,7 +207,8 @@
                     rank.removeAttribute(rank.attributes[0].name);
                 }
                 rank.setAttribute(ranks[i][2], ranks[i][3]);
-                rank.innerHTML = ranks[i][1] + ' (' + (i+1) +')';
+                //rank.innerHTML = ranks[i][1] + ' (' + (i+1) +')';
+                rank.innerHTML = ranks[i][1] + ' (' + i +')';
                 return;
             }
         }
