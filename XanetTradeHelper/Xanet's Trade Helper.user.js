@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -245,7 +245,7 @@
             hideStatus();
             let msg = 'No ' + (testData ? 'test' : 'live') + ' data in trade, unable to upload!';
             log(msg);
-            alert(msg);
+            devAlert(msg);
             return;
         }
 
@@ -347,6 +347,7 @@
             let newOutput = parseResponse(resp);
             if (newOutput != "") {
                 alert(newOutput);
+                log(newOutput);
             }
         }
     }
@@ -589,7 +590,7 @@
         }
 
         log(displayText);
-        alert(displayText);
+        devAlert(displayText);
     }
 
     // Helper: Handle the selected options
@@ -924,7 +925,9 @@
             let item = useArray[i];
             let name = item.name.toString();
             if (name.includes('Plushie Set') || name.includes('Flower Set')) {
-                totalSets += item.qty;
+                let oldSets = Number(totalSets);
+                oldSets += Number(item.qty);
+                totalSets = oldSets;
             }
         }
         $('#xedx-total-sets')[0].innerText = Number(totalSets).toString();
@@ -1021,6 +1024,11 @@
         if (loggingEnabled) {
             console.log(GM_info.script.name + ': ' + data);
         }
+    }
+
+    // Simple helper to display an alert - but only in dev mode
+    function devAlert(msg) {
+        if (xedxDevMode) {alert(msg);}
     }
 
     //////////////////////////////////////////////////////////////////////
