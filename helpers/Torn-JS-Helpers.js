@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.15
+// @version     2.16
 // @license     MIT
 // ==/UserLibrary==
 
@@ -25,7 +25,7 @@
 var api_key = GM_getValue('gm_api_key');
 function validateApiKey() {
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt("Please enter your API key.\n" +
+        api_key = prompt(GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
                          "Your key will be saved locally so you won't have to be asked again.\n" +
                          "Your key is kept private and not shared with anyone.", "");
         GM_setValue('gm_api_key', api_key);
