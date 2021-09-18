@@ -40,9 +40,9 @@ bogie: But having one button do it all for you would be illegal
 
 xedx: Got it. Thanks!
 
-</details>
-
 So that script has been modified to have 5 buttons, on one simple bar, to rapidly click through to equip/un-equip each category. The modified script has not yet been uploaded.
+ 
+</details>
 
 # Scripts 
 
