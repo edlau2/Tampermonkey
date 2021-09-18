@@ -179,9 +179,12 @@ This script uses the method described here: https://www.torn.com/forums.php#/p=t
 
 **_Torn Get Naked_**
 
-Note: Removed for now, see the comments in the Scripting Rules section, above.
+<details>
+ <summary>Removed, replaced by <b>Loadouts</b></summary>
 
-New note: 'Loadouts' replace the functionality of this script, so now definitely retired.
+~Note: Removed for now, see the comments in the Scripting Rules section, above.~
+
+~New note: 'Loadouts' replace the functionality of this script, so now definitely retired.~
 
 <details>
   <summary>Click to see description...</summary>
@@ -213,6 +216,7 @@ This script adds buttons to the Items page: Re-equip, Un-equip, and Reset. Press
   
 Note: The ability to restore weapons modes may wind up being a separate script, so you'd still have to go to the mods page, but there would be a new dialog at the top with Save and Restore buttons. So one click would save the current config, and one click to restore that config. The current script *does* display what mods you have in place currently on un-equip, but *does not* yet restore them.
 
+</details>
 </details>
 </details>
  
