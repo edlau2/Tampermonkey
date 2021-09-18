@@ -386,7 +386,10 @@
         let missingPriceWarning = "";
         let dataReceived = 'Result data:\n';
         let fullDataReceived = dataReceived;
-        let successText = 'Success! ' + cmdObj.itemsProcessed + ' items processed for ' + asCurrency(cmdObj.totalTrade);
+        let successText = 'Success! ' + cmdObj.itemsProcessed + ' items processed for ' + asCurrency(cmdObj.totalTrade) +'.';
+        if (totalSets) {
+            successText += '\nFound ' + totalSets + ' full sets!';
+        }
         if (dispItemInfo || dispBadItemInfoOnly) {
             // Text for missing items.
             let noPrice = countPricesAt(dataArray, 0);
