@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  Estimates a user's battle stats and NW, adds to the user's profile page
+// @version      0.3
+// @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
@@ -16,6 +16,9 @@
 
 // Note: the approach used is described here:
 // https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
+
+
+// TBD: Check for new LI's FIRST, before the API call.
 
 (function() {
     'use strict';
@@ -46,7 +49,7 @@
     var userRank = 0;
     var targetNode = document.getElementById('profileroot');
 
-    // <li> to display...
+    // Helper, create <li> to display...
     function createBatStatLI(ul, display) {
         let li = '<li id="'+ batStatLi + '"><div class="user-information-section"><span class="bold">Est. Bat Stats</span>' +
             '</div><div class="user-info-value"><span>' + display + '</span></div></li>';
@@ -55,11 +58,12 @@
         return li;
     }
 
-    // Get data used to calc bat stats
+    // Get data used to calc bat stats and get NW via the Torn API
     function personalStatsQuery(ID) {
         xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
     }
 
+    // Callback for above
     function personalStatsQueryCB(responseText, ID) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
@@ -73,7 +77,10 @@
         userLvl = jsonResp.level;
         userRank = numericRankFromFullRank(jsonResp.rank);
 
-        updateUserProfile();
+        updateUserProfile(); // Adds bat stats
+
+        // Display te numeric rank next to textual rank
+        addNumericRank();
     }
 
     // Create the <li>, add to the profile page
@@ -154,6 +161,59 @@
         console.log('Target Node (54): ' + targetNode);
     }
 
+    //////////////////////////////////////////////////////////////////////
+    // Convert the rank name to it's numeric equivalent for display.
+    //////////////////////////////////////////////////////////////////////
+
+    // ['str-to-match', 'str-to-replace-with', 'attr', 'attr-value']
+    var ranks = [['Absolute beginner', 'Absolute noob', 'class', 'long'],
+                 ['Beginner', 'Beginner', 'class','medium'],
+                 ['Inexperienced', 'Inexperienced', 'class', 'long'],
+                 ['Rookie', 'Rookie', 'class','medium'],
+                 ['Novice', 'Novice', 'class','medium'],
+                 ['Below average', 'Below average', 'class', 'long'],
+                 ['Average', 'Average', 'class','medium'],
+                 ['Reasonable', 'Reasonable', 'class', 'long'],
+                 ['Above average', 'Above average', 'class', 'long'],
+                 ['Competent', 'Competent', 'class','medium'],
+                 ['Highly competent', 'Highly comp.', 'class', 'long'],
+                 ['Veteran', 'Veteran', 'class','medium'],
+                 ['Distinguished', 'Distinguished', 'class', 'long'],
+                 ['Highly distinguished', 'Highly dist.', 'class', 'long'],
+                 ['Professional', 'Professional', 'class', 'long'],
+                 ['Star', 'Star', 'class','medium'],
+                 ['Master', 'Master', 'class','medium'],
+                 ['Outstanding', 'Outstanding', 'class', 'long'],
+                 ['Celebrity', 'Celebrity', 'class', 'medium'],
+                 ['Supreme', 'Supreme', 'class','medium'],
+                 ['Idolized', 'Idolized', 'class','medium'],
+                 ['Champion', 'Champion', 'class','medium'],
+                 ['Heroic', 'Heroic', 'class','medium'],
+                 ['Legendary', 'Legendary', 'class', 'long'],
+                 ['Elite', 'Elite', 'class','medium'],
+                 ['Invincible', 'Invincible', 'class', 'long']];
+
+    function addNumericRank() {
+        var elemList = document.getElementsByClassName('two-row');
+        var element = elemList[0];
+        if (element == 'undefined' || typeof element == 'undefined') {
+            return;
+        }
+        var rank = element.firstChild;
+        var html = rank.innerHTML;
+        for (var i = 0; i < ranks.length; i++) {
+            if (html == ranks[i][0]) {
+                while(rank.attributes.length > 0) {
+                    rank.removeAttribute(rank.attributes[0].name);
+                }
+                rank.setAttribute(ranks[i][2], ranks[i][3]);
+                rank.innerHTML = ranks[i][1] + ' (' + (i+1) +')';
+                return;
+            }
+        }
+    }
+
+    // Kick everything off...
     function handlePageLoad() {
         personalStatsQuery(xidFromProfileURL(window.location.href));
     }
