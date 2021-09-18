@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '1.9';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.0';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -226,6 +226,8 @@ function processSetItemPrices(retArray) {
   // See how many sets we have, if any.
   let flowerSets = countCompleteSets(myFlowerSet);
   let plushieSets = countCompleteSets(myPlushieSet);
+
+myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) + '\nmyPlushieSet = ' + JSON.stringify(myPlushieSet));
 
   if (!flowerSets && !plushieSets) {return retArray;}
 
