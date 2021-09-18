@@ -48,7 +48,7 @@ So that script has been modified to have 5 buttons, on one simple bar, to rapidl
 
 Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/). Every script of mine logs the start of script execution, and if required, will prompt for an API key which is saved in your private local storage so you are not prompted again. It is never shared in any manner.
 
-**_Torn Weapon Experience Spreadsheet_**
+#### **_Torn Weapon Experience Spreadsheet_**
 
 - [Torn WE Spreadsheet.user.js](https://github.com/edlau2/Tampermonkey/raw/master/Weapon%20Experience%20Spreadsheet/Torn%20WE%20Spreadsheet.user.js
 )
@@ -60,7 +60,7 @@ Images:
 
 This script displays your current Weapons Experience in a table or spreadsheet format, as well as finishing hits for each category. I used it to cut and paste the table as an image onto my profile page while merit hunting those two merits, 'Specialized' and 'War Machine'. The table is in a dropdown DIV on the page. The first sample image shows it collapsed (not visible), the arrow on the DIV's header expands it, that is visible in the second sample image.
 
-**_Torn Weapon Experience Tracker_**
+#### **_Torn Weapon Experience Tracker_**
 
 - [Torn Weapon Experience Tracker.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WeaponExperience/Torn%20Weapon%20Experience%20Tracker.user.js)
 
@@ -82,7 +82,7 @@ Images:
 
 This script combines what was previously three separate scripts. On a person's Profile page, it display the numeric equivalent of their rank, their net worth, and their estimated bat stats. This replaces the 'Torn Bat Stat Estimator', 'Torn Numeric Rank Display', and 'Torn Net Woth Display' scripts.
 
-**_Torn Museum Set Helper_**
+#### **_Torn Museum Set Helper_**
 
 - [Torn Museum Sets Helper.user.js](https://github.com/edlau2/Tampermonkey/raw/master/MuseumSetsHelper/Torn%20Museum%20Sets%20Helper.user.js)
 
@@ -93,7 +93,7 @@ Images:
 
 This script displays on your Iteems pages the number of full sets, if any, you have collected and if not, what items are missing.
 
-**_Torn Racing - Car Order_**
+#### **_Torn Racing - Car Order_**
 
 - [Torn Racing - Car Order.user.js](https://github.com/edlau2/Tampermonkey/raw/master/RaceCarOrder/Torn%20Racing%20-%20Car%20Order.user.js)
 
@@ -105,7 +105,7 @@ Images:
 
 This script allows you to drag and drop your enlisted race cars into any order you like. Saving this order will allow them to automatically appear in this order when starting a race. Or, you can reset to the Torn default.
 
-**_Torn Hide-Show Chat Icons_**
+#### **_Torn Hide-Show Chat Icons_**
 
 - [Torn Hide-Show Chat Icons.user.js](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.user.js)
 
@@ -116,7 +116,7 @@ Images:
 
 This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on a mobile device yet. Please let me know if you do try it on a phone :-) It isn't exactly friendly with the Torn Tools show/hide chat balloon, there aren't conflicts but it is best to use or the other, as they achieve the same thing in different ways. In other words, if my script is used, it will hide and show when it is clicked - but won't re-show the icons if hidden by Torn Tools - and my 'show' option will not display icons hidden by Torn Tools. This may change in the future - on my end, at least.
 
-**_Torn Latest Attacks Extender_**
+#### **_Torn Latest Attacks Extender_**
 
 - [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
 
@@ -130,7 +130,7 @@ This script adds an extended 'latest attacks' screen to your home page. It is co
 
 As of 03/03/2020, you can now click the attack to get the full attack log (version 0.2). This is thanks to Chedburn adding the log ID to both the 'attacks' queries under user and faction.
 
-**_Torn Gym Gains_**
+#### **_Torn Gym Gains_**
 
 - [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js)
 
@@ -141,7 +141,7 @@ Images:
 
 This script adds extended gym information to your Gym page. It displays the additional gains you get, depending on what perks are currently available to you - company perks, merits, fac perks, etc. These are displayed, by default, as a summary in percentage, along with the base gym gain that depends on the current gym you are in, 2.0 through 10.0. An expandle screen is available to see the breakout of the percentage gains. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key. It also has a panel that displays bat stats - base, extended, current (takes Xanax into consideration, for example) and extended with vico. (Note to self: add screen shot here)
 
-**_Torn Fac Respect Earned_**
+#### **_Torn Fac Respect Earned_**
 
 - [Torn Fac Respect Earned.user.js](https://github.com/edlau2/Tampermonkey/raw/master/FacRespect/Torn%20Fac%20Respect%20Earned.user.js)
 
@@ -151,7 +151,7 @@ Images:
 
 This script add a section to the Faction Stats area on your home page, listing the respect you have earned for your faction so far. It has a tool tip, so if you hover over the respect you have earned, it will tell you what medals and honors (merits) are available, and how close you are to getting them.
 
-**_Torn Bounty List Extender_**
+#### **_Torn Bounty List Extender_**
 
 - [Torn Bounty List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/BountyList/Torn%20Bounty%20List%20Extender.user.js)
 
@@ -161,7 +161,7 @@ Images:
 
 This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect each user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
  
-**_Torn Bat Stat Estimator_**
+#### **_Torn Bat Stat Estimator_**
 
 <details>
  <summary>Deprecated: moved into <b>Torn Personal Profile Stats</b></summary>
@@ -267,7 +267,7 @@ This script lets you click the Daily Dime 'buy' button with one click - up to th
 
 </details>
 
-**_Torn User List Extender_**
+#### **_Torn User List Extender_**
 
 - [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
 
@@ -277,7 +277,7 @@ Images:
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
 
-**_Torn Crime Tooltips_**
+#### **_Torn Crime Tooltips_**
 
 - [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/raw/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
 
@@ -288,7 +288,7 @@ Images:
 
 Adds Tool Tips to the Criminal Offences display on your home page. Useful for merit hunting.
 
-**_Torn Drug Stats_**
+#### **_Torn Drug Stats_**
 
 - [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/DrugStats/Torn%20Drug%20Stats.user.js)
 
@@ -300,7 +300,7 @@ Images:
 
 This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
 
-**_Torn Jail Stats_**
+#### **_Torn Jail Stats_**
 
 - [Torn Jail Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/JailStats/Torn%20Jail%20Stats.user.js)
 
@@ -311,7 +311,7 @@ Images:
 
 This script adds a new section to your Home page, and displays beneath the faction perks section a new section, similar to the Crimes section, displaying your bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards bust and bail merits, comes with tool tips to display merit progress.
 
-**_Torn Jail Scores_**
+#### **_Torn Jail Scores_**
 
 - [Torn Jail Scores.user.js](https://github.com/edlau2/Tampermonkey/raw/master/JailScores/Torn%20Jail%20Scores.user.js)
 
@@ -322,7 +322,7 @@ Images:
 This script adds the "score" of a user in jail, which is used to determine the difficulty (or your chance of success) of busting that user out of jail. The score is displayed as a number in parenthesis beneath the user's level. The score corresponds directly to the DocTorn 'Quick Bust/Quick Bail/Min Score/Max Score' bar scores. Some information, mostly speculative, can be found in this guide: https://www.tornstats.com/guides.php?id=22 Will also give you an idea of what to use as scores on the DocTorn bar if you'd like to use those filters.
 
 
-**_Torn War Wall List Extender_**
+#### **_Torn War Wall List Extender_**
 
 - [Torn War Wall List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/WarListExtender/Torn%20War%20Wall%20List%20Extender.user.js)
 
@@ -332,22 +332,15 @@ Images:
 
 Similar to the User List Extender, this extends the user list on the territory wall page(s) when your faction is in a war. It appends the numeric rank next to the level of all people on the wall. Note that internal caching is done to prevent too many API calls, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated.
 
-**_Torn War Other Fac Extender_**
+#### **_Torn War Other Fac Extender_**
 
 - [Torn War Other Fac Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.user.js)
 
 Images:
 
 - [Torn War Other Fac Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/OtherFacExtender/Torn%20War%20Other%20Fac%20Extender.png)
-
-*** alpha - don't use yet ***
-
-<details>
-  <summary>Click to see details...</summary>
  
 Similar to the above script, this extends the user list of another faction, typically used during war. It appends the numeric rank next to the level of all fac members on their faction page. This script has a tendency to perform too many requests to the Torn api - there is a limit (100) on requests per minute, the result of which is that only the level may be displayed for certain users, and a '?' for rank. Or no rank info at all. If multiple things are running that query the Torn API, and the faction has 100 members (or more) this will most definitely be hit. This clears itself up in time. Note that internal caching is done to help alleviate this, if a user's ID has already been mapped to a rank, a new request to the Torn API is not generated. A deferred request queue is in the process of being implemented to solve this.
-
-</details>
 
 # 3rd Party Scripts
 
@@ -355,13 +348,13 @@ These scripts aren't mine, just here for easy access by fac mates. The links lin
 
 TBD: Add Special Gym Ratios and Special Gym Reqs scripts here ...
 
-**_Torn: Racing enhancements_** by Lugburz (Highly recommended!)
+#### **_Torn: Racing enhancements_** by Lugburz (Highly recommended!)
 
 Show car's current speed, precise skill, official race penalty, racing skill of others and race car skins. Among other things...
 
 - [Torn: Racing enhancements](https://github.com/f2404/torn-userscripts/raw/master/racing_show_speed.user.js)
 
-**_Easter Egg Hunt: Random_**
+#### **_Easter Egg Hunt: Random_**
 
 To aid in just clicking around Torn, to hopefully stumble across more Easter Eggs, ths script puts an icon/link on your page that takes you to a random page in Torn. I had a small hand in it, it works very well. Not supposed to guarantee any more eggs, but easier to go around to new places you may never have been. I'd recommend using it in conjunction with DoctorN's "Alert me if there's an Easter Egg on the page" option enabled.
 
@@ -371,7 +364,7 @@ Greasy Fork link:
 Forum link:
 - [Easter Egg Hunt: Random thread](https://www.torn.com/forums.php#/p=threads&f=67&t=16152823&b=0&a=0)
 
-**_TORN HighLow Helper_**
+#### **_TORN HighLow Helper_**
 
 The two following links point to the same code, no idea why named differently. 
 
@@ -383,7 +376,7 @@ Alternate, GreasyFork link:
 
 Helper to assist in getting the Hi/Lo merit. Simply picks the best choice via odds, worked for me, but not infallable. Took me about 20 minutes and maybe 100 or 120 tokens. Makes it a lot easier, though. Just click click click your way through it. Written by DeKleineKobini [2114440]
 
-**_Dibs_**
+#### **_Dibs_**
 
 <!--(https://github.com/edlau2/Tampermonkey/blob/master/Dibs/Dibs.user.js)-->
 - [Dibs.user.js](https://greasyfork.org/nb/scripts/371859-dibs)
@@ -415,13 +408,13 @@ Torn Stock Helper that calculates your profit/loss in your portfolio, highlights
 
 </details>
 
-**_Bazaar Scam Warning_**
+#### **_Bazaar Scam Warning_**
 
 - [Bazaar Scam Warning.user.js](https://greasyfork.org/en/scripts/388003-bazaar-scam-warning)
 
 Puts a big red warning on items that are priced way above their market value. Written by Sulsay [2173590]
 
-**_Race Helper_**
+#### **_Race Helper_**
 
 - [Race Helper.user.js]<!--(https://github.com/edlau2/Tampermonkey/blob/master/r%40ce%20h3lper/T-RN%20-%20R%40ce%20H3lper.user.js)-->
 
@@ -490,7 +483,7 @@ I have re-written this to use the YATA API, but the most recent version (1.6.3) 
 
 These extensions aren't mine, just here for easy access by fac mates. The links link to the respective author's repos or the Chrome App Store.
 
-**_Torn HiLo Assistant_**
+#### **_Torn HiLo Assistant_**
 
 - [Torn HiLo Assistant](https://www.torn.com/forums.php#/?p=threads&f=67&t=16059935&b=0&a=0&start=0&to=18782179)
 
@@ -504,7 +497,7 @@ The link above is to a forum post that explains it all. It has two links, one fo
  
 The following are Google Sheets and App Scripts that integrate with the sheets and the Torn API. If your API key is required, you will be prompted and it will be saved on a hidden sheet, called 'Options', that is created dynamically if need be. The links point to a sheet on my account, read-only, so you must make a copy and rename it to whatever you like in order to uses it. Then you can erase the read-only link to mine.
  
- **_Inventory by XedX_**
+ #### **_Inventory by XedX_**
  
 This allows you to view your inventory regardless of whether you are in Torn or not. It is a simple Google Apps Script and sheet(s) (created automatically) that uses one API call to retrieve your inventory and display it in worksheets titled by item type, just as on the Torn inventory page.
  
@@ -512,7 +505,7 @@ This allows you to view your inventory regardless of whether you are in Torn or 
  
  Images: Coming soon!
  
- **_Bazaar Inventory, by XedX_**
+ #### **_Bazaar Inventory, by XedX_**
  
 This allows you to view your Bazaar regardless of whether you are in Torn or not. It is a simple Google Apps Script and sheet(s) (created automatically) that uses one API call to retrieve your inventory and display it in worksheets titled by item type, just as on the Torn inventory page. Note that if you Bazar is closed (or has nothing in it), nothing is displayed. Three is no way I know of to differentiate between the two situations. If anyone does, please let me know.
  
@@ -522,7 +515,7 @@ This allows you to view your Bazaar regardless of whether you are in Torn or not
 
 **_Torn Stock Ticker_**
  
- Deprecated.
+ <b>Deprecated.>/b>
  
  <details>
   <summary>Click to see description...</summary>
