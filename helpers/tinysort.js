@@ -2,7 +2,7 @@
 /**
  * TinySort is a small script that sorts HTML elements. It sorts by text- or attribute value, or by that of one of it's children.
  * @summary A nodeElement sorting script.
- * @version 3.2.8
+ * @version 3.2.7
  * @license MIT
  * @author Ron Valstar (http://www.ronvalstar.nl/)
  * @copyright Ron Valstar <ron@ronvalstar.nl>
@@ -285,7 +285,7 @@
     function applyToDOM(){
       const numSorted = elmObjsSorted.length
       const hasSortedAll = numSorted===elmObjsAll.length
-      const hasSortedAllSiblings = numSorted===parentNode.children.length
+      const hasSortedAllSiblings = (parentNode && parentNode != undefined) ? numSorted===parentNode.children.length : false;
       const {place,console} = criteria[0]
       if (isSameParent&&hasSortedAll&&hasSortedAllSiblings) {
         if (isFlex) {
