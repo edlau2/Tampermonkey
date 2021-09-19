@@ -98,7 +98,7 @@
     let parentNode
     let isSameParent = true
     let firstParent = nodeList.length&&nodeList[0].parentNode
-    let isFragment = firstParent.rootNode!==document
+    let isFragment = (firstParent && firstParent != undefined) ? firstParent.rootNode!==document : false;
     let isFlex = nodeList.length&&(options===undef||options.useFlex!==false)&&!isFragment&&getComputedStyle(firstParent,null).display.indexOf('flex')!==-1
 
     numCriteria = addCriteria(optionsList)
