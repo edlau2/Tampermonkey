@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Torn Museum Sets Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Helps determine when museum sets are complete in Item pages
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
+// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -410,6 +412,7 @@
             if (!highlightList(liList, flowersInSet, flowerSetColor)) {return;}
             let fullFlowerSets = countCompleteSets(flowersInSet);
             console.log(GM_info.script.name + ": Complete flower sets: " + fullFlowerSets);
+            sortUL($('#flowers-items > li'));
 
            // Add LI's for missing items
            if (!fullFlowerSets) {
@@ -427,6 +430,7 @@
             if (!highlightList(liList, plushiesInSet, plushiesSetColor)) {return;}
             fullPlushieSets = countCompleteSets(plushiesInSet);
             console.log(GM_info.script.name + ": Complete plushie sets: " + fullPlushieSets);
+            sortUL($('#plushies-items > li'));
 
             // Add LI's for missing items
             if (!fullPlushieSets) {
@@ -462,6 +466,14 @@
 
         pageModified = false;
         observeOn();
+    }
+
+    // Sort the list, ascending, by qty. See 'https://github.com/Sjeiti/TinySort'
+    function sortUL(ulDiv) {
+        log('Sorting UL ' + ulDiv + ', length = ' + ulDiv.length);
+        tinysort(ulDiv, {attr:'data-qty'});
+        log('Sorted.');
+
     }
 
     //////////////////////////////////////////////////////////////////////
