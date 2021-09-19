@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.0';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.1';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -204,12 +204,13 @@ function processSetItemPrices(retArray) {
   // Do for all sets we are interested in.
   
   for (var i = 0; i < retArray.length; i++) {
+    Object.assign(retArray[i], {inFlowerSet: false});
+    Object.assign(retArray[i], {inPlushieSet: false});
     
     myFlowerSet.forEach((element, index, array) => { // Scan flower sets.
       if (element.name == retArray[i].name.trim()) {
         myFlowerSet[index].quantity = retArray[i].qty;
         retArray[i].inFlowerSet = true;
-        //Object.assign(retArray[i], {inFlowerSet: true});
       }
     });
   
@@ -217,7 +218,6 @@ function processSetItemPrices(retArray) {
       if (element.name == retArray[i].name.trim()) {
         myPlushieSet[index].quantity = retArray[i].qty;
         retArray[i].inPlushieSet = true;
-        //Object.assign(retArray[i], {inPlushieSet: true});
       }
     });
 
@@ -227,7 +227,7 @@ function processSetItemPrices(retArray) {
   let flowerSets = countCompleteSets(myFlowerSet);
   let plushieSets = countCompleteSets(myPlushieSet);
 
-myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) + '\nmyPlushieSet = ' + JSON.stringify(myPlushieSet));
+  myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) + '\nmyPlushieSet = ' + JSON.stringify(myPlushieSet));
 
   if (!flowerSets && !plushieSets) {return retArray;}
 
@@ -244,6 +244,8 @@ myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) 
     retArray.push(obj);
   }
 
+  myLogger('processSetItemPrices: retArray\n' + JSON.stringify(retArray));
+
   // Filter the items in the array, that are in the sets.
   // Note: to remove, use array.splice(start, deleteCount);
   // Can't do that - if qty > 0, push onto new array.
@@ -254,15 +256,18 @@ myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) 
       if (retArray[i].qty > 0) {
         newArray.push(retArray[i]);
       }
-    } else if (retArray[i].inplushieSet == true) {
+    } else if (retArray[i].inPlushieSet == true) {
       retArray[i].qty -=  plushieSets;
       if (retArray[i].qty > 0) {newArray.push(retArray[i]);}
     } else {
       newArray.push(retArray[i]);
     }
   }
-  retArray = deepCopy(newArray);
-  return retArray;
+
+  myLogger('processSetItemPrices: newArray\n' + JSON.stringify(newArray));
+
+  //retArray = deepCopy(newArray);
+  return newArray;
 }
 
 // Helper to count complete sets
