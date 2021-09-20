@@ -17,6 +17,11 @@
 (function() {
     'use strict';
 
+    var alertsDiv = '<hr id="xedx-hr-delim" class="delimiter___neME6">' +
+        '<div id="xedxStartStopAlerts" style="padding-bottom: 5px; padding-top: 5px;">' +
+        '<span style="font-weight: 700;">NPC Alerts</span>' +
+        '<a id="startStopAlerts" class="t-blue show-hide">[start]</a>';
+
     // enum the ID's at some point
     const names = {4: 'Duke',
                    15: 'Leslie',
@@ -24,12 +29,14 @@
                    20: 'Fernando',
                    21: 'Tiny',
                   };
-    var notificationsDisabled = false; // true if we need to stop notifying
+    var notificationsDisabled = true; // true if we need to stop notifying
+    const lifeThreshold = 2000; // Triggers when life < max - threshold
 
     // Where we actually do stuff.
     function getUserProfile(userID) {
         let userName = names[userID];
         log("Querying Torn for " + userName + "'s profile, ID = " + userID);
+        log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
         xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
     }
 
@@ -41,14 +48,15 @@
         let status = profile.status;
         let life = profile.life;
         log('(callback) Status details for ' + userName + ': ' + status.details);
+        log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
         log('Life: ' + life.current + '/' + life.maximum);
         if (status.details.includes('V')) { // Matches IV and V
-            if (life.current < life.maximum) {
+            if (life.current < (life.maximum - lifeThreshold)) {
                 if (!notificationsDisabled) {
                     log('Target at ' + life.current + '/' + life.maximum + ' life!');
                     GM_notification ( {title: userName + ' is ready!', text: 'Low life: ' + life.current + '/' + life.maximum} );
                     alert(userName + ' is ready to attack! Life at:' + life.current + '/' + life.maximum);
-                    notificationsDisabled = true;
+                    stopAlerts(true);
                 }
             }
         }
@@ -84,12 +92,65 @@
     }
 
     //////////////////////////////////////////////////////////////////////
+    // UI stuff
+    //////////////////////////////////////////////////////////////////////
+
+    function appendStartStopAlertsDiv() {
+        if (!validPointer($('#xedxStartStopAlerts'))) {
+            console.log('#xedxStartStopAlerts NOT found.');
+        } else {
+            $('#xedx-hr-delim').remove();
+            $('#xedxStartStopAlerts').remove();
+        }
+        console.log('Appending #xedxStartStopAlerts.');
+        $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(alertsDiv);
+        installClickHandler();
+    }
+
+    function installClickHandler() {
+        $('#startStopAlerts').on('click', function () {
+                const stop = $('#startStopAlerts').text() == '[stop]';
+                log('Button click: ' + (stop ? 'stopping' : 'starting') + ' alerts, text = "' + $('#startStopAlerts').text() +'"');
+                stopAlerts(stop);
+            });
+    }
+
+    function stopAlerts(stop) {
+        notificationsDisabled = stop;
+        console.log(GM_info.script.name + (stop ? ": stopping " : ": starting " + "NPC alerts."));
+        if (validPointer($('#startStopAlerts'))) {
+            log('Setting text to: ' + `[${notificationsDisabled ? 'start' : 'stop'}]`);
+            $('#startStopAlerts').text(`[${notificationsDisabled ? 'start' : 'stop'}]`);
+        }
+    }
+
+    function handlePageLoaded() {
+        appendStartStopAlertsDiv();
+
+        /*
+        if (window.location.pathname.indexOf('loader.php') >= 0) {
+            stopAlerts(GM_getValue('xedxStopAlerts', false));
+        } else {
+            const savedHide = GM_getValue('xedxStopAlerts', false);
+            appendStartStopAlertsDiv();
+            stopAlerts(savedHide);
+        }
+        */
+
+        getUserProfile(4);
+    }
+
+    //////////////////////////////////////////////////////////////////////
     // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
     validateApiKey();
 
-    getUserProfile(4);
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', handlePageLoaded);
+    } else {
+        handlePageLoaded();
+    }
 
 })();
