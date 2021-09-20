@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Alerts during Elim
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -31,17 +31,20 @@
                   };
     var notificationsDisabled = true; // true if we need to stop notifying
     const lifeThreshold = 2000; // Triggers when life < max - threshold
+    var lastID = 4; // Last ID checked
 
     // Where we actually do stuff.
     function getUserProfile(userID) {
         let userName = names[userID];
+        lastID = userID;
         log("Querying Torn for " + userName + "'s profile, ID = " + userID);
         log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
         if (!notificationsDisabled) {
             xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
         } else {
-            log("(didn't query - will check in 10 secs.)");
-            setTimeout(function(){getUserProfile(nextNPC(userID));}, 10000);
+            //log("(didn't query - will check in 10 secs.)");
+            //setTimeout(function(){getUserProfile(nextNPC(userID));}, 10000);
+            log("(didn't query - will check when re-enabled.)");
         }
     }
 
@@ -122,6 +125,9 @@
 
     function stopAlerts(stop) {
         notificationsDisabled = stop;
+        if (!notificationsDisabled) {
+            getUserProfile(nextNPC(lastID));
+        }
         console.log(GM_info.script.name + (stop ? ": stopping " : ": starting " + "NPC alerts."));
         if (validPointer($('#startStopAlerts'))) {
             log('Setting text to: ' + `[${notificationsDisabled ? 'start' : 'stop'}]`);
