@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bounty List Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.1
 // @description  Add rank to bounty list display
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bounties.php*
@@ -18,6 +18,7 @@
     'use strict';
 
     var loggingEnabled = true;
+    var apiCallsMade = 0;
 
     // Global cache of ID->Rank associations
     var rank_cache = [{ID: 0, numeric_rank: 0}];
@@ -29,6 +30,7 @@
     function getRankFromId(ID, li) {
         log("Querying Torn for rank, ID = " + ID);
         xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+        apiCallsMade++;
     }
 
     function updateUserLevelsCB(responseText, ID, li) {
@@ -51,7 +53,6 @@
             return;
         }
 
-        //lvlNode.style.paddingRight = "2px";
         lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
         observer.observe(targetNode, config);
     }
@@ -84,20 +85,15 @@
         log('detected ' + items.length + ' player entries');
         for (let i = 0; i < items.length; i++) {
             let li = items[i];
-            if (!validPointer(li.getAttribute('data-id'))) {continue;}
-            if (window.getComputedStyle(li).display === "none") {continue;}
+            if (!validPointer(li.getAttribute('data-id'))) {continue;} // Not top-level li
+            if (window.getComputedStyle(li).display === "none") {continue;} // Filtered out
 
-            let idNode = li.children[0] // ul.item
-                           .children[0] // li.b-info-wrap.head
-                           .children[1] // div.target.left
-                           .children[0]; // a
-
+            let idNode = li.querySelector("ul > li.b-info-wrap.head > div.target.left > a");
             let ID = idNode.getAttribute('href').split('=')[1];
+            let name = idNode.innerText; // Just for logging
             if (!getCachedRankFromId(ID, li)) {
                 // Only get rank if status is 'Okay' ...
-                let statusSel = li.querySelector('ul > li:nth-child(2) > div.left.user-info-wrap > div.status.right > span:nth-child(2)');
-                let nameSel = li.querySelector('ul > li.b-info-wrap.head > div.target.left > a');
-                let name = validPointer(nameSel) ? nameSel.innerText : 'unknown';
+                let statusSel = li.querySelector('div.left.user-info-wrap > div.status.right > span:nth-child(2)');
                 if (validPointer(statusSel)) {
                     if (statusSel.innerText == 'Okay') {
                         log('Querying rank for player ' + ID + ' ' + name);
@@ -110,10 +106,11 @@
                 }
             }
         }
+
+        log('updateUserLevels complete, ' + apiCallsMade + ' API calls made.');
     }
 
     // Simple logging helper
-    // @param data - What to log.
     function log(data) {
         if (loggingEnabled) {
             console.log(GM_info.script.name + ': ' + data);
