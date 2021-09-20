@@ -37,7 +37,12 @@
         let userName = names[userID];
         log("Querying Torn for " + userName + "'s profile, ID = " + userID);
         log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
-        xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
+        if (!notificationsDisabled) {
+            xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
+        } else {
+            log("(didn't query - will check in 10 secs.)");
+            setTimeout(function(){getUserProfile(nextNPC(userID));}, 10000);
+        }
     }
 
     function updateUserLevelsCB(responseText, userID) {
