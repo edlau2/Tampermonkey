@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Alerts during Elim
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -17,37 +17,52 @@
 (function() {
     'use strict';
 
-    const lifeThreshold = 2000; // Triggers when life < (max - threshold)
+    const lifeThreshold = 3000; // Triggers when life < (max - threshold)
     const timeThreshold = 10; // Seconds between API calls, one per NPC
+    var notificationsDisabled = false; // Default start-up value, true if we need to start at 'start' notifying
+                                       // 'false' implies it will be enabled when abroad, etc. - anywhere there's no sidebar.
+    const allowWhenAbroad = false; // true to allow when abroad, used for testing (see above).
 
     var alertsDiv = '<hr id="xedx-hr-delim" class="delimiter___neME6">' +
         '<div id="xedxStartStopAlerts" style="padding-bottom: 5px; padding-top: 5px;">' +
         '<span style="font-weight: 700;">NPC Alerts</span>' +
-        '<a id="startStopAlerts" class="t-blue show-hide">[start]</a>';
+        '<a id="startStopAlerts" class="t-blue show-hide">' +
+        (notificationsDisabled ? '[start]</a>' : '[stop]</a>');
 
-    // enum the ID's at some point
+    // Names ==> numeric ID relationship
+    const ids = {
+        'DUKE': 4,
+        'LESLIE': 15,
+        'JIMMY': 19,
+        'FERNANDO': 20,
+        'TINY': 21,
+    };
+
+    // Numeric ID's ==> name realtionship
     const names = {4: 'Duke',
                    15: 'Leslie',
                    19: 'Jimmy',
                    20: 'Fernando',
                    21: 'Tiny',
                   };
-    var notificationsDisabled = true; // true if we need to stop notifying
     var lastID = 4; // Last ID checked
 
     // Where we actually do stuff.
     function getUserProfile(userID) {
         let userName = names[userID];
+        let flightBan = allowWhenAbroad ? false : ((abroad() ? true : false));
         lastID = userID;
         log("Querying Torn for " + userName + "'s profile, ID = " + userID);
         log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
-        if (!notificationsDisabled) {
+        if (flightBan) {log("Won't query during flight ban");}
+        if (!notificationsDisabled && !flightBan) {
             xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
         } else {
             log("(didn't query - will check when re-enabled.)");
         }
     }
 
+    // Callback for above
     function updateUserLevelsCB(responseText, userID) {
         let profile = JSON.parse(responseText);
         if (profile.error) {return handleError(responseText);}
@@ -84,16 +99,16 @@
     // Helper to get next NPC ID
     function nextNPC(id) {
         switch (Number(id)) {
-        case 4:
-            return 15;
-        case 15:
-            return 19;
-        case 19:
-            return 20;
-        case 20:
-            return 21;
-        case 21:
-            return 4;
+        case ids.DUKE:
+            return ids.LESLIE;
+        case ids.LESLIE:
+            return ids.JIMMY;
+        case ids.JIMMY:
+            return ids.FERNANDO;
+        case ids.FERNANDO:
+            return ids.TINY;
+        case ids.TINY:
+            return ids.DUKE;
         default:
             return id;
         }
