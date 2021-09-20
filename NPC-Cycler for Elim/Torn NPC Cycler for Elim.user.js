@@ -17,6 +17,9 @@
 (function() {
     'use strict';
 
+    const lifeThreshold = 2000; // Triggers when life < (max - threshold)
+    const timeThreshold = 10; // Seconds between API calls, one per NPC
+
     var alertsDiv = '<hr id="xedx-hr-delim" class="delimiter___neME6">' +
         '<div id="xedxStartStopAlerts" style="padding-bottom: 5px; padding-top: 5px;">' +
         '<span style="font-weight: 700;">NPC Alerts</span>' +
@@ -30,7 +33,6 @@
                    21: 'Tiny',
                   };
     var notificationsDisabled = true; // true if we need to stop notifying
-    const lifeThreshold = 2000; // Triggers when life < max - threshold
     var lastID = 4; // Last ID checked
 
     // Where we actually do stuff.
@@ -42,8 +44,6 @@
         if (!notificationsDisabled) {
             xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
         } else {
-            //log("(didn't query - will check in 10 secs.)");
-            //setTimeout(function(){getUserProfile(nextNPC(userID));}, 10000);
             log("(didn't query - will check when re-enabled.)");
         }
     }
@@ -69,7 +69,7 @@
             }
         }
 
-        setTimeout(function(){getUserProfile(nextNPC(userID));}, 10000);
+        setTimeout(function(){getUserProfile(nextNPC(userID));}, timeThreshold * 1000);
     }
 
     //////////////////////////////////////////////////////////////////////
