@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
@@ -68,6 +67,8 @@
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
+        log('Peronal stats: ', jsonResp);
+
         // Add NW
         addNetWorthToProfile(jsonResp.personalstats.networth);
 
@@ -77,14 +78,15 @@
         userLvl = jsonResp.level;
         userRank = numericRankFromFullRank(jsonResp.rank);
 
-        updateUserProfile(); // Adds bat stats
+        addBatStatsToProfile(); // Adds bat stats
 
         // Display te numeric rank next to textual rank
         addNumericRank();
     }
 
     // Create the <li>, add to the profile page
-    function updateUserProfile() {
+    function addBatStatsToProfile() {
+        log('Adding estimated bat stats to profile.');
         let testDiv = document.getElementById(batStatLi);
         if (validPointer(testDiv)) {return;} // Only do once
 
@@ -107,29 +109,19 @@
 
     function buildBatStatDisplay() {
         // if (userLvl >= 75) {return "Over level 75, N/A.";}
-
         let trLevel = 0, trCrime = 0, trNetworth = 0;
-        for (let l in levelTriggers) {
-            if (levelTriggers[l] <= userLvl) trLevel++;
-        }
-        for (let c in crimeTriggers) {
-            if (crimeTriggers[c] <= userCrimes) trCrime++;
-        }
-        for (let nw in nwTriggers) {
-            if (nwTriggers[nw] <= userNW) trNetworth++;
-        }
+        for (let l in levelTriggers) {if (levelTriggers[l] <= userLvl) trLevel++;}
+        for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
+        for (let nw in nwTriggers) {if (nwTriggers[nw] <= userNW) trNetworth++;}
 
         let statLevel = userRank - trLevel - trCrime - trNetworth - 1;
         let estimated = estimatedStats[statLevel];
 
-        console.log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + estimated);
-        console.log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
-        console.log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
+        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + estimated);
+        log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
+        log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
         if (!estimated) {
-            if (userLvl < 76)
-                estimated = "Unknown, maybe level holding?";
-            else
-                estimated = "N/A";
+            if (userLvl < 76) {estimated = "Unknown, maybe level holding?";} else {estimated = "N/A";}
         }
 
         return estimated;
@@ -140,6 +132,7 @@
     //////////////////////////////////////////////////////////////////////
 
     function addNetWorthToProfile(nw) {
+        log('Adding Net Worth to profile.');
         if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
 
         let display = '$' + numberWithCommas(nw);
@@ -147,18 +140,11 @@
         let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
         var targetNode = document.getElementById('profileroot');
         let ul = $(basicInfo).find('ul.info-table');
-        if (!ul.length) {console.log('Target Node (43): ' + targetNode);
-            console.trace();
-            console.log('Target Node (45): ' + targetNode);
-            observer.observe(targetNode, config);
-            return;
-        }
+        if (!ul.length) {return;}
         let li = '<li id="xedx-networth-li"><div class="user-information-section">' +
             '<span class="bold">Net Worth</span></div>' +
             '<div class="user-info-value"><span>' + display + '</span></div></li>';
         $(ul).append(li);
-        console.trace();
-        console.log('Target Node (54): ' + targetNode);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -194,6 +180,7 @@
                  ['Invincible', 'Invincible', 'class', 'long']];
 
     function addNumericRank() {
+        log('Adding Numeric Rank to profile.');
         var elemList = document.getElementsByClassName('two-row');
         var element = elemList[0];
         if (element == 'undefined' || typeof element == 'undefined') {
@@ -226,8 +213,8 @@
 
     logScriptStart();
     validateApiKey();
+    versionCheck();
 
-    // Get the show on the road...
     // Delay until DOM content load (not full page) complete, so that other scripts run first.
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', handlePageLoaded);
