@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.16
+// @version     2.17
 // @license     MIT
 // ==/UserLibrary==
 
@@ -63,8 +63,22 @@ function logScriptComplete() {
 
 // Get rid of this - returns hosting script version, not this library's version
 function getHelperVersion() {
-    //return GM_info.script.version;
+    console.log('**** Please notify xedx [2100735], deprecated function call - ' +
+                '"getHelperVersion()" in script "' + GM_info.script.name +'"');
     return '0.2';
+}
+
+// Store latest version info and notify if updated.
+var silentUpdates = false;
+function versionCheck() {
+    let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
+    if  (Number(GM_info.script.version) > Number(curr_ver)) {
+        let msg = 'Your version of ' + GM_info.script.name + ' has been updated to version ' + GM_info.script.version +
+              ' ! Press OK to continue.';
+        if (!silentUpdates) {alert(msg);}
+        console.log(msg);
+    }
+    GM_setValue('curr_ver', GM_info.script.version);
 }
 
 // Simple logging helpers. Log regular events or debug-only events.
