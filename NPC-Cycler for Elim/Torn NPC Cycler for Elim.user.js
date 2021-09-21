@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Torn NPC Alerts during Elim
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @match        https://www.torn.com/*
 // @connect      api.torn.com
+// @connect      yata.yt
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -38,24 +39,27 @@
         'TINY': 21,
     };
 
-    // Numeric ID's ==> name realtionship
-    const names = {4: 'Duke',
-                   15: 'Leslie',
-                   19: 'Jimmy',
-                   20: 'Fernando',
-                   21: 'Tiny',
+    // Numeric ID's ==> name relationship (and other miscellany)
+    // Is 'var', not 'const', so we can toggle 'enabled'
+    var names = {4: {name: 'Duke', enabled: true},
+                   15: {name: 'Leslie', enabled: true},
+                   19: {name: 'Jimmy', enabled: true},
+                   20: {name: 'Fernando', enabled: true},
+                   21: {name: 'Tiny', enabled: true},
                   };
     var lastID = 4; // Last ID checked
 
     // Where we actually do stuff.
     function getUserProfile(userID) {
-        let userName = names[userID];
+        let userName = names[userID].name;
         let flightBan = allowWhenAbroad ? false : ((abroad() ? true : false));
         lastID = userID;
         log("Querying Torn for " + userName + "'s profile, ID = " + userID);
         log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
         if (flightBan) {log("Won't query during flight ban");}
-        if (!notificationsDisabled && !flightBan) {
+        if (!names[userID].enabled) {log("Won't query disabled NPC.");}
+
+        if (!notificationsDisabled && !flightBan && names[userID].enabled) {
             xedx_TornUserQuery(userID, 'profile', updateUserLevelsCB);
         } else {
             log("(didn't query - will check when re-enabled.)");
@@ -67,20 +71,63 @@
         let profile = JSON.parse(responseText);
         if (profile.error) {return handleError(responseText);}
 
-        let userName = names[userID];
+        let userName = names[userID].name;
         let status = profile.status;
         let life = profile.life;
         log('(callback) Status details for ' + userName + ': ' + status.details);
         log('Notifications are ' + (notificationsDisabled ? 'DISABLED' : 'ENABLED'));
         log('Life: ' + life.current + '/' + life.maximum);
-        if (status.details.includes('V')) { // Matches IV and V
+        if (status.details.includes('Loot level IV') || status.details.includes('Loot level V')) {
             if (life.current < (life.maximum - lifeThreshold)) {
-                if (!notificationsDisabled) {
-                    log('Target at ' + life.current + '/' + life.maximum + ' life!');
-                    GM_notification ( {title: userName + ' is ready!', text: 'Low life: ' + life.current + '/' + life.maximum} );
-                    alert(userName + ' is ready to attack! Life at:' + life.current + '/' + life.maximum);
+                // If already on this NPC's page, don't alert - just disable.
+                let queryString = window.location.search;
+                let urlParams = new URLSearchParams(queryString);
+                let playerID = urlParams.get('user2ID');
+                if (Number(userID) == Number(playerID)) {
                     stopAlerts(true);
                 }
+                // Notify if need be...
+                if (!notificationsDisabled) {
+                    let text = userName + ' is ready to attack! Life at:' + life.current + '/' + life.maximum + '!';
+                    log(text + ' ISSUING ALERT!');
+                    GM_notification ( {title: userName + ' is ready!', text: 'Low life: ' + life.current + '/' + life.maximum} );
+                    alert(text);
+                    stopAlerts(true);
+                }
+            } else {
+                log("Didn't notify.");
+            }
+        } else {
+            // Disable this particular NPC. Set timeout to re-enable at 10 minutes before LL IV,
+            // which is hospout time + (210*60) seconds. Minus the 10 minutes. Don't do this if
+            // this user is already disabled. We call the YATA api to do this - GET https://yata.yt/api/v1/loot/
+
+            // TBD...
+            log('Issuing GET for hosp_out? ' + names[userID].enabled);
+            if (names[userID].enabled) {
+                log('Issuing GET request, hosp_out, for ' + userName + ' (ID ' + userID + ')');
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: "https://yata.yt/api/v1/loot/",
+                    onload: function(response) {
+                        log('hosp_out response for ID ' + userID + ': ' + response.responseText);
+                        let respObj = JSON.parse(response.responseText);
+                        let timenow = (new Date()) / 1000; // Convert to secs
+                        let timeout = respObj.hosp_out[userID];
+                        let timeToIV = (timeout + (210 * 60)) - timenow;
+                        log('Seconds until loot level IV: ' + timeToIV);
+                        let timeToReset = timeToIV - 300;
+                        if (timeToReset > 0) {
+                            log('Disabling timers for ' + names[userID].name + ', setting timeout for ' + timeToReset + ' seconds.');
+                            names[userID].enabled = false;
+                            setTimeout(function(){
+                                log('Re-enabling timers for ' + names[userID].name + '! Will check now.');
+                                names[userID].enabled = true;
+                                getUserProfile(userID);
+                            }, timeToReset * 1000);
+                        }
+                    }
+                });
             }
         }
 
@@ -118,6 +165,7 @@
     // UI stuff
     //////////////////////////////////////////////////////////////////////
 
+    // Add the little piece to the sidebar
     function appendStartStopAlertsDiv() {
         if (!validPointer($('#xedxStartStopAlerts'))) {
             console.log('#xedxStartStopAlerts NOT found.');
@@ -130,6 +178,7 @@
         installClickHandler();
     }
 
+    // Add the handler for the start/stop link
     function installClickHandler() {
         $('#startStopAlerts').on('click', function () {
                 const stop = $('#startStopAlerts').text() == '[stop]';
@@ -138,6 +187,7 @@
             });
     }
 
+    // Stop alerts and toggle text in sidebar
     function stopAlerts(stop) {
         notificationsDisabled = stop;
         if (!notificationsDisabled) {
@@ -173,10 +223,14 @@
     logScriptStart();
     validateApiKey();
 
+    /*
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', handlePageLoaded);
     } else {
+    */
         handlePageLoaded();
+    /*
     }
+    */
 
 })();
