@@ -12,7 +12,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.17
+// @version     2.18
 // @license     MIT
 // ==/UserLibrary==
 
@@ -54,7 +54,7 @@ function queryUserId(callback) {
 
 // Just spit out the name of the script at startup
 function logScriptStart() {
-    console.log(GM_info.script.name + ' script started!');
+    console.log(GM_info.script.name + ' version ' + GM_info.script.version + ' script started!');
 }
 
 function logScriptComplete() {
