@@ -16,35 +16,28 @@
 (function() {
     'use strict';
 
-    var hideChatDiv = '<hr id="xedx-hr-delim" class="delimiter___neME6">' +
+    var hideChatHdr = '<hr id="xedx-hr-delim" class="delimiter___neME6">';
+
+    var hideChatDiv = '<div><hr id="xedx-hr-delim" class="delimiter___neME6">' +
         '<div id="xedxShowHideChat" style="padding-bottom: 5px; padding-top: 5px;">' +
         '<span style="font-weight: 700;">Chat Icons</span>' +
-        '<a id="showHideChat" class="t-blue show-hide">[hide]</a>';
+        '<a id="showHideChat" class="t-blue show-hide">[hide]</a></div>';
 
     function hideChat(hide) {
-        console.log(GM_info.script.name + (hide ? ": hiding " : ": showing " + "chat icons."));
+        log((hide ? "hiding " : "showing " + "chat icons."));
         $('#showHideChat').text(`[${hide ? 'show' : 'hide'}]`);
         document.querySelector("#chatRoot > div").style.display = hide ? 'none' : 'block';
     }
 
     function disableTornToolsChatHide() {
         if (validPointer($('#tt-hide_chat')[0])) {
-            console.log(GM_info.script.name + " disabling TornTools 'Hide Chat' icon");
+            log("Disabling TornTools 'Hide Chat' icon");
             $('#tt-hide_chat')[0].style.display = 'none';
         }
     }
 
     function appendHideShowChatDiv() {
-        console.log('appendHideShowChatDiv: #xedxShowHideChat = ' + $('#xedxShowHideChat'));
-        console.log('appendHideShowChatDiv: content = ' + $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]'));
-
-        if (!validPointer($('#xedxShowHideChat'))) {
-            console.log('#xedxShowHideChat NOT found.');
-        } else {
-            $('#xedx-hr-delim').remove();
-            $('#xedxShowHideChat').remove();
-        }
-        console.log('Appending #xedxShowHideChat.');
+        $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatHdr);
         $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
         installClickHandler();
     }
@@ -58,14 +51,16 @@
     }
 
     function handlePageLoaded() {
-        appendHideShowChatDiv();
-        if (window.location.pathname.indexOf('loader.php') >= 0) {
-            hideChat(GM_getValue('xedxHideChat', false));
-        } else {
-            const savedHide = GM_getValue('xedxHideChat', false);
-            appendHideShowChatDiv();
-            hideChat(savedHide);
+        if (!validPointer($("#chatRoot > div"))) { // Should never happen...
+            log('Delaying <div> insertion...');
+            setTimeout(handlePageLoad, 500);
+            return;
         }
+
+        appendHideShowChatDiv();
+        hideChat(GM_getValue('xedxHideChat', false));
+
+        disableTornToolsChatHide();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -73,15 +68,13 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    versionCheck();
 
-    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    // Delay until DOM content load (not full page) complete
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', handlePageLoaded);
     } else {
         handlePageLoaded();
     }
-
-    // Check for Torn Tools, AFTER page is -fully- loaded
-    window.onload = function(e){disableTornToolsChatHide();}
 
 })();
