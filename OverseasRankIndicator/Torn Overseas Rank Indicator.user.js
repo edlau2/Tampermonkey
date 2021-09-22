@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.3
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php?page=people*
@@ -33,9 +33,12 @@
     function updateUserLevelsCB(responseText, ID, li) {
         var jsonResp = JSON.parse(responseText);
         log("updateUserLevelsCB = " + ID);
-        if (jsonResp.error) {return handleError(responseText);}
+        if (jsonResp.error) {
+            log('Error: ' + JSON.stringify(jsonResp.error));
+            return handleError(responseText);
+        }
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-        log("Caching rank: " + ID + " ==> " + numeric_rank);
+        log("Caching rank: " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
         rank_cache.push(newCacheItem(ID, numeric_rank));
         updateLiWithRank(li, numeric_rank);
     }
@@ -45,14 +48,12 @@
         observer.disconnect();
         let testLvlNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.level");
         let lvlNode = li.getElementsByClassName('level')[0];
-        //let text = lvlNode.innerText;
         let text = lvlNode.childNodes[2].data;
         if (text.indexOf("/") != -1) { // Don't do again!
             observer.observe(targetNode, config);
             return;
         }
 
-        //lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
         lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
         observer.observe(targetNode, config);
     }
@@ -66,7 +67,7 @@
                 return rank_cache[i].numeric_rank;
             }
         }
-        log("didn't find " + ID + " in cache.");
+        log("didn't find " + ID + " in cache. Cache has " + rank_cache.length + " items.");
         return 0; // Not found!
     }
 
@@ -76,21 +77,19 @@
     //////////////////////////////////////////////////////////////////////
 
     function updateUserLevels() {
-        log('Entering updateUserLevels');
-        let ul = document.getElementsByClassName(ulRootClassName)[0];
-        if (!validPointer(ul)) {return;}
-        let items = ul.getElementsByTagName("li"); // This gives sub-li's, ise ul > li[i] or something?
+        log('Entering updateUserLevels, cache depth = ' + rank_cache.length);
+        //let ul = document.getElementsByClassName(ulRootClassName)[0];
+        //if (!validPointer(ul)) {return;}
+        let items = $('ul.' + ulRootClassName +  ' > li'); // Migrate to bounties, user lists, etc.
         if (!validPointer(items)) {return;}
 
-        log('detected ' + items.length + ' player entries'); /// ... so this # is wrong.
+        log('detected ' + items.length + ' user entries');
         for (let i = 0; i < items.length; i++) {
             let li = items[i];
             if (window.getComputedStyle(li).display === "none") {continue;}
             let idNode = li.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name");
             document.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name")
-            if (!validPointer(idNode)) { // Lower-level LI...
-                //log('Invalid ID node detected! i = ' + i + ' Children: ' + li.childElementCount);
-                //setTimeout(updateUserLevels, 1000);
+            if (!validPointer(idNode)) { // Should never happen.
                 continue;
             }
 
@@ -104,7 +103,7 @@
                 if (validPointer(statusSel)) {
                     // Only get rank if status is 'Okay' ...
                     if (statusSel.innerText == 'Okay') {
-                        log('Querying rank for player ' + ID + ' ' + name);
+                        log('Querying rank for player ' + ID + ' ' + name + ' (i = ' + i + ')');
                         getRankFromId(ID, li);
                     } else {
                         log('player ' + ID + ', ' + name + ' status is ' + statusSel.innerText + ', skipping.');
@@ -114,6 +113,8 @@
                 }
             }
         }
+
+        log('Finished iterating ' + items.length + ' users, ' + rank_cache.length + ' cache entries.');
     }
 
     // Simple logging helper
@@ -130,6 +131,7 @@
 
     logScriptStart();
     validateApiKey();
+    versionCheck();
 
     if (!abroad()) {
         log('Not Abroad! Bailing...');
