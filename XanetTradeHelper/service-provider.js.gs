@@ -52,7 +52,7 @@ var itemsInserted = 0; // Count of logged entries
 // See 'loadScriptOptions()'
 var opt_detectDuplicates = false; // Prevent duplicate ID's from being logged.
 var opt_maxTransactions = 5; // Unrealistic value, set to maybe 200?
-var opt_consoleLogging = true; // true to enable logging (need to call myLogger() intead of myLogger())
+var opt_consoleLogging = true; // true to enable logging (need to call log() intead of log())
 var opt_colorDataCells = false; // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
 var opt_useLocks = false; // true to lock processing path.
 var opt_logRemote = false; // true to log remote entries sent by the browser (not yet implemented)
@@ -80,7 +80,7 @@ function doGet(e) {
 function doPost(e){
   loadScriptOptions();
   console.log(getVersion()); // ALWAYS logged.
-  myLogger("Xanet's Trade helper, doPost. e = '" + e +"'");
+  log("Xanet's Trade helper, doPost. e = '" + e +"'");
   return handleRequest(e);
 }
 
@@ -90,6 +90,7 @@ function doPost(e){
 /////////////////////////////////////////////////////////////////////////
 
 function handleRequest(e) {
+  const startTime = new Date().getTime();
   const timeout = 30; // seconds
   const lock = LockService.getPublicLock();
   
@@ -98,7 +99,7 @@ function handleRequest(e) {
     let success = lock.tryLock(30000); 
     if (!success) { 
       let output = 'Error: Unable to obtain exclusive lock after ' + timeout + ' seconds.';
-      myLogger(output); 
+      log(output); 
       return ContentService.createTextOutput(output).setMimeType(ContentService.MimeType.JSON);
       }
   }
@@ -119,9 +120,9 @@ function handleRequest(e) {
     // price: get ad return price info only.    
     if (cmd == 'data' || cmd == 'price') {
       if (!retArray.length) {
-        myLogger('Trade ID = ' + tradeID + ' No items found!');
+        log('Trade ID = ' + tradeID + ' No items found!');
       } else {
-        myLogger('Trade ID = ' + tradeID + ', ' + retArray.length + ' Objects found');  
+        log('Trade ID = ' + tradeID + ', ' + retArray.length + ' Objects found');  
       }
     
       // Now we have data to act upon...search for items in col A by name, prices
@@ -129,11 +130,11 @@ function handleRequest(e) {
       // this trade han't already been entered. Check for dup ID's
       //
       if (!opt_detectDuplicates) { // Checked in 'isDuplicate()'
-        myLogger('Not checking for duplicate log entries.');
+        log('Not checking for duplicate log entries.');
       }      
 
-      myLogger('Filling in prices and preparing to log.');
-      if (cmd == 'price') {myLogger('Price info only requested, not logging.');}
+      log('Filling in prices and preparing to log.');
+      if (cmd == 'price') {log('Price info only requested, not logging.');}
       
       // If looking for sets, modify the array accordingly.
       // Count items that belong in sets, and how many full sets.
@@ -153,18 +154,20 @@ function handleRequest(e) {
       profile();
       var totalCost = fillPrices(retArray, calcAvgs); // Also updates running averages (second param).
       
-      myLogger('After filling prices: ' + JSON.stringify(retArray));
-      myLogger('Total price of all items: ' + asCurrency(totalCost));
+      log('After filling prices: ' + JSON.stringify(retArray));
+      log('Total price of all items: ' + asCurrency(totalCost));
       
       if (!isDuplicate(tradeID) && cmd == 'data') { // Only need to check one ID...
         let newRange = logTransaction(retArray); // Actually writes to the 'Data' worksheet.
         copyLastTrade(newRange); // Copy the latest trade to the 'Last Trade' worksheet
         
         // Check to see if we have exceed our max # logged trades, and if so, clean up.
+        profile();
         if (opt_maxTransactions) {
           while (countTransactions() > opt_maxTransactions) {
             deleteFirstTrade();
           }
+          profile();
         }
       }  
     }
@@ -184,12 +187,14 @@ function handleRequest(e) {
     return provideResult(e, XanetResult, retArray);
     
   } catch(e) {
-    myLogger('handleRequest (catch, no callback): ', e);
+    log('handleRequest (catch, no callback): ', e);
     console.log(e.stack);
     let output = JSON.stringify({"exception":e});
     return ContentService.createTextOutput(output).setMimeType(ContentService.MimeType.JSON);
   } finally {
-    myLogger('handleRequest Finally: releasing lock.');
+    const endTime = new Date().getTime();
+    log('Execution complete. Elapsed time: ' + (endTime - startTime)/1000 + ' seconds.');
+    log('handleRequest Finally: releasing lock.');
     if (opt_useLocks) {lock.releaseLock();}
   }
 }
@@ -239,24 +244,24 @@ function processSetItemPrices(retArray) {
   let flowerSets = countCompleteSets(myFlowerSet);
   let plushieSets = countCompleteSets(myPlushieSet);
 
-  myLogger('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) + '\nmyPlushieSet = ' + JSON.stringify(myPlushieSet));
+  log('processSetItemPrices: \nmyFlowerSet = ' + JSON.stringify(myFlowerSet) + '\nmyPlushieSet = ' + JSON.stringify(myPlushieSet));
 
   if (!flowerSets && !plushieSets) {return retArray;}
 
   // If we have full sets, create an object for them and push onto our array
   if (flowerSets) {
-    myLogger('Found ' + flowerSets + ' flower sets.');
+    log('Found ' + flowerSets + ' flower sets.');
     let obj = newSetItem(tradeID, flowerSetName, flowerSets);
     retArray.push(obj);
   }
 
   if (plushieSets) {
-    myLogger('Found ' + plushieSets + ' plushie sets.');
+    log('Found ' + plushieSets + ' plushie sets.');
     let obj = newSetItem(tradeID, plushieSetName, plushieSets);
     retArray.push(obj);
   }
 
-  myLogger('processSetItemPrices: retArray\n' + JSON.stringify(retArray));
+  log('processSetItemPrices: retArray\n' + JSON.stringify(retArray));
 
   // Filter the items in the array, that are in the sets.
   // Note: to remove, use array.splice(start, deleteCount);
@@ -276,7 +281,7 @@ function processSetItemPrices(retArray) {
     }
   }
 
-  myLogger('processSetItemPrices: newArray\n' + JSON.stringify(newArray));
+  log('processSetItemPrices: newArray\n' + JSON.stringify(newArray));
 
   //retArray = deepCopy(newArray);
   return newArray;
@@ -312,11 +317,11 @@ function newSetItem(ID, name, qty) {
 function provideResult(ev, XanetResult, retArray) {
   let fullRetArray = XanetResult.concat(retArray);
   let output = JSON.stringify(fullRetArray);
-  myLogger('provideResult output: ' + output);
+  log('provideResult output: ' + output);
   
   // return jsonp success results
   if (ev.parameter.callback){
-    myLogger('provideResult returning, with callback.');
+    log('provideResult returning, with callback.');
     return ContentService.createTextOutput(ev.parameter.callback+"("+ output + ");")
           .setMimeType(ContentService.MimeType.JAVASCRIPT);
   } else {
@@ -343,7 +348,7 @@ function loadScriptOptions() {
   opt_markdown = Number(optsSheet().getRange("B11").getValue());
 
   // TBD: Finish this - if a struct, one call!!!
-  myLogger('Read options: detect dups = "' + opt_detectDuplicates +
+  log('Read options: detect dups = "' + opt_detectDuplicates +
            '" max Xactions = "' + opt_maxTransactions +
            '" console logging= "' + opt_consoleLogging + '"');
 }
@@ -387,11 +392,11 @@ function isDuplicate(id) {
   var tradeIDs = idRange.getValues();
   for (let i = 0; i < tradeIDs.length; i++) {
     if (tradeIDs[i] == "") {continue;}
-    //myLogger('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
+    //log('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
     if (tradeIDs[i] == '' || isNaN(tradeIDs[i]) || !(Number(tradeIDs[i]) > 0)) {continue;}  
     if (id == tradeIDs[i]) {
-      myLogger('ID match: "' + id + '" to "' + tradeIDs[i] + '" !!!');
-      myLogger('Duplicate ID ' + id + 'found! Not logging to sheet.');
+      log('ID match: "' + id + '" to "' + tradeIDs[i] + '" !!!');
+      log('Duplicate ID ' + id + 'found! Not logging to sheet.');
       return true;
     }
   }
@@ -432,6 +437,8 @@ function isDuplicate(id) {
 //
 /////////////////////////////////////////////////////////////////////////////
 
+var transTotal = 0; // null global indicates demand loaded.
+var priceRows = null;
 function fillPrices(array, updateAverages) { // A8:<last row>
 
   // For values on the price list...
@@ -440,15 +447,6 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   let nameRange = priceSheet().getRange(8, 1, lastRow-1);
   let names = nameRange.getValues();
   let nameFound = false;
-  let transTotal = 0;
-  var priceRows = null; // Demand load: priceSheet().getRange(8, 4, lastRow-1).getValues(); // 4 == 'D'
-
-  // For values NOT on the price list, don't load unless needed.
-  let sheetRange2 = priceSheet2().getDataRange();
-  let lastRow2 = sheetRange2.getLastRow();
-  let nameRange2 = priceSheet2().getRange(2, 1, lastRow2-1);
-  let names2 = null;
-  var priceRows2 = null; // Demand load: priceSheet2().getRange(2, 4, lastRow-1).getValues(); // 4 == 'D'
   
   // Filter here: Quran scripts have diff names in the browser vs the API,
   // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
@@ -456,7 +454,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
     array[i].priceAskMe = false;
     array[i].priceNotFound = false;
-    var searchWord = array[i].name.trim();
+    let searchWord = array[i].name.trim();
     
     // Triggers the 'Quran' filter
     var isQuran = false;
@@ -495,58 +493,40 @@ function fillPrices(array, updateAverages) { // A8:<last row>
       if (nameFound) {
         // Found row - j + 8. Column is 4. Both are 1-indexed, not 0.
         // Will Pay price is col. 4,
-        if (!priceRows) {priceRows = avgSheet().getRange(8, 4, lastRow-1).getValues();} // 4 == 'D'
-        let price = priceRows[j-8];
+        if (!priceRows) {
+          log('loading priceRows');
+          priceRows = priceSheet().getRange(8, 4, lastRow-1).getValues();
+          }
+        let price = priceRows[j];
+        
         if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.  
           array[i].priceAskMe = true;
-          array[i].price = '0';
-          array[i].total = '0';
-          if (updateAverages) {
-            profile();
-            updateRunningAverage(array[i]);
-            profile();
-          }
+          //nameFound = findItemInItemList(array[i]);
+          //if (!nameFound) {
+            array[i].price = '0';
+            array[i].total = '0';
+          //}
+          if (updateAverages) {updateRunningAverage(array[i]);}
+          log('Found match (but no price) for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
+            array[i].qty + ') is ' + array[i].total);
           break;
         }
         
         array[i].price = price; // Case 1.
         array[i].total = price * array[i].qty; 
         transTotal += price * array[i].qty;
-        if (updateAverages) {
-          profile();
-          updateRunningAverage(array[i]); // SLOW call
-          profile();
-        }
+        if (updateAverages) {updateRunningAverage(array[i]);} // SLOW call
+
+        log('Found match for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
+            array[i].qty + ') is ' + array[i].total);
         break;
       }
     } // End for loop, known name list.
 
     //case 3. Look up the market value in 'item list'
     if (!nameFound) {
-      array[i].priceNotFound = true;
-      if (!names2) { // just do once.
-        names2 = nameRange2.getValues();
-      }
-
      log('Item ' + searchWord + ' not in price list, scanning item list');
-      for (let j = 0; j < names2.length; j++) { // to compare to all known names. 
-        if (names[j] == '') {break;}
-        let compareWord = names2[j].toString().trim();
-        if (searchWord == compareWord) {
-            nameFound = true;
-            if (!priceRows2) {priceRows2 = priceSheet2().getRange(2, 4, lastRow2-1).getValues();}
-            let price2 = priceRows2[j];
-            // let price = priceSheet().getRange(j+2, 4).getValue();
-            array[i].price = price2 * opt_markdown; 
-            array[i].total = array[i].price * array[i].qty; 
-            transTotal += array[i].total;
-            log('Found match for ' + searchWord + ',\nPrice = ' + price2 + 
-            '\nMarkdown = ' + opt_markdown + 
-            '\nCalculated Price = ' +  array[i].price + ' each.\nTotal for items (' + 
-            array[i].qty + ') is ' + array[i].total);
-            break;
-          }
-      }
+     nameFound = findItemInItemList(array[i]);
 
       // Worst case: not found anywhere
       if (!nameFound) {
@@ -556,6 +536,49 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     } // end !nameFound
   } // End for loop, grid name list
   return transTotal;
+}
+
+/**
+ * Function to locate item price in the 'item list' sheet
+ */
+let names2 = null; // null global indicates demand loaded.
+var priceRows2 = null;
+function findItemInItemList(item) {
+  let nameFound = false;
+  let sheetRange2 = priceSheet2().getDataRange();
+  let lastRow2 = sheetRange2.getLastRow();
+  let nameRange2 = priceSheet2().getRange(2, 1, lastRow2-1);
+
+  let searchWord = item.name.trim();
+  item.priceNotFound = true;
+  if (!names2) {
+    log('Loading names2');
+    names2 = nameRange2.getValues();
+    } 
+  profile();
+  for (let j = 0; j < names2.length; j++) { // to compare to all known names. 
+    if (names2[j] == '') {break;}
+    let compareWord = names2[j].toString().trim();
+    if (searchWord == compareWord) {
+      nameFound = true;
+      if (!priceRows2) {
+        log('Loading priceRows1');
+        priceRows2 = priceSheet2().getRange(2, 4, lastRow2-1).getValues();
+        }
+      let price2 = priceRows2[j];
+      // let price = priceSheet().getRange(j+2, 4).getValue();
+      item.price = Math.round(price2 * opt_markdown); 
+      item.total = item.price * item.qty; 
+      transTotal += item.total;
+      log('Found match for ' + searchWord + ' in items list,\nPrice = ' + price2 + 
+      '\nMarkdown = ' + opt_markdown + 
+      '\nCalculated Price = ' +  item.price + ' each.\nTotal for items (' + 
+      item.qty + ') is ' + item.total);
+      break;
+    } // end if (searchWord == compareWord ...
+  } // end for (j-0;... loop
+  profile();
+  return nameFound;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -615,6 +638,7 @@ function updateRunningAverage(item) {
   let rows = sheetRange.getLastRow();
   if (!names) {names = avgSheet().getRange(3, 1, rows-1).getValues();}
 
+  profile();
   for (let row = 3; row < rows; row++) {
     let name = names[row-3].toString();
     if (item.name.trim() == name.trim()) {
@@ -637,6 +661,7 @@ function updateRunningAverage(item) {
       break;
     }
   }
+  profile();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -716,7 +741,7 @@ function logTransaction(array) {
   timeRange.setValue(parts[4] + ' TCT');
   
   // Data
-  myLogger('logTransaction: checking ' + array.length + ' items.');
+  log('logTransaction: checking ' + array.length + ' items.');
   let counter = 0;
   profile();
   for (let i = 0; i < array.length; i++) {
@@ -727,7 +752,7 @@ function logTransaction(array) {
     row = lastRow + 2 + (counter++); // New change - shifts up data row by 1. MAKE SURE does not affect running averages or last XAction
     range = datasheet().getRange("C" + row + ":F" + row);
     range.setValues(values);
-    myLogger('inserted values: ' + values);
+    log('inserted values: ' + values);
     
     // If the price/total is '-1', set as red; if '0', set as yellow
     // See https://developers.google.com/apps-script/reference/calendar/color
@@ -735,14 +760,14 @@ function logTransaction(array) {
     if (opt_colorDataCells == true) {
       let cells = datasheet().getRange('C' + row + ':F' + row);
       let color = 'lime';
-      if (array[i].priceAskMe) {color = 'yellow';}
-      if (array[i].priceNotFound) {color = 'red';}
+      if (array[i].priceAskMe == true) {color = 'yellow';}
+      else if (array[i].priceNotFound == true) {color = 'red';}
       cells.setBackground(color);
     }
     itemsInserted++;
   }
   profile();
-  myLogger("Finished logging transaction - " + itemsInserted + ' items logged.');
+  log("Finished logging transaction - " + itemsInserted + ' items logged.');
   
   let newRange = 'A' + startRow + ':F' + (startRow + itemsInserted);
   return newRange;
@@ -764,7 +789,7 @@ function copyLastTrade(src) {
   let dstRange = lastTradeSheet().getRange('A3');
   srcRange.copyTo(dstRange);
   
-  myLogger('Copied last trade ("' + src +'") to Last Trade sheet, range "A3"');
+  log('Copied last trade ("' + src +'") to Last Trade sheet, range "A3"');
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -803,8 +828,7 @@ function lastTradeSheet() {
 }
 
 // Helper to optionally log.
-function log(data) {myLogger(data)};
-function myLogger(data) {
+function log(data) {
   if (opt_consoleLogging) console.log(data);
 }
 
@@ -880,12 +904,12 @@ let str_parameters = '[{"command":"data"},{"id":"786444001","name":"Blood Bag : 
                             '{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]';
 
 
-var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
+var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
   contextPath: '',
-  parameter: { '[{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
+  parameter: { '[{"command":"data"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
   queryString: '',
   postData: 
-   { contents: [{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
+   { contents: [{"command":"data"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
      length: 373,
      name: 'postData',
      type: 'application/x-www-form-urlencoded' },
