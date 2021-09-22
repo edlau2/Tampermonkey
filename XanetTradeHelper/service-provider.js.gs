@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.1';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.2';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -525,14 +525,17 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         names2 = nameRange2.getValues();
       }
 
+     log('Item ' + searchWord + ' not in price list, scanning item list');
       for (let j = 0; j < names2.length; j++) { // to compare to all known names. 
         if (names[j] == '') {break;}
-        if (searchWord == names[j].toString().trim()) {
+        let compareWord = names2[j].toString().trim();
+        if (searchWord == compareWord) {
             nameFound = true;
             let price = priceSheet().getRange(j+2, 4).getValue();
             array[i].price = price * opt_markdown; 
             array[i].total = price * array[i].qty; 
             transTotal += price * array[i].qty;
+            log('Found match, price = ' + price);
             break;
           }
       }
@@ -790,6 +793,7 @@ function lastTradeSheet() {
 }
 
 // Helper to optionally log.
+function log(data) {myLogger(data)};
 function myLogger(data) {
   if (opt_consoleLogging) console.log(data);
 }
