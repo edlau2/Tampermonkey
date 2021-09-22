@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.2';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.1';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -60,6 +60,7 @@ var opt_calcSetItemPrices = true; // Calculate sets automatically, item prices
 var opt_calcSetPointPrices = false; // Calculate sets automatically, point prices
 var opt_clearRunningAverages = false; // Check for rows to delete in Running Averages sheet
 var opt_markdown = 0.9; // Markdown for prices not in the list
+var opt_profilingEnabled = true;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -436,16 +437,18 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   // For values on the price list...
   let sheetRange = priceSheet().getDataRange();
   let lastRow = sheetRange.getLastRow();
-  let nameRange = priceSheet().getRange(8, 1, lastRow);
+  let nameRange = priceSheet().getRange(8, 1, lastRow-1);
   let names = nameRange.getValues();
   let nameFound = false;
   let transTotal = 0;
-  var priceRows = null; // Demand load: avgSheet().getRange(8, 4, lastRow-1).getValues(); // 4 == 'D'
+  var priceRows = null; // Demand load: priceSheet().getRange(8, 4, lastRow-1).getValues(); // 4 == 'D'
 
   // For values NOT on the price list, don't load unless needed.
   let sheetRange2 = priceSheet2().getDataRange();
-  let nameRange2 = priceSheet2().getRange(2, 1, lastRow);
+  let lastRow2 = sheetRange2.getLastRow();
+  let nameRange2 = priceSheet2().getRange(2, 1, lastRow2-1);
   let names2 = null;
+  var priceRows2 = null; // Demand load: priceSheet2().getRange(2, 4, lastRow-1).getValues(); // 4 == 'D'
   
   // Filter here: Quran scripts have diff names in the browser vs the API,
   // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
@@ -531,11 +534,16 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         let compareWord = names2[j].toString().trim();
         if (searchWord == compareWord) {
             nameFound = true;
-            let price = priceSheet().getRange(j+2, 4).getValue();
-            array[i].price = price * opt_markdown; 
-            array[i].total = price * array[i].qty; 
-            transTotal += price * array[i].qty;
-            log('Found match, price = ' + price);
+            if (!priceRows2) {priceRows2 = priceSheet2().getRange(2, 4, lastRow2-1).getValues();}
+            let price2 = priceRows2[j];
+            // let price = priceSheet().getRange(j+2, 4).getValue();
+            array[i].price = price2 * opt_markdown; 
+            array[i].total = array[i].price * array[i].qty; 
+            transTotal += array[i].total;
+            log('Found match for ' + searchWord + ',\nPrice = ' + price2 + 
+            '\nMarkdown = ' + opt_markdown + 
+            '\nCalculated Price = ' +  array[i].price + ' each.\nTotal for items (' + 
+            array[i].qty + ') is ' + array[i].total);
             break;
           }
       }
@@ -710,6 +718,7 @@ function logTransaction(array) {
   // Data
   myLogger('logTransaction: checking ' + array.length + ' items.');
   let counter = 0;
+  profile();
   for (let i = 0; i < array.length; i++) {
     values = [[array[i].name, 
                array[i].qty, 
@@ -732,6 +741,7 @@ function logTransaction(array) {
     }
     itemsInserted++;
   }
+  profile();
   myLogger("Finished logging transaction - " + itemsInserted + ' items logged.');
   
   let newRange = 'A' + startRow + ':F' + (startRow + itemsInserted);
