@@ -66,6 +66,17 @@ function writeReceiptAsPDF() {
   
   //Delete the spreadsheet we created to export this range. 
   DriveApp.getFileById(destSpreadsheet.getId()).setTrashed(true);
+
+  launchOpenDialog(newFile);
+}
+
+function launchOpenDialog(file) {
+  let url = file.getUrl();
+  let name = file.getName();
+  let html=Utilities.formatString('The receipt has been generated as "%s" in the root of your Google Drive.<br><br>Right-click this link:<br><br><a href="%s">%s</a><br><br>and chose "Open Link in New Tab" to view.', name, url, name);
+
+  let ui=HtmlService.createHtmlOutput(html);
+  SpreadsheetApp.getUi().showModelessDialog(ui, "Xanet's Trade Helper");
 }
 
 function isEmptyRow(row){
