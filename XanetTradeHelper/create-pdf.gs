@@ -7,7 +7,8 @@ function writeReceiptAsPDF() {
   // Get the data you want to export. For us, A1:E<last row>, no blank rows.
   let lastRow = rgs.getLastRow();
   let rangeStr = 'A1:E' + lastRow;
-  let sourceValues = rgs.getRange(rangeStr).getValues();
+  let sourceRange = rgs.getRange(rangeStr);
+  let sourceValues = sourceRange.getValues();
 
   // Get the Drive folder you want to store your PDF to. 
   // Otherwise use root folder (if you dont mind about this)
@@ -26,6 +27,21 @@ function writeReceiptAsPDF() {
   // Copy data. The calls to 'flush()' are for my peace of mind, during debugging.
   let destRange = sheet2.getRange(rangeStr);
   destRange.setValues(sourceValues);
+
+  // Copy formatting
+  destRange.setTextStyles(sourceRange.getTextStyles());
+  destRange.setBackgrounds(sourceRange.getBackgrounds());
+  destRange.setFontColors(sourceRange.getFontColors());
+  destRange.setFontFamilies(sourceRange.getFontFamilies());
+  destRange.setFontLines(sourceRange.getFontLines());
+  destRange.setFontStyles(sourceRange.getFontStyles());
+  destRange.setFontWeights(sourceRange.getFontWeights());
+  destRange.setHorizontalAlignments(sourceRange.getHorizontalAlignments());
+  destRange.setNumberFormats(sourceRange.getNumberFormats());
+  destRange.setTextDirections(sourceRange.getTextDirections());
+  destRange.setTextRotations(sourceRange.getTextRotations());
+  destRange.setVerticalAlignments(sourceRange.getVerticalAlignments());
+  destRange.setWrapStrategies(sourceRange.getWrapStrategies());
   SpreadsheetApp.flush();
 
   // Remove blank rows
