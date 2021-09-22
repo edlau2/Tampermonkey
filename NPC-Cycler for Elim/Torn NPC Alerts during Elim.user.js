@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Alerts during Elim
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -94,9 +94,15 @@
                 }
                 // Notify if need be...
                 if (!notificationsDisabled) {
-                    let text = userName + ' is ready to attack! Life at:' + life.current + '/' + life.maximum + '!';
+                    let baseURL = 'https://www.torn.com/loader.php?sid=attack&user2ID=';
+                    let text = userName + "'s life at:" + life.current + '/' + life.maximum + "!";
                     log(text + ' ISSUING ALERT!');
-                    GM_notification ( {title: userName + ' is ready!', text: 'Low life: ' + life.current + '/' + life.maximum} );
+                    GM_notification ({title: GM_info.script.name,
+                                      text: text + '\nClick to attack!',
+                                      onlick: function(event) {
+                                          log('Notification event clicked! Opening new tab.');
+                                          window.open(baseURL + userID, '_blank');}
+                                     });
                     alert(text);
                     stopAlerts(true);
                 }
