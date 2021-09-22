@@ -30,7 +30,11 @@ const useSavedId = true;
 const ssID = "1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k";
 function getDocById() {
   if (useSavedId) {
+    try {
     return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
+    } catch(e) {
+      SpreadsheetApp.getUi().alert('An error ocurred opening the spreadsheet app. Did you run "setup" first?"');
+    }
   } else {
     return SpreadsheetApp.openById(ssID);
   }
@@ -44,6 +48,8 @@ var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property servi
 var itemsInserted = 0; // Count of logged entries
 
 // Global options
+// TBD: Turn this into an 'options' struct.
+// See 'loadScriptOptions()'
 var opt_detectDuplicates = false; // Prevent duplicate ID's from being logged.
 var opt_maxTransactions = 5; // Unrealistic value, set to maybe 200?
 var opt_consoleLogging = true; // true to enable logging (need to call myLogger() intead of myLogger())
@@ -52,6 +58,8 @@ var opt_useLocks = false; // true to lock processing path.
 var opt_logRemote = false; // true to log remote entries sent by the browser (not yet implemented)
 var opt_calcSetItemPrices = true; // Calculate sets automatically, item prices
 var opt_calcSetPointPrices = false; // Calculate sets automatically, point prices
+var opt_clearRunningAverages = false; // Check for rows to delete in Running Averages sheet
+var opt_markdown = 0.9; // Markdown for prices not in the list
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -139,6 +147,9 @@ function handleRequest(e) {
       // Running Averages and Data worksheets. (the call to logTransaction
       // writes it the Data worksheet).      
       let calcAvgs = (cmd == 'data') ? true : false; // Don't write avgs if just getting price info
+      profile();
+      if (calcAvgs && opt_clearRunningAverages) {cleanRunningAverages();}
+      profile();
       var totalCost = fillPrices(retArray, calcAvgs); // Also updates running averages (second param).
       
       myLogger('After filling prices: ' + JSON.stringify(retArray));
@@ -312,9 +323,12 @@ function provideResult(ev, XanetResult, retArray) {
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// Load script options
-/////////////////////////////////////////////////////////////////////////////
+/** 
+* Load script options
+*
+* TBD: Turn this into an 'options' struct.
+*
+**/
 
 function loadScriptOptions() {
   opt_detectDuplicates = optsSheet().getRange("B3").getValue();
@@ -324,7 +338,10 @@ function loadScriptOptions() {
   opt_logRemote = optsSheet().getRange("B7").getValue();
   opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
   opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
-  
+  opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
+  opt_markdown = Number(optsSheet().getRange("B11").getValue());
+
+  // TBD: Finish this - if a struct, one call!!!
   myLogger('Read options: detect dups = "' + opt_detectDuplicates +
            '" max Xactions = "' + opt_maxTransactions +
            '" console logging= "' + opt_consoleLogging + '"');
@@ -369,7 +386,7 @@ function isDuplicate(id) {
   var tradeIDs = idRange.getValues();
   for (let i = 0; i < tradeIDs.length; i++) {
     if (tradeIDs[i] == "") {continue;}
-    myLogger('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
+    //myLogger('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
     if (tradeIDs[i] == '' || isNaN(tradeIDs[i]) || !(Number(tradeIDs[i]) > 0)) {continue;}  
     if (id == tradeIDs[i]) {
       myLogger('ID match: "' + id + '" to "' + tradeIDs[i] + '" !!!');
@@ -415,16 +432,27 @@ function isDuplicate(id) {
 /////////////////////////////////////////////////////////////////////////////
 
 function fillPrices(array, updateAverages) { // A8:<last row>
+
+  // For values on the price list...
   let sheetRange = priceSheet().getDataRange();
-  let nameRange = priceSheet().getRange(8, 1, sheetRange.getLastRow());
+  let lastRow = sheetRange.getLastRow();
+  let nameRange = priceSheet().getRange(8, 1, lastRow);
   let names = nameRange.getValues();
   let nameFound = false;
   let transTotal = 0;
+  var priceRows = null; // Demand load: avgSheet().getRange(8, 4, lastRow-1).getValues(); // 4 == 'D'
+
+  // For values NOT on the price list, don't load unless needed.
+  let sheetRange2 = priceSheet2().getDataRange();
+  let nameRange2 = priceSheet2().getRange(2, 1, lastRow);
+  let names2 = null;
   
   // Filter here: Quran scripts have diff names in the browser vs the API,
   // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
-  // the Quran: Ibn Masud" in the API (and price sheet). 
+  // the Quran: Ibn Masud" in the API (and price sheet).
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
+    array[i].priceAskMe = false;
+    array[i].priceNotFound = false;
     var searchWord = array[i].name.trim();
     
     // Triggers the 'Quran' filter
@@ -442,6 +470,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     }
     
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
+      nameFound = false;
       if (names[j] == '') {break;}
       
       // Handle one of the Quran Scripts
@@ -463,31 +492,57 @@ function fillPrices(array, updateAverages) { // A8:<last row>
       if (nameFound) {
         // Found row - j + 8. Column is 4. Both are 1-indexed, not 0.
         // Will Pay price is col. 4,
-        let price = priceSheet().getRange(j+8, 4).getValue();
-        if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.
+        if (!priceRows) {priceRows = avgSheet().getRange(8, 4, lastRow-1).getValues();} // 4 == 'D'
+        let price = priceRows[j-8];
+        if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.  
+          array[i].priceAskMe = true;
           array[i].price = '0';
           array[i].total = '0';
           if (updateAverages) {
-            cleanRunningAverages(); // Check for rows to be cleared.
+            profile();
             updateRunningAverage(array[i]);
+            profile();
           }
           break;
         }
+        
         array[i].price = price; // Case 1.
         array[i].total = price * array[i].qty; 
         transTotal += price * array[i].qty;
         if (updateAverages) {
-          cleanRunningAverages(); // Check for rows to be cleared.
-          updateRunningAverage(array[i]);
+          profile();
+          updateRunningAverage(array[i]); // SLOW call
+          profile();
         }
         break;
       }
     } // End for loop, known name list.
-    if (!nameFound) { //case 3.
-      array[i].price = '-1';
-      array[i].total = '-1';
-    }
-    nameFound = false;
+
+    //case 3. Look up the market value in 'item list'
+    if (!nameFound) {
+      array[i].priceNotFound = true;
+      if (!names2) { // just do once.
+        names2 = nameRange2.getValues();
+      }
+
+      for (let j = 0; j < names2.length; j++) { // to compare to all known names. 
+        if (names[j] == '') {break;}
+        if (searchWord == names[j].toString().trim()) {
+            nameFound = true;
+            let price = priceSheet().getRange(j+2, 4).getValue();
+            array[i].price = price * opt_markdown; 
+            array[i].total = price * array[i].qty; 
+            transTotal += price * array[i].qty;
+            break;
+          }
+      }
+
+      // Worst case: not found anywhere
+      if (!nameFound) {
+        array[i].price = '-1';
+        array[i].total = '-1';
+      }
+    } // end !nameFound
   } // End for loop, grid name list
   return transTotal;
 }
@@ -521,13 +576,14 @@ function timenow() {
 function cleanRunningAverages() {
   let sheetRange = avgSheet().getDataRange();
   let rows = sheetRange.getLastRow();
+  let statusRows = avgSheet().getRange(2, 8, rows-1).getValues(); // 8 == 'H'
   
   for (let row = 2; row <= rows; row++) {
-    var status = avgSheet().getRange(row, 8).getValue(); // 8 == 'H'
+    let status = statusRows[row-2];
     if (status == '') { 
       let dataRange = avgSheet().getRange(row, 2, 1, 7);
       let values = [[0, timenow(), 0, 0, 0, 0, 'cleared']];
-      dataRange.setValues(values);            
+      dataRange.setValues(values);   
     }
   }
 }
@@ -540,15 +596,16 @@ function cleanRunningAverages() {
 //
 /////////////////////////////////////////////////////////////////////////////
 
+var names = null;
 function updateRunningAverage(item) {
   // Locate column (create range) in the 'Running Averages' sheet (avgSheet)
   // D:row is last price, E:row last qty. Running avg: (last price total + new price total)/(last qty + new qty)
   let sheetRange = avgSheet().getDataRange();
   let rows = sheetRange.getLastRow();
-  // let nameRange = avgSheet().getRange(3, 1, rows); // A3:end of column (last row)
-  // ^^ could use getValues() to get array of all values .. or get values cell by cell.
+  if (!names) {names = avgSheet().getRange(3, 1, rows-1).getValues();}
+
   for (let row = 3; row < rows; row++) {
-    let name = avgSheet().getRange(row, 1).getValue(); // Make visible to the debugger
+    let name = names[row-3].toString();
     if (item.name.trim() == name.trim()) {
       // Get a new range for just this item, covering the row.
       let itemRange = avgSheet().getRange(row, 2, 1, 7); 
@@ -665,11 +722,10 @@ function logTransaction(array) {
     // for color enumerations, or use RGB
     if (opt_colorDataCells == true) {
       let cells = datasheet().getRange('C' + row + ':F' + row);
-      if (array[i].price == '0' || array[i].price == '-1') {
-        cells.setBackground(array[i].price == '-1' ? 'red' : 'yellow');
-      } else {
-        cells.setBackground('lime');
-      }
+      let color = 'lime';
+      if (array[i].priceAskMe) {color = 'yellow';}
+      if (array[i].priceNotFound) {color = 'red';}
+      cells.setBackground(color);
     }
     itemsInserted++;
   }
@@ -715,6 +771,10 @@ function datasheet() {
 
 function priceSheet() {
   return getDocById().getSheetByName('Price Calc');
+}
+
+function priceSheet2() {
+  return getDocById().getSheetByName('item list');
 }
 
 function avgSheet() {
@@ -806,12 +866,12 @@ let str_parameters = '[{"command":"data"},{"id":"786444001","name":"Blood Bag : 
                             '{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]';
 
 
-var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
+var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': [ '' ] },
   contextPath: '',
-  parameter: { '[{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
+  parameter: { '[{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
   queryString: '',
   postData: 
-   { contents: [{"command":"data"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
+   { contents: [{"command":"data"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
      length: 373,
      name: 'postData',
      type: 'application/x-www-form-urlencoded' },
