@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Alerts during Elim
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Notify when multiple attackers start hitting an NPC
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -20,7 +20,9 @@
 
     // Variables that influence when alerts may be generated. Note that alerts aren't generated when on
     // an NPC attack page already (for that NPC); it's assumed you'll notice on your own!
-    const lifeThreshold = 3000;        // Triggers when [current life < (max life - threshold)], and [curr life > minAttackLife]
+    //
+    // Moved 'lifeThreshold' to the names array, the 'threshold' member
+    //const lifeThreshold = 3000;        // Triggers when [current life < (max life - threshold)], and [curr life > minAttackLife]
     const timeThreshold = 10;          // Seconds between API calls, one per NPC.
     const minAttackLife = 100000;      // Don't alert if current life not > this value. Not worth it.
     const allowWhenAbroad = false;     // true to allow when abroad, used for testing (see above).
@@ -43,11 +45,11 @@
 
     // Numeric ID's ==> name relationship (and other miscellany)
     // Is 'var', not 'const', so we can toggle 'enabled'
-    var names = {4: {name: 'Duke', enabled: true},
-                   15: {name: 'Leslie', enabled: true},
-                   19: {name: 'Jimmy', enabled: true},
-                   20: {name: 'Fernando', enabled: true},
-                   21: {name: 'Tiny', enabled: true},
+    var names = {4: {name: 'Duke', enabled: true, threshold: 10000},
+                   15: {name: 'Leslie', enabled: true, threshold: 10000},
+                   19: {name: 'Jimmy', enabled: true, threshold: 10000},
+                   20: {name: 'Fernando', enabled: true, threshold: 10000},
+                   21: {name: 'Tiny', enabled: true, threshold: 10000},
                   };
     var lastID = 4; // Last ID checked
 
@@ -76,6 +78,7 @@
         if (profile.error) {return handleError(responseText);}
 
         let userName = names[userID].name;
+        let userThreshold = names[userID].threshold;
         let status = profile.status;
         let life = profile.life;
 
@@ -84,7 +87,7 @@
         log('Life: ' + life.current + '/' + life.maximum);
 
         if (status.details.includes('Loot level IV') || status.details.includes('Loot level V')) {
-            if (life.current < (life.maximum - lifeThreshold) && life.current > minAttackLife) {
+            if (life.current < (life.maximum - userThreshold) && life.current > minAttackLife) {
                 // If already on this NPC's page, don't alert - just disable.
                 let queryString = window.location.search;
                 let urlParams = new URLSearchParams(queryString);
