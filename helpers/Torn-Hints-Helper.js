@@ -50,3 +50,44 @@ var temporaryHits = [{"name":"Epinephrine", "id": 463, "hint": "(Strength by 500
 
 // TBD: Add pepper spray, smoke grenade, flash grenade, tear gas, etc.
 
+///////////////////////////////////////////////////////////////////////////////////
+// Find items we care about (via our hint arrays) and add the hint
+// Takes a node list of <li>'s, and uses the format in the Items Lists
+// in Torn, to locate where text is displayed. Items are compared against
+// the supplied array of hints - three are supplied here. If a match id found,
+// by ID, the hint in the array is displayed to the right of the name/qty.
+///////////////////////////////////////////////////////////////////////////////////
+
+function fillHints(liList, searchArray) {
+    let hintsAdded = 0;
+
+    let xedxDiv = liList[0].parentNode.querySelector('.xedx-item-div');
+    if (validPointer(xedxDiv)) {return 0;}
+
+    console.log('Fill Hints, li list:', liList);
+    console.log('search array: ', searchArray);
+    for (let i = 0; i < liList.length; i++) {
+        let elemId = liList[i].getAttribute('data-item');
+        for (let j = 0; j < searchArray.length; j++) {
+            if (elemId == searchArray[j].id) {
+                let nameWrap = liList[i].querySelector("div.title-wrap > div > span.name-wrap");
+                if (validPointer(nameWrap)) {
+                    let span = document.createElement('span');
+                    span.innerText = searchArray[j].hint;
+                    nameWrap.append(span);
+                    hintsAdded++;
+                }
+            }
+        }
+    }
+
+    if (hintsAdded) {
+        log('Inserting hidden xedx <div>');
+        let div = document.createElement('div');
+        div.setAttribute("class", "xedx-item-div");
+        div.setAttribute("style", "display: none");
+        liList[0].parentNode.append(div);
+    }
+    return hintsAdded;
+}
+
