@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Torn Museum Sets Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Helps determine when museum sets are complete in Item pages
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
-// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/tinysort.js
+// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/tinysort.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
+// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -299,6 +301,7 @@
         }
     }
 
+    /*
     // This is in the helper library - remove once library uploaded
     function asCurrency(num) {
         var formatter = new Intl.NumberFormat('en-US', {
@@ -312,6 +315,7 @@
 
     return formatter.format(num);
     }
+    */
 
     // Header to display if we have full sets
     function displayFullSetHdr(count, pts) {
@@ -405,32 +409,37 @@
         // Iterate the item <lis>'s, highlight if in proper array of items that are in sets.
         observeOff();
         if (pageName == 'Flowers') {
-
-            // HIghlight set items and count complete sets
-            let ulDiv = $('#flowers-items')[0];
-            let liList = ulDiv.getElementsByTagName("li");
+            // Highlight set items and count complete sets
+            let liList = $('#flowers-items > li');
             if (!highlightList(liList, flowersInSet, flowerSetColor)) {return;}
             let fullFlowerSets = countCompleteSets(flowersInSet);
             console.log(GM_info.script.name + ": Complete flower sets: " + fullFlowerSets);
             sortUL($('#flowers-items > li'));
 
-           // Add LI's for missing items
-           if (!fullFlowerSets) {
-               removeFullSetHdr();
-               addMissingItems(ulDiv, flowersInSet);
-           } else {
-               removeAdditionalItemsList();
-               displayFullSetHdr(fullFlowerSets, flowersPtsPerSet);
-           }
+            // Add 'hints' - where to get items
+            let hints = fillHints(liList, flowerHints);
+            log('Added hints to ' + hints + ' items.');
+
+            // Add LI's for missing items
+            if (!fullFlowerSets) {
+                removeFullSetHdr();
+                addMissingItems(ulDiv, flowersInSet);
+            } else {
+                removeAdditionalItemsList();
+                displayFullSetHdr(fullFlowerSets, flowersPtsPerSet);
+            }
 
         } else if (pageName == 'Plushies') {
             // HIghlight set items and count complete sets
-            let ulDiv = $('#plushies-items')[0];
-            let liList = ulDiv.getElementsByTagName("li");
+            let liList = $('#plushies-items > li');
             if (!highlightList(liList, plushiesInSet, plushiesSetColor)) {return;}
             fullPlushieSets = countCompleteSets(plushiesInSet);
             log("Complete plushie sets: " + fullPlushieSets);
             sortUL($('#plushies-items > li'));
+
+            // Add 'hints' - where to get items
+            let hints = fillHints(liList, plushieHints);
+            log('Added hints to ' + hints + ' items.');
 
             // Add LI's for missing items
             if (!fullPlushieSets) {
