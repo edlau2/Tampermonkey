@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Museum Sets Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Helps determine when museum sets are complete in Item pages
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -218,7 +218,7 @@
         xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
         removeTTBlock();
         pageLoaded = true;
-        console.log(GM_info.script.name + ': handlePageLoaded.');
+        log('handlePageLoaded.');
         if (dataProcessed && !pageModified) {modifyPage(true);} // else will call from userQueryCB()/marketQueryCB()
         //if (!pageModified) {modifyPage(true);}
     }
@@ -229,7 +229,7 @@
 
     // Helper to highlight proper LI's, and track item amounts
     function highlightList(liList, searchArray, color) {
-        console.log(GM_info.script.name + ' Highlighting items, <li> is ' + liList.length + ' item(s) long.');
+        log('Highlighting items, <li> is ' + liList.length + ' item(s) long.');
         if (liList.length == 1) {
             console.log(GM_info.script.name + ' Re-calling modifyPage');
             pageModified = false;
@@ -274,11 +274,11 @@
 
     // Helper to add items which we don't own
     function addMissingItems(ulDiv, setArray) {
-        console.log(GM_info.script.name + ' Adding missing items.');
+        log('Adding missing items.');
         let hdrNode = document.getElementById(xedxHdrID);
         if (validPointer(hdrNode)) {return;} // Means we've done this already.
 
-        // Add a spearator, header (and UL for new LI's)
+        // Add a separator, header (and UL for new LI's)
         let mainItemsDiv = document.querySelector(mainItemsDivSelector);
         xedxSepNode = createElementFromHTML(sepDiv);
         xedxHdrNode = createElementFromHTML(requiredHdr);
@@ -325,7 +325,7 @@
         let fullSets = fullSetsHdr.replace('numberFullSets', count);
         let fullPts = fullSets.replace('numberFullPoints', count * pts);
         let ptsPrice = fullPts.replace('priceOfPoints', asCurrency(pointsPriceUnitCost));
-        console.log('displayFullSetHdr - points cost: "' + pointsPriceUnitCost + '"');
+        log('displayFullSetHdr - points cost: "' + pointsPriceUnitCost + '"');
         let output = ptsPrice.replace('totalPrice', asCurrency(count * pts * pointsPriceUnitCost));
 
         xedxHdrNode = createElementFromHTML(output);
@@ -335,14 +335,14 @@
 
     // Helper to remove above header(s) and items list
     function removeAdditionalItemsList() {
-        console.log(GM_info.script.name + 'Removing extra DOM from page.');
+        log('Removing extra DOM from page.');
         if (xedxSepNode) {xedxSepNode.remove();}
         let hdrNode = document.getElementById(xedxHdrID);
         if (hdrNode) {hdrNode.remove();}
     }
 
     function removeFullSetHdr() {
-        console.log(GM_info.script.name + 'Removing extra DOM from page.');
+        log('Removing extra DOM from page.');
         if (xedxSepNode) {xedxSepNode.remove();}
         let hdrNode = document.getElementById(xedxFullSetHdr);
         if (hdrNode) {hdrNode.remove();}
@@ -387,19 +387,19 @@
     //////////////////////////////////////////////////////////////////////
 
     function modifyPage(enableObserver) {
-        if (!enableObserver) {console.log(GM_info.script.name + ' detected page change.');}
+        if (!enableObserver) {log(' detected page change.');}
         if (pageModified) {return;}
         //$('#xedx-fullset-hdr').remove();
         removeFullSetHdr();
         removeAdditionalItemsList();
         removeTTBlock();
         pageModified = true;
-        console.log(GM_info.script.name + ' modifying page.');
+        log('modifying page.');
 
         // See what page we are on
         pageSpan = document.querySelector(pageSpanSelector);
         pageName = pageSpan.innerText;
-        console.log(GM_info.script.name + ": On page '" + pageName + "'");
+        log("On page '" + pageName + "'");
 
         // Highlight items that are in sets, if on an artifact page, flower page or plushie page.
         // Iterate the item <lis>'s, highlight if in proper array of items that are in sets.
@@ -429,7 +429,7 @@
             let liList = ulDiv.getElementsByTagName("li");
             if (!highlightList(liList, plushiesInSet, plushiesSetColor)) {return;}
             fullPlushieSets = countCompleteSets(plushiesInSet);
-            console.log(GM_info.script.name + ": Complete plushie sets: " + fullPlushieSets);
+            log("Complete plushie sets: " + fullPlushieSets);
             sortUL($('#plushies-items > li'));
 
             // Add LI's for missing items
@@ -482,6 +482,7 @@
 
     logScriptStart();
     validateApiKey();
+    versionCheck();
 
     // Call the Torn API for inventory info. (why do we do this??
     //xedx_TornUserQuery(null, 'inventory', userQueryCB);
