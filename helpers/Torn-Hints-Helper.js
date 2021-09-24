@@ -1,12 +1,13 @@
 // ==UserScript==
 // @exclude     *
 // @namespace   https://github.com/edlau2
+// @version     1.1
 // ==UserLibrary==
 // @name        Torn-Hints-Helper
 // @description 'Hints' placed in various places
 // @author      xedx [2100735]
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
-// @version     1.0
+// @do-I-need-this-version     1.0
 // @license     MIT
 // ==/UserLibrary==
 
@@ -43,7 +44,7 @@ var plushieHints = [{"name":"Jaguar Plushie", "id": 258, "hint": "(Mexico)"},
                    {"name":"Sheep Plushie", "id": 186, "hint": "(Torn)"},
                    {"name":"Stingray Plushie", "id": 618, "hint": "(Caymans)"}];
 
-var temporaryHits = [{"name":"Epinephrine", "id": 463, "hint": "(Strength by 500% for 120 secs)"},
+var temporaryHints = [{"name":"Epinephrine", "id": 463, "hint": "(Strength by 500% for 120 secs)"},
                      {"name":"Melatonin", "id": 464, "hint": "(Speed by 500% for 120 secs)"},
                      {"name":"Serotonin", "id": 465, "hint": "(Defense by 300% for 120 secs, life by 25%)"},
                      {"name":"Tyrosine", "id": 814, "hint": "(Dexterity by 500% for 120 seconds)"}];
