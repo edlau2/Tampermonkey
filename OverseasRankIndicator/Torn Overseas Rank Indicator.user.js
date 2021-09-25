@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.5
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php?page=people*
@@ -10,23 +10,38 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_listValues
+// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    var loggingEnabled = true;
+    const loggingEnabled = true;
+    var requestsPaused = false;
+    //const cacheMaxSecs = 3600 * 1000; //one hour in ms
+    //const cacheMaxSecs = 600 * 1000; // 10 min in ms
+    const cacheMaxSecs = 180 * 1000; // 3 min in ms
+    //const cacheMaxSecs = 60 * 1000; // 1 min in ms
 
     // Global cache of ID->Rank associations
-    var rank_cache = [{ID: 0, numeric_rank: 0}];
+    var rank_cache = [{ID: 0, numeric_rank: 0, access: 0}];
     function newCacheItem(ID, rank) {
-        return {ID: ID, numeric_rank: rank};
+        return {ID: ID, numeric_rank: rank, access: new Date().getTime()};
     }
 
     // Query profile information based on ID
-    function getRankFromId(ID, li) {
-        log("Querying Torn for rank, ID = " + ID);
+    function getRankFromId(ID, li, optMsg = null) {
+        log("Querying Torn for rank, ID = " + ID + 'Requests are ' + requestsPaused ? 'PAUSED' : 'ACTIVE');
+        if (optMsg) {log(optMsg)};
+        if (requestsPaused) {
+            log("Requests pause, can't make request. Try refreshing later.");
+            setTimeout(function(){
+                log('Queueing ' + ID + ' for later.');
+                getRankFromId(ID, li, "Requeud from previous pause!");}, 20000);
+            return;
+        }
         xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
     }
 
@@ -35,12 +50,23 @@
         log("updateUserLevelsCB = " + ID);
         if (jsonResp.error) {
             log('Error: ' + JSON.stringify(jsonResp.error));
+            if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                if (!requestsPaused) {setTimeout(function(){
+                    requestsPaused = false;
+                    log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
+                }
+                log(requestsPaused ? 'Requests already paused' : 'Pausing requests.');
+                requestsPaused = true;
+            }
             return handleError(responseText);
         }
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-        log("Caching rank: " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
-        rank_cache.push(newCacheItem(ID, numeric_rank));
-        updateLiWithRank(li, numeric_rank);
+        log("Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
+        let cacheObj = newCacheItem(ID, numeric_rank);
+        rank_cache.push(cacheObj);
+        log('Caching ID ' + ID + ' to storage.');
+        GM_setValue(ID, cacheObj);
+        if (validPointer(li)) {updateLiWithRank(li, numeric_rank);}
     }
 
     // Write to the UI
@@ -62,13 +88,58 @@
     function getCachedRankFromId(ID, li) {
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
-                log("Returning cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
+                log("Returning mem cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
                 updateLiWithRank(li, rank_cache[i].numeric_rank);
                 return rank_cache[i].numeric_rank;
             }
         }
+        // Not in mem cache - try storage
+        let cacheObj = GM_getValue(ID, undefined);
+        if (cacheObj != undefined) {
+            let now = new Date().getTime();
+            let accessed = cacheObj.access;
+            GM_setValue('LastCacheAccess', now);
+            if ((now - accessed) > cacheMaxSecs) {
+                log('Cache entry for ID ' + ID + ' expired, deleting.');
+                GM_deleteValue(ID);
+            }
+            cacheObj.access = now;
+            rank_cache.push(cacheObj);
+            log("Returning storage cached rank: " + ID + " ==> " + cacheObj.numeric_rank);
+            updateLiWithRank(li, rank_cache[i].numeric_rank);
+            return cacheObj.numeric_rank;
+        }
         log("didn't find " + ID + " in cache. Cache has " + rank_cache.length + " items.");
         return 0; // Not found!
+    }
+
+    // Write out some cache stats
+    function writeCacheStats() {
+        let now = new Date().getTime();
+        let lastAccess = GM_getValue('LastCacheAccess', 0);
+        let arrayOfKeys = GM_listValues();
+        log('Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
+            'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 3);
+    }
+
+    // Function to scan our storage cache and clear old entries
+    function clearStorageCache() {
+        let counter = 0;
+        let idArray = [];
+        let now = new Date().getTime();
+        let arrayOfKeys = GM_listValues();
+        GM_setValue('LastCacheAccess', now);
+        log("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + cacheMaxSecs/1000 + ' secs.');
+        for (let i = 0; i < arrayOfKeys.length; i++) {
+            let obj = GM_getValue(arrayOfKeys[i]);
+            if ((now - obj.access) > cacheMaxSecs) {idArray.push(arrayOfKeys[i]);}
+        }
+        for (let i = 0; i < idArray.length; i++) {
+            counter++;
+            log('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+            GM_deleteValue(idArray[i]);
+        }
+        log('Finished clearing cache, removed ' + counter + ' object.');
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -76,11 +147,11 @@
     // and getting the rank for each of the <li>'s in the <ul>.
     //////////////////////////////////////////////////////////////////////
 
-    function updateUserLevels() {
+    function updateUserLevels(optMsg=null) {
+        if (optMsg != null) {log('updateUserLevels: ' + optMsg);}
+        log('document.readyState: ' + document.readyState);
         log('Entering updateUserLevels, cache depth = ' + rank_cache.length);
-        //let ul = document.getElementsByClassName(ulRootClassName)[0];
-        //if (!validPointer(ul)) {return;}
-        let items = $('ul.' + ulRootClassName +  ' > li'); // Migrate to bounties, user lists, etc.
+        let items = $('ul.' + ulRootClassName +  ' > li');
         if (!validPointer(items)) {return;}
 
         log('detected ' + items.length + ' user entries');
@@ -104,7 +175,7 @@
                     // Only get rank if status is 'Okay' ...
                     if (statusSel.innerText == 'Okay') {
                         log('Querying rank for player ' + ID + ' ' + name + ' (i = ' + i + ')');
-                        getRankFromId(ID, li);
+                        getRankFromId(ID, li, 'call to getRankFromId from updateUserLevels: ' + optMsg);
                     } else {
                         log('player ' + ID + ', ' + name + ' status is ' + statusSel.innerText + ', skipping.');
                     }
@@ -133,31 +204,41 @@
     validateApiKey();
     versionCheck();
 
-    if (!abroad()) {
-        log('Not Abroad! Bailing...');
-        return;
-    }
+    try {
+        if (!abroad()) {
+            log('Not Abroad! Bailing...');
+            return;
+        }
 
-    window.addEventListener('hashchange', function() {
-            log('The hash has changed! new hash: ' + location.hash);
-            updateUserLevels();
-        }, false);
+        window.addEventListener('hashchange', function() { // Never gets hit, pages reload when abroad on pagination
+                log('The hash has changed! new hash: ' + location.hash);
+                updateUserLevels('Hash Change Detected!');
+            }, false);
 
-    //var contentRootName = "content";
-    var ulRootContainerName = 'travel-people';
-    var ulRootClassName = 'users-list';
-    var targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
-    var config = { attributes: true, childList: true, subtree: true };
-    var callback = function(mutationsList, observer) {
-        updateUserLevels();
-    };
+        // setInterval(writeCacheStats, 5000); // Debugging - check on cache.
+        setInterval(function() {
+            log('**** Performing interval driven cache clearing ****');
+            clearStorageCache();},
+                    (0.5*cacheMaxSecs)); // And at intervals, half max cache age.
 
-    var observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
+        //var contentRootName = "content";
+        var ulRootContainerName = 'travel-people';
+        var ulRootClassName = 'users-list';
+        var targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
+        var config = { attributes: true, childList: true, subtree: true };
+        var callback = function(mutationsList, observer) {
+            updateUserLevels('Mutation Observer!');
+        };
 
-    // If *already* loaded, go ahead...
-    if (document.readyState === 'complete') {
-        updateUserLevels();
+        var observer = new MutationObserver(callback);
+        observer.observe(targetNode, config);
+
+        // If *already* loaded, go ahead...
+        if (document.readyState === 'complete') {
+            updateUserLevels('Ready State Complete!');
+        }
+    } catch(e) {
+        console.log('Error:', e);
     }
 
 })();
