@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn User List Extender v2
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
@@ -131,8 +131,8 @@
         debug('getRankFromId: ID ' + ID + ' classList: ' + li.classList);
 
         if (opt_disabled) {
-            log('Script disabled - ignoring (clearing filters first).');
-            updateLiWithRank(li, null);
+            log('Script disabled - ignoring.');
+            //updateLiWithRank(li, null);
             return;
         }
 
@@ -154,13 +154,13 @@
     function updateUserLevelsCB(responseText, ID, li) {
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
-            debug('updateUserLevelsCB: error:', jsonResp.error);
+            if (!opt_disabled) {console.log('updateUserLevelsCB: error:', jsonResp.error);}
             if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
                 if (!opt_disabled) {setTimeout(function(){
                     disableScript(false);
                     log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
                 }
-                log(opt_disabled ? 'Requests already paused' : 'Pausing requests.');
+                if (!opt_disabled) {log('Pausing requests.');}
                 opt_disabled = true;
             }
             return handleError(responseText);
@@ -180,6 +180,7 @@
     //////////////////////////////////////////////////////////////////////
 
     function getCachedRankFromId(ID, li) {
+        log('Looking for ID ' + ID + ' in cache...');
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
                 debug("Returning mem cached rank: " + ID + "(" +  rank_cache[i]. name + ") ==> " +  rank_cache[i].numeric_rank);
@@ -245,8 +246,9 @@
     function updateLiWithRank(li, cache_item) {
         // Run through our filter
         li.classList.remove('xedx_hidden');
-        if (opt_disabled || !cache_item) {
-            log('Script disabled - not filtering.');
+
+        if (!cache_item) {
+            log('Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item + ' disabled: ' + opt_disabled);
             return;
         }
 
@@ -271,7 +273,7 @@
         }
     }
 
-    // Filter to cull out those we're not intrested in
+    // Filter to cull out those we're not interested in
     function filterUser(li, ci) {
         debug('Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
         if (opt_showcaymans && ci.state != 'Traveling') {
