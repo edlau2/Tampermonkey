@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn User List Extender v2
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
@@ -13,6 +13,8 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_listValues
+// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -107,8 +109,13 @@
     var rank_cache = [];
     function newCacheItem(ID, obj) {
         let rank = numericRankFromFullRank(obj.rank);
-        return {ID: ID, numeric_rank: rank, name: obj.name, state: obj.status.state, description: obj.status.description};
+        return {ID: ID, numeric_rank: rank, name: obj.name, state: obj.status.state, description: obj.status.description, access: new Date().getTime()};
     }
+
+    //const cacheMaxSecs = 3600 * 1000; // one hour in ms
+    const cacheMaxSecs = 1800 * 1000; // 30 min in ms
+    //const cacheMaxSecs = 180 * 1000; // 3 min in ms
+    //const cacheMaxSecs = 60 * 1000; // 1 min in ms
 
     // TRUE if TornTools filtering is in play
     var ttInstalled = false;
@@ -147,15 +154,24 @@
     function updateUserLevelsCB(responseText, ID, li) {
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
-            debug('updateUserLevelsCB: error.');
-            disableScript();
+            debug('updateUserLevelsCB: error:', jsonResp.error);
+            if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                if (!opt_disabled) {setTimeout(function(){
+                    disableScript(false);
+                    log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
+                }
+                log(opt_disabled ? 'Requests already paused' : 'Pausing requests.');
+                opt_disabled = true;
+            }
             return handleError(responseText);
         }
 
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
         let cache_item = newCacheItem(ID, jsonResp);
-        debug("Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
+        debug("Caching rank to mem: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
         rank_cache.push(cache_item);
+        log('Caching ID ' + ID + ' to storage.');
+        GM_setValue(ID, cache_item);
         updateLiWithRank(li, cache_item);
     }
 
@@ -166,15 +182,59 @@
     function getCachedRankFromId(ID, li) {
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
-                debug("Returning cached rank: " + ID + "(" +  rank_cache[i]. name + ") ==> " +  rank_cache[i].numeric_rank);
+                debug("Returning mem cached rank: " + ID + "(" +  rank_cache[i]. name + ") ==> " +  rank_cache[i].numeric_rank);
                 updateLiWithRank(li, rank_cache[i]);
                 return rank_cache[i].numeric_rank;
             }
+        }
+        // Not in mem cache - try storage
+        let cacheObj = GM_getValue(ID, undefined);
+        if (cacheObj != undefined) {
+            let now = new Date().getTime();
+            let accessed = cacheObj.access;
+            GM_setValue('LastCacheAccess', now);
+            if ((now - accessed) > cacheMaxSecs) {
+                log('Cache entry for ID ' + ID + ' expired, deleting.');
+                GM_deleteValue(ID);
+            }
+            cacheObj.access = now;
+            rank_cache.push(cacheObj);
+            log("Returning storage cached rank: " + ID + " ==> " + cacheObj.numeric_rank);
+            updateLiWithRank(li, cacheObj);
+            return cacheObj.numeric_rank;
         }
         debug("didn't find " + ID + " in cache.");
         return 0; // Not found!
     }
 
+    // Write out some cache stats
+    function writeCacheStats() {
+        let now = new Date().getTime();
+        let lastAccess = GM_getValue('LastCacheAccess', 0);
+        let arrayOfKeys = GM_listValues();
+        log('Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
+            'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 9);
+    }
+
+    // Function to scan our storage cache and clear old entries
+    function clearStorageCache() {
+        let counter = 0;
+        let idArray = [];
+        let now = new Date().getTime();
+        let arrayOfKeys = GM_listValues();
+        GM_setValue('LastCacheAccess', now);
+        log("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + cacheMaxSecs/1000 + ' secs.');
+        for (let i = 0; i < arrayOfKeys.length; i++) {
+            let obj = GM_getValue(arrayOfKeys[i]);
+            if ((now - obj.access) > cacheMaxSecs) {idArray.push(arrayOfKeys[i]);}
+        }
+        for (let i = 0; i < idArray.length; i++) {
+            counter++;
+            log('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+            GM_deleteValue(idArray[i]);
+        }
+        log('Finished clearing cache, removed ' + counter + ' object.');
+    }
 
     //////////////////////////////////////////////////////////////////////
     // This actually updates the UI - it finds the rank associated
@@ -299,10 +359,10 @@
     }
 
     // Disable the script
-    function disableScript() {
-        opt_disabled = true;
+    function disableScript(disabled=true) {
+        opt_disabled = disabled;
         GM_setValue("opt_disabled", opt_disabled);
-        $("#xedx-disabled-opt")[0].checked = true;
+        $("#xedx-disabled-opt")[0].checked = disabled;
         indicateActive();
     }
 
@@ -405,18 +465,13 @@
         }
     }
 
-    // Function to display cache contents
+    // Function to display cache contents TBD: Add storage cache
     function displayCache() {
         debug('displayCache');
         // var rank_cache = [{ID: 0, numeric_rank: 0, name: '', state: '', description: ''}];
-        var output = 'Cached Users:\n\n';
+        var output = 'Mem Cached Users:\n\n';
         let rc = rank_cache;
         for (let i = 0; i < rc.length; i++) {
-            /*
-            output += 'Name: "' + rc[i].name + '" Rank: "' + rc[i].numeric_rank +
-                '" State: "' + rc[i].state + '" Desc: "' + rc[i].description + '"\n';
-            */
-
             output += 'Name: "' + rc[i].name + '" Rank: "' + rc[i].numeric_rank +
                 '" State: "' + rc[i].state + '"\n';
         }
@@ -560,6 +615,13 @@
 
     validateApiKey();
     logScriptStart();
+    versionCheck();
+
+    // setInterval(writeCacheStats, 5000); // Debugging - check on cache.
+        setInterval(function() {
+            log('**** Performing interval driven cache clearing ****');
+            clearStorageCache();},
+                    (0.5*cacheMaxSecs)); // Check for expired cache entries at intervals, half max cache age.
 
     mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
     addDarkModeObserver();
