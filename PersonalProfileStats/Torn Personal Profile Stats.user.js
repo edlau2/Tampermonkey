@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -13,12 +13,6 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-// Note: the approach used is described here:
-// https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
-
-
-// TBD: Check for new LI's FIRST, before the API call.
-
 (function() {
     'use strict';
 
@@ -29,7 +23,6 @@
 
     // From: https://wiki.torn.com/wiki/Ranks
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
-    //
     // These are from: https://www.tornstats.com/awards.php
     const estimatedStats = [
         "under 2k",
@@ -67,7 +60,7 @@
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
-        log('Peronal stats: ', jsonResp);
+        if (loggingEnabled) {console.log(GM_info.script.name + 'Personal stats: ', jsonResp);}
 
         // Add NW
         addNetWorthToProfile(jsonResp.personalstats.networth);
@@ -84,7 +77,7 @@
         addNumericRank();
     }
 
-    // Create the <li>, add to the profile page
+    // Create the bat stats <li>, add to the profile page
     function addBatStatsToProfile() {
         log('Adding estimated bat stats to profile.');
         let testDiv = document.getElementById(batStatLi);
@@ -103,6 +96,7 @@
     //
     // This calculation taken from:
     //    https://www.torn.com/forums.php#/p=threads&f=61&t=16065473&b=0&a=0
+    //
     // and DeKleineKobini's 'dekleinekobini.statestimate' from:
     //    https://www.tornstats.com/awards.php
     ////////////////////////////////////////////////////////////////////
@@ -114,7 +108,7 @@
         for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
         for (let nw in nwTriggers) {if (nwTriggers[nw] <= userNW) trNetworth++;}
 
-        let statLevel = userRank - trLevel - trCrime - trNetworth - 1;
+        let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
 
         log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + estimated);
@@ -194,7 +188,6 @@
                     rank.removeAttribute(rank.attributes[0].name);
                 }
                 rank.setAttribute(ranks[i][2], ranks[i][3]);
-                //rank.innerHTML = ranks[i][1] + ' (' + (i+1) +')';
                 rank.innerHTML = ranks[i][1] + ' (' + i +')';
                 return;
             }
@@ -215,7 +208,7 @@
     validateApiKey();
     versionCheck();
 
-    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    // Delay until DOM content load (not full page) complete
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', handlePageLoaded);
     } else {
