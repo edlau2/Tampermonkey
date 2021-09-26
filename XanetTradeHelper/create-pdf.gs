@@ -7,6 +7,8 @@ function writeReceiptAsPDF() {
   // Get the data you want to export. For us, A1:E<last row>, no blank rows.
   let lastRow = rgs.getLastRow();
   let rangeStr = 'A1:E' + lastRow;
+  let tidRangeStr = 'C3';
+  let totalRangeStr = 'B3';
   let sourceRange = rgs.getRange(rangeStr);
   let sourceValues = sourceRange.getValues();
 
@@ -47,22 +49,26 @@ function writeReceiptAsPDF() {
   for (let i = 1; i <= lastRow; i++) {sheet2.setRowHeight(i, rgs.getRowHeight(i));}
   for (let i = 1; i <= 5; i++) {sheet2.setColumnWidth(i, rgs.getColumnWidth(i));}
 
-  SpreadsheetApp.flush();
+  // Individually copy over trade ID and total price, they don't copy for some reason
+  //sheet2.getRange(totalRangeStr).setValue(rgs.getRange(totalRangeStr).getValue());
+  //sheet2.getRange(tidRangeStr).setValue(rgs.getRange(tidRangeStr).getValue());
+  //SpreadsheetApp.flush();
+  sheet2.getRange(tidRangeStr).setNumberFormat("############");
 
   // Remove blank rows
   removeEmptyLines(sheet2);
+
   SpreadsheetApp.flush();
-  
   // Hide all the rows and columns that do not have content 
   let endRow = sheet2.getLastRow()+1, numRow = sheet2.getMaxRows()-sheet2.getLastRow();
-  if (numRow > 0) {sheet2.hideRows(sheet2.getLastRow()+1, sheet2.getMaxRows()-sheet2.getLastRow());}
+  if (numRow > 0) {sheet2.hideRows(endRow, numRow);}
   
   let endCol = sheet2.getLastColumn()+1, numCol = sheet2.getMaxColumns()-sheet2.getLastColumn();
   if (numCol > 0) {
     if (numCol > 1) {sheet2.hideColumn(sheet2.getRange("A1"));}
-    sheet2.hideColumns(sheet2.getLastColumn()+1, sheet2.getMaxColumns()-sheet2.getLastColumn());
+    sheet2.hideColumns(endCol, numCol);
     }
-  
+
   SpreadsheetApp.flush();
 
   // Delete the first sheet that is automatically created when you create a new spreadsheet
