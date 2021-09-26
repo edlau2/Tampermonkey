@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Estimator
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Estimates a user's battle stats and adds to the user's profile page
 // @author       xedx [2100735]
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/BatStatEst/Torn%20Bat%20Stat%20Estimator.user.js
@@ -109,7 +109,7 @@
             if (nwTriggers[nw] <= userNW) trNetworth++;
         }
 
-        let statLevel = userRank - trLevel - trCrime - trNetworth - 1;
+        let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
 
         console.log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + estimated);
