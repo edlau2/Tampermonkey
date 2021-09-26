@@ -42,6 +42,11 @@ function writeReceiptAsPDF() {
   destRange.setTextRotations(sourceRange.getTextRotations());
   destRange.setVerticalAlignments(sourceRange.getVerticalAlignments());
   destRange.setWrapStrategies(sourceRange.getWrapStrategies());
+
+  // Set width and height of columns and rows
+  for (let i = 1; i <= lastRow; i++) {sheet2.setRowHeight(i, rgs.getRowHeight(i));}
+  for (let i = 1; i <= 5; i++) {sheet2.setColumnWidth(i, rgs.getColumnWidth(i));}
+
   SpreadsheetApp.flush();
 
   // Remove blank rows
@@ -53,7 +58,10 @@ function writeReceiptAsPDF() {
   if (numRow > 0) {sheet2.hideRows(sheet2.getLastRow()+1, sheet2.getMaxRows()-sheet2.getLastRow());}
   
   let endCol = sheet2.getLastColumn()+1, numCol = sheet2.getMaxColumns()-sheet2.getLastColumn();
-  if (numCol > 0) {sheet2.hideColumns(sheet2.getLastColumn()+1, sheet2.getMaxColumns()-sheet2.getLastColumn());}
+  if (numCol > 0) {
+    if (numCol > 1) {sheet2.hideColumn(sheet2.getRange("A1"));}
+    sheet2.hideColumns(sheet2.getLastColumn()+1, sheet2.getMaxColumns()-sheet2.getLastColumn());
+    }
   
   SpreadsheetApp.flush();
 
