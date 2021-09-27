@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.2';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.3';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -444,6 +444,9 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     array[i].priceAskMe = false;
     array[i].priceNotFound = false;
     let searchWord = array[i].name.trim();
+
+    // If I had suspected there would be so many 'mappings', I would have made some 
+    // sort of table (or map) :-)
     
     // Trigger the 'Quran' filter
     let isQuran = false;
@@ -468,8 +471,13 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     if (searchWord.indexOf('Bottle of Sak') != -1) {isSake = true;}
 
     // Trigger for 'ArmaLite M-15A4 Rifle'
-    isArma = false;
+    let isArma = false;
     if (searchWord.indexOf('ArmaLite M-15A4') != -1) {isArma = true;}
+
+    // ...and Windproof Lighter
+    let isWPL = false;
+    if (searchWord.indexOf('Lighter') != -1) {isWPL = true;}
+
 
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
       nameFound = false;
@@ -491,9 +499,9 @@ function fillPrices(array, updateAverages) { // A8:<last row>
       } else if (isArma) {
         if (priceListWord.includes('M-15A4')) {nameFound = true;}
       } else if (isGameConsole) {
-        if (priceListWord == 'Playstation' || priceListWord == 'Game Console') {
-          nameFound = true;
-        }
+        if (priceListWord == 'Playstation' || priceListWord == 'Game Console') {nameFound = true;}
+      } else if (isWPL) {
+        if (priceListWord.includes('Lighter')) {nameFound = true;}
       } else if (searchWord == priceListWord) { // Handle everything else
           nameFound = true;
       }
