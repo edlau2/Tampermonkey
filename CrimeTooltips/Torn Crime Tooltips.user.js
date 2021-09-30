@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -21,7 +21,7 @@
     'use strict';
 
     // Globals
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
     loggingEnabled = true;
 
 
@@ -118,7 +118,7 @@
 
     function dispIllegalProductsTT(li, crimes) {
         debug('dispIllegalProductsTT');
-        var text = '<B>Illegal Products (Bottlegging):</B>' + CRLF + TAB + 'Sell Copied Media' + CRLF + CRLF;
+        var text = '<B>Illegal Products (Bottlegging):</B>' + CRLF + TAB + 'Sell Copied Media (3 nerve), Arms Trafficking (16 nerve)' + CRLF + CRLF;
         text = text + 'Honor Bar at 5,000: <B>\"Civil Offence\",</B> ' + getPctForLi(li, 5000);
 
         displayToolTip(li, text);
@@ -127,7 +127,7 @@
     function dispTheftTT(li, thefts) {
         var text = '<B>Theft:</B>' + CRLF +
             TAB + 'Shoplift, Pickpocket Someone, Larceny,' + CRLF + TAB + 'Armed Robberies, Kidnapping' + CRLF + CRLF;
-        text = text + 'Honor Bars at:' + CRLF +
+            text = text + 'Honor Bars at:' + CRLF +
             TAB + '1,000: <B>\"Candy Man\",</B> ' + getPctForLi(li, 1000) + CRLF +
             TAB + '2,500: <B>\"Smile You\'re On Camera\",</B> ' + getPctForLi(li, 2500) + CRLF +
             TAB + '5,000: <B>\"Smokin\' Barrels\",</B> ' + getPctForLi(li, 5000) + CRLF +
