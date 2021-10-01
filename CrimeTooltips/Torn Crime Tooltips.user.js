@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -136,17 +136,17 @@
 
         debug('dispTheftTT, thefts = ' + thefts);
         var text2 = 'Medals at: <B>' +
-            ((thefts > 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((thefts > 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((thefts > 5000) ? '<font color=green>5000, </font></B>' : '<font color=red>5000, </font>') +
-            ((thefts > 7500) ? '<font color=green>7500, </font></B>' : '<font color=red>7500, </font>') +
-            ((thefts > 10000) ? '<font color=green>10000, </font></B>' : '<font color=red>10000, </font>') +
-            ((thefts > 12500) ? '<font color=green>12500, </font></B>' : '<font color=red>12500, </font>') +
-            ((thefts > 15000) ? '<font color=green>15000, </font></B>' : '<font color=red>15000, </font>') +
-            ((thefts > 17500) ? '<font color=green>17500, </font></B>' : '<font color=red>17500, </font>') +
-            ((thefts > 20000) ? '<font color=green>20000, </font></B>' : '<font color=red>20000, </font>') +
-            ((thefts > 22500) ? '<font color=green>22500, </font></B>' : '<font color=red>22500, </font>') +
-            ((thefts > 25000) ? '<font color=green>25000</font></B>' : '<font color=red>25000</font></B>');
+            ((thefts >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
+            ((thefts >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
+            ((thefts >= 5000) ? '<font color=green>5000, </font></B>' : '<font color=red>5000, </font>') +
+            ((thefts >= 7500) ? '<font color=green>7500, </font></B>' : '<font color=red>7500, </font>') +
+            ((thefts >= 10000) ? '<font color=green>10000, </font></B>' : '<font color=red>10000, </font>') +
+            ((thefts >= 12500) ? '<font color=green>12500, </font></B>' : '<font color=red>12500, </font>') +
+            ((thefts >= 15000) ? '<font color=green>15000, </font></B>' : '<font color=red>15000, </font>') +
+            ((thefts >= 17500) ? '<font color=green>17500, </font></B>' : '<font color=red>17500, </font>') +
+            ((thefts >= 20000) ? '<font color=green>20000, </font></B>' : '<font color=red>20000, </font>') +
+            ((thefts >= 22500) ? '<font color=green>22500, </font></B>' : '<font color=red>22500, </font>') +
+            ((thefts >= 25000) ? '<font color=green>25000</font></B>' : '<font color=red>25000</font></B>');
 
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
@@ -157,21 +157,21 @@
 
         debug('dispAutoTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
-            ((crimes > 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
-            ((crimes > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes > 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((crimes > 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((crimes > 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
-            ((crimes > 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes > 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
-            ((crimes > 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((crimes > 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
-            ((crimes > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes > 6500) ? '<font color=green>6500, </font>' : '<font color=red>6500, </font>') +
-            ((crimes > 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((crimes > 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes > 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((crimes > 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
+            ((crimes >= 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
+            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
+            ((crimes >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
+            ((crimes >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
+            ((crimes >= 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
+            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
+            ((crimes >= 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
+            ((crimes >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
+            ((crimes >= 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
+            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((crimes >= 6500) ? '<font color=green>6500, </font>' : '<font color=red>6500, </font>') +
+            ((crimes >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
+            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
+            ((crimes >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
+            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
 
         displayToolTip(li, text + CRLF + CRLF + text2);
@@ -183,14 +183,14 @@
 
         debug('dispDrugTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
-            ((crimes > 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
-            ((crimes > 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
-            ((crimes > 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((crimes > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes > 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes > 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes > 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
+            ((crimes >= 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
+            ((crimes >= 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
+            ((crimes >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
+            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
+            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
+            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
+            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
@@ -202,20 +202,20 @@
 
         debug('dispComputerTT, crimes = ' + crimes);
         var text2 = 'Medals at: <B>' +
-            ((crimes > 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
-            ((crimes > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes > 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((crimes > 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((crimes > 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
-            ((crimes > 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes > 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
-            ((crimes > 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((crimes > 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
-            ((crimes > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes > 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((crimes > 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes > 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((crimes > 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
+            ((crimes >= 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
+            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
+            ((crimes >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
+            ((crimes >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
+            ((crimes >= 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
+            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
+            ((crimes >= 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
+            ((crimes >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
+            ((crimes >= 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
+            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((crimes >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
+            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
+            ((crimes >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
+            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
@@ -226,16 +226,16 @@
 
         debug('dispMurderTT, crimes = ' + frauds);
         var text2 = 'Medals at: <B>' +
-            ((frauds > 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((frauds > 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((frauds > 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((frauds > 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((frauds > 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((frauds > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((frauds > 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((frauds > 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((frauds > 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((frauds > 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
+            ((frauds >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
+            ((frauds >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
+            ((frauds >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
+            ((frauds >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
+            ((frauds >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
+            ((frauds >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((frauds >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
+            ((frauds >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
+            ((frauds >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
+            ((frauds >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
@@ -247,11 +247,11 @@
 
         debug('dispFraudTT, crimes = ' + frauds);
         var text2 = 'Medals at: <B>' +
-            ((frauds > 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((frauds > 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((frauds > 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((frauds > 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((frauds > 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
+            ((frauds >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((frauds >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
+            ((frauds >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
+            ((frauds >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
+            ((frauds >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
         displayToolTip(li, text + CRLF + CRLF + text2);
     }
