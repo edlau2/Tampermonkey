@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.3';
+var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.4';
 function getVersion() {
   return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
@@ -445,67 +445,22 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     array[i].priceNotFound = false;
     let searchWord = array[i].name.trim();
 
-    // If I had suspected there would be so many 'mappings', I would have made some 
-    // sort of table (or map) :-)
-    
-    // Trigger the 'Quran' filter
-    let isQuran = false;
-    if (array[i].name.indexOf('Quran') != -1) {isQuran = true;}
-
-    // Special for "Game Console"
-    let isGameConsole = false;
-    if (searchWord == 'Game Console') {isGameConsole = true;}
-    
     // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
     if ((array[i].name.toString()).indexOf('Blood Bag') != -1) {
       let test = (array[i].name.toString()).replace('AP', 'A+');
-      array[i].name = (array[i].name.toString()).replace('AP', 'A+').toString();
-      array[i].name = (array[i].name.toString()).replace('BP', 'B+').toString();
-      array[i].name = (array[i].name.toString()).replace('OP', 'O+').toString();
-      array[i].name = (array[i].name.toString()).replace('ABP', 'AB+').toString();
+      array[i].name = searchWord.replace('AP', 'A+').toString();
+      array[i].name = searchWord.replace('BP', 'B+').toString();
+      array[i].name = searchWord.replace('OP', 'O+').toString();
+      array[i].name = searchWord.replace('ABP', 'AB+').toString();
       searchWord = array[i].name;
     }
-
-    // Trigger for the 'Bottle of Sake' filter
-    let isSake = false;
-    if (searchWord.indexOf('Bottle of Sak') != -1) {isSake = true;}
-
-    // Trigger for 'ArmaLite M-15A4 Rifle'
-    let isArma = false;
-    if (searchWord.indexOf('ArmaLite M-15A4') != -1) {isArma = true;}
-
-    // ...and Windproof Lighter
-    let isWPL = false;
-    if (searchWord.indexOf('Lighter') != -1) {isWPL = true;}
-
 
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
       nameFound = false;
       if (names[j] == '') {break;}
       let priceListWord = names[j].toString().trim();
           
-      if (isQuran) { // Handle one of the Quran Scripts
-        if (names[j].toString().includes('Quran')) {
-          let parts = names[j].toString().split(':');
-          if (parts[1] != null && parts[1] != undefined && parts[1] != '') {
-            searchWord = parts[1].trim();
-            if (names[j].toString().includes(searchWord)) {
-              nameFound = true;
-            }
-          }
-        }
-      } else if (isSake) { // Handle Bottle of Sake
-        if (priceListWord.includes('Bottle of Sak')) {nameFound = true;}
-      } else if (isArma) {
-        if (priceListWord.includes('M-15A4')) {nameFound = true;}
-      } else if (isGameConsole) {
-        if (priceListWord == 'Playstation' || priceListWord == 'Game Console') {nameFound = true;}
-      } else if (isWPL) {
-        if (priceListWord.includes('Lighter')) {nameFound = true;}
-      } else if (searchWord == priceListWord) { // Handle everything else
-          nameFound = true;
-      }
-      
+      nameFound = (searchWord == priceListWord);
       if (nameFound) {
         // Found row - j + 8. Column is 4. Both are 1-indexed, not 0.
         // Will Pay price is col. 4,
