@@ -89,7 +89,7 @@ This script combines what was previously three separate scripts. On a person's P
 Images:
 
 ![SampleFlowerSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SampleFlowerSets.png)
-![SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/SamplePlushieSets.png)
+![SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SamplePlushieSets.png)
 
 This script displays on your Iteems pages the number of full sets, if any, you have collected and if not, what items are missing.
 
