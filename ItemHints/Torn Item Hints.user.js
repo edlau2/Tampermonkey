@@ -6,8 +6,8 @@
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
-// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
+// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
