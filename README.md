@@ -55,8 +55,8 @@ Note that the PNG files are not part of the installation, they are simple screen
 
 Images:
 
-- [SS-Sample-collapsed.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-collapsed.png)
-- [SS-Sample-expanded.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-expanded.png)
+![SS-Sample-collapsed.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-collapsed.png)
+![SS-Sample-expanded.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-expanded.png)
 
 This script displays your current Weapons Experience in a table or spreadsheet format, as well as finishing hits for each category. I used it to cut and paste the table as an image onto my profile page while merit hunting those two merits, 'Specialized' and 'War Machine'. The table is in a dropdown DIV on the page. The first sample image shows it collapsed (not visible), the arrow on the DIV's header expands it, that is visible in the second sample image.
 
@@ -66,8 +66,8 @@ This script displays your current Weapons Experience in a table or spreadsheet f
 
 Images:
 
-- [WeaponExperienceSample.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample.png)
-- [WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample2.png)
+![WeaponExperienceSample.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample.png)
+![WeaponExperienceSample2.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/WeaponExperienceSample2.png)
 
 This script displays your current Weapons Experience on the Items pages, for Primary, Secondary, Melee and Temporary weapons, alongside each weapon, before the damage and accuracy stats.
 
@@ -77,8 +77,8 @@ This script displays your current Weapons Experience on the Items pages, for Pri
 
 Images:
 
-- [Numeric Rank](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Numeric%20Rank%20Display.png)
-- [Bat Stats and NetWorth](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Bat%20Stat%20Estimator-horokeu.png)
+![Numeric Rank](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Numeric%20Rank%20Display.png)
+![Bat Stats and NetWorth](https://github.com/edlau2/Tampermonkey/blob/master/PersonalProfileStats/Torn%20Bat%20Stat%20Estimator-horokeu.png)
 
 This script combines what was previously three separate scripts. On a person's Profile page, it display the numeric equivalent of their rank, their net worth, and their estimated bat stats. This replaces the 'Torn Bat Stat Estimator', 'Torn Numeric Rank Display', and 'Torn Net Woth Display' scripts.
 
@@ -88,8 +88,8 @@ This script combines what was previously three separate scripts. On a person's P
 
 Images:
 
-- [SampleFlowerSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SampleFlowerSets.png)
-- [SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/SamplePlushieSets.png)
+![SampleFlowerSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SampleFlowerSets.png)
+![SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/WeaponExperience/SamplePlushieSets.png)
 
 This script displays on your Iteems pages the number of full sets, if any, you have collected and if not, what items are missing.
 
@@ -111,8 +111,8 @@ This script allows you to drag and drop your enlisted race cars into any order y
 
 Images:
 
-- [Torn Hide-Show Chat Icons.displayed.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.displayed.png)
-- [Torn Hide-Show Chat Icons.hidden.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.hidden.png)
+![Torn Hide-Show Chat Icons.displayed.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.displayed.png)
+![Torn Hide-Show Chat Icons.hidden.png](https://github.com/edlau2/Tampermonkey/raw/master/HideShowChat/Torn%20Hide-Show%20Chat%20Icons.hidden.png)
 
 This script toggles the display of the chat icons at the bottom of the screen. Probably most useful for mobile users, but has not been tried on a mobile device yet. Please let me know if you do try it on a phone :-) It isn't exactly friendly with the Torn Tools show/hide chat balloon, there aren't conflicts but it is best to use or the other, as they achieve the same thing in different ways. In other words, if my script is used, it will hide and show when it is clicked - but won't re-show the icons if hidden by Torn Tools - and my 'show' option will not display icons hidden by Torn Tools. This may change in the future - on my end, at least.
 
@@ -122,8 +122,8 @@ This script toggles the display of the chat icons at the bottom of the screen. P
 
 Images:
 
-- [Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.png)
-- [Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%202.png)
+![Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.png)
+![Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%202.png)
 - [Torn Latest Attacks Extender 3.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%203.png)
 
 This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
@@ -136,8 +136,8 @@ As of 03/03/2020, you can now click the attack to get the full attack log (versi
 
 Images:
 
-- [Torn Gym Gains-1.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-1.png)
-- [Torn Gym Gains-2.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-2.png)
+![Torn Gym Gains-1.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-1.png)
+![Torn Gym Gains-2.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/Torn%20Gym%20Gains-2.png)
 
 This script adds extended gym information to your Gym page. It displays the additional gains you get, depending on what perks are currently available to you - company perks, merits, fac perks, etc. These are displayed, by default, as a summary in percentage, along with the base gym gain that depends on the current gym you are in, 2.0 through 10.0. An expandle screen is available to see the breakout of the percentage gains. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key. It also has a panel that displays bat stats - base, extended, current (takes Xanax into consideration, for example) and extended with vico. (Note to self: add screen shot here)
 
@@ -157,7 +157,7 @@ This script add a section to the Faction Stats area on your home page, listing t
 
 Images:
 
-- [BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
+![BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
 
 This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect each user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
  
@@ -283,8 +283,8 @@ This script adds rank next to the level in the User List, as seen when searching
 
 Images:
 
-- [Torn Crime Tooltips-1.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-1.png)
-- [Torn Crime Tooltips-2.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-2.png)
+![Torn Crime Tooltips-1.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-1.png)
+![Torn Crime Tooltips-2.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-2.png)
 
 Adds Tool Tips to the Criminal Offences display on your home page. Useful for merit hunting.
 
@@ -294,9 +294,9 @@ Adds Tool Tips to the Criminal Offences display on your home page. Useful for me
 
 Images:
 
-- [Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-1.png)
-- [Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
-- [Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
+![Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-1.png)
+![Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
+![Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
 
 This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
 
@@ -306,8 +306,8 @@ This script adds a new section to your Home page, and display beneath the factio
 
 Images:
 
-- [Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
-- [Torn Jail Stats 2.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats-2.png)
+![Torn Jail Stats.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.png)
+![Torn Jail Stats 2.png](https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats-2.png)
 
 This script adds a new section to your Home page, and displays beneath the faction perks section a new section, similar to the Crimes section, displaying your bust progress - bust successes, fails, jails, and bail stats. Bounty stats have been stuck in here as well. Can be used towards monitoring your progress towards bust and bail merits, comes with tool tips to display merit progress.
 
@@ -317,7 +317,7 @@ This script adds a new section to your Home page, and displays beneath the facti
 
 Images:
 
-- [Torn Jail Scores.png](https://github.com/edlau2/Tampermonkey/blob/master/JailScores/Torn%20Jail%20Scores.png)
+![Torn Jail Scores.png](https://github.com/edlau2/Tampermonkey/blob/master/JailScores/Torn%20Jail%20Scores.png)
 
 This script adds the "score" of a user in jail, which is used to determine the difficulty (or your chance of success) of busting that user out of jail. The score is displayed as a number in parenthesis beneath the user's level. The score corresponds directly to the DocTorn 'Quick Bust/Quick Bail/Min Score/Max Score' bar scores. Some information, mostly speculative, can be found in this guide: https://www.tornstats.com/guides.php?id=22 Will also give you an idea of what to use as scores on the DocTorn bar if you'd like to use those filters.
 
