@@ -43,14 +43,14 @@ var plushieHints = [{"name":"Jaguar Plushie", "id": 258, "hint": "(Mexico :18)"}
                    {"name":"Sheep Plushie", "id": 186, "hint": "(Torn)"},
                    {"name":"Stingray Plushie", "id": 618, "hint": "(Caymans :25)"}];
 
-var temporaryHints = [{"name":"Epinephrine", "id": 463, "hint": "(Strength by +500% for 120 secs)"},
-                     {"name":"Melatonin", "id": 464, "hint": "(Speed by +500% for 120 secs)"},
-                     {"name":"Serotonin", "id": 465, "hint": "(Defense by +300% for 120 secs, life by 25%)"},
-                     {"name":"Tyrosine", "id": 814, "hint": "(Dexterity by +500% for 120 seconds)"},
-                     {"name":"Pepper Spray", "id": 392, "hint": "(Dexterity by -1/5th for 15-20 seconds)"},
-                     {"name":"Smoke Grenade", "id": 226, "hint": "(Speed by -1/3rd for 120-180 seconds)"},
-                     {"name":"Flash Grenade", "id": 222, "hint": "(Speed by -1/5th for 15-20 seconds)"},
-                     {"name":"Tear Gas", "id": 256, "hint": "(Dexterity by -1/3rd for 120-180 seconds)"}];
+var temporaryHints = [{"name":"Epinephrine", "id": 463, "hint": "(Str +500% for 120 secs)"},
+                     {"name":"Melatonin", "id": 464, "hint": "(Speed +500% for 120 secs)"},
+                     {"name":"Serotonin", "id": 465, "hint": "(Def +300% for 120 secs, life by 25%)"},
+                     {"name":"Tyrosine", "id": 814, "hint": "(Dex +500% for 120 seconds)"},
+                     {"name":"Pepper Spray", "id": 392, "hint": "(Dex -1/5th for 15-20 seconds)"},
+                     {"name":"Smoke Grenade", "id": 226, "hint": "(Spd -1/3rd for 120-180 seconds)"},
+                     {"name":"Flash Grenade", "id": 222, "hint": "(Spd -1/5th for 15-20 seconds)"},
+                     {"name":"Tear Gas", "id": 256, "hint": "(Dex -1/3rd for 120-180 seconds)"}];
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Find items we care about (via our hint arrays) and add the hint
