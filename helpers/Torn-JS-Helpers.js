@@ -13,7 +13,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.22
+// @version     2.23
 // @license     MIT
 // ==/UserLibrary==
 
@@ -475,7 +475,7 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
     if (!ID) ID = '';
     let url = 'https://www.tornstats.com/api/v1/' + api_key + '/spy/' + ID;
     console.debug('(JS-Helper) ' + GM_info.script.name + ' Spying ' + ID + ' via TornStats');
-    console.debug('(JS-Helper) ' + GM_info.script.name + 'url: ' + url);
+    console.debug('(JS-Helper) ' + GM_info.script.name + ' url: ' + url);
     GM_xmlhttpRequest({
         method:"GET",
         url:url,
@@ -483,19 +483,21 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
             'Accept': '*/*'
         },
         onload: function(response) {
-            console.log('**** Response: ', response.responseText);
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onerror');
+            console.debug(response);
             handleSysError(response.responseText);
         },
         onabort: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
+            console.debug(response);
             handleSysError(response.responseText);
         },
         ontimeout: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
+            console.debug(response);
             handleSysError(response.responseText);
         }
     });
