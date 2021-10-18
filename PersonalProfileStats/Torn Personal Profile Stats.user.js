@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file://///Users/edlau/Documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
+// @connect      www.tornstats.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -71,14 +73,30 @@
         userLvl = jsonResp.level;
         userRank = numericRankFromFullRank(jsonResp.rank);
 
-        addBatStatsToProfile(); // Adds bat stats
+        // Get bat stats spy, or estimate.
+        xedx_TornStatsSpy(ID, getBatStatsCB);
 
         // Display te numeric rank next to textual rank
         addNumericRank();
     }
 
+    function getBatStatsCB(respText) {
+        // Process result, get spy (if any), if not, use estimated.
+        let batStats = 0;
+        let data = JSON.parse(respText);
+            if (!data.status) {
+                log('Error getting spy! Response test: ' + resptext);
+            } else {
+                batStats = data.spy.status ? (numberWithCommas(data.spy.total) + ' (' + data.spy.difference + ')') : 0;
+            }
+        if (!batStats) {
+            batStats = buildBatStatDisplay(); // Calculate bat stats estimate
+        }
+        addBatStatsToProfile(batStats);
+    }
+
     // Create the bat stats <li>, add to the profile page
-    function addBatStatsToProfile() {
+    function addBatStatsToProfile(batStats) {
         log('Adding estimated bat stats to profile.');
         let testDiv = document.getElementById(batStatLi);
         if (validPointer(testDiv)) {return;} // Only do once
@@ -87,8 +105,7 @@
         let targetUL = rootDiv.getElementsByClassName('info-table')[0];
         if (!validPointer(targetUL)) {return;}
 
-        let display = buildBatStatDisplay(); // Calculate bat stats estimate
-        let li = createBatStatLI(targetUL, display); // And add to the display
+        let li = createBatStatLI(targetUL, batStats); // And add to the display
     }
 
     //////////////////////////////////////////////////////////////////////
