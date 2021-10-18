@@ -8,11 +8,12 @@
 // @author      xedx [2100735]
 // @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
+// @connect     www.tornstats.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.19
+// @version     2.22
 // @license     MIT
 // ==/UserLibrary==
 
@@ -30,6 +31,10 @@ function validateApiKey() {
                          "Your key is kept private and not shared with anyone.", "");
         GM_setValue('gm_api_key', api_key);
     }
+}
+
+function getApiKey() {
+    return api_key;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -97,6 +102,30 @@ function debug(data) {
         console.log(GM_info.script.name + ': ' + data);
     }
 }
+
+// All arguments are optional:
+//   duration of the tone in milliseconds. Default is 500
+//   frequency of the tone in hertz. default is 440
+//   volume of the tone. Default is 1, off is 0.
+//   type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
+//   callback to use on end of tone
+var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+function beep(duration, frequency, volume, type, callback) {
+    log('Beeping speaker!');
+    var oscillator = audioCtx.createOscillator();
+    var gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    if (volume){gainNode.gain.value = volume;}
+    if (frequency){oscillator.frequency.value = frequency;}
+    if (type){oscillator.type = type;}
+    if (callback){oscillator.onended = callback;}
+
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + ((duration || 500) / 1000));
+};
 
 // Date formatting 'constants'
 const date_formats = ["YYYY-MM-DD",
@@ -193,7 +222,12 @@ function numberWithCommas(x) {
 }
 
 // Check to see if a pointer is valid
+// Note: "val == undefined" is the same as the coercion, "val == null", and 'val'.
 function validPointer(val, dbg = false) {
+    if (typeof val !== undefined && val) {return true;}
+    if (dbg) {debugger;}
+    return false;
+    /*
     if (val == 'undefined' || typeof val == 'undefined' || val == null) {
         if (dbg) {
             debugger;
@@ -201,6 +235,7 @@ function validPointer(val, dbg = false) {
         return false;
     }
     return true;
+    */
 }
 
 //////////////////////////////////////////////////////////////////
@@ -420,6 +455,40 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
         },
         onerror: function(response) {
             handleSysError(response);
+        },
+        onabort: function(response) {
+            console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
+            handleSysError(response.responseText);
+        },
+        ontimeout: function(response) {
+            console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
+            handleSysError(response.responseText);
+        }
+    });
+}
+
+//////////////////////////////////////////////////////////////////
+// Function to do a TornStats bat stats spy
+//////////////////////////////////////////////////////////////////
+
+function xedx_TornStatsSpy(ID, callback, param=null) {
+    if (!ID) ID = '';
+    let url = 'https://www.tornstats.com/api/v1/' + api_key + '/spy/' + ID;
+    console.debug('(JS-Helper) ' + GM_info.script.name + ' Spying ' + ID + ' via TornStats');
+    console.debug('(JS-Helper) ' + GM_info.script.name + 'url: ' + url);
+    GM_xmlhttpRequest({
+        method:"GET",
+        url:url,
+        headers: {
+            'Accept': '*/*'
+        },
+        onload: function(response) {
+            console.log('**** Response: ', response.responseText);
+            callback(response.responseText, ID, param);
+        },
+        onerror: function(response) {
+            console.debug('(JS-Helper) ' + GM_info.script.name + ': onerror');
+            handleSysError(response.responseText);
         },
         onabort: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
