@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
-// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      file://///Users/edlau/Documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local        file://///Users/edlau/Documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
