@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -84,11 +84,12 @@
         // Process result, get spy (if any), if not, use estimated.
         let batStats = 0;
         let data = JSON.parse(respText);
-            if (!data.status) {
-                log('Error getting spy! Response test: ' + resptext);
-            } else {
-                batStats = data.spy.status ? (numberWithCommas(data.spy.total) + ' (' + data.spy.difference + ')') : 0;
-            }
+        log('Spy response: ' + respText);
+        if (!data.status) {
+            log('Error getting spy! Response text: ' + resptext);
+        } else {
+            batStats = data.spy.status ? (numberWithCommas(data.spy.total) + ' (' + data.spy.difference + ')') : 0;
+        }
         if (!batStats) {
             batStats = buildBatStatDisplay(); // Calculate bat stats estimate
         }
