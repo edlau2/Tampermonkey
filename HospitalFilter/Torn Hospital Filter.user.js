@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Filter
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Add filters to the hospital page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/hospitalview.php*
@@ -19,6 +19,7 @@
     // Global vars: options and class name(s)
     var ulRootClassName = "user-info-list-wrap";
     var muggedOpt = false;
+    var stealthOpt = false;
     var rrOpt = false;
 
     // DIV for the UI
@@ -32,6 +33,8 @@
                       '<div id = "xedx-content-div" class="cont-gray bottom-round" style="display: block;">' +
                           '<input type="checkbox" id="xedx-mugged-opt" name="mugged-opt" style="margin-left: 200px; margin-top: 10px; margin-bottom: 10px;">' +
                           '<label for="mugged-opt"><span style="margin-left: 15px;">Mugged</span></label>' +
+                          '<input type="checkbox" id="xedx-stealth-opt" name="stealth-opt" style="margin-left: 200px;">' +
+                          '<label for="stealth-opt"><span style="margin-left: 15px;">Hide stealthed</span></label>' +
                           '<input type="checkbox" id="xedx-rr-opt" name="rr-opt" style="margin-left: 200px;">' +
                           '<label for="rr-opt"><span style="margin-left: 15px;">Russian Roulette</span></label>' +
                       '</div>' +
@@ -66,6 +69,12 @@
             handleFilterBtn(this);
         });
 
+        myButton = document.getElementById('xedx-stealth-opt');
+        stealthOpt = myButton.checked = GM_getValue('stealthOpt', stealthOpt);
+        myButton.addEventListener('click',function () {
+            handleFilterBtn(this);
+        });
+
         myButton = document.getElementById('xedx-rr-opt');
         rrOpt = myButton.checked = GM_getValue('rrOpt', rrOpt);
         myButton.addEventListener('click',function () {
@@ -91,6 +100,10 @@
                 GM_setValue('muggedOpt', (muggedOpt = cb.checked));
                 break;
 
+            case "xedx-stealth-opt":
+                GM_setValue('stealthOpt', (stealthOpt = cb.checked));
+                break;
+
             case "xedx-rr-opt":
                 GM_setValue('rrOpt', (rrOpt = cb.checked));
                 break;
@@ -110,7 +123,6 @@
             return;
         }
 
-        debugger;
         console.log('liList: ', liList);
         if (liList.length < 2) {setTimeout(filterDisplay, 500); return;}
 
@@ -118,18 +130,22 @@
             let li = liList[i];
             let reason = li.querySelector('span > span.reason');
             let isMug = reason.innerText.includes('Mugged by');
+            let isStealth = reason.innerText.includes('Mugged by someone');
             let isRR = reason.innerText.includes('Shot themselves');
 
             li.setAttribute('style', 'display: block');
             if (muggedOpt || rrOpt) {
                 if (muggedOpt && rrOpt && !isMug && !isRR) {
-                    li.setAttribute('style', 'display: none');
+                    li.setAttribute('style', 'display: none;');
                 }
                 if (muggedOpt && !rrOpt && !isMug) {
-                    li.setAttribute('style', 'display: none');
+                    li.setAttribute('style', 'display: none;');
+                }
+                if (muggedOpt && isMug && stealthOpt && isStealth) {
+                    li.setAttribute('style', 'display: none;');
                 }
                 if (!muggedOpt && rrOpt && !isRR) {
-                    li.setAttribute('style', 'display: none');
+                    li.setAttribute('style', 'display: none;');
                 }
             }
         }
