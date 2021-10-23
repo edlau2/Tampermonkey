@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Filter
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Add filters to the hospital page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/hospitalview.php*
@@ -35,7 +35,7 @@
                           '<label for="mugged-opt"><span style="margin-left: 15px;">Mugged</span></label>' +
                           '<input type="checkbox" id="xedx-stealth-opt" name="stealth-opt" style="margin-left: 200px;">' +
                           '<label for="stealth-opt"><span style="margin-left: 15px;">Hide stealthed</span></label>' +
-                          '<input type="checkbox" id="xedx-rr-opt" name="rr-opt" style="margin-left: 200px;">' +
+                          '<br><input type="checkbox" id="xedx-rr-opt" name="rr-opt" style="margin-left: 200px; margin-bottom: 10px;">' +
                           '<label for="rr-opt"><span style="margin-left: 15px;">Russian Roulette</span></label>' +
                       '</div>' +
                     '</div>';
