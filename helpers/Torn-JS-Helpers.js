@@ -13,7 +13,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.23
+// @version     2.24
 // @license     MIT
 // ==/UserLibrary==
 
@@ -71,6 +71,10 @@ function getHelperVersion() {
     console.log('**** Please notify xedx [2100735], deprecated function call - ' +
                 '"getHelperVersion()" in script "' + GM_info.script.name +'"');
     return '0.2';
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Store latest version info and notify if updated.
@@ -439,9 +443,10 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('torn', ID, selection, callback, param);
 }
 
+//https://api.torn.com/user/?comment=usCriWatch&selections='+selections+'&key=';
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
-    let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + api_key;
+    let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + GM_info.script.name + "&selections=" + selection + "&key=" + api_key;
     console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
