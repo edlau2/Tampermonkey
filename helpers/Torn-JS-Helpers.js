@@ -13,7 +13,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.24
+// @version     2.25
 // @license     MIT
 // ==/UserLibrary==
 
@@ -443,10 +443,10 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('torn', ID, selection, callback, param);
 }
 
-//https://api.torn.com/user/?comment=usCriWatch&selections='+selections+'&key=';
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
-    let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + GM_info.script.name + "&selections=" + selection + "&key=" + api_key;
+    let comment = GM_info.script.name.replace('Torn', 'XedX');
+    let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
     console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection);
     let details = GM_xmlhttpRequest({
         method:"POST",
