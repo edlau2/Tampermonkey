@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn User List Extender v2
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
@@ -113,7 +113,7 @@
     }
 
     //const cacheMaxSecs = 3600 * 1000; // one hour in ms
-    const cacheMaxSecs = 1800 * 1000; // 30 min in ms
+    const cacheMaxSecs = 18000 * 1000; // 300 min (5 hrs) in ms
     //const cacheMaxSecs = 180 * 1000; // 3 min in ms
     //const cacheMaxSecs = 60 * 1000; // 1 min in ms
 
@@ -124,22 +124,21 @@
     // Query profile information based on ID
     //////////////////////////////////////////////////////////////////////
 
-    // Query profile information based on ID. Skip those we'd like to filter
-    // (not yet implemented). For now, we don't display if the class contains
-    // 'filter-hidden', added by TornTools.
-    function getRankFromId(ID, li) { // Look for 'filter-hidden' in class list?
+    // Query profile information based on ID. Skip those we'd like to filter out.
+    // We don't display if the class contains 'filter-hidden', added by TornTools,
+    // or 'xedx_hidden', added here.
+    function getRankFromId(ID, li) {
         debug('getRankFromId: ID ' + ID + ' classList: ' + li.classList);
 
         if (opt_disabled) {
             log('Script disabled - ignoring.');
             //updateLiWithRank(li, null);
-            return;
+            return true;
         }
 
-        // This never works - we run before the filter.
-        if (ttInstalled && li.classList.contains('filter-hidden')) {
+        if (li.classList.contains('filter-hidden') || li.classList.contains('xedx_hidden')) {
             log('Skipping ' + ID + ': hidden.');
-            return 0;
+            return true;
         }
 
         log("Querying Torn for rank, ID = " + ID);
@@ -160,7 +159,7 @@
                     disableScript(false);
                     log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
                 }
-                if (!opt_disabled) {log('Pausing requests.');}
+                if (!opt_disabled) {log('Pausing requests for 15 seconds.');}
                 opt_disabled = true;
             }
             return handleError(responseText);
@@ -205,7 +204,7 @@
             return cacheObj.numeric_rank;
         }
         debug("didn't find " + ID + " in cache.");
-        return 0; // Not found!
+        return false; // Not found!
     }
 
     // Write out some cache stats
@@ -273,7 +272,36 @@
         }
     }
 
-    // Filter to cull out those we're not interested in
+    // Pre-filter - just based on icons in the li
+    // If filtered, return TRUE
+    function preFilter(li) {
+        let ID = idFromLi(li);
+        let name = fullNameFromLi(li);
+
+        log("Pre-filtering " + name);
+
+        let sel = li.querySelector("[id^='icon15___']"); // hosp icon
+        if (opt_hidehosp && validPointer(sel)) {
+            log('***preFilter: in hospital! (' + name + ')');
+            return true;
+        }
+
+        sel = li.querySelector("[id^='icon70___']"); // fedded icon
+        if (opt_hidefedded && validPointer(sel)) {
+            log('***preFilter: fedded! (' + name + ')');
+            return true;
+        }
+
+        sel = li.querySelector("[id^='icon71___']"); // travelling icon
+        if (opt_hidetravel && validPointer(sel)) {
+            log('***preFilter: travelling! (' + name + ')');
+            return true;
+        }
+
+        return false;
+    }
+
+    // Filter to cull out those we're not interested in. Return TRUE if filtered.
     function filterUser(li, ci) {
         debug('Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
         if (opt_showcaymans && ci.state != 'Traveling') {
@@ -341,11 +369,43 @@
         for (var i = 0; i < items.length; ++i) {
             let li = items[i], ID = 0;
             if ((ID = idFromLi(li)) != 0) {
-                if (!getCachedRankFromId(ID, li)) {getRankFromId(ID, li);} // Updates UI
+
+                // NOTE: Filter here first, before secondary filter, which
+                // requires stuff from a stats query. We can filter based on icons in the li.
+                // Just need to add the filter class, will be caught in getRankFromId()
+                // and ignored. The secondary filter, which uses data from the Torn API
+                // call, is called from updateLiWithRank().
+                if (preFilter(li)) {
+                    li.classList.add('xedx_hidden');
+                    log('pre-filtered: ignoring.');
+                    continue;
+                }
+
+                // This returns TRUE if either a cached rank item is found, or it is filtered out.
+                // If neither of these cases is true, we query the Torn API, and then update the UI
+                // according - we perform secondary filtering there.
+                if (!getCachedRankFromId(ID, li)) {
+                    setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
+                                                                         // to prevent the 100 reqs/min error
+                }
             }
         }
         observerON();
     }
+
+
+    function fullNameFromLi(li) {
+        try {
+            let elems = li.getElementsByClassName('user name'); // debugging
+            if (elems.length == 0) {return 0;}
+            return elems[0].getAttribute("data-placeholder");
+        } catch(err) { // Should never hit this.
+            console.error(err);
+            debugger;
+            return 0;
+        }
+    }
+
 
     // Helper for above
     function idFromLi(li) {
