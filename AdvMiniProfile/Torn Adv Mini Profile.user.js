@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -64,7 +64,7 @@
 
     function queryUserProfile(node, id) {
         log('queryUserProfile: ID=' + id);
-        xedx_TornUserQuery(id, 'personalstats,crimes', queryUserProfileCB, node);
+        xedx_TornUserQuery(id, 'personalstats,crimes,profile', queryUserProfileCB, node);
     }
 
     // This parses out the info we want to display, and adds it to
@@ -80,23 +80,34 @@
         let ses = jsonResp.personalstats.statenhancersused;
         let totalAttacks = jsonResp.personalstats.attackswon + jsonResp.personalstats.attackslost + jsonResp.personalstats.attacksdraw;
         let crimes = jsonResp.criminalrecord.total;
+        let lastAct = jsonResp.last_action.relative;
+
+        let ttNode = node.querySelectorAll(`[class^="tt-mini-data"]`)[0];
+        if (ttNode) {
+            ttNode.setAttribute("style", "display: none;");
+        }
 
         let parent = node.querySelectorAll(`[class^="profile-mini-_userProfileWrapper___"]`)[0];
         let wrapper = node.querySelectorAll(`[class^="profile-mini-_wrapper___"]`)[0];
-        let newNode = '<div class="content-bottom-round" id="xedx-mini-adv" style="float: left;">' +
-            '<table>' +
-            '<tr>' +
-            '<td class="xtdmp"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
-            '<td class="xtdmp"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
-            '</tr>' +
-            '<tr>' +
-            '<td class="xtdmp"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
-            '<td class="xtdmp"><strong>SE`s: </strong><span> ' + numberWithCommas(ses) + '</span></td>' +
-            '</tr>' +
-            '<tr>' +
-            '<td class="xtdmp"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
-            '<td class="xtdmp"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
-            '</table>' +
+        let newNode =
+            '<div class="content-bottom-round" id="xedx-mini-adv" style="margin-top: 5px;">' +
+                '<table>' +
+                    '<tr>' +
+                        '<td class="xtdmp"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
+                        '<td class="xtdmp"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
+                    '</tr>' +
+                    '<tr>' +
+                        '<td class="xtdmp"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
+                        '<td class="xtdmp"><strong>SE`s: </strong><span> ' + numberWithCommas(ses) + '</span></td>' +
+                    '</tr>' +
+                    '<tr>' +
+                        '<td class="xtdmp"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
+                        '<td class="xtdmp"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
+                    '<tr>' +
+                        '<td class="xtdmp"><strong>Last Action</strong></td>' +
+                        '<td class="xtdmp"><span>' + lastAct + '</span></td>' +
+                    '</tr>' +
+                '</table>' +
             '</div>';
         console.log('queryUserProfileCB: Appending new node to ', parent);
         log(newNode);
