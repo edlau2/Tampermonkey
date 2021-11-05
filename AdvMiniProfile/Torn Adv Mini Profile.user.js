@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -35,7 +35,7 @@
 
     // Handle page load - start an observer to check for new nodes,
     // specifically, the id="profile-mini-root" node. Once this node
-    // has been added, we may to look for new nodes with this as a parent.
+    // has been added, we look for changes as this as the parent.
     function handlePageLoaded() {
         log('handlePageLoaded');
         observer = new MutationObserver((mutations) => {
@@ -59,6 +59,8 @@
         xedx_TornUserQuery(id, 'personalstats,crimes', queryUserProfileCB, node);
     }
 
+    // This parses out the info we want to display, and adds it to
+    // the mini profile in a table format.
     function queryUserProfileCB(responseText, ID, node) {
         log('queryUserProfileCB: id='+ID);
         var jsonResp = JSON.parse(responseText);
@@ -76,12 +78,19 @@
         //let parent = node.querySelector("#profile-mini-root > div");
         let wrapper = node.querySelectorAll(`[class^="profile-mini-_wrapper___"]`)[0];
         let newNode = '<div class="content-bottom-round" id="xedx-mini-adv" style="float: left;">' +
-            '<span>NW: $' + numberWithCommas(networth) + '</span>' +
-            '<br><span>Xan: ' + numberWithCommas(xanax) + '</span>' +
-            '<br><span>Cans: ' + numberWithCommas(cans) + '</span>' +
-            '<br><span>SE`s: ' + numberWithCommas(ses) + '</span>' +
-            '<br><span>Attacks: ' + numberWithCommas(totalAttacks) + '</span>' +
-            '<br><span>Crimes: ' + numberWithCommas(crimes) + '</span>' +
+            '<table>' +
+            '<tr>' +
+            '<td class="xtdx"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
+            '<td class="xtdx"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
+            '</tr>' +
+            '<tr>' +
+            '<td class="xtdx"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
+            '<td class="xtdx"><strong>SE`s: </strong><span>: ' + numberWithCommas(ses) + '</span></td>' +
+            '</tr>' +
+            '<tr>' +
+            '<td class="xtdx"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
+            '<td class="xtdx"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
+            '</table>' +
             '</div>';
         console.log('queryUserProfileCB: Appending new node to ', parent);
         log(newNode);
@@ -89,6 +98,9 @@
         $(parent).append(newNode);
     }
 
+    // Handle changes to the mini profile node.
+    // Query the personal stats and crimes of
+    // the user.
     var profileQueried = false;
     function handleMiniProfileChange() {
         log('handleMiniProfileChange');
@@ -108,6 +120,9 @@
     }
 
     // Handle the new nodes that are added.
+    // Once a mini profile node is inserted,
+    // we change the observer to just look for
+    // changes to that div.
     function handleNewNode(node) {
         if (!node.id || node.id != 'profile-mini-root') {
             observeOn();
@@ -129,6 +144,16 @@
     logScriptStart();
     validateApiKey();
     versionCheck();
+
+    GM_addStyle(".xtdx {" + // Define table cell style
+                    "border-width: 1px !important;" +
+                    "border-style: solid !important;" +
+                    "border-color: #5B5B5B !important;" +
+                    "padding: 0.2rem !important;" +
+                    "vertical-align: middle !important;" +
+                    "color: white; !important;" +
+                    "text-align: center;" +
+                    "}");
 
     document.onreadystatechange = function () {
       if (document.readyState == "complete") {
