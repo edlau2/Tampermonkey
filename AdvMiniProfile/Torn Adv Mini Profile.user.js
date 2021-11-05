@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/AdvMiniProfile/Torn%20Adv%20Mini%20Profile.user.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -38,13 +39,23 @@
     // has been added, we look for changes as this as the parent.
     function handlePageLoaded() {
         log('handlePageLoaded');
+
+        // Firefox seems to start with the profile-mini-root node
+        // already inserted - check for that case.
+        let node = document.getElementById('profile-mini-root');
+        if (node) {
+            target = node;
+            observer = new MutationObserver(handleMiniProfileChange);
+            observeOn();
+            return;
+        }
+
+        // Chrome seems to insert it only once the first mini-profile is brought up.
         observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
             if (!mutation.addedNodes) return;
-
             for (let i = 0; i < mutation.addedNodes.length; i++) {
                 let node = mutation.addedNodes[i];
-
                 observeOff();
                 handleNewNode(node);
             }
@@ -74,22 +85,20 @@
         let crimes = jsonResp.criminalrecord.total;
 
         let parent = node.querySelectorAll(`[class^="profile-mini-_userProfileWrapper___"]`)[0];
-        //let parent = node.querySelectorAll(`[class^="profile-mini-_userImageWrapper___"]`)[0];
-        //let parent = node.querySelector("#profile-mini-root > div");
         let wrapper = node.querySelectorAll(`[class^="profile-mini-_wrapper___"]`)[0];
         let newNode = '<div class="content-bottom-round" id="xedx-mini-adv" style="float: left;">' +
             '<table>' +
             '<tr>' +
-            '<td class="xtdx"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
-            '<td class="xtdx"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
+            '<td class="xtdmp"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
+            '<td class="xtdmp"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
             '</tr>' +
             '<tr>' +
-            '<td class="xtdx"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
-            '<td class="xtdx"><strong>SE`s: </strong><span> ' + numberWithCommas(ses) + '</span></td>' +
+            '<td class="xtdmp"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
+            '<td class="xtdmp"><strong>SE`s: </strong><span> ' + numberWithCommas(ses) + '</span></td>' +
             '</tr>' +
             '<tr>' +
-            '<td class="xtdx"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
-            '<td class="xtdx"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
+            '<td class="xtdmp"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
+            '<td class="xtdmp"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
             '</table>' +
             '</div>';
         console.log('queryUserProfileCB: Appending new node to ', parent);
@@ -147,7 +156,7 @@
     validateApiKey();
     versionCheck();
 
-    GM_addStyle(".xtdx {" + // Define table cell style
+    GM_addStyle(".xtdmp {" + // Define table cell style
                     "border-width: 1px !important;" +
                     "border-style: solid !important;" +
                     "border-color: #5B5B5B !important;" +
