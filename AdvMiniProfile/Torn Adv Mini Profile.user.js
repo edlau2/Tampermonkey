@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -85,7 +85,7 @@
             '</tr>' +
             '<tr>' +
             '<td class="xtdx"><strong>Cans: </strong><span> ' + numberWithCommas(cans) + '</span></td>' +
-            '<td class="xtdx"><strong>SE`s: </strong><span>: ' + numberWithCommas(ses) + '</span></td>' +
+            '<td class="xtdx"><strong>SE`s: </strong><span> ' + numberWithCommas(ses) + '</span></td>' +
             '</tr>' +
             '<tr>' +
             '<td class="xtdx"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
@@ -119,6 +119,8 @@
         }
     }
 
+    // TBD: see if div already exists, if so,.....
+
     // Handle the new nodes that are added.
     // Once a mini profile node is inserted,
     // we change the observer to just look for
@@ -151,8 +153,9 @@
                     "border-color: #5B5B5B !important;" +
                     "padding: 0.2rem !important;" +
                     "vertical-align: middle !important;" +
-                    "color: white; !important;" +
-                    "text-align: center;" +
+                    // Change this to dark-gray, not white.
+                    "color: " + (darkMode() ? "white; !important;" : "black; !important;") +
+                    "text-align: left;" +
                     "}");
 
     document.onreadystatechange = function () {
