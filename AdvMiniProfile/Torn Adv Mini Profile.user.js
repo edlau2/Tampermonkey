@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.8
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -40,18 +40,14 @@
     function handlePageLoaded() {
         log('handlePageLoaded');
 
-        // Firefox seems to start with the profile-mini-root node
-        // already inserted - check for that case.
         let node = document.getElementById('profile-mini-root');
         if (node) {
-            log('If you see this - let me know! DIV already present at page load.');
             target = node;
             observer = new MutationObserver(handleMiniProfileChange);
             observeOn();
             return;
         }
 
-        // Chrome seems to insert it only once the first mini-profile is brought up.
         observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
             if (!mutation.addedNodes) return;
@@ -128,8 +124,6 @@
             profileQueried = true;
         }
     }
-
-    // TBD: see if div already exists, if so,.....
 
     // Handle the new nodes that are added.
     // Once a mini profile node is inserted,
