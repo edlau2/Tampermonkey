@@ -44,6 +44,7 @@
         // already inserted - check for that case.
         let node = document.getElementById('profile-mini-root');
         if (node) {
+            log('If you see this - let me know! DIV already present at page load.');
             target = node;
             observer = new MutationObserver(handleMiniProfileChange);
             observeOn();
@@ -167,8 +168,14 @@
                     "text-align: left;" +
                     "}");
 
+    if (document.readyState == "complete") {
+        log('Documented already complete at script start!');
+        handlePageLoaded();
+    }
+
     document.onreadystatechange = function () {
       if (document.readyState == "complete") {
+          log('Documented complete after script start.');
         handlePageLoaded();
       }
     };
