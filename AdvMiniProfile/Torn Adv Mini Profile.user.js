@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -71,9 +71,11 @@
         let totalAttacks = jsonResp.personalstats.attackswon + jsonResp.personalstats.attackslost + jsonResp.personalstats.attacksdraw;
         let crimes = jsonResp.criminalrecord.total;
 
-        document.querySelector("#profile-mini-root > div > div.profile-mini-_userProfileWrapper___39cKq")
         let parent = node.querySelectorAll(`[class^="profile-mini-_userProfileWrapper___"]`)[0];
-        let newNode = '<div id="xedx-mini-adv">' +
+        //let parent = node.querySelectorAll(`[class^="profile-mini-_userImageWrapper___"]`)[0];
+        //let parent = node.querySelector("#profile-mini-root > div");
+        let wrapper = node.querySelectorAll(`[class^="profile-mini-_wrapper___"]`)[0];
+        let newNode = '<div class="content-bottom-round" id="xedx-mini-adv" style="float: left;">' +
             '<span>NW: $' + numberWithCommas(networth) + '</span>' +
             '<br><span>Xan: ' + numberWithCommas(xanax) + '</span>' +
             '<br><span>Cans: ' + numberWithCommas(cans) + '</span>' +
@@ -83,6 +85,7 @@
             '</div>';
         console.log('queryUserProfileCB: Appending new node to ', parent);
         log(newNode);
+        wrapper.style.maxHeight = '283px';
         $(parent).append(newNode);
     }
 
