@@ -36,7 +36,7 @@
 
     // Handle page load - start an observer to check for new nodes,
     // specifically, the id="profile-mini-root" node. Once this node
-    // has been added, we look for changes as this as the parent.
+    // has been added, we look for changes using this as the target.
     function handlePageLoaded() {
         log('handlePageLoaded');
 
@@ -81,6 +81,7 @@
         let totalAttacks = jsonResp.personalstats.attackswon + jsonResp.personalstats.attackslost + jsonResp.personalstats.attacksdraw;
         let crimes = jsonResp.criminalrecord.total;
         let lastAct = jsonResp.last_action.relative;
+        let boosters = jsonResp.personalstats.boostersused;
 
         let ttNode = node.querySelectorAll(`[class^="tt-mini-data"]`)[0];
         if (ttNode) {
@@ -91,7 +92,7 @@
         let wrapper = node.querySelectorAll(`[class^="profile-mini-_wrapper___"]`)[0];
         let newNode =
             '<div class="content-bottom-round" id="xedx-mini-adv" style="margin-top: 5px;">' +
-                '<table>' +
+                '<table style="width: 100%;">' +
                     '<tr>' +
                         '<td class="xtdmp"><strong>NW: </strong><span> $' + numberWithCommas(networth) + '</span></td>' +
                         '<td class="xtdmp"><strong>Xan: </strong><span> ' + numberWithCommas(xanax) + '</span></td>' +
@@ -104,7 +105,7 @@
                         '<td class="xtdmp"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
                         '<td class="xtdmp"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
                     '<tr>' +
-                        '<td class="xtdmp"><strong>Last Action</strong></td>' +
+                        '<td class="xtdmp"><strong>Last Action:</strong></td>' +
                         '<td class="xtdmp"><span>' + lastAct + '</span></td>' +
                     '</tr>' +
                 '</table>' +
@@ -146,9 +147,6 @@
             return;
         }
 
-        console.log('Node added: ', node);
-        log('Node ID = ' + node.id);
-
         target = node;
         observer = new MutationObserver(handleMiniProfileChange);
         observeOn();
@@ -168,22 +166,18 @@
                     "border-color: #5B5B5B !important;" +
                     "padding: 0.2rem !important;" +
                     "vertical-align: middle !important;" +
-                    // Change this to dark-gray, not white.
-                    "color: " + (darkMode() ? "white; !important;" : "black; !important;") +
+                    "color: " + (darkMode() ? "#E0E0E0; !important;" : "#303030; !important;") +
                     "text-align: left;" +
                     "}");
 
     if (document.readyState == "complete") {
-        log('Documented already complete at script start!');
         handlePageLoaded();
     }
 
     document.onreadystatechange = function () {
       if (document.readyState == "complete") {
-          log('Documented complete after script start.');
         handlePageLoaded();
       }
     };
-
 
 })();
