@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      0.10
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -105,8 +105,8 @@
                         '<td class="xtdmp"><strong>Attacks: </strong><span> ' + numberWithCommas(totalAttacks) + '</span></td>' +
                         '<td class="xtdmp"><strong>Crimes: </strong><span> ' + numberWithCommas(crimes) + '</span></td>' +
                     '<tr>' +
-                        '<td class="xtdmp"><strong>Last Action:</strong></td>' +
-                        '<td class="xtdmp"><span>' + lastAct + '</span></td>' +
+                        '<td class="xtdmp" colspan="2"><strong>Last Action: </strong>' +
+                        '<span>' + lastAct + '</span></td>' +
                     '</tr>' +
                 '</table>' +
             '</div>';
