@@ -159,7 +159,7 @@ Images:
 
 ![BountyListSample.png](https://github.com/edlau2/Tampermonkey/blob/master/BountyList/BountyListSample.png)
 
-This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect each user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
+This script adds rank next to the level in the Bounties List. The goal was to make it easier to more quickly decide what targets to attack, without having to inspect each user individually. The queried ranks are locally cached so as not to exceed the Torn API call limit.
  
 #### **_Torn Bat Stat Estimator_**
 
@@ -202,7 +202,7 @@ Images:
 
 - [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.png)
 
-This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets for an attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you.
+This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets to attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you (see 'Torn Adv Mini Profile'!).
 
 #### **_Torn Crime Tooltips_**
 
@@ -442,7 +442,7 @@ This allows you to view your Bazaar regardless of whether you are in Torn or not
 
 **_Torn Stock Ticker_**
  
- <b>Deprecated.>/b>
+ <b>Deprecated.</b>
  
  <details>
   <summary>Click to see description...</summary>
