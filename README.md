@@ -46,7 +46,7 @@ So that script has been modified to have 5 buttons, on one simple bar, to rapidl
 
 # Scripts 
 
-Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/). Every script of mine logs the start of script execution, and if required, will prompt for an API key which is saved in your private local storage so you are not prompted again. It is never shared in any manner.
+Note that the PNG files are not part of the installation, they are simple screenshots showing what to expect when the script is run. Any bugs, broken links, or suggestions, feel free to message me on Torn: [xedx [2100735]](https://www.torn.com/profiles.php?XID=2100735#/). Every script of mine logs the start of script execution, and if required, will prompt for an API key which is saved in your private local storage so you are not prompted again. It is never shared in any manner. None of these scripts require full access, most require limited access.
 
 #### **_Torn Weapon Experience Spreadsheet_**
 
