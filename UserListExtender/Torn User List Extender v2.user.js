@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn User List Extender v2
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Add rank to user list display
 // @author       xedx
 // @include      https://www.torn.com/userlist.php*
@@ -40,43 +40,44 @@
               '</div>' +
 
           // This is the content that we want to hide when '[hide] | [show]' is clicked.
-          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: hide";>' +
+          // '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: hide";>' +
+          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
               '<br>' +
-              '<span style="text-align: left; margin-left: 62px;">Options:</span>' +
-              '<table style="margin-top: 10px;"><tbody>' +
+              '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
+              '<table style="margin-top: 10px; width: 400px;"><tbody>' +
                   '<tr>' + // Row 1
                       '<td class="xtdx" ><div>' +
-                          '<input type="checkbox" id="xedx-devmode-opt" name="devmode" style="margin-left: 82px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
                           '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
                       '</div></td>' +
                       '<td class="xtdx""><div>' +
-                          '<input type="checkbox" id="xedx-disabled-opt" name="disabled" style="margin-left: 50px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
                           '<label for="disabled"><span style="margin-left: 15px;">Disable Script</span></label>' +
                       '</div></td>' +
                   '</tr>' +
                   '<tr>' + // Row 2
                       '<td class="xtdx"><div>' +
-                          '<input type="checkbox" id="xedx-hidefedded-opt" name="hidefedded" style="margin-left: 82px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded"">' +
                           '<label for="hidefedded"><span style="margin-left: 15px">Hide Fedded</span></label>' +
                       '</div></td>' +
                       '<td class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
-                          '<input type="checkbox" id="xedx-loggingEnabled-opt" name="loggingEnabled" style="margin-left: 50px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
                           '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
                       '</div></td>' +
                   '</tr>' +
                   '<tr>' + // Row 3
                       '<td class="xtdx"><div>' +
-                          '<input type="checkbox" id="xedx-hidetravel-opt" name="hidetravel" style="margin-left: 82px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
                           '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
                       '</div></td>' +
                       '<td class="xtdx" id="showcaymans" style="display: hide;"><div>' +
-                          '<input type="checkbox" id="xedx-showcaymans-opt" name="showcaymans" style="margin-left: 50px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
                           '<label for="showcaymans"><span style="margin-left: 15px">Show Only From Caymans</span></label>' +
                       '</div></td>' +
                   '<tr>' +
                   '</tr>' + // Row 4
                       '<td class="xtdx"><div>' +
-                          '<input type="checkbox" id="xedx-hidehosp-opt" name="hidehosp" style="margin-left: 82px;">' +
+                          '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
                           '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
                       '</div></td>' +
                       '<td class="xtdx" id="viewcache" style="display: block;"><div>' +
@@ -84,6 +85,11 @@
                       '</div></td>' +
                   '</tr>' +
               '</tbody></table>' +
+              '<div id="xedx-stats" style="float: right; margin-top: 10px;">' +
+                  '<span id="xedx-info-text" style="color: red; margin-right: 20px; margin-left: 20px;">' +
+                  GM_info.script.name +
+                  '</span>' +
+              '</div>' +
               '<br>' +
           '</div>'; // End xedx-content-div
 
@@ -95,6 +101,9 @@
     var opt_showcaymans = false;
     var opt_hidehosp = true;
     var opt_disabled = false;
+    var opt_paused = false;
+
+   var reqDelay = 10; //seconds to delay on error code 5 (too many req's)
 
     // Observers
     var mainTargetNode = null;
@@ -132,12 +141,27 @@
 
         if (opt_disabled) {
             log('Script disabled - ignoring.');
-            //updateLiWithRank(li, null);
             return true;
         }
 
         if (li.classList.contains('filter-hidden') || li.classList.contains('xedx_hidden')) {
             log('Skipping ' + ID + ': hidden.');
+            return true;
+        }
+
+        if (isRanked(li)) { // Don't do again!
+            log('***** getRankFromId: rank already present! *****');
+            log('***** Should not be here!!! *****');
+            return true;
+        }
+
+        if (opt_paused) {
+            log('Script paused - requeuing. (' + $("#xedx-info-text")[0].innerText + ')');
+            if (!$("#xedx-info-text")[0].innerText) {
+                $("#xedx-info-text")[0].innerText = 'Requests paused, please wait.';
+            }
+            setTimeout(function(){
+               xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
             return true;
         }
 
@@ -153,17 +177,33 @@
     function updateUserLevelsCB(responseText, ID, li) {
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
-            if (!opt_disabled) {console.log('updateUserLevelsCB: error:', jsonResp.error);}
+            console.log('updateUserLevelsCB: error:', jsonResp.error);
             if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
-                if (!opt_disabled) {setTimeout(function(){
-                    disableScript(false);
-                    log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
+                if (isRanked(li)) { // Don't do again!
+                    log('***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
+                    return;
                 }
-                if (!opt_disabled) {log('Pausing requests for 15 seconds.');}
-                opt_disabled = true;
+                let name = fullNameFromLi(li);
+                let msg = "Delaying request for " + reqDelay + " seconds.";
+                log('updateUserLevelsCB requeuing ' + name);
+                setTimeout(function(){
+                    $("#xedx-info-text")[0].innerText = "Restarting requests.";
+                    opt_paused = false;
+                    xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+                    log('Restarting requests.');
+                },
+                reqDelay * 1000);  // Turn back on in <delay> secs.
+
+                $("#xedx-info-text")[0].innerText = "Error: " + jsonResp.error.error + "\n" + msg;
+                log(msg);
+                opt_paused = true;
+                return;
             }
             return handleError(responseText);
         }
+
+        $("#xedx-info-text")[0].innerText = 'Queried ID ' + ID;
+        setTimeout(function(){$("#xedx-info-text")[0].innerText = opt_paused ? 'Requests paused, please wait.' : '';}, 5000);
 
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
         let cache_item = newCacheItem(ID, jsonResp);
@@ -179,7 +219,17 @@
     //////////////////////////////////////////////////////////////////////
 
     function getCachedRankFromId(ID, li) {
-        log('Looking for ID ' + ID + ' in cache...');
+        let name = fullNameFromLi(li);
+        log('Looking for ' + name + + ' [' + ID + '] in cache...');
+
+        let isHosped = isInHosp(li);
+        let inFed = isFedded(li);
+        let travelling = isTravelling(li);
+        if (isHosped || inFed || travelling) {
+            log('Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
+            log('**** Shouldn`t be here? *****');
+        }
+
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
                 debug("Returning mem cached rank: " + ID + "(" +  rank_cache[i]. name + ") ==> " +  rank_cache[i].numeric_rank);
@@ -203,7 +253,7 @@
             updateLiWithRank(li, cacheObj);
             return cacheObj.numeric_rank;
         }
-        debug("didn't find " + ID + " in cache.");
+        debug("didn't find " + name + ' [' + ID + "] in cache.");
         return false; // Not found!
     }
 
@@ -246,8 +296,10 @@
         // Run through our filter
         li.classList.remove('xedx_hidden');
 
+        if (opt_disabled) return;
+
         if (!cache_item) {
-            log('Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item + ' disabled: ' + opt_disabled);
+            log('Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item);
             return;
         }
 
@@ -262,6 +314,7 @@
             let lvlNode = li.getElementsByClassName('level')[0];
             let text = lvlNode.innerText;
             if (text.indexOf("/") != -1) { // Don't do again!
+                log('***** Rank already present!! *****');
                 return;
             }
 
@@ -272,36 +325,52 @@
         }
     }
 
+    // Diagnostic aids, will be used elsewhere later
+    function isInHosp(li) {
+        return (li.querySelector("[id^='icon15___']")) ? true : false;
+    }
+    function isFedded(li) {
+        return (li.querySelector("[id^='icon70___']")) ? true : false;
+    }
+    function isTravelling(li) {
+        return (li.querySelector("[id^='icon71___']")) ? true : false;
+    }
+
+    function isRanked(li) {
+        let lvlNode = li.getElementsByClassName('level')[0];
+        let lvlText = lvlNode.innerText;
+        if (lvlText.indexOf("/") != -1) { // Don't do again!
+            log('***** isRanked: rank already present! *****');
+            return true;
+        }
+        return false;
+    }
+
     // Pre-filter - just based on icons in the li
     // If filtered, return TRUE
     function preFilter(li) {
         let ID = idFromLi(li);
         let name = fullNameFromLi(li);
 
-        log("Pre-filtering " + name);
+        log("Pre-filtering " + name + ' [' + ID + ']');
 
-        let sel = li.querySelector("[id^='icon15___']"); // hosp icon
-        if (opt_hidehosp && validPointer(sel)) {
-            log('***preFilter: in hospital! (' + name + ')');
+        if (opt_hidehosp && isInHosp(li)) {
+            log('***** preFilter: in hospital! (' + name + + ' [' + ID + '])');
             return true;
         }
-
-        sel = li.querySelector("[id^='icon70___']"); // fedded icon
-        if (opt_hidefedded && validPointer(sel)) {
-            log('***preFilter: fedded! (' + name + ')');
+        if (opt_hidefedded && isFedded(li)) {
+            log('***** preFilter: fedded! (' + name + + ' [' + ID + '])');
             return true;
         }
-
-        sel = li.querySelector("[id^='icon71___']"); // travelling icon
-        if (opt_hidetravel && validPointer(sel)) {
-            log('***preFilter: travelling! (' + name + ')');
+        if (opt_hidetravel && isTravelling(li)) {
+            log('***** preFilter: travelling! (' + name + + ' [' + ID + '])');
             return true;
         }
 
         return false;
     }
 
-    // Filter to cull out those we're not interested in. Return TRUE if filtered.
+    // Filter to cull out those we're not interested in, based callback info (not icons). Return TRUE if filtered.
     function filterUser(li, ci) {
         debug('Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
         if (opt_showcaymans && ci.state != 'Traveling') {
@@ -309,23 +378,35 @@
             debug('State = ' + ci.state);
             return true;
         }
+
+        let isHosped = isInHosp(li);
+        let infed = isFedded(li);
+        let travelling = isTravelling(li);
+        if (isHosped || infed || travelling) {
+            log('Hosp: ' + isHosped + ' Fedded: ' + infed + ' IsTravelling: ' + travelling);
+            log('**** Shouldn`t be here? *****');
+        }
+
         switch (ci.state) {
             case 'Hospital':
                 if (opt_hidehosp) {
-                    debug('Filtered - in hosp.');
+                    if (isHosped) log('**** Shouldn`t be here? *****');
+                    debug('***** Filtered - in hosp.');
                     return true;
                 }
                 break;
             case 'Federal':
                 if (opt_hidefedded) {
-                    debug('Filtered - fedded.');
+                    if (infed) log('**** Shouldn`t be here? *****');
+                    debug('***** Filtered - fedded.');
                     return true;
                 }
                 break;
             case 'Abroad':
             case 'Traveling':
                 if (opt_hidetravel) {
-                    debug('Filtered - traveling.');
+                    if (travelling) log('**** Shouldn`t be here? *****');
+                    debug('***** Filtered - traveling.');
                     return true;
                 }
                 if (opt_showcaymans) {
@@ -353,6 +434,11 @@
     function updateUserLevels(display) {
         log('updateUserLevels called by: ' + display);
 
+        if (opt_disabled) {
+            log('Script disabled - not processing.');
+            return;
+        }
+
         // See if TornTools filtering is in play.
         let ttPlayerFilter = document.querySelector("#tt-player-filter");
         if (validPointer(ttPlayerFilter)) {
@@ -370,6 +456,11 @@
             let li = items[i], ID = 0;
             if ((ID = idFromLi(li)) != 0) {
 
+                if (isRanked(li)) { // Don't do again!
+                    log('***** updateUserLevels: rank already present, ignoring *****');
+                    continue;
+                }
+
                 // NOTE: Filter here first, before secondary filter, which
                 // requires stuff from a stats query. We can filter based on icons in the li.
                 // Just need to add the filter class, will be caught in getRankFromId()
@@ -386,7 +477,7 @@
                 // according - we perform secondary filtering there.
                 if (!getCachedRankFromId(ID, li)) {
                     setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
-                                                                         // to prevent the 100 reqs/min error
+                                                                         // to limit the 100 reqs/min errors
                 }
             }
         }
@@ -579,7 +670,7 @@
     function hideOpts(hide=true) {
         debug((hide ? "hiding " : "showing ") + "options page.");
         $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
-        document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'block';
+        document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'flex';
     }
 
     // Toggle active/inactive status
@@ -620,6 +711,7 @@
     // Styles for UI elements
     function loadTableStyles() {
         GM_addStyle(".xedx_hidden {display: none;}");
+        GM_addStyle(".xcbx {margin-left: 12px;}");
         if (darkMode()) {
             GM_addStyle(".xtdx {color: white;}");
             GM_addStyle(".button {" +
