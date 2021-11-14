@@ -156,8 +156,13 @@ function readPriceList() {
   }
 
   // Now add the set prices.
-  retJSON.museum_sets.push({"type": "exotic-flowers", "price": priceSheet().getRange('B33').getValue()});
-  retJSON.museum_sets.push({"type": "plushies", "price": priceSheet().getRange('B21').getValue()});
+  if (opts.opt_calcSetPointPrices) {
+    retJSON.museum_sets.push({"type": "exotic-flowers", "price": priceSheet().getRange('D7').getValue()});
+    retJSON.museum_sets.push({"type": "plushies", "price": priceSheet().getRange('D7').getValue()});
+  } else {
+    retJSON.museum_sets.push({"type": "exotic-flowers", "price": priceSheet().getRange('D33').getValue()});
+    retJSON.museum_sets.push({"type": "plushies", "price": priceSheet().getRange('D21').getValue()});
+  }
 
   return {"JSON": retJSON, "arr": retArray};
 }

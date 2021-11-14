@@ -1,24 +1,20 @@
-/*====================================================================================================================================*
+/** ==============================================================================================================*
   batchAPI by 0xHemlock [2662912]
-  ====================================================================================================================================
+  =================================================================================================================
   Version:      0.1
   License:      GNU General Public License, version 3 (GPL-3.0) 
                 http://www.opensource.org/licenses/gpl-3.0.html
-  ------------------------------------------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------------------
   A library for calling a number of Torn API functions in one call. 
-  This script is designed to be used inside of "Xanet's Price List".  It runs on a time-based trigger every minute.
+  This script is designed to be used inside of "Xanet's Price List".  It runs on a time-based trigger (?)
   
-  Functions include:
+  Publi functions:
 
      batchAPI()      @desc For use by end users to import a bulk JSON feed from URLs 
                      @param none
-                     @returns nothing
-                     
-     checkSheet10()  @desc I don't know, appears to set a random # (sometimes) at Sheet10!C9
-                     @param none
-                     @returns nothing
+                     @returns nothing (modifies the Trade Helper sheets directly)
      
-=======================================================================================================================================*/
+================================================================================================================*/
 
 function batchAPI() { 
   
@@ -27,7 +23,6 @@ function batchAPI() {
     console.log('batchAPI() called.');
   
   //Define the working sheets
-  //var ss = SpreadsheetApp.openById("1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0");
   var ss = important_getSSID();
 
   var bazaar_prices_tab = ss.getSheetByName("bazaar prices");
@@ -58,6 +53,10 @@ function batchAPI() {
   active_items_arr = active_items_arr.filter(element => element);  //cleanse the empty values from the active item list
 
   //Run the batch API call
+  var start = (batch_max * cycle_iter) - batch_max;
+  var end = Math.min(batch_max * cycle_iter, active_items_arr.length);
+  console.log('batchAPI entering loop: start = ' + start + ' end = ' + end);
+  console.log('Using API key: ' + api_key);
   for (var i = (batch_max * cycle_iter) - batch_max; i < Math.min(batch_max * cycle_iter, active_items_arr.length); i++) {
     var thisItem = active_items_arr[i];
     var itemId = item_id_arr.findIndex((element) => element[0] == thisItem);
@@ -70,15 +69,16 @@ function batchAPI() {
     else {
       var apiCall;
       var bazaarListings;
+      console.log('Called importJSON, importJSON_calls = ' + (++importJSON_calls));
       if (active_items_arr[i] == "Points") {
-        apiCall = "https://api.torn.com/market/?selections=pointsmarket&key=" + api_key;
+        apiCall = "https://api.torn.com/market/?comment=batchAPI&selections=pointsmarket&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
         points_tab.getRange("A1:2").clearContent();
         points_tab.getRange(1, 1, 2, bazaarListings[0].length).setValues(bazaarListings);
         //points_tab.getRange("A3").setValue(bazaarListings[0].length);
       }
       else {
-        apiCall = "https://api.torn.com/market/" + item_id_arr[itemId][1] + "?selections=bazaar&key=" + api_key;
+        apiCall = "https://api.torn.com/market/" + item_id_arr[itemId][1] + "?comment=batchAPI&selections=bazaar&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
         bazaar_prices_tab.getRange(2, printIndex, 102, 3).clearContent();
         if (bazaarListings[0].length == 3){
@@ -108,8 +108,12 @@ function batchAPI() {
   }
 }
 
+/**  
+ * Validates the layout of 'Sheet10', if not in correct format,
+ * sets a random value in C9 that I presume is checked somewhere
+ * to trigger a full refresh of the sheet.
+*/
 function checkSheet10() {
-  //var ss = SpreadsheetApp.openById("1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0");
   var ss = important_getSSID();
   var sheet10 = ss.getSheetByName("Sheet10");
   var status = sheet10.getRange("A7").getValue();
@@ -118,71 +122,54 @@ function checkSheet10() {
   }
 }
 
-
-/** function up(){
-  var ss = important_getSSID();
-  ss.getRange('Sheet10!F8').setValue(Math.random());
-} */
 function up2(){
-
   var ss = important_getSSID();
   ss.getRange('Sheet10!C9').setValue(Math.random());
-  /*
-  SpreadsheetApp.openById('1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0').getRange('Sheet10!C9').setValue(Math.random());
-  */
-
 }
-function up3(){
+
+function up3(){ // Unused (?)
   var ss = important_getSSID();
   ss.getRange('Last trade!g2').setValue(Math.random());
-  /*
-  SpreadsheetApp.openById('1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg').getRange('Last trade!g2').setValue(Math.random());
-  */
 }
-/**
-}
-function up4(){
 
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a2').setValue(Math.random());
-
-}
-function up5(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a3').setValue(Math.random());
-
-}
-function up6(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a4').setValue(Math.random());
-
-}
-function up7(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a5').setValue(Math.random());
-
-}
-function up8(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a6').setValue(Math.random());
-
-}
-*/
-function ClearCells() {
+function ClearCells() { // Unused (?)
   var sheet = SpreadsheetApp.getActive().getSheetByName('Trade Calc');
   sheet.getRange('A2:A100').clearContent();
-   
 }
-/*
+
+/** Unused functions, left for legacy purposes.
+ * 
+function up() {
+  var ss = important_getSSID();
+  ss.getRange('Sheet10!F8').setValue(Math.random());
+}
+
+function up4() {
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a2').setValue(Math.random());
+}
+
+function up5() {
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a3').setValue(Math.random());
+}
+
+function up6() {
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a4').setValue(Math.random());
+}
+
+function up7() {
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a5').setValue(Math.random());
+}
+
+function up8() {
+  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a6').setValue(Math.random());
+}
+
 function up9(){
-
   SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a7').setValue(Math.random());
-
 }
 
 function up10(){
-
   SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a8').setValue(Math.random());
-
 }
 */
 

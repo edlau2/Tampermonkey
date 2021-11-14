@@ -2,6 +2,17 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
+const UTILITIES_VERSION_INTERNAL = '1.0';
+const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
+
+// The onOpen() function, when defined, is automatically invoked whenever the
+// spreadsheet is opened. For more information on using the Spreadsheet API, see
+// https://developers.google.com/apps-script/service_spreadsheet
+function onOpen() {
+  SCRIPT_PROP = PropertiesService.getScriptProperties();
+  let ss = important_getSSID();
+};
+
 // Load script options
 function loadScriptOptions() {
   opts.opt_detectDuplicates = optsSheet().getRange("B3").getValue();
@@ -32,17 +43,52 @@ function loadScriptOptions() {
 // Versioning info
 function getVersion() {
   return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
-         'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"';
+         'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
+         'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"';
 }
 
-// Function to set up everything
+// Function to get the spredsheet handle by SSID
+// See also ssidTest() in 'unitTests.gs'
+var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function important_getSSID() {
-  var doc = SpreadsheetApp.getActiveSpreadsheet();
-  SCRIPT_PROP.setProperty("key", doc.getId());
-  console.log('SSID: ' + doc.getId());
-  var ss = getDocById();
+  let ss = null;
+  let savedKey = SCRIPT_PROP.getProperty("key");
+  if (!savedKey) {
+    let doc = SpreadsheetApp.getActiveSpreadsheet();
+    if (doc) {
+      console.log('Saved SSID not found, using current SSID:', doc.getId())
+      SCRIPT_PROP.setProperty("key", doc.getId());
+      console.log('Saved SSID: ' + doc.getId());
+    }
+  }
 
-  return ss;
+  try {
+    ss = SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
+    if (ss) console.log('Used saved SSID: ', ss.getKey());
+  } catch (e) {
+    console.log('Error: ' , e + '\nWill retry with default SSID (' + defSSID + ')');
+    ss = SpreadsheetApp.openById(defSSID);
+    if (ss) {
+      SCRIPT_PROP.setProperty("key", ss.getKey());
+      console.log('Saved SSID: ', ss.getKey());
+    }
+  } finally {
+    return ss;
+  }
+}
+
+// Delete any saved spreadsheet key - debuggin utility only.
+function deleteSSID() {
+  SCRIPT_PROP.deleteProperty("key");
+  console.log('Deleted saved SSID');
+}
+
+// Get handles to various worksheets in the spreadsheet
+function getDocById() {
+  if (!SCRIPT_PROP.getProperty("key")) {
+    important_getSSID();
+  }
+  return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
 }
 
 // Perform an array deep copy
@@ -53,11 +99,6 @@ function deepCopy(copyArray) {
 // Helper to optionally log.
 function log(data) {
   if (opts.opt_consoleLogging) console.log(data);
-}
-
-// Get handles to various worksheets in the spreadsheet
-function getDocById() {
-  return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
 }
 
 function datasheet() {

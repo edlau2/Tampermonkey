@@ -1,6 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // File: service-provider.js.gs
 /////////////////////////////////////////////////////////////////////////////
+
 // Versioning, internal
 var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.5';
 
@@ -11,9 +12,6 @@ function doIt() {doMainTest();}
 // Globals
 /////////////////////////////////////////////////////////////////////////////
 
-var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
-var doc = SpreadsheetApp.getActiveSpreadsheet();
-SCRIPT_PROP.setProperty("key", doc.getId());
 var itemsInserted = 0; // Count of logged entries
 var opts = {};
 
