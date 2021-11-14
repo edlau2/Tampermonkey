@@ -101,7 +101,7 @@ function main() {
       result = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
     } catch(e) {
       console.log('POST exception: ', e);
-      alert('POST exception: ', e);
+      SpreadsheetApp.getUi().alert('POST exception: ', e);
       success = false;
       return;
     }
@@ -121,6 +121,8 @@ function main() {
     const endTime = new Date().getTime();
     log((success ? 'Success! ' : 'Error - ') + 'Execution complete. Elapsed time: ' + 
       (endTime - startTime)/1000 + ' seconds.');
+
+      SpreadsheetApp.getUi().alert('All done!\nTook ' + (endTime - startTime)/1000 + ' seconds.');
     
     if (options.opt_useLocks) {
       log('Releasing lock.');

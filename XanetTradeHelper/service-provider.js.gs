@@ -3,9 +3,9 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANETS_TRADE_HELPER_VERSION_INTERNAL = '2.4';
+var HEJBRO_TRADE_HELPER_VERSION_INTERNAL = '2.4';
 function getVersion() {
-  return 'XANETS_TRADE_HELPER_VERSION_INTERNAL = "' + XANETS_TRADE_HELPER_VERSION_INTERNAL + '"';
+  return 'HEJBRO_TRADE_HELPER_VERSION_INTERNAL = "' + HEJBRO_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
@@ -15,28 +15,24 @@ function doIt() {doMainTest();}
 // This must be run before using this script. Select 'Run->Run Function->Setup' to do so.
 // It saves the script ID so it doesn't have to be hard-coded manually.
 //
-// Alternatively, you can set the ID as ssID, below, and use that instead. 
-// In the function 'getDocById()', you can swap the coment marks between the two lines to 
-// determine if the ID is dynamically saved and loaded, or hard-coded.
+// Alternatively, you can set the ID as ssID, in the Options worksheet, and use that instead. 
 //
 function setup() {
     var doc = SpreadsheetApp.getActiveSpreadsheet();
     SCRIPT_PROP.setProperty("key", doc.getId());
 }
 
-// Set to false to use hard-coded ID (ssID), otherwise,
-// run setup as per the note above.
-const useSavedId = true; 
-const ssID = "1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k";
+// Set 'opt_useSavedID' to false to use hard-coded ID (ssID), otherwise,
+// run setup as per the note above. See the 'Options' worksheet.
 function getDocById() {
-  if (useSavedId) {
+  if (opt_useSavedID) {
     try {
     return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
     } catch(e) {
       SpreadsheetApp.getUi().alert('An error ocurred opening the spreadsheet app. Did you run "setup" first?"');
     }
   } else {
-    return SpreadsheetApp.openById(ssID);
+    return SpreadsheetApp.openById(opt_SSID);
   }
 }
 
@@ -47,20 +43,21 @@ function getDocById() {
 var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
 var itemsInserted = 0; // Count of logged entries
 
-// Global options
-// TBD: Turn this into an 'options' struct.
-// See 'loadScriptOptions()'
-var opt_detectDuplicates = false; // Prevent duplicate ID's from being logged.
-var opt_maxTransactions = 5; // Unrealistic value, set to maybe 200?
-var opt_consoleLogging = true; // true to enable logging (need to call log() intead of log())
-var opt_colorDataCells = false; // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
-var opt_useLocks = false; // true to lock processing path.
-var opt_logRemote = false; // true to log remote entries sent by the browser (not yet implemented)
-var opt_calcSetItemPrices = true; // Calculate sets automatically, item prices
-var opt_calcSetPointPrices = false; // Calculate sets automatically, point prices
-var opt_clearRunningAverages = false; // Check for rows to delete in Running Averages sheet
-var opt_markdown = 0.9; // Markdown for prices not in the list
-var opt_profilingEnabled = true;
+var opts = {
+  opt_detectDuplicates: false, // Prevent duplicate ID's from being logged.
+  opt_maxTransactions: 5, // Unrealistic value, set to maybe 200?
+  opt_consoleLogging: true, // true to enable logging (need to call log() intead of log())
+  opt_colorDataCells: false, // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
+  opt_useLocks: false, // true to lock processing path.
+  opt_logRemote: false, // true to log remote entries sent by the browser (not yet implemented)
+  opt_calcSetItemPrices: true, // Calculate sets automatically, item prices
+  opt_calcSetPointPrices: false, // Calculate sets automatically, point prices
+  opt_clearRunningAverages: false, // Check for rows to delete in Running Averages sheet
+  opt_markdown: 0.9, // Markdown for prices not in the list
+  opt_profilingEnabled: true,
+  opt_useSavedID: false, // Set to TRUE to dynamically determine SSID, must run 'setup()' in that case.
+  opt_SSID: '1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k'
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -95,7 +92,7 @@ function handleRequest(e) {
   const lock = LockService.getPublicLock();
   
   // Safely lock access to this path concurrently.
-  if (opt_useLocks) {
+  if (opts.opt_useLocks) {
     let success = lock.tryLock(30000); 
     if (!success) { 
       let output = 'Error: Unable to obtain exclusive lock after ' + timeout + ' seconds.';
@@ -129,7 +126,7 @@ function handleRequest(e) {
       // in matching row in col d. Then log the event. Before doing that, make sure 
       // this trade han't already been entered. Check for dup ID's
       //
-      if (!opt_detectDuplicates) { // Checked in 'isDuplicate()'
+      if (!opts.opt_detectDuplicates) { // Checked in 'isDuplicate()'
         log('Not checking for duplicate log entries.');
       }      
 
@@ -140,7 +137,7 @@ function handleRequest(e) {
       // Count items that belong in sets, and how many full sets.
       // If we have full sets, add a new item entry to the array ('Flower Set (item price)', for example.
       // "", reduce qty of items in sets from array entries, if 0 (all are in a set), remove that entry.
-      if (opt_calcSetItemPrices) {
+      if (opts.opt_calcSetItemPrices || opts.opt_calcSetPointPrices) {
         retArray = deepCopy(processSetItemPrices(retArray));
       }
       
@@ -150,7 +147,7 @@ function handleRequest(e) {
       // writes it the Data worksheet).      
       let calcAvgs = (cmd == 'data') ? true : false; // Don't write avgs if just getting price info
       profile();
-      if (calcAvgs && opt_clearRunningAverages) {cleanRunningAverages();}
+      if (calcAvgs && opts.clearRunningAverages) {cleanRunningAverages();}
       profile();
       var totalCost = fillPrices(retArray, calcAvgs); // Also updates running averages (second param).
       
@@ -163,8 +160,8 @@ function handleRequest(e) {
         
         // Check to see if we have exceed our max # logged trades, and if so, clean up.
         profile();
-        if (opt_maxTransactions) {
-          while (countTransactions() > opt_maxTransactions) {
+        if (opts.opt_maxTransactions) {
+          while (countTransactions() > opts.opt_maxTransactions) {
             deleteFirstTrade();
           }
           profile();
@@ -194,8 +191,11 @@ function handleRequest(e) {
   } finally {
     const endTime = new Date().getTime();
     log('Execution complete. Elapsed time: ' + (endTime - startTime)/1000 + ' seconds.');
-    log('handleRequest Finally: releasing lock.');
-    if (opt_useLocks) {lock.releaseLock();}
+    if (opts.opt_useLocks) {
+      log('Releasing lock.');
+      lock.releaseLock();
+      }
+      log('Exiting.');
   }
 }
 
@@ -206,8 +206,10 @@ function handleRequest(e) {
 // "", reduce qty of items in sets from array entries, if 0 (all are in a set), remove that entry
 /////////////////////////////////////////////////////////////////////////////
 
-const flowerSetName = 'Flower Set (item based)';
-const plushieSetName = 'Plushie Set Price (item based)';
+const flowerSetName = (opts.opt_calcSetPointPrices) ? 
+  'Flower Set (item based)' : 'Set Price (points based)';
+const plushieSetName = opts.opt_calcSetPointPrices ? 
+  'Plushie Set Price (item based)' : 'Set Price (points based)';
 
 function processSetItemPrices(retArray) {
   let myFlowerSet = deepCopy(flowersInSet);
@@ -337,20 +339,18 @@ function provideResult(ev, XanetResult, retArray) {
 **/
 
 function loadScriptOptions() {
-  opt_detectDuplicates = optsSheet().getRange("B3").getValue();
-  opt_maxTransactions = optsSheet().getRange("B4").getValue();
-  opt_consoleLogging = optsSheet().getRange("B5").getValue();
-  opt_colorDataCells = optsSheet().getRange("B6").getValue();
-  opt_logRemote = optsSheet().getRange("B7").getValue();
-  opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
-  opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
-  opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
-  opt_markdown = Number(optsSheet().getRange("B11").getValue());
+  opts.opt_detectDuplicates = optsSheet().getRange("B3").getValue();
+  opts.opt_maxTransactions = optsSheet().getRange("B4").getValue();
+  opts.opt_consoleLogging = optsSheet().getRange("B5").getValue();
+  opts.opt_colorDataCells = optsSheet().getRange("B6").getValue();
+  opts.opt_logRemote = optsSheet().getRange("B7").getValue();
+  opts.opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
+  opts.opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
+  opts.opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
+  opts.opt_markdown = Number(optsSheet().getRange("B11").getValue());
+  opts.opt_useLocks = optsSheet().getRange("B12").getValue();
 
-  // TBD: Finish this - if a struct, one call!!!
-  log('Read options: detect dups = "' + opt_detectDuplicates +
-           '" max Xactions = "' + opt_maxTransactions +
-           '" console logging= "' + opt_consoleLogging + '"');
+  console.log('loadScriptOptions: ', opts);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -374,7 +374,7 @@ function asCurrency(num) {
 // See if this trade ID has already been logged.
 // If so, return true.
 function isDuplicate(id) {
-  if (!opt_detectDuplicates) return false;
+  if (!opts.opt_detectDuplicates) return false;
   
   var sheetRange = datasheet().getDataRange();
   var idRange = datasheet().getRange(2, 2, sheetRange.getLastRow());
@@ -538,11 +538,11 @@ function findItemInItemList(item) {
         }
       let price2 = priceRows2[j];
       // let price = priceSheet().getRange(j+2, 4).getValue();
-      item.price = Math.round(price2 * opt_markdown); 
+      item.price = Math.round(price2 * opts.opt_markdown); 
       item.total = item.price * item.qty; 
       transTotal += item.total;
       log('Found match for ' + searchWord + ' in items list,\nPrice = ' + price2 + 
-      '\nMarkdown = ' + opt_markdown + 
+      '\nMarkdown = ' + opts.opt_markdown + 
       '\nCalculated Price = ' +  item.price + ' each.\nTotal for items (' + 
       item.qty + ') is ' + item.total);
       break;
@@ -728,7 +728,7 @@ function logTransaction(array) {
     // If the price/total is '-1', set as red; if '0', set as yellow
     // See https://developers.google.com/apps-script/reference/calendar/color
     // for color enumerations, or use RGB
-    if (opt_colorDataCells == true) {
+    if (opts.opt_colorDataCells == true) {
       let cells = datasheet().getRange('C' + row + ':F' + row);
       let color = 'lime';
       if (array[i].priceAskMe == true) {color = 'yellow';}
@@ -800,7 +800,7 @@ function lastTradeSheet() {
 
 // Helper to optionally log.
 function log(data) {
-  if (opt_consoleLogging) console.log(data);
+  if (opts.opt_consoleLogging) console.log(data);
 }
 
 /////////////////////////////////////////////////////////////////////////////
