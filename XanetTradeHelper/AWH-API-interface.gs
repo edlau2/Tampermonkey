@@ -3,49 +3,18 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var HEJBRO_API_INTERFACE_VERSION_INTERNAL = '1.0';
-function getVersion() {
-  return 'HEJBRO_API_INTERFACE_VERSION_INTERNAL = "' + HEJBRO_API_INTERFACE_VERSION_INTERNAL + '"';
-}
-
-// Function that calls the main unit test, here so I can set breakpoints here and not step in.
-// function doIt() {doMainTest();}
-
-//
-// This must be run before using this script. Select 'Run->Run Function->Setup' to do so.
-// It saves the script ID so it doesn't have to be hard-coded manually.
-//
-// Alternatively, you can set the ID as ssID, below, and use that instead. 
-// (above the function 'getDocById()') In that case, 'useSavedId' should be
-// false. Setting it to true requires setup to be run and it iwll automatically
-// determine and save the spreadsheet ID.
-//
-let useSavedId = false; // Using a hard-coded spreadsheet ID...
-function setup() {
-    var doc = SpreadsheetApp.getActiveSpreadsheet();
-    SCRIPT_PROP.setProperty("key", doc.getId());
-}
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.2';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
 /////////////////////////////////////////////////////////////////////////////
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
-var options = {
-  opt_useSavedID: false, // Set to TRUE to dynamically determine SSID, must run 'setup()' in that case.
-  opt_SSID: '1KCksGG5CIvA4aMwsq1SMqyPIDRq6HVpXgPvE2q7AP8A',
-  opt_consoleLogging: true,  // true to enable logging (need to call log() intead of console.log()) 
-  opt_useLocks: false,       // true to lock processing path.
-  opt_awhKey: '',
-  opt_awhBaseURL: '',
-  opt_getItemBids: false
-}
-
+var opts = {};
 const psStartRow = 8; // Start of data on the price sheet
 const idCol = 2;  // Column with ID's ('B') (both sheets)
 const priceCol = 4; // Column for prices ('D') (price sheet)
 const nameCol = 1; // Column for name, (both sheets)
-//var statusRange = null; 
 
 /////////////////////////////////////////////////////////////////////////////
 // Main entry point
@@ -58,9 +27,9 @@ function main() {
   console.log(getVersion()); // ALWAYS logged.
   statusRange = priceSheet().getRange('G19');
 
-  // Safely lock access to this path concurrently.
+  // Safely lock access to this path concurrently (optionally)
   const lock = LockService.getPublicLock();
-  if (options.opt_useLocks) {
+  if (opts.opt_useLocks) {
     success = lock.tryLock(30000); 
     if (!success) { 
       let output = 'Error: Unable to obtain exclusive lock after ' + timeout + ' seconds.';
@@ -78,16 +47,14 @@ function main() {
     console.log('itemsJSON: ', itemsJSON);
 
     log('Uploading JSON pricing to AWH...');
-    let baseURL = options.awhBaseURL;
-    let username = options.awhKey;
+    let baseURL = opts.awhBaseURL;
+    let username = opts.awhKey;
     let flowersURL = baseURL + 'museum-sets/exotic-flowers/bids';
     let plushiesURL = baseURL + 'museum-sets/plushies/bids';
     let password = '';
     let auth = {"Authorization": "Basic " + Utilities.base64Encode(username + ":" + password)};
 
     // POST all prices
-    let result = '';
-    setStatus('POSTing data to AWH...');
     var postOptions = {
       'method' : 'post',
       'headers': auth,
@@ -101,14 +68,14 @@ function main() {
       result = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
     } catch(e) {
       console.log('POST exception: ', e);
-      SpreadsheetApp.getUi().alert('POST exception: ', e);
+      if (opts.opt_allowUI) SpreadsheetApp.getUi().alert('POST exception: ', e);
       success = false;
       return;
     }
     log('Uploaded ' + itemsJSON.items.length + ' items.');
 
     // Now (optionally) get each item's price, log it.
-    if (options.opt_getItemBids) {
+    if (opts.opt_getItemBids) {
       getItemBids(itemsJSON);
     }
     
@@ -122,9 +89,11 @@ function main() {
     log((success ? 'Success! ' : 'Error - ') + 'Execution complete. Elapsed time: ' + 
       (endTime - startTime)/1000 + ' seconds.');
 
-      SpreadsheetApp.getUi().alert('All done!\nTook ' + (endTime - startTime)/1000 + ' seconds.');
+      if (opts.opt_allowUI) {
+        SpreadsheetApp.getUi().alert('All done!\nTook ' + (endTime - startTime)/1000 + ' seconds.');
+      }
     
-    if (options.opt_useLocks) {
+    if (opts.opt_useLocks) {
       log('Releasing lock.');
       lock.releaseLock();
       }
@@ -158,7 +127,6 @@ function readPriceList() {
   // Now insert the price from the dataRange, and the ID found via a
   // vlookup from the itemRange, into a new array
   let retArray = [];
-  let namedArray = [];
   for (let i = 0; i < lastRow; i++) {
     if (i == 13 || i == 25) continue;
     if (!dataRangeArr[i][0]) break;
@@ -198,21 +166,6 @@ function readPriceList() {
 // Helpers
 /////////////////////////////////////////////////////////////////////////////
 
-// Set to false to use hard-coded ID (ssID), otherwise,
-// run setup as per the note above.
-function getDocById() {
-  try {
-    if (options.opt_useSavedID) {
-      return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
-    } else {
-    return SpreadsheetApp.openById(options.opt_SSID);
-    }
-  } catch(e) {
-    SpreadsheetApp.getUi().alert('An error ocurred opening the spreadsheet app. Did you run "setup" first?\n' +
-        '"', e);
-  }
-}
-
 // Replacement for Google Sheet's vlookup fn, for use in JS
 // In order to match vlookup, 'index' is 1-based (col number)
 // 'range' is an array, use range.getValues.
@@ -227,69 +180,13 @@ function vlookupscript(search_key, range, matchIndex, returnIndex) {
   return returnVal;
 }
 
-// Set the status cell (unused)
-function setStatus(text) {
-  //statusRange.setValue(text);
-  log('Not setting status: ' + text);
-}
-
-// Load options
-function loadScriptOptions() {
-  options.opt_consoleLogging = optsSheet().getRange("B5").getValue();
-  options.opt_useLocks = optsSheet().getRange("B12").getValue();
-  options.awhKey = optsSheet().getRange("B19").getValue();
-  options.awhBaseURL = optsSheet().getRange("B18").getValue();
-  options.opt_getItemBids = optsSheet().getRange("B20").getValue();
-
-  console.log('loadScriptOptions: ', options);
-}
-
-// Get handle to the 'Options' sheet.
-function optsSheet() {
-  return getDocById().getSheetByName('Options');
-}
-
-// Get handle to the 'Prices' sheet.
-function priceSheet() {
-  return getDocById().getSheetByName('Price Calc');
-}
-
-// Get handle to the 'Items' sheet.
-function itemSheet() {
-  return getDocById().getSheetByName('Item List');
-}
-
-// Helper to optionally log.
-function log(data) {
-  if (options.opt_consoleLogging) console.log(data);
-}
-
-// Helper: Perform an array deep copy
-function deepCopy(copyArray) {
-    return JSON.parse(JSON.stringify(copyArray));
-}
-
-// Format a number as currency
-function asCurrency(num) {
-  var formatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-
-  // These options are needed to round to whole numbers if that's what you want.
-  //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-  maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-  });
-
-  return formatter.format(num);
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // Test the upload: gwt al litem bids
 /////////////////////////////////////////////////////////////////////////////
 
 function getItemBids(itemsJSON) {
-    let baseURL = options.awhBaseURL;
-    let username = options.awhKey;
+    let baseURL = opts.awhBaseURL;
+    let username = opts.awhKey;
     let flowersURL = baseURL + 'museum-sets/exotic-flowers/bids';
     let plushiesURL = baseURL + 'museum-sets/plushies/bids';
     let password = '';
@@ -329,6 +226,6 @@ function getItemBids(itemsJSON) {
     console.log('GET response (plushies): ', result.getContentText());
     alertText += result.getContentText() + '\n';
 
-    SpreadsheetApp.getUi().alert('Finished downloading prices!\n\n' + alertText);
+    if (opts.opt_allowUI) SpreadsheetApp.getUi().alert('Finished downloading prices!\n\n' + alertText);
 }
 

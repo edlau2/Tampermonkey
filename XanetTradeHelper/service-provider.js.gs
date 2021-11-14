@@ -1,63 +1,21 @@
 /////////////////////////////////////////////////////////////////////////////
 // File: service-provider.js.gs
 /////////////////////////////////////////////////////////////////////////////
-
 // Versioning, internal
-var HEJBRO_TRADE_HELPER_VERSION_INTERNAL = '2.4';
-function getVersion() {
-  return 'HEJBRO_TRADE_HELPER_VERSION_INTERNAL = "' + HEJBRO_TRADE_HELPER_VERSION_INTERNAL + '"';
-}
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.5';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
-
-//
-// This must be run before using this script. Select 'Run->Run Function->Setup' to do so.
-// It saves the script ID so it doesn't have to be hard-coded manually.
-//
-// Alternatively, you can set the ID as ssID, in the Options worksheet, and use that instead. 
-//
-function setup() {
-    var doc = SpreadsheetApp.getActiveSpreadsheet();
-    SCRIPT_PROP.setProperty("key", doc.getId());
-}
-
-// Set 'opt_useSavedID' to false to use hard-coded ID (ssID), otherwise,
-// run setup as per the note above. See the 'Options' worksheet.
-function getDocById() {
-  if (opt_useSavedID) {
-    try {
-    return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
-    } catch(e) {
-      SpreadsheetApp.getUi().alert('An error ocurred opening the spreadsheet app. Did you run "setup" first?"');
-    }
-  } else {
-    return SpreadsheetApp.openById(opt_SSID);
-  }
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
 /////////////////////////////////////////////////////////////////////////////
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
+var doc = SpreadsheetApp.getActiveSpreadsheet();
+SCRIPT_PROP.setProperty("key", doc.getId());
 var itemsInserted = 0; // Count of logged entries
-
-var opts = {
-  opt_detectDuplicates: false, // Prevent duplicate ID's from being logged.
-  opt_maxTransactions: 5, // Unrealistic value, set to maybe 200?
-  opt_consoleLogging: true, // true to enable logging (need to call log() intead of log())
-  opt_colorDataCells: false, // 'true' to color cells on the data sheet Red if not found, Yellow if no price found, and Green for OK. 
-  opt_useLocks: false, // true to lock processing path.
-  opt_logRemote: false, // true to log remote entries sent by the browser (not yet implemented)
-  opt_calcSetItemPrices: true, // Calculate sets automatically, item prices
-  opt_calcSetPointPrices: false, // Calculate sets automatically, point prices
-  opt_clearRunningAverages: false, // Check for rows to delete in Running Averages sheet
-  opt_markdown: 0.9, // Markdown for prices not in the list
-  opt_profilingEnabled: true,
-  opt_useSavedID: false, // Set to TRUE to dynamically determine SSID, must run 'setup()' in that case.
-  opt_SSID: '1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k'
-}
+var opts = {};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -174,12 +132,12 @@ function handleRequest(e) {
     /////////////////////////////////////////////////////////////////////////
     
     var XanetResult = [{code: 200,    // Define success/failure codes. Stole HTTP 200 OK for now.
-                       command: cmd, // data, price, etc. Matches the request.
-                       id: tradeID,
-                       totalTrade: totalCost, // Cost of ALL items in trade.
-                       itemsProcessed: retArray.length, // Items we received to process
-                       itemsAdded: itemsInserted // Items actually logged.
-                       }];
+                      command: cmd, // data, price, etc. Matches the request.
+                      id: tradeID,
+                      totalTrade: totalCost, // Cost of ALL items in trade.
+                      itemsProcessed: retArray.length, // Items we received to process
+                      itemsAdded: itemsInserted // Items actually logged.
+                      }];
     
     return provideResult(e, XanetResult, retArray);
     
@@ -239,7 +197,6 @@ function processSetItemPrices(retArray) {
         retArray[i].inPlushieSet = true;
       }
     });
-
   } // end retArray for loop.
 
   // See how many sets we have, if any.
@@ -284,8 +241,6 @@ function processSetItemPrices(retArray) {
   }
 
   log('processSetItemPrices: newArray\n' + JSON.stringify(newArray));
-
-  //retArray = deepCopy(newArray);
   return newArray;
 }
 
@@ -331,48 +286,10 @@ function provideResult(ev, XanetResult, retArray) {
   }
 }
 
-/** 
-* Load script options
-*
-* TBD: Turn this into an 'options' struct.
-*
-**/
-
-function loadScriptOptions() {
-  opts.opt_detectDuplicates = optsSheet().getRange("B3").getValue();
-  opts.opt_maxTransactions = optsSheet().getRange("B4").getValue();
-  opts.opt_consoleLogging = optsSheet().getRange("B5").getValue();
-  opts.opt_colorDataCells = optsSheet().getRange("B6").getValue();
-  opts.opt_logRemote = optsSheet().getRange("B7").getValue();
-  opts.opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
-  opts.opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
-  opts.opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
-  opts.opt_markdown = Number(optsSheet().getRange("B11").getValue());
-  opts.opt_useLocks = optsSheet().getRange("B12").getValue();
-
-  console.log('loadScriptOptions: ', opts);
-}
-
-/////////////////////////////////////////////////////////////////////////
-// Helper functions  
-/////////////////////////////////////////////////////////////////////////
-
-// Format a number as currency
-function asCurrency(num) {
-  var formatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-
-  // These options are needed to round to whole numbers if that's what you want.
-  //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-  maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-  });
-
-  return formatter.format(num);
-}
-
+/////////////////////////////////////////////////////////////////////////////
 // See if this trade ID has already been logged.
 // If so, return true.
+/////////////////////////////////////////////////////////////////////////////
 function isDuplicate(id) {
   if (!opts.opt_detectDuplicates) return false;
   
@@ -381,7 +298,6 @@ function isDuplicate(id) {
   var tradeIDs = idRange.getValues();
   for (let i = 0; i < tradeIDs.length; i++) {
     if (tradeIDs[i] == "") {continue;}
-    //log('isDuplicate, comparing: "' + id + '" to "' + tradeIDs[i] + '"');
     if (tradeIDs[i] == '' || isNaN(tradeIDs[i]) || !(Number(tradeIDs[i]) > 0)) {continue;}  
     if (id == tradeIDs[i]) {
       log('ID match: "' + id + '" to "' + tradeIDs[i] + '" !!!');
@@ -431,9 +347,10 @@ var priceRows = null;
 function fillPrices(array, updateAverages) { // A8:<last row>
 
   // For values on the price list...
+  const startRow = 7;
   let sheetRange = priceSheet().getDataRange();
   let lastRow = sheetRange.getLastRow();
-  let nameRange = priceSheet().getRange(8, 1, lastRow-1);
+  let nameRange = priceSheet().getRange(startRow, 1, lastRow-1);
   let names = nameRange.getValues();
   let nameFound = false;
   
@@ -466,17 +383,14 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         // Will Pay price is col. 4,
         if (!priceRows) {
           log('loading priceRows');
-          priceRows = priceSheet().getRange(8, 4, lastRow-1).getValues();
+          priceRows = priceSheet().getRange(startRow, 4, lastRow-1).getValues();
           }
         let price = priceRows[j];
         
         if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.  
           array[i].priceAskMe = true;
-          //nameFound = findItemInItemList(array[i]);
-          //if (!nameFound) {
-            array[i].price = '0';
-            array[i].total = '0';
-          //}
+          array[i].price = '0';
+          array[i].total = '0';
           if (updateAverages) {updateRunningAverage(array[i]);}
           log('Found match (but no price) for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
@@ -496,8 +410,8 @@ function fillPrices(array, updateAverages) { // A8:<last row>
 
     //case 3. Look up the market value in 'item list'
     if (!nameFound) {
-     log('Item ' + searchWord + ' not in price list, scanning item list');
-     nameFound = findItemInItemList(array[i]);
+    log('Item ' + searchWord + ' not in price list, scanning item list');
+    nameFound = findItemInItemList(array[i]);
 
       // Worst case: not found anywhere
       if (!nameFound) {
@@ -516,9 +430,9 @@ let names2 = null; // null global indicates demand loaded.
 var priceRows2 = null;
 function findItemInItemList(item) {
   let nameFound = false;
-  let sheetRange2 = priceSheet2().getDataRange();
+  let sheetRange2 = itemSheet().getDataRange();
   let lastRow2 = sheetRange2.getLastRow();
-  let nameRange2 = priceSheet2().getRange(2, 1, lastRow2-1);
+  let nameRange2 = itemSheet().getRange(2, 1, lastRow2-1);
 
   let searchWord = item.name.trim();
   item.priceNotFound = true;
@@ -534,10 +448,9 @@ function findItemInItemList(item) {
       nameFound = true;
       if (!priceRows2) {
         log('Loading priceRows1');
-        priceRows2 = priceSheet2().getRange(2, 4, lastRow2-1).getValues();
+        priceRows2 = itemSheet().getRange(2, 4, lastRow2-1).getValues();
         }
       let price2 = priceRows2[j];
-      // let price = priceSheet().getRange(j+2, 4).getValue();
       item.price = Math.round(price2 * opts.opt_markdown); 
       item.total = item.price * item.qty; 
       transTotal += item.total;
@@ -717,9 +630,9 @@ function logTransaction(array) {
   profile();
   for (let i = 0; i < array.length; i++) {
     values = [[array[i].name, 
-               array[i].qty, 
-               array[i].price,
-               array[i].total]];
+              array[i].qty, 
+              array[i].price,
+              array[i].total]];
     row = lastRow + 2 + (counter++); // New change - shifts up data row by 1. MAKE SURE does not affect running averages or last XAction
     range = datasheet().getRange("C" + row + ":F" + row);
     range.setValues(values);
@@ -764,67 +677,8 @@ function copyLastTrade(src) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//
-// Helpers.
-//
-// Moved 'doc = openById()' and 'sheet = getSheetByName()' calls
-// to functions, for easier debugging, and if they are sepcified
-// as global vars (e.g. var datasheet = getDocById().getSheetByName('Data');")
-// in global scope, it will be evaluated when other scripts in this project
-// are run, and may cause permission errors.
-//
-/////////////////////////////////////////////////////////////////////////////
-function datasheet() {
-  return getDocById().getSheetByName('Data');
-}
-
-function priceSheet() {
-  return getDocById().getSheetByName('Price Calc');
-}
-
-function priceSheet2() {
-  return getDocById().getSheetByName('item list');
-}
-
-function avgSheet() {
-  return getDocById().getSheetByName('Running Averages');
-}
-
-function optsSheet() {
-  return getDocById().getSheetByName('Options');
-}
-
-function lastTradeSheet() {
-  return getDocById().getSheetByName('Last Trade');
-}
-
-// Helper to optionally log.
-function log(data) {
-  if (opts.opt_consoleLogging) console.log(data);
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // Names of items in various sets. 
 /////////////////////////////////////////////////////////////////////////////
-
-// Helper: Perform an array deep copy
-function deepCopy(copyArray) {
-    return JSON.parse(JSON.stringify(copyArray));
-}
-
-// Helper to see how many complete sets we have of a given type.
-// 'flowersInSet' or 'plushiesInSet' are passed to this fn.
-/*
-function countCompleteSets(itemArray) {
-    var totalSets = 999999999;
-    itemArray.forEach((element, index, array) => {
-        let amt = element.quantity;
-        if (!amt || amt == null) {totalSets = 0;} // Too bad we can't 'break' here, or 'return'.
-        if (amt < totalSets) {totalSets = amt;}
-    });
-    return totalSets;
-}
-*/
 
 const flowersInSet = [{"name":"Dahlia", "id": 260, "quantity": 0},
                       {"name":"Orchid", "id": 264, "quantity": 0},
@@ -839,18 +693,18 @@ const flowersInSet = [{"name":"Dahlia", "id": 260, "quantity": 0},
                       {"name":"Banana Orchid", "id": 617, "quantity": 0}];
 
 const plushiesInSet = [{"name":"Jaguar Plushie", "id": 258, "quantity": 0},
-                       {"name":"Lion Plushie", "id": 281, "quantity": 0},
-                       {"name":"Panda Plushie", "id": 274, "quantity": 0},
-                       {"name":"Monkey Plushie", "id": 269, "quantity": 0},
-                       {"name":"Chamois Plushie", "id": 273, "quantity": 0},
-                       {"name":"Wolverine Plushie", "id": 261, "quantity": 0},
-                       {"name":"Nessie Plushie", "id": 266, "quantity": 0},
-                       {"name":"Red Fox Plushie", "id": 268, "quantity": 0},
-                       {"name":"Camel Plushie", "id": 384, "quantity": 0},
-                       {"name":"Kitten Plushie", "id": 215, "quantity": 0},
-                       {"name":"Teddy Bear Plushie", "id": 187, "quantity": 0},
-                       {"name":"Sheep Plushie", "id": 186, "quantity": 0},
-                       {"name":"Stingray Plushie", "id": 618, "quantity": 0}];
+                      {"name":"Lion Plushie", "id": 281, "quantity": 0},
+                      {"name":"Panda Plushie", "id": 274, "quantity": 0},
+                      {"name":"Monkey Plushie", "id": 269, "quantity": 0},
+                      {"name":"Chamois Plushie", "id": 273, "quantity": 0},
+                      {"name":"Wolverine Plushie", "id": 261, "quantity": 0},
+                      {"name":"Nessie Plushie", "id": 266, "quantity": 0},
+                      {"name":"Red Fox Plushie", "id": 268, "quantity": 0},
+                      {"name":"Camel Plushie", "id": 384, "quantity": 0},
+                      {"name":"Kitten Plushie", "id": 215, "quantity": 0},
+                      {"name":"Teddy Bear Plushie", "id": 187, "quantity": 0},
+                      {"name":"Sheep Plushie", "id": 186, "quantity": 0},
+                      {"name":"Stingray Plushie", "id": 618, "quantity": 0}];
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -880,8 +734,9 @@ var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Bott
   parameter: { '[{"command":"data"},{"id":"786444001","name":"Bottle of Sake","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Wind Proof Lighter","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Crowbar","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"ArmaLite M-15A4","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}]': '' },
   queryString: '',
   postData: 
-   { contents: [{"command":"data"},{"id":"786444001","name":"Bottle of Sake","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Wind Proof Lighter","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Crowbar","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"ArmaLite M-15A4","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
-     length: 373,
-     name: 'postData',
-     type: 'application/x-www-form-urlencoded' },
+  { contents: [{"command":"data"},{"id":"786444001","name":"Bottle of Sake","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Wind Proof Lighter","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Beretta Pico","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Flea Collar","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : AP","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Blood Bag : B+","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"Hammer","qty":"1","price":"0","total":"0"},{"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Banana Orchid ","qty":"4","price":"0","total":"0"},{"id":"786444001","name":"Orchid ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Dahlia ","qty":"12","price":"0","total":"0"},{"id":"786444001","name":"Cherry Blossom ","qty":"7","price":"0","total":"0"},{"id":"786444001","name":"Peony ","qty":"8","price":"0","total":"0"},{"id":"786444001","name":"Ceibo Flower ","qty":"3","price":"0","total":"0"},{"id":"786444001","name":"Edelweiss ","qty":"2","price":"0","total":"0"},{"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},{"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},{"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Crowbar","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"ArmaLite M-15A4","qty":"42","price":"0","total":"0"},{"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}],
+    length: 373,
+    name: 'postData',
+    type: 'application/x-www-form-urlencoded' },
   contentLength: 373 };
+
