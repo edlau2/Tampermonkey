@@ -3,13 +3,12 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.2';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.0';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
 /////////////////////////////////////////////////////////////////////////////
 
-var SCRIPT_PROP = PropertiesService.getScriptProperties(); // new property service
 var opts = {};
 const psStartRow = 8; // Start of data on the price sheet
 const idCol = 2;  // Column with ID's ('B') (both sheets)
@@ -21,6 +20,7 @@ const nameCol = 1; // Column for name, (both sheets)
 /////////////////////////////////////////////////////////////////////////////
 
 function main() {
+  var ss = important_getSSID();
   let success = true;
   const startTime = new Date().getTime(); // Used for profiling
   loadScriptOptions();

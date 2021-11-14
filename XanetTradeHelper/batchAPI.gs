@@ -22,11 +22,14 @@
 
 function batchAPI() { 
   
-  var importJSON_calls = 0; // counter for logging
-  console.log('batchAPI() called.');
-
+  try {
+    var importJSON_calls = 0; // counter for logging
+    console.log('batchAPI() called.');
+  
   //Define the working sheets
-  var ss = SpreadsheetApp.openById("1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k");
+  //var ss = SpreadsheetApp.openById("1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0");
+  var ss = important_getSSID();
+
   var bazaar_prices_tab = ss.getSheetByName("bazaar prices");
   var item_list_tab = ss.getSheetByName("item list");
   var price_calc_tab = ss.getSheetByName("Price Calc");
@@ -62,7 +65,7 @@ function batchAPI() {
     if (itemId == -1 && active_items_arr[i] != "Points") {
       bazaar_prices_tab.getRange(2, printIndex).setValue("ERROR - Item ID not found");
       bazaar_prices_tab.getRange(2, printIndex + 1, 1, 2).clearContent();
-      bazaar_prices_tab.getRange(3, printIndex, bazaar_prices_tab.getMaxRows(), 3).clearContent();
+      bazaar_prices_tab.getRange(3, printIndex, 102, 3).clearContent();
     }
     else {
       var apiCall;
@@ -70,16 +73,13 @@ function batchAPI() {
       if (active_items_arr[i] == "Points") {
         apiCall = "https://api.torn.com/market/?selections=pointsmarket&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
-        console.log('batchAPI: call = ' + apiCall);
-        importJSON_calls++;
-        points_tab.getRange("A1:B").clearContent();
+        points_tab.getRange("A1:2").clearContent();
         points_tab.getRange(1, 1, 2, bazaarListings[0].length).setValues(bazaarListings);
+        //points_tab.getRange("A3").setValue(bazaarListings[0].length);
       }
       else {
         apiCall = "https://api.torn.com/market/" + item_id_arr[itemId][1] + "?selections=bazaar&key=" + api_key;
         bazaarListings = ImportJSON(apiCall);
-        console.log('batchAPI: call = ' + apiCall);
-        importJSON_calls++;
         bazaar_prices_tab.getRange(2, printIndex, 102, 3).clearContent();
         if (bazaarListings[0].length == 3){
         bazaar_prices_tab.getRange(2, printIndex, bazaarListings.length, 3).setValues(bazaarListings);
@@ -87,7 +87,6 @@ function batchAPI() {
       }
       if (bazaarListings[0][2] == "Error") {
         bazaar_prices_tab.getRange("A9").setValue("ERROR - API call returned an error.  View column " + printIndex + ".");
-        console.log('batchAPI FAILED, importJSON calls: ' + importJSON_calls);
         return 1;
       }
     }
@@ -100,12 +99,18 @@ function batchAPI() {
   }
   bazaar_prices_tab.getRange("A8").setValue(cycle_iter);
   bazaar_prices_tab.getRange("A9").setValue("Success!");
-  
-  console.log('batchAPI completed, importJSON calls: ' + importJSON_calls);
+
+  } catch (e) {
+    console.log('batchAPI: ' + e.stack);
+  } finally {
+    console.log('batchAPI completed, importJSON calls: ' + importJSON_calls);
+    return 'Success';
+  }
 }
 
 function checkSheet10() {
-  var ss = SpreadsheetApp.openById("1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k");
+  //var ss = SpreadsheetApp.openById("1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0");
+  var ss = important_getSSID();
   var sheet10 = ss.getSheetByName("Sheet10");
   var status = sheet10.getRange("A7").getValue();
   if (status != "1 Buy Price") {
@@ -115,19 +120,26 @@ function checkSheet10() {
 
 
 /** function up(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('Sheet10!F8').setValue(Math.random());
-
+  var ss = important_getSSID();
+  ss.getRange('Sheet10!F8').setValue(Math.random());
 } */
 function up2(){
 
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('Sheet10!C9').setValue(Math.random());
+  var ss = important_getSSID();
+  ss.getRange('Sheet10!C9').setValue(Math.random());
+  /*
+  SpreadsheetApp.openById('1HP8GVXBp3Zrj1pfGj0VQo_t86JmihxiEieWdyP5ISE0').getRange('Sheet10!C9').setValue(Math.random());
+  */
 
 }
-/** function up3(){
-
-  SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a1').setValue(Math.random());
-
+function up3(){
+  var ss = important_getSSID();
+  ss.getRange('Last trade!g2').setValue(Math.random());
+  /*
+  SpreadsheetApp.openById('1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg').getRange('Last trade!g2').setValue(Math.random());
+  */
+}
+/**
 }
 function up4(){
 
@@ -173,3 +185,5 @@ function up10(){
 
 }
 */
+
+

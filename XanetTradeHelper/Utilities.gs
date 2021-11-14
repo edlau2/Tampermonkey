@@ -35,6 +35,16 @@ function getVersion() {
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"';
 }
 
+// Function to set up everything
+function important_getSSID() {
+  var doc = SpreadsheetApp.getActiveSpreadsheet();
+  SCRIPT_PROP.setProperty("key", doc.getId());
+  console.log('SSID: ' + doc.getId());
+  var ss = getDocById();
+
+  return ss;
+}
+
 // Perform an array deep copy
 function deepCopy(copyArray) {
     return JSON.parse(JSON.stringify(copyArray));
