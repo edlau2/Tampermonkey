@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.2
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -909,7 +909,7 @@
             getTradeIDFromHash(); // New!
             addObserver();
         }, false);
-        
+
         buildUI();
         pageRetries = 0;
         getGridData();
@@ -927,7 +927,7 @@
         for (let i = 0; i < useArray.length; i++) {
             let item = useArray[i];
             let name = item.name.toString();
-            if (name.includes('Plushie Set') || name.includes('Flower Set')) {
+            if (name.includes('Plushie Set') || name.includes('Flower Set') || name.includes('Set Price')) {
                 let oldSets = Number(totalSets);
                 oldSets += Number(item.qty);
                 totalSets = oldSets;
@@ -938,6 +938,8 @@
             log('Exception: ' + e.stack);
             log('useArray: ' + useArray);
         }
+
+        log('processDataSets: total sets: ' + totalSets);
     }
 
     /**************************************************************************
