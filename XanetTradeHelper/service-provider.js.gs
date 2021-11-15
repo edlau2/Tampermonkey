@@ -482,12 +482,6 @@ function clearAllRunningAverages() {
   dataRange.setValues(data); 
 }
 
-// Helper function used to get time formatted for the running averages sheet
-// Formatted as: mm/dd/yyyy 00:00:00 TCT
-function timenow() {
-  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
-}
-
 // Clean up the Running Averages worksheet, if needed.
 function cleanRunningAverages() {
   let sheetRange = avgSheet().getDataRange();
