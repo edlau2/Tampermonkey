@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -49,10 +49,12 @@ var DEV_MODE = false;
             return new Date().toString();
         }
 
-        if (true) { //DEV_MODE) { // Spy on available e
+        if (true) { // DEV_MODE: Spy on available e
+            /*
             let newDiv = '<div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-chk-div" >' +
                 '<span id="xedx-chk-span"><input type="checkbox" id="xedx-chk"><B> Dev Mode</B></span></div>';
             $('#xedx-summary-body').append(newDiv);
+            */
 
             var currTimeout = null;
             var barEnergy = document.getElementById('barEnergy');
@@ -198,6 +200,14 @@ var DEV_MODE = false;
     function fillBatStatsDiv(responseText, ID=null, unused=null) {
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
+
+        // I don't feel like editing the bat stats div RN, so
+        // add a margin with code, instead.
+        document.querySelector('#row-1-col-0 > b').setAttribute('style', 'margin-left: 10px;');
+        document.querySelector('#row-2-col-0 > b').setAttribute('style', 'margin-left: 10px;');
+        document.querySelector('#row-3-col-0 > b').setAttribute('style', 'margin-left: 10px;');
+        document.querySelector('#row-4-col-0 > b').setAttribute('style', 'margin-left: 10px;');
+        document.querySelector('#row-5-col-0 > b').setAttribute('style', 'margin-left: 10px;');
 
         fillBaseBatStats(jsonResp);
         fillBaseWithPassives(jsonResp);
