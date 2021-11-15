@@ -29,6 +29,7 @@ function loadScriptOptions() {
   opts.awhBaseURL = optsSheet().getRange("B18").getValue();
   opts.opt_getItemBids = optsSheet().getRange("B20").getValue();
   opts.opt_allowUI = optsSheet().getRange("B13").getValue();
+  opts.opt_profile = optsSheet().getRange("B14").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
@@ -44,7 +45,8 @@ function loadScriptOptions() {
 function getVersion() {
   return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
-         'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"';
+         'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
+         'SSID: ' + important_getSSID().getKey();
 }
 
 // Function to get the spredsheet handle by SSID
@@ -89,6 +91,12 @@ function getDocById() {
     important_getSSID();
   }
   return SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
+}
+
+// Helper function used to get time formatted for the running averages sheet
+// Formatted as: mm/dd/yyyy 00:00:00 TCT
+function timenow() {
+  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
 }
 
 // Perform an array deep copy
