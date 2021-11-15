@@ -7,6 +7,8 @@
   -----------------------------------------------------------------------------------------------------------------
   A library for calling a number of Torn API functions in one call. 
   This script is designed to be used inside of "Xanet's Price List".  It runs on a time-based trigger (?)
+
+  TBD - verify the trigger! Where is it, what triggers it?
   
   Publi functions:
 
@@ -85,6 +87,7 @@ function batchAPI() {
         bazaar_prices_tab.getRange(2, printIndex, bazaarListings.length, 3).setValues(bazaarListings);
         }
       }
+      bazaar_prices_tab.getRange("A11").setValue(timenow());
       if (bazaarListings[0][2] == "Error") {
         bazaar_prices_tab.getRange("A9").setValue("ERROR - API call returned an error.  View column " + printIndex + ".");
         return 1;
