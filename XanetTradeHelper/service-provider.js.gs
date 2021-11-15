@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.5';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.6';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -103,7 +103,7 @@ function handleRequest(e) {
       // writes it the Data worksheet).      
       let calcAvgs = (cmd == 'data') ? true : false; // Don't write avgs if just getting price info
       profile();
-      if (calcAvgs && opts.clearRunningAverages) {cleanRunningAverages();}
+      if ( /*calcAvgs &&*/ opts.opt_clearRunningAverages) {cleanRunningAverages();}
       profile();
       var totalCost = fillPrices(retArray, calcAvgs); // Also updates running averages (second param).
       
@@ -389,7 +389,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           array[i].priceAskMe = true;
           array[i].price = '0';
           array[i].total = '0';
-          if (updateAverages) {updateRunningAverage(array[i]);}
+          if (updateAverages) {updateRunningAverages(array[i]);}
           log('Found match (but no price) for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
           break;
@@ -398,7 +398,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         array[i].price = price; // Case 1.
         array[i].total = price * array[i].qty; 
         transTotal += price * array[i].qty;
-        if (updateAverages) {updateRunningAverage(array[i]);} // SLOW call
+        if (updateAverages) {updateRunningAverages(array[i]);} // SLOW call
 
         log('Found match for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
@@ -513,7 +513,7 @@ function cleanRunningAverages() {
 /////////////////////////////////////////////////////////////////////////////
 
 var names = null;
-function updateRunningAverage(item) {
+function updateRunningAverages(item) {
   // Locate column (create range) in the 'Running Averages' sheet (avgSheet)
   // D:row is last price, E:row last qty. Running avg: (last price total + new price total)/(last qty + new qty)
   let sheetRange = avgSheet().getDataRange();
@@ -521,6 +521,7 @@ function updateRunningAverage(item) {
   if (!names) {names = avgSheet().getRange(3, 1, rows-1).getValues();}
 
   profile();
+  console.log('updateRunningAverages, rows: ' + rows);
   for (let row = 3; row < rows; row++) {
     let name = names[row-3].toString();
     if (item.name.trim() == name.trim()) {
@@ -543,6 +544,8 @@ function updateRunningAverage(item) {
       break;
     }
   }
+  console.log('updateRunningAverages, end.');
+  SpreadsheetApp.flush();
   profile();
 }
 

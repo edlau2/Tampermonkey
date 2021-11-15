@@ -55,6 +55,7 @@ function whereAmI(level) {
 // as well as the line/function where called
 var lastTime = 0;
 function profile() {
+  if (!opts.opt_profile) return;
   let now = new Date().getTime();
   let diff = lastTime ? (now - lastTime) : 0;
   lastTime = now;
