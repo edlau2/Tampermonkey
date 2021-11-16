@@ -355,6 +355,7 @@
     // Parse the response into legible text
     function parseResponse(resp) {
         let obj = JSON.parse(resp);
+        console.log('parseResponse obj', obj);
         let len = obj.length;
         let cmdObj = obj[0];
         let dataArray = obj.splice(1, len-1);
