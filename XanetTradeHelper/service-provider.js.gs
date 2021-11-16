@@ -117,9 +117,14 @@ function handleRequest(e) {
         // Check to see if we have exceed our max # logged trades, and if so, clean up.
         profile();
         if (opts.opt_maxTransactions) {
-          while (countTransactions() > opts.opt_maxTransactions) {
-            deleteFirstTrade();
+          let xactionCount = countTransactions();
+          console.log('Checking transaction count: at ' + xactionCount + 
+              ', allowing ' + opts.opt_maxTransactions);
+          //while (xactionCount > opts.opt_maxTransactions) {
+          if (xactionCount > opts.opt_maxTransactions) {
+            xactionCount = deleteTrades(xactionCount, opts.opt_maxTransactions);
           }
+          SpreadsheetApp.flush();
           profile();
         }
       }  
@@ -560,22 +565,30 @@ function countTransactions() {
   return count;
 }
 
-// Helper: Function to delete the first trade in the sheet.
-// This could be changed to delete 'x' transactions.
-function deleteFirstTrade() {
-  let startRow = findXactionRow(1); 
-  let nextXAction = findXactionRow(2); // Find 2nd transaction
+// Helper: Function to delete trades in the sheet.
+// 'remains' is how many to leave.'
+function deleteTrades(countXactions, remains) {
+  let toDelete = countXactions - remains;
+  if (toDelete < 1) return countXactions;
+
+  let startRow = findXactionRow(1, countXactions); 
+  let nextXAction = findXactionRow(toDelete+1, countXactions); // Find toDelete+1 transaction
   let numRows = nextXAction - startRow; 
   datasheet().deleteRows(startRow, numRows);
+  // Test: verify!
+  let leftOver = countTransactions();
+  console.log('Deleted ' + toDelete + ' trades out of ' + countXactions + ', leaving ' + leftOver +
+  ' (intended to leave ' + remains + ')');
+  return remains;
 }
 
 // Helper: Function to locate the starting row of the indexed logged transaction.
 // This is used to keep a 'rolling log', if we exceed the max # of transactions,
-// delete logged transactions one at a time until we no longr exceed that limit.
+// delete logged transactions one at a time until we no longer exceed that limit.
 // To find the indexed one, iterate rows in col. B (Trade ID) until we hit the indexed
 // non-empty cell. Then delete from row 1 to found row - 1.
-function findXactionRow(index) {
-  if (index > countTransactions()) {
+function findXactionRow(index, countXactions) {
+  if (index > countXactions) {
     return 0;
   }
   
