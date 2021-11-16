@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -356,6 +356,10 @@
     function parseResponse(resp) {
         let obj = JSON.parse(resp);
         console.log('parseResponse obj', obj);
+        if (obj.exception) {
+            console.log('Exception: ', obj.exception);
+            return "An exception occured during processing. Please see the console log for details";
+        }
         let len = obj.length;
         let cmdObj = obj[0];
         let dataArray = obj.splice(1, len-1);
