@@ -22,6 +22,7 @@ const nameCol = 1; // Column for name, (both sheets)
 function main() {
   var ss = important_getSSID();
   let success = true;
+  let savedExceptions  = [];
   const startTime = new Date().getTime(); // Used for profiling
   loadScriptOptions();
   console.log(getVersion()); // ALWAYS logged.
@@ -67,8 +68,9 @@ function main() {
     try {
       result = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
     } catch(e) {
+      savedExceptions.push(e);
       console.log('POST exception: ', e);
-      if (opts.opt_allowUI) SpreadsheetApp.getUi().alert('POST exception: ', e);
+      safeAlert('POST exception: ', e);
       success = false;
       return;
     }
@@ -84,14 +86,16 @@ function main() {
     console.log('Exception caught in main(): ', e);
     console.log(e.stack);
     success = false;
+    savedExceptions.push(e);
+    console.log('Exception saved: length = ' + savedExceptions.length);
   } finally {
     const endTime = new Date().getTime();
     log((success ? 'Success! ' : 'Error - ') + 'Execution complete. Elapsed time: ' + 
       (endTime - startTime)/1000 + ' seconds.');
-
-      if (opts.opt_allowUI) {
-        SpreadsheetApp.getUi().alert('All done!\nTook ' + (endTime - startTime)/1000 + ' seconds.');
+      if (!success && savedExceptions.length) {
+        console.log(`Error details, ${savedExceptions.length} saved exceptions:`, savedExceptions);
       }
+      safeAlert('All done!\nTook ' + (endTime - startTime)/1000 + ' seconds.');
     
     if (opts.opt_useLocks) {
       log('Releasing lock.');
@@ -231,6 +235,6 @@ function getItemBids(itemsJSON) {
     console.log('GET response (plushies): ', result.getContentText());
     alertText += result.getContentText() + '\n';
 
-    if (opts.opt_allowUI) SpreadsheetApp.getUi().alert('Finished downloading prices!\n\n' + alertText);
+    safeAlert('Finished downloading prices!\n\n' + alertText);
 }
 
