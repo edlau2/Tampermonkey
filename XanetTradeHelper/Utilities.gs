@@ -85,6 +85,22 @@ function deleteSSID() {
   console.log('Deleted saved SSID');
 }
 
+// Prevents the exception 'Cannot call SpreadsheetApp.getUi() from this context.'
+// from being propogated if called from a triggered function.
+//
+// Used as a replacement for 'if (opts.opt_allowUI) SpreadsheetApp.getUi().alert(...)'
+function safeAlert(...args) {
+  try {
+    let ui = SpreadsheetApp.getUi();
+    let output = '';
+    args.forEach(arg => {output += (arg + '\n')});
+    ui.alert(output);
+  } catch (e) {
+    e.from = 'safeAlert()';
+    console.log('Exception: ', e);
+  }
+}
+
 // Get handles to various worksheets in the spreadsheet
 function getDocById() {
   if (!SCRIPT_PROP.getProperty("key")) {
