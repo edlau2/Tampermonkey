@@ -65,8 +65,9 @@ function main() {
     };
     log('POST URL: ' + baseURL + 'bids');
     console.log('postOptions: ', postOptions);
+    var httpResp = null;
     try {
-      result = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
+      httpResp = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
     } catch(e) {
       savedExceptions.push(e);
       console.log('POST exception: ', e);
@@ -75,6 +76,7 @@ function main() {
       return;
     }
     log('Uploaded ' + itemsJSON.items.length + ' items.');
+    console.log('Result: ' + httpResp.getResponseCode() + ' ' + httpResp.getContentText());
 
     // Now (optionally) get each item's price, log it.
     if (opts.opt_getItemBids) {
