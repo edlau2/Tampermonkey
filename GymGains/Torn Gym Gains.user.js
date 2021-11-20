@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -339,6 +339,11 @@ var DEV_MODE = false;
     function resetGains(ul) {
         strengthPct = 0, defPct = 0, speedPct = 0, dexPct = 0;
         $(ul).empty();
+    }
+
+    // This should be in utilities - put it here for now.
+    function handlepiError(text) {
+        log('Error: ' + text);
     }
 
     function populateGymGainsDiv(responseText, id=null, unused=null) {
