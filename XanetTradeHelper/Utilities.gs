@@ -90,6 +90,7 @@ function deleteSSID() {
 //
 // Used as a replacement for 'if (opts.opt_allowUI) SpreadsheetApp.getUi().alert(...)'
 function safeAlert(...args) {
+  if (!opts.opt_allowUI) return;
   try {
     let ui = SpreadsheetApp.getUi();
     let output = '';
