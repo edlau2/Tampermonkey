@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.0';
+const UTILITIES_VERSION_INTERNAL = '1.2';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 // The onOpen() function, when defined, is automatically invoked whenever the
@@ -11,6 +11,7 @@ const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 function onOpen() {
   SCRIPT_PROP = PropertiesService.getScriptProperties();
   let ss = important_getSSID();
+  markDupsInPriceList();
 };
 
 // Load script options
@@ -79,10 +80,46 @@ function important_getSSID() {
   }
 }
 
-// Delete any saved spreadsheet key - debuggin utility only.
+// Delete any saved spreadsheet key - debugging utility only.
 function deleteSSID() {
   SCRIPT_PROP.deleteProperty("key");
   console.log('Deleted saved SSID');
+}
+
+// Find any duplicate names in 'price calc' and highlight
+function markDupsInPriceList() {
+  log('markDupsInPriceList');
+  let dupFound = false;
+  let psStartRow = 8; // Start of data on the price sheet
+  let nameCol = 1; // Column for name, (both sheets)
+
+  var sheetRange = priceSheet().getDataRange();
+  var dataRange = priceSheet().getRange(psStartRow, nameCol, sheetRange.getLastRow(), 1);
+  var lastRow = dataRange.getLastRow(); // May be less than the sheet's last row 
+
+  // dataRangeArr will be an array of [name], with [0] being row 8
+  dataRange = priceSheet().getRange(psStartRow, nameCol, lastRow, 1);
+  var dataRangeArr = dataRange.getValues();
+
+  for (let i=0; i < dataRangeArr.length; i++) {
+    let checkName = dataRangeArr[i].toString().trim();
+    if (!checkName) {
+      break;
+    }
+
+    for (let j = i+1; j < dataRangeArr.length; j++) {
+      let compareName = dataRangeArr[j].toString().trim();
+      if (checkName == compareName) { // Duplicate row!
+        console.log('Warning! Duplicate row found in "price calc" for a ' + 
+          checkName + ' at row ' + psStartRow + j + '!');
+        dupFound = true;
+        let maxColumns = sheetRange.getLastColumn();
+        priceSheet().getRange(psStartRow + j, 1, 1, maxColumns).setBackground("yellow");
+        break;
+      }
+    }
+  }
+  return dupFound;
 }
 
 // Prevents the exception 'Cannot call SpreadsheetApp.getUi() from this context.'
