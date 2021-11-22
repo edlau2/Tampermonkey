@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Stock Profits
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Displays current stock profits for owned shares
 // @author       xedx [2100735]
-// @include      https://www.torn.com/page.php?sid=stocks
+// @include      https://www.torn.com/page.php?sid=stocks*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
