@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.1';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.2';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
@@ -27,6 +27,9 @@ function main() {
   loadScriptOptions();
   console.log(getVersion()); // ALWAYS logged.
   statusRange = priceSheet().getRange('G19');
+
+  // Look for dups in the price sheet
+  markDupsInPriceList();
 
   // Safely lock access to this path concurrently (optionally)
   const lock = LockService.getPublicLock();
@@ -157,7 +160,7 @@ function readPriceList() {
 
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
-      let result = retJSON.filter(elem => elem.id == item.id);
+      let result = retJSON.filter(elem => elem.id == item.id); // Dup check...
       if (!result) retJSON.items.push(item);
     }
   }
