@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.0';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.1';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
@@ -157,7 +157,8 @@ function readPriceList() {
 
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
-      retJSON.items.push(item);
+      let result = retJSON.filter(elem => elem.id == item.id);
+      if (!result) retJSON.items.push(item);
     }
   }
 
