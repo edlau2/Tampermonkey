@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.2';
+const UTILITIES_VERSION_INTERNAL = '1.3';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 // The onOpen() function, when defined, is automatically invoked whenever the
@@ -13,6 +13,31 @@ function onOpen() {
   let ss = important_getSSID();
   markDupsInPriceList();
 };
+
+// Determine the type of ocmmon objects
+function getObjType(obj) {
+  var type = typeof(obj);
+  if (type === "object") {
+    try {
+      // Try a dummy method, catch the error
+      type = obj.getObjTypeXYZZY();
+    } catch (error) {
+      // Should be a TypeError - parse the object type from error message
+      type = error.message.split(" object ")[1].replace('.','');
+    }
+  }
+  return type;
+}
+
+// Determine the main spreadsheet version, as a number
+function getSpreadsheetVersion() {
+  let verStr = priceSheet().getRange('A2').getValue();
+  let verArray = verStr.split(' ');
+  let version = +verArray[1]; // The '+' casts the string to a number
+  //console.log(version + ' ' + getObjType(version));
+
+  return version;
+}
 
 // Load script options
 function loadScriptOptions() {
