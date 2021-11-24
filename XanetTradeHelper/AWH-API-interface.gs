@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.2';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.3';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
@@ -181,22 +181,10 @@ function readPriceList() {
 // Helpers
 /////////////////////////////////////////////////////////////////////////////
 
-// Replacement for Google Sheet's vlookup fn, for use in JS
-// In order to match vlookup, 'index' is 1-based (col number)
-// 'range' is an array, use range.getValues.
-function vlookupscript(search_key, range, matchIndex, returnIndex) {
-  var returnVal = null;
-  for (var i in range) {
-    if (range[i][matchIndex - 1] == search_key) {
-      returnVal = range[i][returnIndex - 1];
-      break;
-    }
-  }
-  return returnVal;
-}
+/* ----- MOVED TO UTILITIES ----- */
 
 /////////////////////////////////////////////////////////////////////////////
-// Test the upload: gwt al litem bids
+// Test the upload: get all item bids
 /////////////////////////////////////////////////////////////////////////////
 
 function getItemBids(itemsJSON) {
