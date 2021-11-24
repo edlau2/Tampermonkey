@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn One-Click Daily Dime
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Clicks on a selected lottery 'X' times for you with one click
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=lottery
@@ -76,9 +76,17 @@ const daily_dime_div =
         refresh();
     }
 
+    function refreshHandles() {
+        lottoDiv = document.getElementById(selectedLottery);
+        buyBtn = lottoDiv.getElementsByClassName('btn')[0];
+        inputField = document.getElementById('xedx-slot-turns');
+        slotturnsDiv = document.getElementsByClassName('slotturns')[0];
+    }
+
     function handleRadioBtn(target) {
         selectedLottery = target.getAttribute('data');
         console.log('Lottery Select:', target, ' selectedLottery: ', selectedLottery);
+        refreshHandles();
     }
 
     //////////////////////////////////////////////////////////////////////
