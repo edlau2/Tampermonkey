@@ -74,7 +74,7 @@ function handleRequest(e) {
     var cmd = commandObj.command;
     var tradeID = retArray[0].id;
 
-    if (!itemUpdateRan) handleNewItems();
+    handleNewItems();
     
     // data: get the data (price data) into the array, write to the trade log, and update running averages.
     // price: get ad return price info only.    
