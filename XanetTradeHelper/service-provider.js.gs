@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.6';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.7';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -14,6 +14,9 @@ function doIt() {doMainTest();}
 
 var itemsInserted = 0; // Count of logged entries
 var opts = {};
+
+// Commonly used ranges
+var dataSheetRange = null;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stuff to test without the Tampermonkey script side of things. (moved to the bottom of the script)
@@ -46,6 +49,8 @@ function handleRequest(e) {
   const startTime = new Date().getTime();
   const timeout = 30; // seconds
   const lock = LockService.getPublicLock();
+  const sheetVersion = getSpreadsheetVersion();
+  console.log('Spreadsheet version: ' + sheetVersion);
   
   // Safely lock access to this path concurrently.
   if (opts.opt_useLocks) {
@@ -68,6 +73,8 @@ function handleRequest(e) {
     var commandObj = retArray.shift();
     var cmd = commandObj.command;
     var tradeID = retArray[0].id;
+
+    if (!itemUpdateRan) handleNewItems();
     
     // data: get the data (price data) into the array, write to the trade log, and update running averages.
     // price: get ad return price info only.    
@@ -296,8 +303,8 @@ function provideResult(ev, XanetResult, retArray) {
 function isDuplicate(id) {
   if (!opts.opt_detectDuplicates) return false;
   
-  var sheetRange = datasheet().getDataRange();
-  var idRange = datasheet().getRange(2, 2, sheetRange.getLastRow());
+  if (!dataSheetRange) dataSheetRange = datasheet().getDataRange();
+  var idRange = datasheet().getRange(2, 2, dataSheetRange.getLastRow());
   var tradeIDs = idRange.getValues();
   for (let i = 0; i < tradeIDs.length; i++) {
     if (tradeIDs[i] == "") {continue;}
@@ -555,8 +562,8 @@ function updateRunningAverages(item) {
 // Helper: Return a count of the number of transactions that have been logged.
 function countTransactions() {
   let count = 0;
-  var sheetRange = datasheet().getDataRange();
-  var lastRow = sheetRange.getLastRow();
+  if (!dataSheetRange) dataSheetRange = datasheet().getDataRange();
+  var lastRow = dataSheetRange.getLastRow();
   for (let i = 3; i < lastRow; i++) { // Start at 3 to skip header
     let id = datasheet().getRange(i, 2).getValue();
     if (id != "") {count++;}
@@ -593,8 +600,8 @@ function findXactionRow(index, countXactions) {
   }
   
   let count = 0, row = 0, cellValue = "";
-  var sheetRange = datasheet().getDataRange();
-  var lastRow = sheetRange.getLastRow();
+  if (!dataSheetRange) dataSheetRange = datasheet().getDataRange();
+  var lastRow = dataSheetRange.getLastRow();
   for (row = 3; row < lastRow; row++) { // Start at 3 to skip header
     cellValue = datasheet().getRange(row, 2).getValue();
     if (cellValue != "") {count++;}
@@ -616,8 +623,8 @@ function findXactionRow(index, countXactions) {
 /////////////////////////////////////////////////////////////////////////////
 
 function logTransaction(array) { 
-  var sheetRange = datasheet().getDataRange();
-  var lastRow = sheetRange.getLastRow();
+  if (!dataSheetRange) dataSheetRange = datasheet().getDataRange();
+  var lastRow = dataSheetRange.getLastRow();
   
   // Header - 
   var row = lastRow + 2;
