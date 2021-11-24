@@ -5,6 +5,11 @@
 const UTILITIES_VERSION_INTERNAL = '1.3';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
+const custItemStartRow = 214; // Where new items may be added onto price sheet
+var idColumnLetter = 'V';
+var idColumnNumber = 22;
+var itemUpdateRan = false;
+
 // The onOpen() function, when defined, is automatically invoked whenever the
 // spreadsheet is opened. For more information on using the Spreadsheet API, see
 // https://developers.google.com/apps-script/service_spreadsheet
@@ -12,6 +17,7 @@ function onOpen() {
   SCRIPT_PROP = PropertiesService.getScriptProperties();
   let ss = important_getSSID();
   markDupsInPriceList();
+  handleNewItems();
 };
 
 // Determine the type of ocmmon objects
@@ -164,6 +170,33 @@ function safeAlert(...args) {
   }
 }
 
+// Replacement for Google Sheet's vlookup fn, for use in JS
+// In order to match vlookup, 'index' is 1-based (col number)
+// 'range' is an array, use range.getValues.
+//
+// TBD: just pass in 'range', not 'rangeArr' !!!
+function vlookupscript(search_key, rangeArr, matchIndex, returnIndex) {
+  var returnVal = null;
+  for (var i in rangeArr) {
+    if (rangeArr[i][matchIndex - 1] == search_key) {
+      returnVal = rangeArr[i][returnIndex - 1];
+      break;
+    }
+  }
+  return returnVal;
+}
+
+// Get a column letter from number
+function numToSSColumn(num) {
+  var s = '', t;
+  while (num > 0) {
+    t = (num - 1) % 26;
+    s = String.fromCharCode(65 + t) + s;
+    num = (num - t)/26 | 0;
+  }
+  return s || undefined;
+}
+
 // Get handles to various worksheets in the spreadsheet
 function getDocById() {
   if (!SCRIPT_PROP.getProperty("key")) {
@@ -229,4 +262,56 @@ function asCurrency(num) {
   });
 
   return formatter.format(num);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// This function handles any potential new items on the price sheet,
+// insert after row 214 (custItemStartRow = 214). Their ID's need
+// to be added to col 'V' (idColumnLetter, or idColumnNumber). As this column
+// may change, detect it dynamicaly via row 7, search for 'ID'.
+/////////////////////////////////////////////////////////////////////////////
+
+function handleNewItems() {
+  findIdColumnNum(); // Make sure we know where ID's go
+  let sheetRange = priceSheet().getDataRange();
+  let lastRow = sheetRange.getLastRow();
+  let dataRange = priceSheet().getRange(custItemStartRow, 1, lastRow - custItemStartRow, 1);
+  let values = dataRange.getValues();
+  var itemRange = itemSheet().getRange(2, nameCol, 1159, 2);
+  var itemRangeArr = itemRange.getValues();
+
+  for (let i=0; i<values.length; i++) {
+    let itemName = values[i];
+    if (itemName != '') {
+      let row = (custItemStartRow + i);
+      console.log('Found new item ' + itemName + ' at row ' + row);
+      // Get current ID, if any
+      let cell = priceSheet().getRange(idColumnLetter + row);
+      let cellValue = cell.getValue();
+      console.log('New item: ' + itemName + ' at row ' + row + ' ID: ' + cellValue);
+      if (!cellValue) {
+        let id = vlookupscript(itemName, itemRangeArr, 1, 2);
+        cell.setValue(id);
+        console.log('New ID: ' + id);
+      }
+    }
+  }
+  itemUpdateRan = true;
+}
+
+function findIdColumnNum() {
+  let sheetRange = priceSheet().getDataRange();
+  let lastColumn = sheetRange.getLastColumn();
+  let dataRange = priceSheet().getRange(7, 1, 1, lastColumn);
+  let values = dataRange.getValues(); // all values, but index from 0, not 1.
+  for (let i=1; i<values[0].length; i++) {
+    if (values[0][i] == 'ID') {
+      idColumnNumber = i+1;
+      idColumnLetter = numToSSColumn(idColumnNumber);
+      console.log('Found ID column at ' + (i+1) + ', '+ idColumnLetter);
+      return idColumnNumber = i+1;
+    }
+  }
+
+  return 22;
 }
