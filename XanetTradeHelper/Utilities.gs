@@ -272,6 +272,7 @@ function asCurrency(num) {
 /////////////////////////////////////////////////////////////////////////////
 
 function handleNewItems() {
+  if (getSpreadsheetVersion() < 2.6) return;
   findIdColumnNum(); // Make sure we know where ID's go
   let sheetRange = priceSheet().getDataRange();
   let lastRow = sheetRange.getLastRow();
