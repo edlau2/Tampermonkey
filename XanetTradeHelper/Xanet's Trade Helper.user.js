@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      3.6
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @include      https://www.torn.com/trade.php*
@@ -132,12 +132,12 @@
     // xedxDevMode currently does the following:
     //   Allows the UI to display when travelling.
     //   Suppresses the 'Accept' button from being propogated. (commented out)
-    var xedxDevMode = true; // true to enable any special dev mode code.
+    var xedxDevMode = false; // true to enable any special dev mode code.
     loggingEnabled = true; // Declared in Torn-JS-helpers, true to log to console, false otherwise
     debugLoggingEnabled = true; // Declared in Torn-JS-helpers, turn of to disable debug() output
-    var autoUpload = false; // true to auto-upload when we have data - for pricing info.
-    var dispItemInfo = true; // true to display alert on missing items or 0 price, also on success.
-    var dispBadItemInfoOnly = true; // true to ONLY disp alert when missing data
+    var autoUpload = true; // true to auto-upload when we have data - for pricing info.
+    var dispItemInfo = false; // true to display alert on missing items or 0 price, also on success.
+    var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
     var testData = false; // TRUE to emulate using test data
 
     /**************************************************************************
@@ -159,7 +159,7 @@
         let found = false;
 
         // The string reversal is to handle cases like Xanax x43 or Red Fox Plushie x2.
-        // There i another case, where ther may not be 'x#', for example with weapons.
+        // There is another case, where there may not be 'x#', for example with weapons.
         //
         // So, those may also have an 'x' in the name, such as neutrolux. But, if what is
         // after the 'x' is non-numeric, we can assume that the quantity is 1.
@@ -356,6 +356,7 @@
     function parseResponse(resp) {
         let obj = JSON.parse(resp);
         console.log('parseResponse obj', obj);
+        console.log('resp: ', resp);
         if (obj.exception) {
             console.log('Exception: ', obj.exception);
             return "An exception occured during processing. Please see the console log for details";
