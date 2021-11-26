@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Click Cost Button
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php?userId*
@@ -17,39 +17,25 @@
 (function() {
     'use strict';
 
-    let autoConfirm = true; // Change to 'false' to NOT suppress confirmation
-    //let button = 'cost';    // Toggle these to sort by cost or value
-    let button = 'value';
-
+    let autoConfirm = true;
     var targetNode = null;
     var observer = null;
     const config = { attributes: true, childList: true, subtree: true };
 
-    var retries = 0;
+    var obsRetries = 0;
     function hookupObserver() {
-        log('hookupObserver');
         targetNode = document.querySelector("#react-root > div > div.segment___A6rRN.noPadding___dfjfn.itemsContainner___jjKJf" +
                            " > div.ReactVirtualized__Grid.ReactVirtualized__List > div");
-
-        if (!targetNode && retries++ < 10) {
-            log('Retry attempt #' + retries);
-            return setTimeout(hookupObserver, 200);
-        }
-
+        if (!targetNode && obsRetries++ < 10) return setTimeout(hookupObserver, 200);
         if (!observer) observer = new MutationObserver(callback);
-        log('Starting observer');
         observer.observe(targetNode, config);
     }
 
     function processNewNodes(nodeList) {
-        log('processNewNodes: ' + nodeList.length);
         for (let i=0; i<nodeList.length; i++) {
             let confNodes = targetNode.getElementsByClassName("button___PgWli");
-            log('confNodes: ' + confNodes.length);
             for (let j=0; j<confNodes.length; j++) {
-                console.log('confNode: ', confNodes[j]);
                 if (confNodes[j].getAttribute('aria-label') == 'Yes') {
-                    console.log('Found YES conf button (clicking): ', confNodes[j]);
                     if (autoConfirm) confNodes[j].click();
                 }
             }
@@ -58,35 +44,62 @@
 
     const callback = function(mutationsList, observer) {
         for(const mutation of mutationsList) {
-            log('mutation.type = ' + mutation.type);
             if (mutation.type === 'childList') {
-                log("Detected childList!");
                 let nodeList = mutation.addedNodes;
                 if (nodeList) {
-                    log("Detected new nodes!");
                     processNewNodes(nodeList);
                 }
             }
         }
     };
 
+    function onRadioClicked(e) {
+        let selID = document.querySelector('input[name="sortopts"]:checked').value;
+        console.log('Radio Button Selected: ' + selID);
+        GM_setValue('selectedBtn', selID);
+        document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(" + selID + ")").click();
+    }
+
+    function onCheckboxClicked() {
+        let ckBox = document.querySelector("#confirm");
+        GM_setValue('checkbox', ckBox.checked);
+        autoConfirm = ckBox.checked;
+    }
+
+    function installUI() {
+        let parent = document.querySelector("#react-root > div > div.wrapper");
+        if (!parent) return setTimeout(installUI, 10);
+        $(parent).append(optionsDiv);
+
+        // Install handlers
+        $('input[type="radio"]').on('click change', onRadioClicked);
+        let ckBox = document.querySelector("#confirm")
+        ckBox.addEventListener("click", onCheckboxClicked);
+
+        // Set up default states.
+        autoConfirm = GM_getValue('checkbox', autoConfirm);
+        console.log('installUI autoConfirm = ', autoConfirm);
+        ckBox.checked = autoConfirm;
+
+        let selID = GM_getValue('selectedBtn', 4);
+        let btn = document.querySelector("#\\3" + selID);
+        btn.checked = true;
+        GM_setValue('selectedBtn', selID);
+    }
+
+    var ccvRetries = 0;
     function clickCostOrValue() {
-        log('clickCostOrValue: ' + button);
-        let useBtn = null;
+        let selID = GM_getValue('selectedBtn', 4);
+        let useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(" + selID + ")");
 
-        if (button == 'cost')
-            useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(4)");
-        else
-            useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(5)");
-
-        if (!useBtn) {
+        if (!useBtn && ccvRetries++ < 25) {
             return setTimeout(clickCostOrValue, 100);
+        } else if (ccvRetries >= 25) {
+            return;
         } else {
             useBtn.click();
-            if (button == 'value') useBtn.click();  // Click twice
+            if (Number(selID) == 5) useBtn.click();  // Click twice
         }
-
-        log('Hooking up observer');
         hookupObserver();
     }
 
@@ -96,6 +109,39 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    installUI();
     clickCostOrValue();
+
+    GM_addStyle('.xedx-ctrls {' +
+                    'margin: 10px;' +
+                '}'
+    );
+
+    var optionsDiv =
+        '<div class="t-blue-cont h" id="xedx-bazaar-ext">' +
+              '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto">' +
+                  '<div style="text-align: center">' +
+                      '<span class="xedx-main">' +
+                          '<div>' +
+                              '<input class="xedx-ctrls" type="checkbox" id="confirm" name="confirm" value="confirm" checked>' +
+                              '<label for="confirm">Auto Confirm?</label>'+
+                              '<input class="xedx-ctrls" type="radio" id="1" class="xedx-oneclick" name="sortopts" data="default" value="1">' +
+                                  '<label for="1">Default</label>' +
+                              '<input class="xedx-ctrls" type="radio" id="2" class="xedx-oneclick" name="sortopts" data="name" value="2">' +
+                                  '<label for="2">Name</label>' +
+                              '<input class="xedx-ctrls" type="radio" id="3" class="xedx-oneclick" name="sortopts" data="category" value="3">' +
+                                  '<label for="3">Category</label>'+
+                              '<input class="xedx-ctrls" type="radio" id="4" class="xedx-oneclick" name="sortopts" data="cost" value="4">' +
+                                  '<label for="4">Cost</label>'+
+                              '<input class="xedx-ctrls" type="radio" id="5" class="xedx-oneclick" name="sortopts" data="value" value="5" checked>' +
+                                  '<label for="5">Value</label>'+
+                              '<input class="xedx-ctrls" type="radio" id="6" class="xedx-oneclick" name="sortopts" data="rarity" value="6">' +
+                                  '<label for="6">Rarity</label>'+
+                          '</div>'+
+                      '</span>' +
+                  '</div>' +
+              '</div>' +
+          '</div>' +
+          '<hr class="page-head-delimiter m-top10 m-bottom10">';
 
 })();
