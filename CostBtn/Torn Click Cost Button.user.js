@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Click Cost Button
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php?userId*
@@ -16,6 +16,10 @@
 
 (function() {
     'use strict';
+
+    let autoConfirm = true; // Change to 'false' to NOT suppress confirmation
+    //let button = 'cost';    // Toggle these to sort by cost or value
+    let button = 'value';
 
     var targetNode = null;
     var observer = null;
@@ -46,7 +50,7 @@
                 console.log('confNode: ', confNodes[j]);
                 if (confNodes[j].getAttribute('aria-label') == 'Yes') {
                     console.log('Found YES conf button (clicking): ', confNodes[j]);
-                    confNodes[j].click();
+                    if (autoConfirm) confNodes[j].click();
                 }
             }
         }
@@ -66,13 +70,20 @@
         }
     };
 
-    function clickCost() {
-        log('clickCost');
-        let costBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(4)");
-        if (!costBtn) {
-            return setTimeout(clickCost, 100);
+    function clickCostOrValue() {
+        log('clickCostOrValue: ' + button);
+        let useBtn = null;
+
+        if (button == 'cost')
+            useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(4)");
+        else
+            useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(5)");
+
+        if (!useBtn) {
+            return setTimeout(clickCostOrValue, 100);
         } else {
-            costBtn.click();
+            useBtn.click();
+            if (button == 'value') useBtn.click();  // Click twice
         }
 
         log('Hooking up observer');
@@ -85,6 +96,6 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    clickCost();
+    clickCostOrValue();
 
 })();
