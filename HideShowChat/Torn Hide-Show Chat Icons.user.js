@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hide-Show Chat Icons
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Toggles the display of chat icons at the bottom of the screen
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -26,7 +26,8 @@
     function hideChat(hide) {
         log((hide ? "hiding " : "showing " + "chat icons."));
         $('#showHideChat').text(`[${hide ? 'show' : 'hide'}]`);
-        document.querySelector("#chatRoot > div").style.display = hide ? 'none' : 'block';
+        if (document.querySelector("#chatRoot > div"))
+            document.querySelector("#chatRoot > div").style.display = hide ? 'none' : 'block';
     }
 
     function disableTornToolsChatHide() {
