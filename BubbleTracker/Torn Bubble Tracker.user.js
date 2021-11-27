@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bubble Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Track bubbles on the Torn home page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -38,8 +38,8 @@
     }
 
     function processNewMessage(message) {
-        if (!message) return;
         let sel = document.querySelector("#xedx-chat-viewport");
+        if (!message || !sel) return;
         if (sel.childElementCount > maxMsgQueue) sel.removeChild(sel.firstElementChild);
         $(sel).append('<div class="message_3Q16H"><span>' + message + '</span></div>');
 
@@ -112,14 +112,14 @@
         // position of the lastChat _ the width of tht chat. If there is no last
         // chat, should be 1px.
         let right = Number(lastChat ? lastChat.style.right.match(/\d+/)[0] : 1);
-        let width = Number(lastChat ? lastChat.firstChild.style.maxWidth.match(/\d+/)[0] : 232); // Fix for custom width!
+        let width = Number(lastChat ? lastChat.firstChild.style.maxWidth.match(/\d+/)[0] : 23); // Fix for custom width!
         log('right: ' + right + ' width: ' + width);
-        let newDivRight = (Number(right) + Number(width) + 2) + 'px;'; // '2' for borders/margins ?
+        let newDivRight = (Number(right) + (lastChat ? Number(width) : 0) + 2) + 'px;'; // '2' for borders/margins ?
 
         // Now find the height - no input, so content + input of lastChat, or default to 251 (200+51), unless custom.
         let contentDiv = lastChat? lastChat.getElementsByClassName('chat-box-content_2iTSI')[0] : null;
-        let contentHeight = contentDiv ? contentDiv.style.height.match(/\d+/)[0] : 0;
-        console.log('content height: ', contentDiv.style.height.match(/\d+/)[0]);
+        let contentHeight = contentDiv ? contentDiv.style.height.match(/\d+/)[0] : 200;
+        console.log('content height: ', contentHeight);
         let inputDiv = lastChat? lastChat.getElementsByClassName('chat-box-textarea_1RrlX')[0] : null;
         let inputHeight = inputDiv ? inputDiv.style.height.match(/\d+/)[0] : 51;
         let myContentHeight = Number(contentHeight) + Number(inputHeight) + 20; // '20' for borders and margins
@@ -129,11 +129,12 @@
         if (target) {
             $(target).append(chatDiv);
             document.getElementById("xedx-chat").setAttribute('style', 'bottom: 48px; z-index: 999; right:' + newDivRight);
+            let vpWidth = width-2;
             document.getElementById("xedx-chat-content").setAttribute('style',
-                                                                      "height: " + myContentHeight + "px; width: " + width + ".4px;");
+                                                                      "height:" + myContentHeight + "px; width:" + vpWidth + "px;");
             document.getElementById("xedx-chat-viewport").setAttribute('style',
-                                                                       "height: " + myViewHeight + "px; max-height:  " + myViewHeight +
-                                                                       "px;overflow:auto;");
+                                                                       "height:" + myViewHeight + "px; max-height:" + myViewHeight +
+                                                                       "px; width:" + vpWidth + "px;max-width:" + vpWidth + "px;overflow:auto;");
             document.getElementById("xedx-chat-minimize").addEventListener("click", handleMinimize);
             processNewMessage();
             log('Chat div appended');
