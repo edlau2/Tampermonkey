@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bubble Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Track bubbles on the Torn home page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -23,37 +23,28 @@
                 '}');
 
     // Globals
+    const maxMsgQueue = 50; // Size of msg queue == amount in scrolling list
     var server = false;
     var targetNode = null;
     var observer = null;
     var config = { attributes: false, childList: true};
     var wsServer = null;
     var bc = new BroadcastChannel('xedx_bubbles');
-    var minimized = false;
+    var minimized = GM_getValue('minimized', false);
 
     // Handle received broadcasts
-    var recvMsgQ = [];
     bc.onmessage = function(ev) {
-        let obj = ev.data;
-        console.log('Received Broadcast: ', obj.message);
-        recvMsgQ.push(obj.message);
-        if (recvMsgQ.length > 20) recvMsgQ.shift();
-        if (!minimized) processNewMessage();
+        if (!minimized) processNewMessage(ev.data.message);
     }
 
-    function processNewMessage() {
-        //let sel = document.getElementById("xedx-msg-list");
-        let sel = document.querySelector("#xedx-msg-list");
-        if (!sel) return;
-        var child = sel.lastElementChild;
-        while (child) {
-            sel.removeChild(child);
-            child = sel.lastElementChild;
-        }
-        for (let i=0; i<recvMsgQ.length; i++) {
-            console.log('Appending child to ', sel);
-            $(sel).append('<div class="message_3Q16H"><span>' + recvMsgQ[i] + '</span></div>');
-        }
+    function processNewMessage(message) {
+        if (!message) return;
+        let sel = document.querySelector("#xedx-chat-viewport");
+        if (sel.childElementCount > maxMsgQueue) sel.removeChild(sel.firstElementChild);
+        $(sel).append('<div class="message_3Q16H"><span>' + message + '</span></div>');
+
+        var objDiv = document.getElementById("xedx-chat-viewport");
+        objDiv.scrollTop = objDiv.scrollHeight;
     }
 
     // Handle target mutations - node additions, in this case.
@@ -84,16 +75,18 @@
         log('Minimize called!');
         if (observer) observer.disconnect();
         let sel = document.getElementById("xedx-chat");
-        if (sel.classList.contains("chat-active_mF7Kn")) {
+        if (!sel || sel.classList.contains("chat-active_mF7Kn")) {
             let oldNode = document.getElementById("xedx-chat");
             if (oldNode) oldNode.parentNode.removeChild(oldNode);
             let target = document.querySelector("#chatRoot > div");
             $(target).append(minimizedDiv);
             document.getElementById("xedx-chat").addEventListener("click", handleMinimize);
             minimized = true;
+            GM_setValue('minimized', minimized);
         } else {
             log('Maximize!');
             minimized = false;
+            GM_setValue('minimized', minimized);
             installUI();
         }
         if (observer) observer.observe(targetNode, config);
@@ -139,12 +132,14 @@
             document.getElementById("xedx-chat-content").setAttribute('style',
                                                                       "height: " + myContentHeight + "px; width: " + width + ".4px;");
             document.getElementById("xedx-chat-viewport").setAttribute('style',
-                                                                       "height: " + myViewHeight + "px; max-height:  " + myViewHeight + "px;");
+                                                                       "height: " + myViewHeight + "px; max-height:  " + myViewHeight +
+                                                                       "px;overflow:auto;");
             document.getElementById("xedx-chat-minimize").addEventListener("click", handleMinimize);
             processNewMessage();
             log('Chat div appended');
             console.log('New chat div: ', document.getElementById("xedx-chat"));
             minimized = false;
+            GM_setValue('minimized', minimized);
         } else {
             log('Unable to find target node for chat!');
         }
@@ -154,11 +149,13 @@
 
     // Handle new nodes as they're added
     function processNewNodes(nodeList) {
-        log('processNewNodes');
         for (let i=0; i<nodeList.length; i++) {
             let textNodes = nodeList[i].getElementsByClassName("bubble-text");
             if (textNodes[0]) {
                 log('Posting msg: ' + textNodes[0].innerText);
+
+                // Just send the message ... but reload both server and client!
+                // And update received msg handler
                 let message = {'message': textNodes[0].innerText, 'sender': 'xedx'};
                 bc.postMessage(message);
             }
@@ -182,7 +179,11 @@
             if (!observer) observer = new MutationObserver(bubbleCallback);
             observer.observe(targetNode, config);
         } else { // In this case, watch for chat nodes coming and going
-            installUI();
+            let minimized = GM_getValue('minimized', false);
+            if (minimized)
+                handleMinimize();
+            else
+                installUI();
             targetNode = document.querySelector("#chatRoot > div");
             config.attributes = true;
             if (!observer) observer = new MutationObserver(chatCallback);
@@ -215,17 +216,12 @@
                 '</div>' +
             '</div>' +
             '<div id="xedx-chat-content" class="chat-box-content_2iTSI xedx_bb_rad" style="height: 164px; width: 230.4px;">' +
-                '<div class="scrollbar_1xGYy">' +
+                '<div id="xedx-scroll"class="scrollbar_1xGYy">' +
                     '<div>' +
                         '<div class="thumb_3HNYP"></div>' +
                     '</div>' +
                 '</div>' +
-                '<div id="xedx-chat-viewport" class="viewport_2GO93" style="height: 163px; max-height: 163px;">' +
-                    '<div id="xedx-msg-list" class="overview_3wKDe">' +
-                        '<div class="message_3Q16H">' +
-                            //'<span>Bubble Text Goes Here</span>' +
-                        '</div>' +
-                    '</div>' +
+                '<div id="xedx-chat-viewport" class="viewport_2GO93" style="height: 163px; max-height: 163px;overflow:auto;">' +
                 '</div>' +
             '</div>' +
         '</div>';
