@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bubble Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Track bubbles on the Torn home page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -228,7 +228,7 @@
         '</div>';
 
     const minimizedDiv =
-        '<div id="xedx-chat" class="chat-box_3hUA3 minimized_28HED online_2Gxm9" style="top: 0px;">' +
+        '<div id="xedx-chat" class="chat-box_3hUA3 minimized_28HED online_2Gxm9 new_fI8KA" style="top: 0px;">' +
             '<div class="chat-box-head_6LaFd">' +
                 '<div class="chat-box-title_1-IuG" title="Bubbles">' +
                     '<i class="icon_3RPUi"></i>' +
