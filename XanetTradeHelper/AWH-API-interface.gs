@@ -160,7 +160,7 @@ function readPriceList() {
 
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
-      let result = retJSON.filter(elem => elem.id == item.id); // Dup check...
+      let result = retJSON.items.filter(elem => elem.id == item.id); // Dup check...
       if (!result) retJSON.items.push(item);
     }
   }
