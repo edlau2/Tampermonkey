@@ -36,7 +36,7 @@ function main() {
   if (opts.opt_useLocks) {
     success = lock.tryLock(30000); 
     if (!success) { 
-      let output = 'Error: Unable to obtain exclusive lock after ' + timeout + ' seconds.';
+      let output = 'Error: Unable to obtain exclusive lock after 30 seconds.';
       log(output); 
       return ContentService.createTextOutput(output).setMimeType(ContentService.MimeType.JSON);
       }
@@ -49,6 +49,7 @@ function main() {
     let itemsArr = obj.retArray;
 
     console.log('itemsJSON: ', itemsJSON);
+    console.log('itemsJSON, # of items: ', itemsJSON.items.length);
 
     log('Uploading JSON pricing to AWH...');
     let baseURL = opts.awhBaseURL;
@@ -73,6 +74,7 @@ function main() {
       httpResp = UrlFetchApp.fetch(baseURL + 'bids', postOptions);
     } catch(e) {
       savedExceptions.push(e);
+      log('Would have uploaded ' + itemsJSON.items.length + ' items.'); // Temp, testing
       console.log('POST exception: ', e);
       safeAlert('POST exception: ', e);
       success = false;
@@ -136,12 +138,20 @@ function readPriceList() {
   // Now insert the price from the dataRange, and the ID found via a
   // vlookup from the itemRange, into a new array
   let retArray = [];
+  let noPrices = 0;
   for (let i = 0; i < lastRow; i++) {
     if (i == 13 || i == 25) continue;
-    if (!dataRangeArr[i][0]) break;
+    if (!dataRangeArr[i][0]) {
+      console.log('Invalid data at row ' + i);
+      break;
+    }
     let name = dataRangeArr[i][0];
     let price = dataRangeArr[i][3];
-    if (!Number.isInteger(price) || !price) continue;
+    if (!Number.isInteger(price) || !price) {
+      if (noPrices++ > 25) throw('Far too many prices of $0, is the "Prie Calc" sheet invalid?');
+      console.log('Price for "' + name +'" appears invalid: ' + price);
+      continue;
+    }
     let id = vlookupscript(dataRangeArr[i][0], itemRangeArr, 1, 2);
     if (!id) {
       console.error('ID not found for ' + name + '! (row = ' + (i+8) + ')');
@@ -152,8 +162,15 @@ function readPriceList() {
   }
 
   console.log('retArray: ', retArray);
+  console.log('retArray, items: ' + retArray.length);
+  if (retArray.length < 1) {
+    console.log('Something went wrong! Check the "Item Sheet" and "Bazaar Prices" to be sure' +
+                ' that they are filled in correctly.');
+    throw('No items found or incorrectly priced!');
+  }
 
-  // 'retArray' is now a 2D array of [ID][price], convert to JSON.
+  // 'retArray' is now a 2D array of [ID, price, name], convert to JSON.
+  // ex: [ 187, 800, 'Teddy Bear Plushie' ],
   var retJSON = {"items": [], "museum_sets": []};
   for (let i = 0; i < retArray.length; i++) {
     if (!retArray[i]) break; // Shouldn't need anymore
@@ -161,7 +178,7 @@ function readPriceList() {
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
       let result = retJSON.items.filter(elem => elem.id == item.id); // Dup check...
-      if (!result) retJSON.items.push(item);
+      if (!result.length) retJSON.items.push(item);
     }
   }
 
