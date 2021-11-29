@@ -13,13 +13,36 @@ var itemUpdateRan = false;
 // The onOpen() function, when defined, is automatically invoked whenever the
 // spreadsheet is opened. For more information on using the Spreadsheet API, see
 // https://developers.google.com/apps-script/service_spreadsheet
-function onOpen() {
-  SCRIPT_PROP = PropertiesService.getScriptProperties();
+// See 'https://developers.google.com/apps-script/guides/triggers' for more details
+
+var SCRIPT_PROP = PropertiesService.getScriptProperties();
+function onOpen(e) {
   let ss = important_getSSID();
   markDupsInPriceList();
   handleNewItems();
   // checkForUpdates();
 };
+// The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
+// See 'https://developers.google.com/apps-script/guides/triggers' for more details
+function onEdit(e) {
+  console.log('onEdit: ', e);
+  let modified = true;
+  let ss = e.source;
+  let sheet = e.range.getSheet();
+  let sheetName = sheet.getName();
+
+  // Look for changes in column 1, rows > 217
+  if (sheetName == 'Price Calc' && e.range.columnStart == 1 && e.range.rowStart >= 218) {
+    console.log('Detected change in new names range! Verifying ID`s...');
+    modified = handleNewItems(ss);
+  }
+
+  //if (modified) { // Obviously been modified - otherwise, wouldn't be called!
+    priceSheet().getRange('A4').setValue(timenow());
+    priceSheet().getRange('A4').setFontFamily('Arial');
+    priceSheet().getRange('A4').setFontSize('10');
+  //}
+}
 
 // Determine the type of common objects
 function getObjType(obj) {
@@ -37,8 +60,8 @@ function getObjType(obj) {
 }
 
 // Determine the main spreadsheet version, as a number
-function getSpreadsheetVersion() {
-  let verStr = priceSheet().getRange('A2').getValue();
+function getSpreadsheetVersion(ss=null) {
+  let verStr = priceSheet(ss).getRange('A2').getValue();
   let verArray = verStr.split(' ');
   let version = +verArray[1]; // The '+' casts the string to a number
   //console.log(version + ' ' + getObjType(version));
@@ -200,7 +223,8 @@ function numToSSColumn(num) {
 }
 
 // Get handles to various worksheets in the spreadsheet
-function getDocById() {
+function getDocById(ss=null) {
+  if (ss) return ss;
   if (!SCRIPT_PROP.getProperty("key")) {
     important_getSSID();
   }
@@ -223,33 +247,46 @@ function log(data) {
   if (opts.opt_consoleLogging) console.log(data);
 }
 
-function datasheet() {
-  return getDocById().getSheetByName('Data');
+var savedDS = null;
+function datasheet(ss=null) {
+  if (!savedDS) savedDS = getDocById(ss).getSheetByName('Data');
+  return savedDS;
 }
 
-function priceSheet() {
-  return getDocById().getSheetByName('Price Calc');
+var savedPS = null;
+function priceSheet(ss=null) {
+  //getDocById(...).getSheetByName is not a function
+  if (!savedPS) savedPS = getDocById(ss).getSheetByName('Price Calc');
+  return savedPS;
 }
 
-function priceSheet2() {
-  return getDocById().getSheetByName('Item List');
+function priceSheet2(ss=null) { // Backwards compatibility
+  return itemSheet(ss);
 }
 
 // Get handle to the 'Items' sheet.
-function itemSheet() {
-  return getDocById().getSheetByName('Item List');
+var savedIS = null;
+function itemSheet(ss=null) {
+  if (!savedIS) savedIS = getDocById(ss).getSheetByName('Item List');
+  return savedIS;
 }
 
-function avgSheet() {
-  return getDocById().getSheetByName('Running Averages');
+var savedAS = null;
+function avgSheet(ss=null) {
+  if (!savedAS) savedAS = getDocById(ss).getSheetByName('Running Averages');
+  return savedAS;
 }
 
-function optsSheet() {
-  return getDocById().getSheetByName('Options');
+var savedOS = null;
+function optsSheet(ss=null) {
+  if (!savedOS) savedOS = getDocById(ss).getSheetByName('Options');
+  return savedOS;
 }
 
-function lastTradeSheet() {
-  return getDocById().getSheetByName('Last Trade');
+var savedTS = null;
+function lastTradeSheet(ss=null) {
+  if (!savedTS) savedTS = getDocById(ss).getSheetByName('Last Trade');
+  return savedTS;
 }
 
 // Format a number as currency
@@ -273,39 +310,43 @@ function asCurrency(num) {
 // may change, detect it dynamicaly via row 7, search for 'ID'.
 /////////////////////////////////////////////////////////////////////////////
 
-function handleNewItems() {
-  if (getSpreadsheetVersion() < 2.6) return;
+function handleNewItems(ss=null) {
+  if (getSpreadsheetVersion(ss) < 2.6) return;
   findIdColumnNum(); // Make sure we know where ID's go
-  let sheetRange = priceSheet().getDataRange();
+  let sheetRange = priceSheet(ss).getDataRange();
   let lastRow = sheetRange.getLastRow();
-  let dataRange = priceSheet().getRange(custItemStartRow, 1, lastRow - custItemStartRow, 1);
+  let dataRange = priceSheet(ss).getRange(custItemStartRow, 1, lastRow - custItemStartRow, 1);
   let values = dataRange.getValues();
-  var itemRange = itemSheet().getRange(2, nameCol, 1159, 2);
+  var itemRange = itemSheet(ss).getRange(2, nameCol, 1159, 2);
   var itemRangeArr = itemRange.getValues();
+  let newItems = false;
 
   for (let i=0; i<values.length; i++) {
     let itemName = values[i];
     if (itemName != '') {
+      newItems = true;
       let row = (custItemStartRow + i);
       console.log('Found new item ' + itemName + ' at row ' + row);
       // Get current ID, if any
-      let cell = priceSheet().getRange(idColumnLetter + row);
+      let cell = priceSheet(ss).getRange(idColumnLetter + row);
       let cellValue = cell.getValue();
       console.log('New item: ' + itemName + ' at row ' + row + ' ID: ' + cellValue);
-      if (!cellValue) {
+      //if (!cellValue) {
         let id = vlookupscript(itemName, itemRangeArr, 1, 2);
         cell.setValue(id);
         console.log('New ID: ' + id);
-      }
+      //}
     }
   }
   itemUpdateRan = true;
+  if (newItems) markDupsInPriceList();
+  return newItems;
 }
 
-function findIdColumnNum() {
-  let sheetRange = priceSheet().getDataRange();
+function findIdColumnNum(ss=null) {
+  let sheetRange = priceSheet(ss).getDataRange();
   let lastColumn = sheetRange.getLastColumn();
-  let dataRange = priceSheet().getRange(7, 1, 1, lastColumn);
+  let dataRange = priceSheet(ss).getRange(7, 1, 1, lastColumn);
   let values = dataRange.getValues(); // all values, but index from 0, not 1.
   for (let i=1; i<values[0].length; i++) {
     if (values[0][i] == 'ID') {
