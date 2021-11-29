@@ -20,6 +20,7 @@ var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
   let ss = important_getSSID();
   markDupsInPriceList();
+  sortPriceCalc(ss);
   handleNewItems();
   // checkForUpdates();
 };
@@ -35,7 +36,8 @@ function onEdit(e) {
 
   // Look for changes in column 1, rows > 217
   let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
-                            (e.range.columnStart <= idColumnNumber <= e.range.columnEnd);
+                            (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
+                            (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
     sortPriceCalc(ss);
