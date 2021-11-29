@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.5';
+const UTILITIES_VERSION_INTERNAL = '1.6';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -31,10 +31,13 @@ function onEdit(e) {
   let ss = e.source;
   let sheet = e.range.getSheet();
   let sheetName = sheet.getName();
+  idColumnNumber = findIdColumnNum(ss);
 
   // Look for changes in column 1, rows > 217
-  if (sheetName == 'Price Calc' && e.range.columnStart == 1 && e.range.rowStart >= 218) {
-    console.log('Detected change in new names range! Verifying ID`s...');
+  let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
+                            (e.range.columnStart <= ididColumnNumberCol <= e.range.columnEnd);
+  if (sheetName == 'Price Calc' && isInterestingColumn) {
+    console.log('Detected change in names range or ID range! Verifying ID`s...');
     modified = handleNewItems(ss);
   }
 
