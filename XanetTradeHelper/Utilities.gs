@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.3';
+const UTILITIES_VERSION_INTERNAL = '1.4';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -18,9 +18,10 @@ function onOpen() {
   let ss = important_getSSID();
   markDupsInPriceList();
   handleNewItems();
+  // checkForUpdates();
 };
 
-// Determine the type of ocmmon objects
+// Determine the type of common objects
 function getObjType(obj) {
   var type = typeof(obj);
   if (type === "object") {
@@ -78,6 +79,7 @@ function getVersion() {
   return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
          'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
+         'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
          'SSID: ' + important_getSSID().getKey();
 }
 
