@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.7';
+const UTILITIES_VERSION_INTERNAL = '1.8';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -20,7 +20,7 @@ var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
   let ss = important_getSSID();
   markDupsInPriceList();
-  sortPriceCalc(ss);
+  if (opts.opt_autoSort) sortPriceCalc(ss);
   handleNewItems();
   // checkForUpdates();
 };
@@ -40,7 +40,7 @@ function onEdit(e) {
                             (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
-    sortPriceCalc(ss);
+    if (opts.opt_autoSort) sortPriceCalc(ss);
     modified = handleNewItems(ss);
   }
 
@@ -93,6 +93,7 @@ function loadScriptOptions() {
   opts.opt_getItemBids = optsSheet().getRange("B20").getValue();
   opts.opt_allowUI = optsSheet().getRange("B13").getValue();
   opts.opt_profile = optsSheet().getRange("B14").getValue();
+  opts.opt_autoSort = optsSheet().getRange("B15").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
