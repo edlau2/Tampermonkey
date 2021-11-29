@@ -2,10 +2,11 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.4';
+const UTILITIES_VERSION_INTERNAL = '1.5';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
-const custItemStartRow = 214; // Where new items may be added onto price sheet
+//const custItemStartRow = 214; // Where new items may be added onto price sheet
+const custItemStartRow = 8; // Change to ANY row
 var idColumnLetter = 'V';
 var idColumnNumber = 22;
 var itemUpdateRan = false;
@@ -319,25 +320,33 @@ function handleNewItems(ss=null) {
   let values = dataRange.getValues();
   var itemRange = itemSheet(ss).getRange(2, nameCol, 1159, 2);
   var itemRangeArr = itemRange.getValues();
-  let newItems = false;
+  let newItems = 0;
 
   for (let i=0; i<values.length; i++) {
     let itemName = values[i];
+    // skip '(points based)' and '(item based)'
+    if (itemName.toString().includes('points based') || itemName.toString().includes('item based')) continue;
     if (itemName != '') {
-      newItems = true;
       let row = (custItemStartRow + i);
-      console.log('Found new item ' + itemName + ' at row ' + row);
-      // Get current ID, if any
       let cell = priceSheet(ss).getRange(idColumnLetter + row);
-      let cellValue = cell.getValue();
-      console.log('New item: ' + itemName + ' at row ' + row + ' ID: ' + cellValue);
-      //if (!cellValue) {
-        let id = vlookupscript(itemName, itemRangeArr, 1, 2);
+      let currentID = cell.getValue();
+      if (!currentID) {
+        console.log('Found new item ' + itemName + ' at row ' + row);
+        console.log('New item: ' + itemName + ' at row ' + row + ' ID: ' + currentID);
+      }
+      let id = vlookupscript(itemName, itemRangeArr, 1, 2);
+      //console.log(row + ': lookup for ' + itemName + ' returned ' + id + 
+      //  ' Saved is ' + currentID);
+      if (!id || isNaN(Number(id))) id = ''; // Account for 'undefined', NaN, etc.
+      if (id != currentID) {
+        console.log('Found mis-matched IDs at row ' + row +', "' + itemName + '"');
+        newItems++;
         cell.setValue(id);
-        console.log('New ID: ' + id);
-      //}
+        console.log('Set new ID: ' + id + ' Old ID: ' + currentID);
+      }
     }
   }
+  console.log('Updated ' + newItems + ' item IDs.');
   itemUpdateRan = true;
   if (newItems) markDupsInPriceList();
   return newItems;
