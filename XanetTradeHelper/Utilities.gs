@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.6';
+const UTILITIES_VERSION_INTERNAL = '1.7';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -35,9 +35,10 @@ function onEdit(e) {
 
   // Look for changes in column 1, rows > 217
   let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
-                            (e.range.columnStart <= ididColumnNumberCol <= e.range.columnEnd);
+                            (e.range.columnStart <= idColumnNumber <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
+    sortPriceCalc(ss);
     modified = handleNewItems(ss);
   }
 
@@ -371,3 +372,16 @@ function findIdColumnNum(ss=null) {
 
   return 22;
 }
+
+function sortPriceCalc(ss=null) {
+  let sheetRange = priceSheet(ss).getDataRange();
+  let lastRow = sheetRange.getLastRow();
+  let lastColumn = sheetRange.getLastColumn();
+  let dataRange = priceSheet(ss).getRange(8, 1, lastRow, lastColumn);
+  console.log('Sorting Proce Calc by col. ' + lastColumn + ' then by col 2');
+  dataRange.sort([{column: lastColumn}, {column: 2}]);
+}
+
+
+
+
