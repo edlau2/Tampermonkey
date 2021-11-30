@@ -19,6 +19,7 @@ var itemUpdateRan = false;
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
   let ss = important_getSSID();
+  loadScriptOptions(ss);
   markDupsInPriceList();
   if (opts.opt_autoSort) sortPriceCalc(ss);
   handleNewItems();
@@ -30,6 +31,8 @@ function onEdit(e) {
   console.log('onEdit: ', e.range,  ' Old value: ', e.oldValue);
   let modified = true;
   let ss = e.source;
+  loadScriptOptions(ss);
+  
   let sheet = e.range.getSheet();
   let sheetName = sheet.getName();
   idColumnNumber = findIdColumnNum(ss);
@@ -82,32 +85,32 @@ function getSpreadsheetVersion(ss=null) {
 }
 
 // Load script options
-function loadScriptOptions() {
-  opts.opt_detectDuplicates = optsSheet().getRange("B3").getValue();
-  opts.opt_maxTransactions = optsSheet().getRange("B4").getValue();
-  opts.opt_consoleLogging = optsSheet().getRange("B5").getValue();
-  opts.opt_colorDataCells = optsSheet().getRange("B6").getValue();
-  opts.opt_logRemote = optsSheet().getRange("B7").getValue();
-  opts.opt_calcSetItemPrices = optsSheet().getRange("B8").getValue();
-  opts.opt_calcSetPointPrices = optsSheet().getRange("B9").getValue();
-  opts.opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
-  opts.opt_markdown = Number(optsSheet().getRange("B11").getValue());
-  opts.opt_useLocks = optsSheet().getRange("B12").getValue();
-  opts.opt_allowUI = optsSheet().getRange("B13").getValue();
-  opts.opt_profile = optsSheet().getRange("B14").getValue();
-  opts.opt_autoSort = optsSheet().getRange("B15").getValue();
-  opts.opt_fixup26 = optsSheet().getRange("B16").getValue();
+function loadScriptOptions(ss) {
+  opts.opt_detectDuplicates = optsSheet(ss).getRange("B3").getValue();
+  opts.opt_maxTransactions = optsSheet(ss).getRange("B4").getValue();
+  opts.opt_consoleLogging = optsSheet(ss).getRange("B5").getValue();
+  opts.opt_colorDataCells = optsSheet(ss).getRange("B6").getValue();
+  opts.opt_logRemote = optsSheet(ss).getRange("B7").getValue();
+  opts.opt_calcSetItemPrices = optsSheet(ss).getRange("B8").getValue();
+  opts.opt_calcSetPointPrices = optsSheet(ss).getRange("B9").getValue();
+  opts.opt_clearRunningAverages = optsSheet(ss).getRange("B10").getValue();
+  opts.opt_markdown = Number(optsSheet(ss).getRange("B11").getValue());
+  opts.opt_useLocks = optsSheet(ss).getRange("B12").getValue();
+  opts.opt_allowUI = optsSheet(ss).getRange("B13").getValue();
+  opts.opt_profile = optsSheet(ss).getRange("B14").getValue();
+  opts.opt_autoSort = optsSheet(ss).getRange("B15").getValue();
+  opts.opt_fixup26 = optsSheet(ss).getRange("B16").getValue();
 
   // AWH options
-  opts.awhBaseURL = optsSheet().getRange("B23").getValue();
-  opts.awhKey = optsSheet().getRange("B24").getValue();
-  opts.opt_getItemBids = optsSheet().getRange("B25").getValue();
+  opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
+  opts.awhKey = optsSheet(ss).getRange("B24").getValue();
+  opts.opt_getItemBids = optsSheet(ss).getRange("B25").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
     'set point prices enabled, point prices will take precedence!');
     opts.opt_calcSetItemPrices = false;
-    optsSheet().getRange("B8").setValue(false);
+    optsSheet(ss).getRange("B8").setValue(false);
   }
 
   console.log('loadScriptOptions: ', opts);
