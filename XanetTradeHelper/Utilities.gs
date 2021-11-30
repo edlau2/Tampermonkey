@@ -2,13 +2,13 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.8';
+const UTILITIES_VERSION_INTERNAL = '1.9';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
 var idColumnLetter = 'V';
-var idColumnNumber = 22;
+var idColumnNumber = 24; // Dynamically adjusted by findIdColumnNum()
 var itemUpdateRan = false;
 
 // The onOpen() function, when defined, is automatically invoked whenever the
@@ -27,7 +27,7 @@ function onOpen(e) {
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
 function onEdit(e) {
-  console.log('onEdit: ', e);
+  console.log('onEdit: ', e.range,  ' Old value: ', e.oldValue);
   let modified = true;
   let ss = e.source;
   let sheet = e.range.getSheet();
@@ -42,6 +42,11 @@ function onEdit(e) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
     if (opts.opt_autoSort) sortPriceCalc(ss);
     modified = handleNewItems(ss);
+
+    // Migrate changes to Sheet26...
+    if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+      if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
+    }
   }
 
   //if (modified) { // Obviously been modified - otherwise, wouldn't be called!
@@ -88,12 +93,15 @@ function loadScriptOptions() {
   opts.opt_clearRunningAverages = optsSheet().getRange("B10").getValue();
   opts.opt_markdown = Number(optsSheet().getRange("B11").getValue());
   opts.opt_useLocks = optsSheet().getRange("B12").getValue();
-  opts.awhKey = optsSheet().getRange("B19").getValue();
-  opts.awhBaseURL = optsSheet().getRange("B18").getValue();
-  opts.opt_getItemBids = optsSheet().getRange("B20").getValue();
   opts.opt_allowUI = optsSheet().getRange("B13").getValue();
   opts.opt_profile = optsSheet().getRange("B14").getValue();
   opts.opt_autoSort = optsSheet().getRange("B15").getValue();
+  opts.opt_fixup26 = optsSheet().getRange("B16").getValue();
+
+  // AWH options
+  opts.awhBaseURL = optsSheet().getRange("B23").getValue();
+  opts.awhKey = optsSheet().getRange("B24").getValue();
+  opts.opt_getItemBids = optsSheet().getRange("B25").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
@@ -255,6 +263,19 @@ function log(data) {
   if (opts.opt_consoleLogging) console.log(data);
 }
 
+// Helpers to get various sheets by name
+var saved10 = null;
+function sheet10(ss=null) {
+  if (!saved10) saved10 = getDocById(ss).getSheetByName('Sheet10');
+  return saved10;
+}
+
+var saved26 = null;
+function sheet26(ss=null) {
+  if (!saved26) saved26 = getDocById(ss).getSheetByName('Sheet26');
+  return saved26;
+}
+
 var savedDS = null;
 function datasheet(ss=null) {
   if (!savedDS) savedDS = getDocById(ss).getSheetByName('Data');
@@ -272,7 +293,6 @@ function priceSheet2(ss=null) { // Backwards compatibility
   return itemSheet(ss);
 }
 
-// Get handle to the 'Items' sheet.
 var savedIS = null;
 function itemSheet(ss=null) {
   if (!savedIS) savedIS = getDocById(ss).getSheetByName('Item List');
@@ -359,6 +379,7 @@ function handleNewItems(ss=null) {
   return newItems;
 }
 
+// Find the column on 'Price Sheet' that stores Item ID's
 function findIdColumnNum(ss=null) {
   let sheetRange = priceSheet(ss).getDataRange();
   let lastColumn = sheetRange.getLastColumn();
@@ -369,13 +390,15 @@ function findIdColumnNum(ss=null) {
       idColumnNumber = i+1;
       idColumnLetter = numToSSColumn(idColumnNumber);
       console.log('Found ID column at ' + (i+1) + ', '+ idColumnLetter);
-      return idColumnNumber = i+1;
+      idColumnNumber = i+1;
+      return idColumnNumber;
     }
   }
 
-  return 22;
+  return idColumnNumber;
 }
 
+// Sort 'Price Calc' by col AA (last column, itm 'type') then col B (market price)
 function sortPriceCalc(ss=null) {
   let sheetRange = priceSheet(ss).getDataRange();
   let lastRow = sheetRange.getLastRow();
@@ -383,6 +406,72 @@ function sortPriceCalc(ss=null) {
   let dataRange = priceSheet(ss).getRange(8, 1, lastRow, lastColumn);
   console.log('Sorting Proce Calc by col. ' + lastColumn + ' then by col 2');
   dataRange.sort([{column: lastColumn}, {column: 2}]);
+}
+
+function isRangeSingleCell(range) {
+  if (range.columnEnd == range.columnStart && range.rowEnd == range.rowStart) return true;
+  return false;
+}
+
+function fixSheet26(range, oldValue, ss=null) {
+  if (!isRangeSingleCell(range)) {
+    return console.log('fixSheet26: unable to fix up, not a single cell: ', range);
+  }
+
+  let sheetRange = sheet26(ss).getDataRange();
+  let dataRange = sheet26(ss).getRange(1, 1, sheetRange.getLastRow(), 1);
+  let valArray = dataRange.getValues(); // All values in Col A, Sheet 26
+  let newValue = range.getValue(); // New cell value
+  let emptyCellRange = null;
+  let emptyRow = 0;
+
+  // Find the row with the old value on Sheet26 (if any)
+  // While there, try to find the first empty row.
+  let sheet26row = 0;
+  if (oldValue) { // Case 1: cell removed (or changed), set to '1' on Sheet26
+    console.log('Looking for ' + oldValue + ' on Sheet26 to remove.');
+    for (let i=1; i<valArray.length; i++) {
+      if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
+        emptyRow = i;
+        emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
+        console.log('Found first empty row at ' + i);
+      }
+      if (oldValue.toLowerCase() == valArray[i].toString().toLowerCase()) {
+        sheet26row = i;
+        if (!emptyRow || (i < emptyRow)) {
+          emptyRow = i;
+          emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
+          console.log('First empty row now set to row ' + i);
+        }
+        sheet26(ss).getRange(sheet26row, 1, 1, 1).setValue('1');
+        console.log('Item ' + oldValue + ' removed, row ' + sheet26row + ' set to `1` on Sheet26.')
+        if (!newValue) return;
+        break;
+      }
+    }
+    console.log('Old value found at row ' + sheet26row + '. If 0, indicates not found.');
+  }
+
+  // Case 2: Cell added or changed, find first empty row on Sheet26, indicated
+  // by a '1' (or blank), and insert the new name there.
+  if (newValue) {
+    console.log('Looking for first empty row to insert ' + newValue);
+    if (!emptyCellRange) {
+      for (let i=sheet26row; i<valArray.length; i++) {
+        if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
+          emptyRow = i;
+          emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
+          console.log('First empty row found at row ' + i);
+          break;
+        }
+      }
+    }
+
+    if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
+    emptyCellRange.setValue(newValue);
+    return (emptyRow ? console.log('New value successfully inserted at row ' + emptyRow + ' on Sheet26.') :
+            console.log('Unable to find empty row on Sheet26!'));
+  }
 }
 
 
