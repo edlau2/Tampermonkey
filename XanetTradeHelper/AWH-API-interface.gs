@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.4';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.5';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globals
@@ -128,7 +128,7 @@ function readPriceList() {
   var lastRow = dataRange.getLastRow(); // May be less than the sheet's last row 
 
   // dataRangeArr will be a 2D array of [name][ignore][ignore][price]
-  dataRange = priceSheet().getRange(psStartRow, nameCol, lastRow, 4);
+  dataRange = priceSheet().getRange(psStartRow, nameCol, lastRow, 6); // Extended 4 to 6 for bulk
   var dataRangeArr = dataRange.getValues();
 
   // Now get range for [name][ID], as vlookup range
@@ -147,6 +147,8 @@ function readPriceList() {
     }
     let name = dataRangeArr[i][0];
     let price = dataRangeArr[i][3];
+    let bulkQty = dataRangeArr[i][4];
+    let bulkPrice = dataRangeArr[i][5] * price;
     if (!Number.isInteger(price) || !price) {
       if (noPrices++ > 25) throw('Far too many prices of $0, is the "Prie Calc" sheet invalid?');
       console.log('Price for "' + name +'" appears invalid: ' + price);
@@ -158,7 +160,7 @@ function readPriceList() {
       continue;
     }
     console.log('ID, Price for ' + dataRangeArr[i][0] + ': ' + id + ', ' + price);
-    retArray.push([id, price, name]);
+    retArray.push([id, price, name, bulkQty? bulkQty : 0, bulkPrice]);
   }
 
   console.log('retArray: ', retArray);
@@ -169,13 +171,18 @@ function readPriceList() {
     throw('No items found or incorrectly priced!');
   }
 
-  // 'retArray' is now a 2D array of [ID, price, name], convert to JSON.
-  // ex: [ 187, 800, 'Teddy Bear Plushie' ],
-  var retJSON = {"items": [], "museum_sets": []};
+  // 'retArray' is now a 2D array of [ID, price, name, bulkQty, bulkPrice], convert to JSON.
+  // ex: [ 187, 800, 'Teddy Bear Plushie', 100, 750],
+  // Convert to required JSON:
+  // "items": [ { "id": 215, "price": 750, "bulk": [{ "minimum_quantity": 250, "price": 700}]],...
+  var retJSON = {"items": [], "museum_sets": []}; 
   for (let i = 0; i < retArray.length; i++) {
     if (!retArray[i]) break; // Shouldn't need anymore
 
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
+    if (retArray[i][3]) { // Bulk qty
+      item.bulk = [{"minimum_quantity": retArray[i][3], "price": retArray[i][4]}];
+    }
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
       let result = retJSON.items.filter(elem => elem.id == item.id); // Dup check...
       if (!result.length) retJSON.items.push(item);
@@ -224,24 +231,29 @@ function getItemBids(itemsJSON) {
     let alertText = '';
     for (let i = 0; i < items.length; i++) {
       let useURL = baseURL + 'items/' + items[i].id + '/bids';
-      log('GET URL: ' + useURL);
+      //log('GET URL: ' + useURL);
       result = UrlFetchApp.fetch(useURL, getOptions);
       let text = result.getContentText();
       let bid = JSON.parse(text).bids;
       let id = items[i].id;
       let name = vlookupscript(id, itemRangeArr, 2, 1);
-      let tmp = 'Item: ' + name + ' [' + id + '], price = ' + asCurrency(bid[0].price) + '\n';
+      let tmp = 'Item: ' + name + ' [' + id + '], price = ' + asCurrency(bid[0].price);
+
+      // Support 1 bulk price
+      tmp += bid[1] ? ', price = ' + asCurrency(bid[1].price) 
+        + ' for min ' + bid[1].minimum_quantity + '\n' : '\n';
+
       alertText += tmp;
-      log('GET response: ' + text);
-      log('parsed: ' + tmp);
+      //log('GET response: ' + text);
+      log('AWH pricing: ' + tmp);
     }
 
-    log('GET URL: ' + flowersURL);
+    //log('GET URL: ' + flowersURL);
     result = UrlFetchApp.fetch(flowersURL, getOptions);
     console.log('GET response (exotic-flowers): ', result.getContentText());
     alertText += result.getContentText() + '\n';
 
-    log('GET URL: ' + plushiesURL);
+    //log('GET URL: ' + plushiesURL);
     result = UrlFetchApp.fetch(plushiesURL, getOptions);
     console.log('GET response (plushies): ', result.getContentText());
     alertText += result.getContentText() + '\n';
