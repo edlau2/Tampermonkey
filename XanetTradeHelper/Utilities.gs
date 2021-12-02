@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.1';
+const UTILITIES_VERSION_INTERNAL = '2.2';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -196,6 +196,8 @@ function markDupsInPriceList() {
       }
     }
   }
+
+  SpreadsheetApp.flush();
   log('<== markDupsInPriceList finished, found ' + dupsFound + ' duplicates');
   return dupsFound;
 }
@@ -384,6 +386,7 @@ function handleNewItems(ss=null) {
   itemUpdateRan = true;
   //if (newItems) markDupsInPriceList();
 
+  SpreadsheetApp.flush();
   log('<== handleNewItems');
   return newItems;
 }
@@ -419,6 +422,7 @@ function sortPriceCalc(ss=null) {
   let dataRange = priceSheet(ss).getRange(8, 1, lastRow, lastColumn);
   log('Sorting Price Calc by col. ' + lastColumn + ' then by col 2');
   dataRange.sort([{column: lastColumn}, {column: 2}]);
+  SpreadsheetApp.flush();
   log('<== Finished sorting Price Calc.');
 }
 
@@ -463,6 +467,7 @@ function fixSheet26(range, oldValue, ss=null) {
         sheet26(ss).getRange(sheet26row, 1, 1, 1).setValue('1');
         console.log('Item ' + oldValue + ' removed, row ' + sheet26row + ' set to `1` on Sheet26.')
         if (!newValue) {
+          SpreadsheetApp.flush();
           log('<== Finished fixing up Sheet 26');
           return;
         }
@@ -487,6 +492,7 @@ function fixSheet26(range, oldValue, ss=null) {
       }
     }
 
+    SpreadsheetApp.flush();
     log('<== Finished fixing up Sheet 26');
 
     if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
