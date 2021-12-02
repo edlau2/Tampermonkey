@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '1.9';
+const UTILITIES_VERSION_INTERNAL = '2.0';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -18,13 +18,16 @@ var itemUpdateRan = false;
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
+  log('onOpen');
   let ss = important_getSSID();
-  loadScriptOptions(ss);
-  markDupsInPriceList();
-  if (opts.opt_autoSort) sortPriceCalc(ss);
-  handleNewItems();
+  syncPriceSheetWithSheet26(ss);
+
+  // Could auto-update sheet changes here
   // checkForUpdates();
+
+  log('onOpen complete.');
 };
+
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
 function onEdit(e) {
@@ -43,24 +46,24 @@ function onEdit(e) {
                             (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
-
-    // Sort Price Calc
-    if (opts.opt_autoSort) sortPriceCalc(ss);
-
-    // Migrate changes to Sheet26...
-    if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
-      if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
-    }
-
-    // Fixup ID's
-    modified = handleNewItems(ss);
+    syncPriceSheetWithSheet26(ss);
   }
 
-  //if (modified) { // Obviously been modified - otherwise, wouldn't be called!
-    priceSheet().getRange('A4').setValue(timenow());
-    priceSheet().getRange('A4').setFontFamily('Arial');
-    priceSheet().getRange('A4').setFontSize('10');
-  //}
+  log('Setting `last modified` timestamp.');
+  priceSheet().getRange('A4').setValue(timenow());
+  priceSheet().getRange('A4').setFontFamily('Arial');
+  priceSheet().getRange('A4').setFontSize('10');
+  log('onEdit() complete.');
+}
+
+// 1) sort Price Calc 2) mark duplicate entries 3) add ID's if not there 4) re-create Sheet 26
+function syncPriceSheetWithSheet26(ss=null) {
+  log('Synching Price Calc and Sheet 26');
+    if (opts.opt_autoSort) sortPriceCalc(ss);
+    handleNewItemIds(ss);
+    markDupsInPriceList();
+    if (opts.opt_fixup26) reCreateSheet26(ss);
+    log('Done syncing sheets');
 }
 
 // Determine the type of common objects
@@ -189,8 +192,8 @@ function markDupsInPriceList() {
     for (let j = i+1; j < dataRangeArr.length; j++) {
       let compareName = dataRangeArr[j].toString().trim();
       if (checkName == compareName) { // Duplicate row!
-        console.log('Warning! Duplicate row found in "price calc" for a ' + 
-          checkName + ' at row ' + psStartRow + j + '!');
+        console.log('Warning! Duplicate row found in "price calc" for "' + 
+          checkName + '" at row ' + (Number(psStartRow) + j) + '!');
         dupFound = true;
         let maxColumns = sheetRange.getLastColumn();
         priceSheet().getRange(psStartRow + j, 1, 1, maxColumns).setBackground("yellow");
@@ -198,6 +201,7 @@ function markDupsInPriceList() {
       }
     }
   }
+  log('markDupsInPriceList found ' + dupFound + ' duplicates.');
   return dupFound;
 }
 
@@ -345,7 +349,7 @@ function asCurrency(num) {
 // may change, detect it dynamicaly via row 7, search for 'ID'.
 /////////////////////////////////////////////////////////////////////////////
 
-function handleNewItems(ss=null) {
+function handleNewItemIds(ss=null) {
   if (getSpreadsheetVersion(ss) < 2.6) return;
   findIdColumnNum(); // Make sure we know where ID's go
   let sheetRange = priceSheet(ss).getDataRange();
@@ -365,8 +369,8 @@ function handleNewItems(ss=null) {
       let cell = priceSheet(ss).getRange(idColumnLetter + row);
       let currentID = cell.getValue();
       if (!currentID) {
-        console.log('Found new item ' + itemName + ' at row ' + row);
-        console.log('New item: ' + itemName + ' at row ' + row + ' ID: ' + currentID);
+        console.log('Found new item "' + itemName + '" at row ' + row);
+        console.log('New item: "' + itemName + '" at row ' + row + ' ID: ' + currentID);
       }
       let id = vlookupscript(itemName, itemRangeArr, 1, 2);
       //console.log(row + ': lookup for ' + itemName + ' returned ' + id + 
@@ -382,7 +386,7 @@ function handleNewItems(ss=null) {
   }
   console.log('Updated ' + newItems + ' item IDs.');
   itemUpdateRan = true;
-  if (newItems) markDupsInPriceList();
+  //if (newItems) markDupsInPriceList();
   return newItems;
 }
 
@@ -420,20 +424,29 @@ function isRangeSingleCell(range) {
   return false;
 }
 
-// (Re)create 
+// (Re)create Sheet 26 from values in Price Calc.
 function reCreateSheet26(ss) {
+  console.log(`Re-creating Sheet 26`);
   if (!ss) ss = important_getSSID();
   let dataRange = priceSheet(ss).getDataRange();
   let lastRow = dataRange.getLastRow();
-  let psRange = priceSheet(ss).getRange(8, 1, lastRow-7, 1);
+  let psRange = priceSheet(ss).getRange(8, 1, 800 ,/*lastRow-7*/ 1);
 
   if (sheet26(ss)) ss.deleteSheet(sheet26(ss));
-  let sheet26 = ss.insertSheet('sheet26');
-  let s26Range = sheet26.getRange(8, 1, lastRow-7, 1);
+  let destSheet = ss.insertSheet('sheet26');
+  let s26Range = destSheet.getRange(8, 1, 800, 1);
 
   psRange.copyTo(s26Range);
+  let s26Values = s26Range.getValues();
+  for (let i=0; i<s26Values.length; i++) {
+    if (s26Values[i] == '') s26Values[i][0] = '1';
+  }
+  s26Range.setValues(s26Values);
+  s26Range.setBorder(null, null, null, null, null, null);
+  console.log('Sheet 26 re-created.');
 }
 
+/* // UNUSED
 function fixSheet26(range, oldValue, ss=null) {
   if (!isRangeSingleCell(range)) {
     return console.log('fixSheet26: unable to fix up, not a single cell: ', range);
@@ -453,10 +466,11 @@ function fixSheet26(range, oldValue, ss=null) {
   // And do -before- ID fixups! idColumnNumber is up to date
   // when this is called.
   //
+  // range: { columnEnd: 1, columnStart: 1, rowEnd: 10, rowStart: 10 }
   let sheet26row = 0;
   if (oldValue) { // Case 1: cell removed (or changed), set to '1' on Sheet26
-    console.log('Deleting ID for ' + oldValue + ' in row ' + range.startRow);
-    priceSheet(ss).getRange(range.startRow, idColumnNumber, 1, 1).setValue('');
+    console.log('Deleting ID for ' + oldValue + ' in row ' + range.rowStart);
+    priceSheet(ss).getRange(range.rowStart, idColumnNumber, 1, 1).setValue('');
     console.log('Looking for ' + oldValue + ' on Sheet26 to remove.');
     for (let i=1; i<valArray.length; i++) {
       if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
@@ -501,6 +515,7 @@ function fixSheet26(range, oldValue, ss=null) {
             console.log('Unable to find empty row on Sheet26!'));
   }
 }
+*/ // DONE UNUSED
 
 
 
