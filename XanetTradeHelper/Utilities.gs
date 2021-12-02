@@ -2,13 +2,13 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.2';
+const UTILITIES_VERSION_INTERNAL = '2.3';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
 var idColumnLetter = 'V';
-var idColumnNumber = 24; // Dynamically adjusted by findIdColumnNum()
+var idColumnNumber = 0; // Dynamically adjusted by findIdColumnNum()
 var itemUpdateRan = false;
 
 // The onOpen() function, when defined, is automatically invoked whenever the
@@ -34,7 +34,7 @@ function onEdit(e) {
   
   let sheet = e.range.getSheet();
   let sheetName = sheet.getName();
-  idColumnNumber = findIdColumnNum(ss);
+  if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
 
   // Look for changes in column 1, rows > 217
   let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
@@ -42,12 +42,12 @@ function onEdit(e) {
                             (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
-    syncPriceCalcWithSheet26(ss);
 
     // Migrate changes to Sheet26...
     if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
       if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
     }
+    syncPriceCalcWithSheet26(ss);
   }
 
   priceSheet().getRange('A4').setValue(timenow());
@@ -349,7 +349,7 @@ function asCurrency(num) {
 function handleNewItems(ss=null) {
   if (getSpreadsheetVersion(ss) < 2.6) return;
   log('handleNewItems ==>');
-  findIdColumnNum(); // Make sure we know where ID's go
+  if (!idColumnNumber) idColumnNumber = findIdColumnNum(); // Make sure we know where ID's go
   let sheetRange = priceSheet(ss).getDataRange();
   let lastRow = sheetRange.getLastRow();
   let dataRange = priceSheet(ss).getRange(custItemStartRow, 1, lastRow - custItemStartRow, 1);
@@ -413,7 +413,7 @@ function findIdColumnNum(ss=null) {
   return idColumnNumber;
 }
 
-// Sort 'Price Calc' by col AA (last column, itm 'type') then col B (market price)
+// Sort 'Price Calc' by col AA (last column, item 'type') then col B (market price)
 function sortPriceCalc(ss=null) {
   log('sortPriceCalc ==>');
   let sheetRange = priceSheet(ss).getDataRange();
@@ -427,26 +427,36 @@ function sortPriceCalc(ss=null) {
 }
 
 function isRangeSingleCell(range) {
-  if (range.columnEnd == range.columnStart && range.rowEnd == range.rowStart) return true;
+  if (range.columnEnd == range.columnStart && range.rowEnd == range.rowStart) {
+    console.log('isRangeSingleCell: TRUE, value = ' + range.getValue());
+    return true;
+  }
+  console.log('isRangeSingleCell: FALSE');
   return false;
 }
 
 function fixSheet26(range, oldValue, ss=null) {
   log('Fixing up Sheet 26 ==>');
   if (!isRangeSingleCell(range)) {
-    return console.log('fixSheet26: unable to fix up, not a single cell: ', range);
+    console.log('==> fixSheet26: unable to fix up, not a single cell: ', range);
+    return;
   }
 
   let sheetRange = sheet26(ss).getDataRange();
   let dataRange = sheet26(ss).getRange(1, 1, sheetRange.getLastRow(), 1);
   let valArray = dataRange.getValues(); // All values in Col A, Sheet 26
-  let newValue = range.getValue(); // New cell value
   let emptyCellRange = null;
   let emptyRow = 0;
+
+  // 'range' seems to have the range, but isn't an actual range! Make a new range to get the value.
+  // We know we are only called here if 'Price Calc' is edited, so get range (and value) from
+  // there. This must be done before sorting!
+  let newValue = range.getValue(); // New cell value
 
   // Find the row with the old value on Sheet26 (if any)
   // While there, try to find the first empty row.
   let sheet26row = 0;
+  log('fixSheet26: oldValue = "' + oldValue + '"');
   if (oldValue) { // Case 1: cell removed (or changed), set to '1' on Sheet26
     console.log('Deleting ID for "' + oldValue + '" in row ' + range.rowStart);
     priceSheet(ss).getRange(range.rowStart, idColumnNumber, 1, 1).setValue('');
@@ -468,8 +478,8 @@ function fixSheet26(range, oldValue, ss=null) {
         console.log('Item ' + oldValue + ' removed, row ' + sheet26row + ' set to `1` on Sheet26.')
         if (!newValue) {
           SpreadsheetApp.flush();
-          log('<== Finished fixing up Sheet 26');
-          return;
+          console.log('<== Finished fixing up Sheet 26');
+          return; 
         }
         break;
       }
@@ -479,6 +489,7 @@ function fixSheet26(range, oldValue, ss=null) {
 
   // Case 2: Cell added or changed, find first empty row on Sheet26, indicated
   // by a '1' (or blank), and insert the new name there.
+  log('fixSheet26: newValue = "' + newValue + '"');
   if (newValue) {
     console.log('Looking for first empty row to insert ' + newValue);
     if (!emptyCellRange) {
@@ -491,13 +502,16 @@ function fixSheet26(range, oldValue, ss=null) {
         }
       }
     }
-
-    SpreadsheetApp.flush();
-    log('<== Finished fixing up Sheet 26');
-
-    if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
-    emptyCellRange.setValue(newValue);
-    return (emptyRow ? console.log('New value successfully inserted at row ' + emptyRow + ' on Sheet26.') :
-            console.log('Unable to find empty row on Sheet26!'));
   }
+
+  SpreadsheetApp.flush();
+  log('<== Finished fixing up Sheet 26');
+
+  if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
+  emptyCellRange.setValue(newValue);
+  return (emptyRow ? console.log('New value successfully inserted at row ' + emptyRow + ' on Sheet26.') :
+          console.log('Unable to find empty row on Sheet26!'));
 }
+
+
+
