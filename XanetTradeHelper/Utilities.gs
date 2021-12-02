@@ -43,13 +43,17 @@ function onEdit(e) {
                             (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
   if (sheetName == 'Price Calc' && isInterestingColumn) {
     console.log('Detected change in names range or ID range! Verifying ID`s...');
+
+    // Sort Price Calc
     if (opts.opt_autoSort) sortPriceCalc(ss);
-    modified = handleNewItems(ss);
 
     // Migrate changes to Sheet26...
     if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
       if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
     }
+
+    // Fixup ID's
+    modified = handleNewItems(ss);
   }
 
   //if (modified) { // Obviously been modified - otherwise, wouldn't be called!
@@ -407,13 +411,27 @@ function sortPriceCalc(ss=null) {
   let lastRow = sheetRange.getLastRow();
   let lastColumn = sheetRange.getLastColumn();
   let dataRange = priceSheet(ss).getRange(8, 1, lastRow, lastColumn);
-  console.log('Sorting Proce Calc by col. ' + lastColumn + ' then by col 2');
+  console.log('Sorting Price Calc by col. ' + lastColumn + ' then by col 2');
   dataRange.sort([{column: lastColumn}, {column: 2}]);
 }
 
 function isRangeSingleCell(range) {
   if (range.columnEnd == range.columnStart && range.rowEnd == range.rowStart) return true;
   return false;
+}
+
+// (Re)create 
+function reCreateSheet26(ss) {
+  if (!ss) ss = important_getSSID();
+  let dataRange = priceSheet(ss).getDataRange();
+  let lastRow = dataRange.getLastRow();
+  let psRange = priceSheet(ss).getRange(8, 1, lastRow-7, 1);
+
+  if (sheet26(ss)) ss.deleteSheet(sheet26(ss));
+  let sheet26 = ss.insertSheet('sheet26');
+  let s26Range = sheet26.getRange(8, 1, lastRow-7, 1);
+
+  psRange.copyTo(s26Range);
 }
 
 function fixSheet26(range, oldValue, ss=null) {
@@ -430,8 +448,15 @@ function fixSheet26(range, oldValue, ss=null) {
 
   // Find the row with the old value on Sheet26 (if any)
   // While there, try to find the first empty row.
+  //
+  // Note: delete associated ID's on prie calc id col A removed!
+  // And do -before- ID fixups! idColumnNumber is up to date
+  // when this is called.
+  //
   let sheet26row = 0;
   if (oldValue) { // Case 1: cell removed (or changed), set to '1' on Sheet26
+    console.log('Deleting ID for ' + oldValue + ' in row ' + range.startRow);
+    priceSheet(ss).getRange(range.startRow, idColumnNumber, 1, 1).setValue('');
     console.log('Looking for ' + oldValue + ' on Sheet26 to remove.');
     for (let i=1; i<valArray.length; i++) {
       if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
@@ -443,7 +468,7 @@ function fixSheet26(range, oldValue, ss=null) {
         sheet26row = i;
         if (!emptyRow || (i < emptyRow)) {
           emptyRow = i;
-          emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
+          emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1); // Off by one!
           console.log('First empty row now set to row ' + i);
         }
         sheet26(ss).getRange(sheet26row, 1, 1, 1).setValue('1');
