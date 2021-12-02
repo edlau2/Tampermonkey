@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.0';
+const UTILITIES_VERSION_INTERNAL = '2.1';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -56,8 +56,8 @@ function onEdit(e) {
 }
 
 function syncPriceCalcWithSheet26(ss=null) {
-  markDupsInPriceList();
-  handleNewItems();
+  markDupsInPriceList(ss);
+  handleNewItems(ss);
   if (opts.opt_autoSort) sortPriceCalc(ss);
 }
 
@@ -165,8 +165,8 @@ function deleteSSID() {
 
 // Find any duplicate names in 'price calc' and highlight
 function markDupsInPriceList() {
-  log('markDupsInPriceList');
-  let dupFound = false;
+  log('markDupsInPriceList ==>');
+  let dupsFound = 0;
   let psStartRow = 8; // Start of data on the price sheet
   let nameCol = 1; // Column for name, (both sheets)
 
@@ -187,16 +187,17 @@ function markDupsInPriceList() {
     for (let j = i+1; j < dataRangeArr.length; j++) {
       let compareName = dataRangeArr[j].toString().trim();
       if (checkName == compareName) { // Duplicate row!
-        console.log('Warning! Duplicate row found in "price calc" for a ' + 
-          checkName + ' at row ' + psStartRow + j + '!');
-        dupFound = true;
+        console.log('Warning! Duplicate row found in "price calc" for "a "' + 
+          checkName + '" at row ' + psStartRow + j + '!');
+        dupsFound++;
         let maxColumns = sheetRange.getLastColumn();
         priceSheet().getRange(psStartRow + j, 1, 1, maxColumns).setBackground("yellow");
         break;
       }
     }
   }
-  return dupFound;
+  log('<== markDupsInPriceList finished, found ' + dupsFound + ' duplicates');
+  return dupsFound;
 }
 
 // Prevents the exception 'Cannot call SpreadsheetApp.getUi() from this context.'
@@ -345,6 +346,7 @@ function asCurrency(num) {
 
 function handleNewItems(ss=null) {
   if (getSpreadsheetVersion(ss) < 2.6) return;
+  log('handleNewItems ==>');
   findIdColumnNum(); // Make sure we know where ID's go
   let sheetRange = priceSheet(ss).getDataRange();
   let lastRow = sheetRange.getLastRow();
@@ -381,11 +383,14 @@ function handleNewItems(ss=null) {
   console.log('Updated ' + newItems + ' item IDs.');
   itemUpdateRan = true;
   //if (newItems) markDupsInPriceList();
+
+  log('<== handleNewItems');
   return newItems;
 }
 
 // Find the column on 'Price Sheet' that stores Item ID's
 function findIdColumnNum(ss=null) {
+  log('  findIdColumnNum ==>');
   let sheetRange = priceSheet(ss).getDataRange();
   let lastColumn = sheetRange.getLastColumn();
   let dataRange = priceSheet(ss).getRange(7, 1, 1, lastColumn);
@@ -396,21 +401,25 @@ function findIdColumnNum(ss=null) {
       idColumnLetter = numToSSColumn(idColumnNumber);
       console.log('Found ID column at ' + (i+1) + ', '+ idColumnLetter);
       idColumnNumber = i+1;
+      log('  <== findIdColumnNum (' + idColumnNumber + ')');
       return idColumnNumber;
     }
   }
 
+  log('<== findIdColumnNum');
   return idColumnNumber;
 }
 
 // Sort 'Price Calc' by col AA (last column, itm 'type') then col B (market price)
 function sortPriceCalc(ss=null) {
+  log('sortPriceCalc ==>');
   let sheetRange = priceSheet(ss).getDataRange();
   let lastRow = sheetRange.getLastRow();
   let lastColumn = sheetRange.getLastColumn();
   let dataRange = priceSheet(ss).getRange(8, 1, lastRow, lastColumn);
-  console.log('Sorting Price Calc by col. ' + lastColumn + ' then by col 2');
+  log('Sorting Price Calc by col. ' + lastColumn + ' then by col 2');
   dataRange.sort([{column: lastColumn}, {column: 2}]);
+  log('<== Finished sorting Price Calc.');
 }
 
 function isRangeSingleCell(range) {
@@ -419,6 +428,7 @@ function isRangeSingleCell(range) {
 }
 
 function fixSheet26(range, oldValue, ss=null) {
+  log('Fixing up Sheet 26 ==>');
   if (!isRangeSingleCell(range)) {
     return console.log('fixSheet26: unable to fix up, not a single cell: ', range);
   }
@@ -452,7 +462,10 @@ function fixSheet26(range, oldValue, ss=null) {
         }
         sheet26(ss).getRange(sheet26row, 1, 1, 1).setValue('1');
         console.log('Item ' + oldValue + ' removed, row ' + sheet26row + ' set to `1` on Sheet26.')
-        if (!newValue) return;
+        if (!newValue) {
+          log('<== Finished fixing up Sheet 26');
+          return;
+        }
         break;
       }
     }
@@ -473,6 +486,8 @@ function fixSheet26(range, oldValue, ss=null) {
         }
       }
     }
+
+    log('<== Finished fixing up Sheet 26');
 
     if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
     emptyCellRange.setValue(newValue);
