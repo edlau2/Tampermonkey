@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.4';
+const UTILITIES_VERSION_INTERNAL = '2.5';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -19,6 +19,7 @@ var itemUpdateRan = false;
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
   let ss = important_getSSID();
+  console.log(getVersion());
   loadScriptOptions(ss);
   syncPriceCalcWithSheet26(ss);
   // checkForUpdates();
@@ -29,6 +30,7 @@ function onOpen(e) {
 function onEdit(e) {
   let modified = true;
   let ss = e.source;
+  console.log(getVersion(ss));
   loadScriptOptions(ss);
   
   let sheet = e.range.getSheet();
@@ -120,12 +122,12 @@ function loadScriptOptions(ss) {
 }
 
 // Versioning info
-function getVersion() {
+function getVersion(ss=null) {
   return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
          'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
          'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
-         'SSID: ' + important_getSSID().getKey();
+         'SSID: ' + (ss ? ss.getKey() : important_getSSID().getKey());
 }
 
 // Function to get the spredsheet handle by SSID
@@ -456,30 +458,32 @@ function fixSheet26(range, oldValue, ss=null) {
 
   // Find the row with the old value on Sheet26 (if any)
   // While there, try to find the first empty row.
+  // Note: rows and array indices are off by one!!!
   let sheet26row = 0;
   log('fixSheet26: oldValue = "' + oldValue + '"');
   if (oldValue) { // Case 1: cell removed (or changed), set to '1' on Sheet26
-    console.log('Deleting ID for "' + oldValue + '" in row ' + range.rowStart);
+    console.log('Deleting ID for "' + oldValue + '" in row ' + range.rowStart + ' on Price Calc');
     priceSheet(ss).getRange(range.rowStart, idColumnNumber, 1, 1).setValue('');
+    
     console.log('Looking for ' + oldValue + ' on Sheet26 to remove.');
-    for (let i=1; i<valArray.length; i++) {
+    for (let i=0; i<valArray.length; i++) {
       if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
-        emptyRow = i;
+        emptyRow = i+1;
         emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
-        console.log('Found first empty row at ' + i);
+        console.log('Found first empty row at ' + emptyRow + ' on Sheet26');
       }
       if (oldValue.toLowerCase() == valArray[i].toString().toLowerCase()) {
-        sheet26row = i;
-        if (!emptyRow || (i < emptyRow)) {
-          emptyRow = i;
+        sheet26row = i+1;
+        if (!emptyRow || ((i+1) < emptyRow)) {
+          emptyRow = i+1;
           emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
-          console.log('First empty row now set to row ' + i);
+          console.log('First empty row now set to row ' + emptyRow + ' on Sheet26');
         }
         sheet26(ss).getRange(sheet26row, 1, 1, 1).setValue('1');
         console.log('Item ' + oldValue + ' removed, row ' + sheet26row + ' set to `1` on Sheet26.')
         if (!newValue) {
           SpreadsheetApp.flush();
-          console.log('<== Finished fixing up Sheet 26');
+          console.log('<== Finished fixing up Sheet26');
           return; 
         }
         break;
@@ -506,7 +510,7 @@ function fixSheet26(range, oldValue, ss=null) {
   }
 
   SpreadsheetApp.flush();
-  log('<== Finished fixing up Sheet 26');
+  log('<== Finished fixing up Sheet26');
 
   if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
   emptyCellRange.setValue(newValue);
