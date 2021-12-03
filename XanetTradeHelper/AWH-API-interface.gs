@@ -119,6 +119,9 @@ function main() {
 // { "items": [ { "id": 180, "price": 785 }, { "id": 215, "price": 750} ], 
 // "museum_sets": [ { "type": "exotic-flowers", "price": 470000 }, { "type": "plushies", "price": 470000} ] }
 //
+// With bulk prices:
+// "items": [ { "id": 215, "price": 750, "bulk": [{ "minimum_quantity": 250, "price": 700}]],...
+//
 /////////////////////////////////////////////////////////////////////////////
 
 function readPriceList() {
@@ -147,8 +150,8 @@ function readPriceList() {
     }
     let name = dataRangeArr[i][0];
     let price = dataRangeArr[i][3];
-    let bulkQty = dataRangeArr[i][4];
-    let bulkPrice = dataRangeArr[i][5] * price;
+    let bulkQty = opts.opt_bulkPricing ? dataRangeArr[i][4] : 0;
+    let bulkPrice = opts.opt_bulkPricing ? dataRangeArr[i][5] * price : 0;
     if (!Number.isInteger(price) || !price) {
       if (noPrices++ > 25) throw('Far too many prices of $0, is the "Prie Calc" sheet invalid?');
       console.log('Price for "' + name +'" appears invalid: ' + price);
@@ -180,7 +183,7 @@ function readPriceList() {
     if (!retArray[i]) break; // Shouldn't need anymore
 
     let item = {"id": retArray[i][0], "price": retArray[i][1]};
-    if (retArray[i][3]) { // Bulk qty
+    if (retArray[i][3] && opts.opt_bulkPricing) { // Bulk qty
       item.bulk = [{"minimum_quantity": retArray[i][3], "price": retArray[i][4]}];
     }
     if (item.id && item.price) { // Test this with blank rows! // Shouldn't need anymore!
