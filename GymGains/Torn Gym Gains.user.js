@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -92,7 +92,6 @@ var DEV_MODE = false;
             eObserver.observe(barEnergy, eConfig);
 
             if (darkMode()) {
-                debugger;
                 let table = document.querySelector("#xedx-bat-stat-table");
                 let border = '1px solid rgb(91, 91, 91)'; // #5B5B5B
                 let tds = table.getElementsByTagName('td');
@@ -352,8 +351,8 @@ var DEV_MODE = false;
 
         const ul = document.getElementById('gym-gains-list');
         resetGains(ul);
-        const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks'];
-        const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks'];
+        const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks', 'book_perks'];
+        const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks'];
         for (let i=0; i<category.length; i++) { // Iterate object's arrays
             let arr = jsonResp[category[i]];
             for (let j=0; j<arr.length; j++) {  // Iterate category array
@@ -427,6 +426,22 @@ var DEV_MODE = false;
             content.appendChild(document.createTextNode(attr[i] + ':'));
             content.appendChild(s);
         }
+
+        darkModeFixup();
+    }
+
+    // Fixup for other stuff in Dark Mode
+    var retries = 0;
+    function darkModeFixup() {
+       if (darkMode()) {
+           log('Fixing up for Dark Mode.');
+           let gainsMsg1 = document.querySelector("#xgr_msg1");
+           let gainsMsg2 = document.querySelector("#xgr_msg2");
+           console.log('Special Gym Requirements: ', gainsMsg1, gainsMsg2);
+           if ((!gainsMsg1 || !gainsMsg2) && retries++ < 10) return setTimeout(darkModeFixup, 100);
+           if (gainsMsg1) gainsMsg1.setAttribute('style', 'color:black;');
+           if (gainsMsg2) gainsMsg2.setAttribute('style', 'color:black;');
+       }
     }
 
     // Handler for 'queryGymDetails()', called by 'queryGymInfo()'
