@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.7';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.8';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -74,7 +74,7 @@ function handleRequest(e) {
     var cmd = commandObj.command;
     var tradeID = retArray[0].id;
 
-    handleNewItems();
+    if (!itemUpdateRan) handleNewItems();
     
     // data: get the data (price data) into the array, write to the trade log, and update running averages.
     // price: get ad return price info only.    
@@ -354,6 +354,7 @@ function isDuplicate(id) {
 
 var transTotal = 0; // null global indicates demand loaded.
 var priceRows = null;
+var bulkPriceRows = null;
 function fillPrices(array, updateAverages) { // A8:<last row>
 
   // For values on the price list...
@@ -394,8 +395,16 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         if (!priceRows) {
           log('loading priceRows');
           priceRows = priceSheet().getRange(startRow, 4, lastRow-1).getValues();
+          if (opts.opt_bulkPricing) {
+            log('loading bulk prices'); // [0] = qty, [1] = markdown
+            bulkPriceRows = priceSheet().getRange(startRow, 5, lastRow-1, 2).getValues();
           }
+        }
         let price = priceRows[j];
+
+        if (opts.opt_bulkPricing) { // Support bulk pricing
+          if (array[i].qty > bulkPriceRows[j][0]) price = price * bulkPriceRows[j][1];
+        }
         
         if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.  
           array[i].priceAskMe = true;
@@ -754,4 +763,3 @@ var params = { parameters: { '[{"command":"data"},{"id":"786444001","name":"Bott
     name: 'postData',
     type: 'application/x-www-form-urlencoded' },
   contentLength: 373 };
-
