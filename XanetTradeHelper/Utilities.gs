@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.3';
+const UTILITIES_VERSION_INTERNAL = '2.4';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -27,7 +27,6 @@ function onOpen(e) {
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
 function onEdit(e) {
-  console.log('onEdit: ', e.range,  ' Old value: ', e.oldValue);
   let modified = true;
   let ss = e.source;
   loadScriptOptions(ss);
@@ -35,6 +34,8 @@ function onEdit(e) {
   let sheet = e.range.getSheet();
   let sheetName = sheet.getName();
   if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
+
+  console.log('==> onEdit sheet: "', sheetName , '" rsnge: ', e.range,  ' Old value: ', e.oldValue);
 
   // Look for changes in column 1, rows > 217
   let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
@@ -495,9 +496,9 @@ function fixSheet26(range, oldValue, ss=null) {
     if (!emptyCellRange) {
       for (let i=sheet26row; i<valArray.length; i++) {
         if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
-          emptyRow = i;
+          emptyRow = i+1;
           emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
-          console.log('First empty row found at row ' + i);
+          console.log('First empty row found at row ' + emptyRow);
           break;
         }
       }
