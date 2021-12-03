@@ -27,6 +27,9 @@ function onOpen(e) {
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
+//
+// rsnge:  { columnEnd: 1, columnStart: 1, rowEnd: 17, rowStart: 17 }
+//
 function onEdit(e) {
   let modified = true;
   let ss = e.source;
@@ -37,25 +40,48 @@ function onEdit(e) {
   let sheetName = sheet.getName();
   if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
 
-  console.log('==> onEdit sheet: "', sheetName , '" rsnge: ', e.range,  ' Old value: ', e.oldValue);
+  console.log('==> onEdit sheet: "', sheetName , '" range: ', e.range,  ' Old value: ', e.oldValue);
 
-  // Look for changes in column 1, rows > 217
-  let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
-                            (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
-                            (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
-  if (sheetName == 'Price Calc' && isInterestingColumn) {
-    console.log('Detected change in names range or ID range! Verifying ID`s...');
+  if (sheetName == 'Price Calc') {
+    // Look for changes in column 1, rows > 217
+    let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
+                              (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
+                              (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
+    if (isInterestingColumn) {
+      console.log('Detected change in names range or ID range! Verifying ID`s...');
 
-    // Migrate changes to Sheet26...
-    if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
-      if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
+      // Migrate changes to Sheet26...
+      if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+        if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
+      }
+      syncPriceCalcWithSheet26(ss);
     }
-    syncPriceCalcWithSheet26(ss);
+
+    priceSheet(ss).getRange('A4').setValue(timenow());
+    priceSheet(ss).getRange('A4').setFontFamily('Arial');
+    priceSheet(ss).getRange('A4').setFontSize('10');
   }
 
-  priceSheet().getRange('A4').setValue(timenow());
-  priceSheet().getRange('A4').setFontFamily('Arial');
-  priceSheet().getRange('A4').setFontSize('10');
+  if (sheetName == 'Options' && isRangeSingleCell(e.range)) {
+    let valCol = numToSSColumn(e.range.columnStart);
+    let optCol = numToSSColumn(e.range.columnStart-1);
+    let valueCell = valCol + e.range.rowStart;
+    let optCell = optCol + e.range.rowStart;
+    console.log('Option change detected: value cell "' + valueCell + '" option cell "' + optCell + '"');
+    console.log('Option  "' + sheet.getRange(optCell) +'" New value: ' + 
+                sheet.getRange(valueCell).getValue());
+
+    if (valueCell == 'B17') { // B17, bulk pricing
+      if (opts.opt_bulkPricing) {
+        addBulkPricing(ss);
+      } else {
+        removeBulkPricing(ss);
+      }
+      SpreadsheetApp.flush();
+    }
+  }
+
+  console.log('<== onEdit');
 }
 
 function syncPriceCalcWithSheet26(ss=null) {
@@ -105,6 +131,7 @@ function loadScriptOptions(ss) {
   opts.opt_profile = optsSheet(ss).getRange("B14").getValue();
   opts.opt_autoSort = optsSheet(ss).getRange("B15").getValue();
   opts.opt_fixup26 = optsSheet(ss).getRange("B16").getValue();
+  opts.opt_bulkPricing = optsSheet(ss).getRange("B17").getValue();
 
   // AWH options
   opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
