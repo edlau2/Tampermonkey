@@ -403,7 +403,11 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         let price = priceRows[j];
 
         if (opts.opt_bulkPricing) { // Support bulk pricing
-          if (array[i].qty > bulkPriceRows[j][0]) price = price * bulkPriceRows[j][1];
+          if (array[i].qty > bulkPriceRows[j][0]) {
+            log('Using bulk pricing. Normal: ' + price + ' Discount: ' + bulkPriceRows[j][1] +
+            ' Total: ' + price * bulkPriceRows[j][1] + ' each.');
+            price = price * bulkPriceRows[j][1];
+          }
         }
         
         if (isNaN(price)) { // Not numeric, could be 'Ask Me!', for example. Case 2.  
