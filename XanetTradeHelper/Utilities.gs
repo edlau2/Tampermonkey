@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.5';
+const UTILITIES_VERSION_INTERNAL = '2.6';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -41,6 +41,10 @@ function onEdit(e) {
   if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
 
   console.log('==> onEdit sheet: "', sheetName , '" range: ', e.range,  ' Old value: ', e.oldValue);
+
+  if (sheetName == 'Sort Order') {
+    if (opts.opt_autoSort) sortPriceCalc(ss);
+  }
 
   if (sheetName == 'Price Calc') {
     // Look for changes in column 1, rows > 217
