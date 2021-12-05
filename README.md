@@ -86,7 +86,7 @@ This script combines what was previously three separate scripts. On a person's P
 
 - [Torn Museum Sets Helper.user.js](https://github.com/edlau2/Tampermonkey/raw/master/MuseumSetsHelper/Torn%20Museum%20Sets%20Helper.user.js)
 
-Images:
+Images: Note - the images are outdated, now, they are sorted ascending by the amount you have, aand additionally, the country where the items are found and time it takes to get there are listed beside the items.
 
 ![SampleFlowerSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SampleFlowerSets.png)
 ![SamplePlushieSets.png](https://github.com/edlau2/Tampermonkey/blob/master/MuseumSetsHelper/SamplePlushieSets.png)
