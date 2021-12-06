@@ -3,10 +3,10 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.5';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.6';
 
 /////////////////////////////////////////////////////////////////////////////
-// Globals
+// Globalsa
 /////////////////////////////////////////////////////////////////////////////
 
 var opts = {};
@@ -151,7 +151,7 @@ function readPriceList() {
     let name = dataRangeArr[i][0];
     let price = dataRangeArr[i][3];
     let bulkQty = opts.opt_bulkPricing ? dataRangeArr[i][4] : 0;
-    let bulkPrice = opts.opt_bulkPricing ? dataRangeArr[i][5] * price : 0;
+    let bulkPrice = opts.opt_bulkPricing ? dataRangeArr[i][5] : 0;
     if (!Number.isInteger(price) || !price) {
       if (noPrices++ > 25) throw('Far too many prices of $0, is the "Prie Calc" sheet invalid?');
       console.log('Price for "' + name +'" appears invalid: ' + price);
