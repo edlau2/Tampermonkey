@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.9';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.0';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -409,8 +409,8 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         if (opts.opt_bulkPricing && !inSet) { // Support bulk pricing
           if (array[i].qty > bulkPriceRows[j][0] && bulkPriceRows[j][0]) {
             log('Using bulk pricing. Normal price: ' + price + ' Discount: ' + bulkPriceRows[j][1] +
-            ' Total: ' + price * bulkPriceRows[j][1] + ' each.');
-            price = price * bulkPriceRows[j][1];
+            ' each.');
+            price = bulkPriceRows[j][1];
             array[i].bulkPrice = true;
           }
         }
