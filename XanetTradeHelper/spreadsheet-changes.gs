@@ -3,7 +3,7 @@
 // current data.
 /////////////////////////////////////////////////////////////////////////////
 
-const SS_CHANGES_VERSION_INTERNAL = '1.0';
+const SS_CHANGES_VERSION_INTERNAL = '1.1';
 
 /**
  * Checks for any updates that may be added and supported
@@ -64,7 +64,7 @@ function addBulkPricing(ss=null) {
   sheet.getRange('E4').setFontSize('10');
   sheet.getRange('E4:F4').mergeAcross();
   sheet.getRange('E4:F4').setBorder(true, true, true, true, null, null);
-  sheet.getRange('E6:F6').setValues([['Min Qty', 'Markup (%)']]);
+  sheet.getRange('E6:F6').setValues([['Min Qty', 'Markup ($)']]);
   sheet.getRange('E6:F6').setFontFamily('Arial');
   sheet.getRange('E6:F6').setFontSize('10');
   sheet.getRange('E6:F6').setFontWeights([['bold', 'bold']]);
@@ -77,7 +77,7 @@ function addBulkPricing(ss=null) {
   sheet.getRange(7, 5, lastRow-7, 2).setFontFamily('Arial');
   sheet.getRange(7, 5, lastRow-7, 2).setFontSize('10');
   sheet.getRange(7, 5, 800, 1).setNumberFormat('#0');
-  sheet.getRange(7, 6, 800, 1).setNumberFormat('0.00%'); 
+  sheet.getRange(7, 6, 800, 1).setNumberFormat("[$S/.]#,##0"); 
 
   console.log('<== addBulkPricing success.');
 }
