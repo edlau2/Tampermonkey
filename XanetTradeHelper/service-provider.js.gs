@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.8';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '2.9';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -369,6 +369,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
   // for example, "Quran Script : Ibn Masud" in the browser is "Script from 
   // the Quran: Ibn Masud" in the API (and price sheet).
   for (let i = 0; i < array.length; i++) { // Iterate names we got from trade grid
+    array[i].bulkPrice = false;
     array[i].priceAskMe = false;
     array[i].priceNotFound = false;
     let searchWord = array[i].name.trim();
@@ -402,11 +403,15 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         }
         let price = priceRows[j];
 
-        if (opts.opt_bulkPricing) { // Support bulk pricing
-          if (array[i].qty > bulkPriceRows[j][0]) {
-            log('Using bulk pricing. Normal: ' + price + ' Discount: ' + bulkPriceRows[j][1] +
+        // Bulk pricing, if supported.
+        // Hmmm - what if already in sets? Can't count then!
+        let inSet = !!(array[i].inFlowerSet || array[i].inPlushieSet);
+        if (opts.opt_bulkPricing && !inSet) { // Support bulk pricing
+          if (array[i].qty > bulkPriceRows[j][0] && bulkPriceRows[j][0]) {
+            log('Using bulk pricing. Normal price: ' + price + ' Discount: ' + bulkPriceRows[j][1] +
             ' Total: ' + price * bulkPriceRows[j][1] + ' each.');
             price = price * bulkPriceRows[j][1];
+            array[i].bulkPrice = true;
           }
         }
         
@@ -425,7 +430,12 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         transTotal += price * array[i].qty;
         if (updateAverages) {updateRunningAverages(array[i]);} // SLOW call
 
-        log('Found match for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
+        //inSet = !!(array[i].inFlowerSet || array[i].inPlushieSet);
+        //if (inSet == undefined) inSet = false;
+        log('Found match for ' + searchWord + 
+            '\nBulk: ' + array[i].bulkPrice +
+            '\nIn Set: ' + inSet +
+            ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
         break;
       }
@@ -449,31 +459,31 @@ function fillPrices(array, updateAverages) { // A8:<last row>
 /**
  * Function to locate item price in the 'item list' sheet
  */
-let names2 = null; // null global indicates demand loaded.
-var priceRows2 = null;
+let itemListNames = null; // null global indicates demand loaded.
+var itemListPrices = null;
 function findItemInItemList(item) {
   let nameFound = false;
-  let sheetRange2 = itemSheet().getDataRange();
-  let lastRow2 = sheetRange2.getLastRow();
-  let nameRange2 = itemSheet().getRange(2, 1, lastRow2-1);
+  let itemRange = itemSheet().getDataRange();
+  let itemsLastRow = itemRange.getLastRow();
+  let itemNameRange = itemSheet().getRange(2, 1, itemsLastRow-1);
 
   let searchWord = item.name.trim();
   item.priceNotFound = true;
-  if (!names2) {
-    log('Loading names2');
-    names2 = nameRange2.getValues();
+  if (!itemListNames) {
+    log('Loading Item List');
+    itemListNames = itemNameRange.getValues();
     } 
   profile();
-  for (let j = 0; j < names2.length; j++) { // to compare to all known names. 
-    if (names2[j] == '') {break;}
-    let compareWord = names2[j].toString().trim();
+  for (let j = 0; j < itemListNames.length; j++) { // to compare to all known names. 
+    if (itemListNames[j] == '') {break;}
+    let compareWord = itemListNames[j].toString().trim();
     if (searchWord == compareWord) {
       nameFound = true;
-      if (!priceRows2) {
-        log('Loading priceRows1');
-        priceRows2 = itemSheet().getRange(2, 4, lastRow2-1).getValues();
+      if (!itemListPrices) {
+        log('Loading Item List prices');
+        itemListPrices = itemSheet().getRange(2, 4, itemsLastRow-1).getValues();
         }
-      let price2 = priceRows2[j];
+      let price2 = itemListPrices[j];
       item.price = Math.round(price2 * opts.opt_markdown); 
       item.total = item.price * item.qty; 
       transTotal += item.total;
