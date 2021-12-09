@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.1';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.2';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -354,6 +354,7 @@ function isDuplicate(id) {
 
 var transTotal = 0; // null global indicates demand loaded.
 var priceRows = null;
+var typeRows = null;
 var bulkPriceRows = null;
 
 function fillPrices(array, updateAverages) { // A8:<last row>
@@ -373,6 +374,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
     array[i].bulkPrice = false;
     array[i].priceAskMe = false;
     array[i].priceNotFound = false;
+    array[i].type = '';
     let searchWord = array[i].name.trim();
 
     // Handle the blod bags with a '+' in them...(A+, B+, O+, AB+)
@@ -387,7 +389,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
 
     for (let j = 0; j < names.length; j++) { // to compare to all known names. 
       nameFound = false;
-      if (names[j] == '') {break;}
+      if (names[j] == '') {continue;}
       let priceListWord = names[j].toString().trim();
           
       nameFound = (searchWord == priceListWord);
@@ -396,13 +398,20 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         // Will Pay price is col. 4,
         if (!priceRows) {
           log('loading priceRows');
+
+          let typeCol = opts.opt_bulkPricing ? 27 : 25; // 'AA' or 'Y'
           priceRows = priceSheet().getRange(startRow, 4, lastRow-1).getValues();
+          typeRows = priceSheet().getRange(startRow, typeCol, lastRow-1).getValues();
           if (opts.opt_bulkPricing) {
             log('loading bulk prices'); // [0] = qty, [1] = markdown
             bulkPriceRows = priceSheet().getRange(startRow, 5, lastRow-1, 2).getValues();
           }
         }
         let price = priceRows[j];
+        array[i].type = typeRows[j];
+
+        // Set the 'type' or later sorting
+        let typeCol = opts.opt_bulkPricing ? 'AA' : 'Y';
 
         // Bulk pricing, if supported.
         // Hmmm - what if already in sets? Can't count then!
@@ -436,6 +445,7 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         log('Found match for ' + searchWord + 
             '\nBulk: ' + array[i].bulkPrice +
             '\nIn Set: ' + inSet +
+            '\nType: ' + array[i].type +
             ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
         break;
@@ -652,7 +662,7 @@ function logTransaction(array) {
   
   // Header - 
   var row = lastRow + 2;
-  var startRow = row; // Save for later...
+  const startRow = row; // Save for later...
   var dateRange = datasheet().getRange("A" + row + ":B" + row);
   var timeRange = datasheet().getRange("A" + (row+1));
   let date = new Date().toDateString();
@@ -668,14 +678,17 @@ function logTransaction(array) {
   let counter = 0;
   profile();
   for (let i = 0; i < array.length; i++) {
-    values = [[array[i].name, 
+    let values = [[array[i].name, 
               array[i].qty, 
               array[i].price,
               array[i].total]];
-    row = lastRow + 2 + (counter++); // New change - shifts up data row by 1. MAKE SURE does not affect running averages or last XAction
-    range = datasheet().getRange("C" + row + ":F" + row);
+    let row = lastRow + 2 + (counter++); // New change - shifts up data row by 1. MAKE SURE does not affect running averages or last XAction
+    let range = datasheet().getRange("C" + row + ":F" + row);
+    let typeRange = datasheet().getRange("Z" + row);
     range.setValues(values);
-    log('inserted values: ' + values);
+    typeRange.setValue(array[i].type);
+    log('Row ' + row + ' inserted values: ' + values);
+    console.log('array: ', array[i]);
     
     // If the price/total is '-1', set as red; if '0', set as yellow
     // See https://developers.google.com/apps-script/reference/calendar/color
@@ -683,12 +696,19 @@ function logTransaction(array) {
     if (opts.opt_colorDataCells == true) {
       let cells = datasheet().getRange('C' + row + ':F' + row);
       let color = 'lime';
-      if (array[i].priceAskMe == true) {color = 'yellow';}
+      if (array[i].bulkPrice == true) {color = 'orange';}
+      else if (array[i].priceAskMe == true) {color = 'yellow';}
       else if (array[i].priceNotFound == true) {color = 'red';}
       cells.setBackground(color);
     }
     itemsInserted++;
   }
+
+  // Now sort by item type. Range is start row to lastRow, columns C to item type row (Z)
+  let sortRange = datasheet().getRange(startRow, 3, datasheet().getLastRow() - startRow, 24);
+  console.log('Sorting data range by col ' + sortRange.getLastColumn());
+  sortRange.sort([sortRange.getLastColumn(), 5]); // 'Z' then 'E'
+
   profile();
   log("Finished logging transaction - " + itemsInserted + ' items logged.');
   
