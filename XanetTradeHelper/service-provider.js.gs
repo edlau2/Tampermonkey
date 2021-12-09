@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.0';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.1';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -355,6 +355,7 @@ function isDuplicate(id) {
 var transTotal = 0; // null global indicates demand loaded.
 var priceRows = null;
 var bulkPriceRows = null;
+
 function fillPrices(array, updateAverages) { // A8:<last row>
 
   // For values on the price list...
@@ -406,11 +407,11 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         // Bulk pricing, if supported.
         // Hmmm - what if already in sets? Can't count then!
         let inSet = !!(array[i].inFlowerSet || array[i].inPlushieSet);
-        if (opts.opt_bulkPricing && !inSet) { // Support bulk pricing
+        if (opts.opt_bulkPricing) { // Support bulk pricing
           if (array[i].qty > bulkPriceRows[j][0] && bulkPriceRows[j][0]) {
-            log('Using bulk pricing. Normal price: ' + price + ' Discount: ' + bulkPriceRows[j][1] +
-            ' each.');
-            price = bulkPriceRows[j][1];
+            log('Using bulk pricing. Normal price: ' + price + ' Bulk Price: ' + 
+            (Number(bulkPriceRows[j][1]) + Number(price)) + ' each.');
+            price = Number(bulkPriceRows[j][1]) + Number(price);
             array[i].bulkPrice = true;
           }
         }
