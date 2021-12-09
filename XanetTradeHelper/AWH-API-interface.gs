@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.6';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.7';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globalsa
@@ -163,7 +163,7 @@ function readPriceList() {
       continue;
     }
     console.log('ID, Price for ' + dataRangeArr[i][0] + ': ' + id + ', ' + price);
-    retArray.push([id, price, name, bulkQty? bulkQty : 0, bulkPrice]);
+    retArray.push([id, price, name, bulkQty? bulkQty : 0, bulkPrice ? (bulkPrice + price) : 0]);
   }
 
   console.log('retArray: ', retArray);
