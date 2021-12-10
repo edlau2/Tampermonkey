@@ -20,7 +20,7 @@
     let $ = unsafeWindow.$;
 
     //My Gets and Sets
-    const getKey = ()=>GM_getValue('key','4ZMAvIBON4zZLrd9');
+    const getKey = ()=>GM_getValue('key','');
     const setKey = key=>{
         GM_setValue('key',key);
         GM_setValue('playerData',null);
