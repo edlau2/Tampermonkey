@@ -464,7 +464,18 @@ function fillPrices(array, updateAverages) { // A8:<last row>
       }
     } // end !nameFound
   } // End for loop, grid name list
+
+  // Sort the 'running averages' sheet
+  sortRunningAverages();
   return transTotal;
+}
+
+function sortRunningAverages() {
+  log('sortRunningAverages ==>');
+  let sheetRange = avgSheet().getDataRange();
+  let sortRange = avgSheet().getRange(2, 1, sheetRange.getLastRow() - 2, sheetRange.getLastColumn());
+  sortRange.sort(sheetRange.getLastColumn());
+  log('<== sortRunningAverages');
 }
 
 /**
@@ -684,9 +695,11 @@ function logTransaction(array) {
               array[i].total]];
     let row = lastRow + 2 + (counter++); // New change - shifts up data row by 1. MAKE SURE does not affect running averages or last XAction
     let range = datasheet().getRange("C" + row + ":F" + row);
-    let typeRange = datasheet().getRange("Z" + row);
     range.setValues(values);
+    /* For sorting, leter
+    let typeRange = datasheet().getRange("Z" + row);
     typeRange.setValue(array[i].type);
+    */
     log('Row ' + row + ' inserted values: ' + values);
     console.log('array: ', array[i]);
     
@@ -705,9 +718,11 @@ function logTransaction(array) {
   }
 
   // Now sort by item type. Range is start row to lastRow, columns C to item type row (Z)
+  /*
   let sortRange = datasheet().getRange(startRow, 3, datasheet().getLastRow() - startRow, 24);
   console.log('Sorting data range by col ' + sortRange.getLastColumn());
   sortRange.sort([sortRange.getLastColumn(), 5]); // 'Z' then 'E'
+  */
 
   profile();
   log("Finished logging transaction - " + itemsInserted + ' items logged.');
