@@ -36,11 +36,11 @@
     function buildPersonalRespectLi() {
         console.log('buildPersonalRespectLi ==>');
         let respect = jsonResp.personalstats.respectforfaction;
-        debugger; // Check here for correct UL !!! The ID ('#item#######" seems to change)
-        //let ul = $('#item4875408').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-        let ul = $('#item10961662').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
+        //debugger; // Check here for correct UL !!! The ID ('#item#######" seems to change)
+        //let ul = $('#item10961662').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
+        let ul = $('#item10767034').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
         let tmp = document.querySelector("#item10961662");
-        console.log('buildPersonalRespectLi ul = ', ul, ' tmp (#item10961662) = ' + tmp);
+        console.log('buildPersonalRespectLi ul = ', ul, ' tmp (#itemxyz) = ' + tmp);
         if (!ul) {
             console.log('Unable to find correct ul!');
         }
