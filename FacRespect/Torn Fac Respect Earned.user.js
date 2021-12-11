@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -24,16 +24,26 @@
     // Callback triggered once the call to the Torn API completes
     function personalStatsQueryCB(responseText, ID, param) {
         jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
+        if (jsonResp.error) {
+            console.log('personalStatsQueryCB error! ', responseText);
+            return handleError(responseText);
+        }
+        console.log('personalStatsQueryCB: ', jsonResp);
         buildPersonalRespectLi();
     }
 
     // Build the <li> we'll append in the Faction Stats section on the home page
     function buildPersonalRespectLi() {
+        console.log('buildPersonalRespectLi ==>');
         let respect = jsonResp.personalstats.respectforfaction;
         debugger; // Check here for correct UL !!! The ID ('#item#######" seems to change)
         //let ul = $('#item4875408').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
         let ul = $('#item10961662').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
+        let tmp = document.querySelector("#item10961662");
+        console.log('buildPersonalRespectLi ul = ', ul, ' tmp (#item10961662) = ' + tmp);
+        if (!ul) {
+            console.log('Unable to find correct ul!');
+        }
         var li = '<li id="xedx-respect" tabindex="0" role="row" aria-label="Personal Respect Earned' + respect.toLocaleString("en") + '">' +
                  '<span class="divider"> <span>Personal Respect Earned</span></span><span class="desc">' +
             respect.toLocaleString("en") + '</li>';
