@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.10
+// @version      0.11
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -24,15 +24,9 @@
     debugLoggingEnabled = false;
     loggingEnabled = true;
 
-
     //////////////////////////////////////////////////////////////////////
     // Functions that do the tool tip adding to separate DIV's
     //////////////////////////////////////////////////////////////////////
-
-    //Somewhere in here is hoe script.
-    //I assume 'NaN' eerrorg, oeprahos in/.
-    //
-    // Huh? Did I write this? Musta been drunk...
 
     function addCriminalRecordToolTips() {
 
@@ -278,6 +272,7 @@
 
     logScriptStart();
     if (awayFromHome()) {return;}
+    versionCheck();
 
     document.addEventListener('readystatechange', event => {
         if (event.target.readyState === "complete") {
