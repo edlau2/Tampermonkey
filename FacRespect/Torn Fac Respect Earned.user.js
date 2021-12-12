@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -21,6 +21,9 @@
 (function() {
     'use strict';
 
+    var jsonResp = null; // Global for returned stats
+    var displayToolTips = true; // set to 'true' to display tool tips for respect
+
     // Callback triggered once the call to the Torn API completes
     function personalStatsQueryCB(responseText, ID, param) {
         jsonResp = JSON.parse(responseText);
@@ -34,28 +37,29 @@
 
     // Build the <li> we'll append in the Faction Stats section on the home page
     function buildPersonalRespectLi() {
-        console.log('buildPersonalRespectLi ==>');
         let respect = jsonResp.personalstats.respectforfaction;
-        //debugger; // Check here for correct UL !!! The ID ('#item#######" seems to change)
-        //let ul = $('#item10961662').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-        let ul = $('#item10767034').find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-        let tmp = document.querySelector("#item10961662");
-        console.log('buildPersonalRespectLi ul = ', ul, ' tmp (#itemxyz) = ' + tmp);
-        if (!ul) {
-            console.log('Unable to find correct ul!');
-        }
-        var li = '<li id="xedx-respect" tabindex="0" role="row" aria-label="Personal Respect Earned' + respect.toLocaleString("en") + '">' +
-                 '<span class="divider"> <span>Personal Respect Earned</span></span><span class="desc">' +
-            respect.toLocaleString("en") + '</li>';
+        let children = document.querySelector("#column0").children;
+        let useSel = null;
+        let ul = null;
+        for (let i=0; i<children.length; i++) {
+            let title = children[i].querySelector("div.title.main-title.title-black.active.top-round > h5");
+            if (!title) continue;
+            if (title.innerText == 'Faction Information') {
+                useSel = children[i];
+                break;
+            }
+        };
+        if (useSel) ul = $(useSel).find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
+        console.log('buildPersonalRespectLi ul = ', ul);
+        if (!ul) return console.log('Unable to find correct ul!');
+        let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned"><div id="xedx-respect">' +
+                     '<span class="divider"><span>Personal Respect Earned</span></span>' +
+                     '<span class="desc">' + respect.toLocaleString("en") + '</span>' +
+                 '</div></li>';
         $(ul).append(li);
-
-        // addFacToolTip(li); <== This is broken somehow, the background is not opaque...
+        if (displayToolTips) addFacToolTip(li); // <== This is broken somehow, the background is not opaque...
     }
 
-    // Add a tool tip for the <li> detailing honor bars/medals, and progress
-    // TBD: This is not legible, needs the style changed, or position moved.
-    // displayToolTip automatically uses tooltip3, can add diff style...
-    // Criminal record tooltips seem fine.
     function addFacToolTip(li) {
         addToolTipStyle();
 
@@ -78,8 +82,8 @@
             buildMedalText('Boss Of All Bosses', respect, 100000);
         let toolTipText = title + CRLF + CRLF + honors + CRLF + CRLF + medals;
 
-        displayToolTip($('#xedx-respect')[0], toolTipText);
-        // displayToolTip(li, toolTipText);
+        if (li) displayToolTip($('#xedx-respect')[0], toolTipText);
+        return toolTipText;
     }
 
     // Miscellaneous utility functions
@@ -97,7 +101,7 @@
     }
 
     function asHtmlPct(value, limit) {
-        var pctText = value/limit * 100;
+        let pctText = value/limit * 100;
         if (Number(pctText) >= 100) {
             pctText = '<B><font color=\'green\'>100%</font></B>';
         } else {
@@ -114,8 +118,7 @@
     logScriptStart();
     if (awayFromHome()) {return;}
     validateApiKey();
-
-    var jsonResp = null; // Global for returned stats
+    versionCheck();
 
     window.onload = function () {
         let html = $('#skip-to-content').html();
