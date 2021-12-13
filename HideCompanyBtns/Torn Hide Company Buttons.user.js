@@ -1,0 +1,47 @@
+// ==UserScript==
+// @name         Torn Hide Company Buttons
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  Hide the 'Fire' and 'Sell Company' buttons
+// @author       xedx [2100735]
+// @include      https://www.torn.com/companies.php*
+// @connect      api.torn.com
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
+// ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+
+(function() {
+    'use strict';
+
+    GM_addStyle(".fire {" +
+        "width: 30px;" +
+        "display: none;" +
+    "}");
+
+    function handlePageLoad() {
+        let sel = document.querySelector("#mainContainer > div.content-wrapper > div.company-wrap " +
+                                         "> div.manage-company.cont-gray.bottom-round.ui-tabs.ui-widget.ui-widget-content.ui-corner-all " +
+                                         "> ul > li:nth-child(12)");
+        if (sel) sel.setAttribute('style', 'display: none;');
+    }
+ 
+    //////////////////////////////////////////////////////////////////////
+    // Main. 
+    //////////////////////////////////////////////////////////////////////
+
+    logScriptStart();
+    versionCheck();
+
+    if (document.readyState === 'complete') {
+        handlePageLoad();
+    } else {
+        window.onload = function(e){handlePageLoad();}
+    }
+
+})();
