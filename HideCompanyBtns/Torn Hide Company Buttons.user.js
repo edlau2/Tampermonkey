@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hide Company Buttons
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Hide the 'Fire' and 'Sell Company' buttons
 // @author       xedx [2100735]
 // @include      https://www.torn.com/companies.php*
@@ -32,6 +32,14 @@
 
         if (ulSel) sel = ulSel.querySelectorAll('[aria-controls="sell-company"]')[0];
         if (sel) sel.setAttribute('style', 'display: none;');
+
+        ulSel = document.querySelector("#manage-tabs");
+        if (ulSel) sel = ulSel.querySelectorAll('[value="sell-company"]')[0];
+        if (sel) {
+            sel.setAttribute('style', 'display: none;');
+            sel.removeAttribute('selected');
+            ulSel.querySelectorAll('[value="income-chart"]')[0].setAttribute('selected', 'selected');
+        }
     }
  
     //////////////////////////////////////////////////////////////////////
