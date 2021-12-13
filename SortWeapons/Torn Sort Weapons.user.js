@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sort Weapons
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Sorts weapons on the Items page by various criteria
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -134,6 +134,8 @@
 
         observeOff(); // Don't call ourselves while sorting.
         setSumTotal(itemUL); // Create the 'totalStats' attr.
+        
+        debug('Preparing to sort by ' + sortOrder[selID]);
 
         let order = 'desc';
         let attr = '';
@@ -192,9 +194,12 @@
     //////////////////////////////////////////////////////////////////////
 
     function setSelectors(itemUL) {
+        debug('setSelectors ==>');
         let firstItemSel = itemUL.querySelector("li.bg-green");
         if (!firstItemSel) firstItemSel = itemUL.querySelectorAll("li.t-first-in-row")[0];
+        console.log(GM_info.script.name + 'setSelectors: firstItemSel = ', firstItemSel);
         let liList = firstItemSel.querySelectorAll("div.cont-wrap > div.bonuses.left > ul > li");
+        console.log(GM_info.script.name + 'setSelectors: liList = ', liList);
         for (let i=0; i<liList.length; i++) {
             let iSel = liList[i].querySelector('i');
             if (!iSel) continue;
@@ -205,10 +210,12 @@
                 accSel = "div.cont-wrap > div.bonuses.left > ul > li:nth-child(" + (i+1) + ") > span";
             }
         }
+        log('<== setSelectors');
     }
 
     // Summ acc and dmg to sort by sum total
     function setSumTotal(itemUL) {
+        debug('setSumTotal ==>');
         let items = itemUL.children;
         for (let j = 0; j < items.length; j++) {
             let dmg = 0, acc = 0;
@@ -227,6 +234,7 @@
             }
             if (dmg && acc) items[j].setAttribute('totalStats', (dmg + acc));
         }
+        log('<== setSumTotal');
     }
 
     //////////////////////////////////////////////////////////////////////
