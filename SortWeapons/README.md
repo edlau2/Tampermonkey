@@ -4,4 +4,8 @@ This sorts the weapons in your Items pages by either the default, accuracy, dama
 
 Images: (coming soon!)
 
-![SS-Sample-expanded.png](https://github.com/edlau2/Tampermonkey/blob/master/Weapon%20Experience%20Spreadsheet/SS-Sample-expanded.png)
+![default.png](https://github.com/edlau2/Tampermonkey/blob/master/SortWeapons/default.png)
+![accuracy.png](https://github.com/edlau2/Tampermonkey/blob/master/SortWeapons/accuracy.png)
+![damage.png](https://github.com/edlau2/Tampermonkey/blob/master/SortWeapons/damage.png)
+![total.png](https://github.com/edlau2/Tampermonkey/blob/master/SortWeapons/total.png)
+![name.png](https://github.com/edlau2/Tampermonkey/blob/master/SortWeapons/name.png)
