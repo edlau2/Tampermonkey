@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sort Weapons
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Sorts weapons on the Items page by various criteria
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -68,11 +68,11 @@
             pageDiv = document.querySelector(pageDivSelector);
             var callback = function(mutationsList, observer) {
                 log('Observer triggered - page change!');
-                log('Setting onload function.');
                 lastSortOrder = 'Default';
                 sortPage(true);
             };
             pageObserver = new MutationObserver(callback);
+            observeOn();
         }
 
         sortPage();
@@ -95,6 +95,7 @@
         } else {
             log('pageChange: "' + lastPage + '" --> "' + pageName + '"');
         }
+        log('Observing = ' + observing);
 
         // Hide/show UI as appropriate
         let itemUL = null;
@@ -109,7 +110,7 @@
             itemUL = $("#melee-items")[0];
         } else {
             enableSortDiv(false);
-            return observeOn(); // Not on a weapons page, go home.
+            return; // Not on a weapons page, go home.
         }
 
         // If not sorting, bail
@@ -124,23 +125,22 @@
         let itemLen = items.length;
         log(pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
         if (itemLen <= 1) { // Not fully loaded: come back later
-            setTimeout(function(){ sortPage(true); }, 500);
-            return;
+            return setTimeout(function(){ sortPage(true); }, 500);
         }
-
-        observeOff(); // Don't call ourselves while sorting.
 
         let sorted = false, sortSel = null;
         if (lastSortOrder == sortOrder[selID]) return;
         lastSortOrder = sortOrder[selID];
 
+        observeOff(); // Don't call ourselves while sorting.
         setSumTotal(itemUL); // Create the 'totalStats' attr.
 
         let order = 'desc';
         let attr = '';
         switch (sortOrder[selID]) {
             case 'Default':
-                location.reload()
+                location.reload();
+                observeON();
                 return;
             case 'Accuracy':
                 setSelectors(itemUL);
@@ -193,11 +193,7 @@
 
     function setSelectors(itemUL) {
         let firstItemSel = itemUL.querySelector("li.bg-green");
-        if (!firstItemSel) {
-            console.log('**** First item not found! ****');
-            firstItemSel = itemUL.querySelectorAll("li.t-first-in-row")[0];
-            console.log('Trying t-first-in-row: ', firstItemSel);
-        }
+        if (!firstItemSel) firstItemSel = itemUL.querySelectorAll("li.t-first-in-row")[0];
         let liList = firstItemSel.querySelectorAll("div.cont-wrap > div.bonuses.left > ul > li");
         for (let i=0; i<liList.length; i++) {
             let iSel = liList[i].querySelector('i');
@@ -217,7 +213,6 @@
         for (let j = 0; j < items.length; j++) {
             let dmg = 0, acc = 0;
             let liList = items[j].querySelectorAll("div.cont-wrap > div.bonuses.left > ul > li");
-            console.log('Checking item ', items[j]);
             for (let i=0; i<liList.length; i++) {
                 let iSel = liList[i].querySelector('i');
                 if (!iSel) continue;
@@ -252,7 +247,6 @@
         if (!ckBox) return setTimeout(installUI, 50);
 
         autosort = GM_getValue('checkbox', autosort);
-        console.log('installUI autosort = ', autosort);
         ckBox.checked = autosort;
         ckBox.addEventListener("click", onCheckboxClicked);
 
@@ -260,7 +254,6 @@
         let btn = document.querySelector("#" + selID); // querySelector("#\\3" + selID);
         btn.checked = true;
         btn.click();
-        console.log('installUI: checked btn = ', btn);
         GM_setValue('selectedBtn', selID);
         $('input[type="radio"]').on('click change', onRadioClicked);
     }
@@ -281,7 +274,6 @@
         lastSelID = selID;
         selID = document.querySelector('input[name="sortopts"]:checked').value;
         if (lastSelID == selID) return;
-
         log('Radio Button Selected: ' + selID);
         GM_setValue('selectedBtn', selID);
         log('onRadioClicked: Sorting page by ' + sortOrder[selID]);
