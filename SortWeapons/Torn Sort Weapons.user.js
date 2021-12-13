@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sort Weapons
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Sorts weapons on the Items page by various criteria
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
@@ -14,17 +14,23 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+
 (function() {
+    console.log('Torn Sort Weapons...enter');
+
     'use strict';
 
     GM_addStyle('.xedx-ctrls {' +
                     'margin: 10px;' +
                 '}'
     );
+    
+    console.log('Torn Sort Weapons...styles set');
 
     // Global variables
-    debugLoggingEnabled = true; // Defined in helper lib.
-    loggingEnabled = true; // Defined in helper lib.
+    var debugLoggingEnabled = true; // Defined in helper lib.
+    var loggingEnabled = true; // Defined in helper lib.
 
     var dmgSel = null; // Selectors for sorting
     var accSel = null; // ...
@@ -134,7 +140,7 @@
 
         observeOff(); // Don't call ourselves while sorting.
         setSumTotal(itemUL); // Create the 'totalStats' attr.
-        
+
         debug('Preparing to sort by ' + sortOrder[selID]);
 
         let order = 'desc';
