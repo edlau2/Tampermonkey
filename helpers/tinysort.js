@@ -477,4 +477,4 @@
   extend(plugin,{loop})
 
   return extend(tinysort,{plugin,defaults})
-})()))
+})()));
