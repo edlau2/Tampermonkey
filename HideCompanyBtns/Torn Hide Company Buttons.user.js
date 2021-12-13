@@ -20,14 +20,17 @@
     'use strict';
 
     GM_addStyle(".fire {" +
-        "width: 30px;" +
+        //"width: 30px;" +
         "display: none;" +
     "}");
 
     function handlePageLoad() {
-        let sel = document.querySelector("#mainContainer > div.content-wrapper > div.company-wrap " +
-                                         "> div.manage-company.cont-gray.bottom-round.ui-tabs.ui-widget.ui-widget-content.ui-corner-all " +
-                                         "> ul > li:nth-child(12)");
+        let sel = null;
+        document.querySelector("#mainContainer > div.content-wrapper.m-left20.left.autumn > div.company-wrap > div.manage-company.cont-gray.bottom-round.ui-tabs.ui-widget.ui-widget-content.ui-corner-all > ul")
+        let ulSel = document.querySelector("#mainContainer > div.content-wrapper > div.company-wrap " +
+                                         "> div.manage-company > ul");
+
+        if (ulSel) sel = ulSel.querySelectorAll('[aria-controls="sell-company"]')[0];
         if (sel) sel.setAttribute('style', 'display: none;');
     }
  
@@ -37,6 +40,7 @@
 
     logScriptStart();
     versionCheck();
+    handlePageLoad();
 
     if (document.readyState === 'complete') {
         handlePageLoad();
