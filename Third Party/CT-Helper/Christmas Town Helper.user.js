@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      1.9.2
+// @version      1.9.7
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -12,6 +12,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
+// @updateURL    https://raw.githubusercontent.com/sid-the-sloth1/torn-qol-scripts/main/Christmas%20Town.user.js
 // ==/UserScript==
 (function() {
     'use strict';
@@ -25,6 +26,9 @@
     var hangmanCharactersArray = [];
     var wordFixerStart = false;
     var hangmanStart = false;
+    function darkMode() {
+        return $('body')[0].classList.contains('dark-mode');
+    }
     window.addEventListener("hashchange", addBox);
     let original_fetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (url, init) => {
@@ -269,7 +273,7 @@
         let npcList = document.querySelectorAll(".ct-user.npc");
         if (npcList.length > 0) {
             for (const npc of npcList) {
-                if (npc.innerHTML.includes("santa")) {
+                if (npc.id === "ctUserb88f81d4672322f54a612cfa608afb11") {
                     npc.setAttribute("npcType", "santa");
                 } else {
                     npc.setAttribute("npcType", "other");
@@ -542,6 +546,7 @@
             if (new Date(GM_getValue("month")).getFullYear() != now.getFullYear()) {
                 let obj = {"items": {}};
                 localStorage.setItem("ctHelperFound", JSON.stringify(obj));
+                GM_setValue("month", Date.now());
             }
         }
     }
@@ -693,8 +698,10 @@
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
-.hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #ffff; padding: 5px 0px 5px 0px;}
-.hardyCTContent, .hardyCTTableBox, .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: rgb(242, 242, 242); box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
+.hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+.hardyCTContent, .hardyCTTableBox, .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: ` +
+                (darkMode() ? `##27292d;` : `rgb(242, 242, 242);`) + ` color: ` +
+                (darkMode() ? `#b5bbbb;` : `black;`) + `; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
 .hardyCTBox2 table { color: #333; font-family: Helvetica, Arial, sans-serif; width: 640px; border: 2px #808080 solid; margin: 20px; }
 .hardyCTBox2 td, th { border: 1px solid rgba(0, 0, 0, .55); height: 30px; transition: all 0.3s; }
@@ -710,7 +717,7 @@ table:not([cellpadding]) td {vertical-align: middle;}
 .hardyCTtextBox button { background-color: rgba(240, 60, 17, .91); }
 .hardyCTBox2 button { padding: 8px 5px 8px 5px; border-radius: 4px; color: white; margin: 9px; font-weight: bold;}
 .ctHelperError { color: #ff000091; margin: 5px; }
-.ctHelperSuccess { color: #00802fcc; margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
+.ctHelperSuccess { color: ` + (darkMode() ? `#b5bbbb;` : `black;`) + ` margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
 .hardyCTBox2 p { margin: 15px; font-weight: bold; font-family: Helvetica; }
 .hardyNearbyItems, .hardyNearbyChests { padding: 4px; display: inline; }
 .hardyNearbyItems label, .hardyNearbyChests label { font-weight: bold; }
