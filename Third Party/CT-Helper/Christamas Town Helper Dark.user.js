@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      1.9.2
+// @version      1.9.7
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -12,26 +12,13 @@
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
+// @updateURL    https://raw.githubusercontent.com/sid-the-sloth1/torn-qol-scripts/main/Christmas%20Town.user.js
 // ==/UserScript==
 (function() {
     'use strict';
     let version = "1.9.2";
     //Thanks to Ahab and Helcostr for the list of words and all the help.
-    let listofWords = ["elf","eve","fir","ham","icy","ivy","joy","pie","toy","gift","gold","list","love",
-                       "nice","sled","star","wish","wrap","xmas","yule","angel","bells","cider","elves",
-                       "goose","holly","jesus","merry","myrrh","party","skate","visit","candle","creche",
-                       "cookie","eggnog","family","frosty","icicle","joyful","manger","season","spirit",
-                       "tinsel","turkey","unwrap","wonder","winter","wreath","charity","chimney","festive",
-                       "holiday","krampus","mittens","naughty","package","pageant","rejoice","rudolph",
-                       "scrooge","snowman","sweater","tidings","firewood","nativity","reindeer","shopping",
-                       "snowball","stocking","toboggan","trimming","vacation","wise men","workshop",
-                       "yuletide","chestnuts","christmas","fruitcake","greetings","mince pie","mistletoe",
-                       "ornaments","snowflake","tradition","candy cane","decoration","ice skates","jack frost",
-                       "north pole","nutcracker","saint nick","yule log","card","jolly","hope","scarf","candy",
-                       "sleigh","parade","snowy","wassail","blizzard","noel","partridge","give","carols","tree",
-                       "fireplace","socks","lights","kings","goodwill","sugarplum","bonus","coal","snow","happy",
-                       "presents","pinecone"];
-
+    let listofWords = ["elf","eve","fir","ham","icy","ivy","joy","pie","toy","gift","gold","list","love","nice","sled","star","wish","wrap","xmas","yule","angel","bells","cider","elves","goose","holly","jesus","merry","myrrh","party","skate","visit","candle","creche","cookie","eggnog","family","frosty","icicle","joyful","manger","season","spirit","tinsel","turkey","unwrap","wonder","winter","wreath","charity","chimney","festive","holiday","krampus","mittens","naughty","package","pageant","rejoice","rudolph","scrooge","snowman","sweater","tidings","firewood","nativity","reindeer","shopping","snowball","stocking","toboggan","trimming","vacation","wise men","workshop","yuletide","chestnuts","christmas","fruitcake","greetings","mince pie","mistletoe","ornaments","snowflake","tradition","candy cane","decoration","ice skates","jack frost","north pole","nutcracker","saint nick","yule log","card","jolly","hope","scarf","candy","sleigh","parade","snowy","wassail","blizzard","noel","partridge","give","carols","tree","fireplace","socks","lights","kings","goodwill","sugarplum","bonus","coal","snow","happy","presents","pinecone"];
     let hideDrn = true;
     let settings = {"count": 0, "spawn": 0};
     initiate();
@@ -283,7 +270,7 @@
         let npcList = document.querySelectorAll(".ct-user.npc");
         if (npcList.length > 0) {
             for (const npc of npcList) {
-                if (npc.innerHTML.includes("santa")) {
+                if (npc.id === "ctUserb88f81d4672322f54a612cfa608afb11") {
                     npc.setAttribute("npcType", "santa");
                 } else {
                     npc.setAttribute("npcType", "other");
@@ -404,10 +391,6 @@
         if (last_update === null || typeof last_update == "undefined") {
             last_update = 0;
         }
-
-        // Call returns items list, simplified: [item.id, item.name, ?] ex: [1177,"Sandworm Mask '21",251411149]
-        // I assume the last # is the price, no idea how it was calculated - current market average?
-        // $251M seems about right for a '21 mask.
         if (Date.now()/1000 - last_update > 14400) {
             GM_xmlhttpRequest({
                 method: 'GET',
@@ -560,6 +543,7 @@
             if (new Date(GM_getValue("month")).getFullYear() != now.getFullYear()) {
                 let obj = {"items": {}};
                 localStorage.setItem("ctHelperFound", JSON.stringify(obj));
+                GM_setValue("month", Date.now());
             }
         }
     }
