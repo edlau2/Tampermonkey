@@ -756,7 +756,6 @@
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
-.hardyCTHeader { text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
 body.dark-mode .hardyCTHeader {background-color: #5b5b5b; border: 2px; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;
                                box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}}
 body:not(.dark-mode) .hardyCTHeader {background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
