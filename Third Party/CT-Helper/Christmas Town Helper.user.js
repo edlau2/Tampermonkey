@@ -18,6 +18,7 @@
     'use strict';
     let version = "2.0";
     // Thanks to xedx for Dark Mode support
+    // Thanks Kafia for beep effect
     //Thanks to Ahab and Helcostr for the list of words and all the help.
     let listofWords = ["elf","eve","fir","ham","icy","ivy","joy","pie","toy","gift","gold","list","love","nice","sled","star","wish","wrap","xmas","yule","angel","bells","cider","elves","goose","holly","jesus","merry","myrrh","party","skate","visit","candle","creche","cookie","eggnog","family","frosty","icicle","joyful","manger","season","spirit","tinsel","turkey","unwrap","wonder","winter","wreath","charity","chimney","festive","holiday","krampus","mittens","naughty","package","pageant","rejoice","rudolph","scrooge","snowman","sweater","tidings","firewood","nativity","reindeer","shopping","snowball","stocking","toboggan","trimming","vacation","wise men","workshop","yuletide","chestnuts","christmas","fruitcake","greetings","mince pie","mistletoe","ornaments","snowflake","tradition","candy cane","decoration","ice skates","jack frost","north pole","nutcracker","saint nick","yule log","card","jolly","hope","scarf","candy","sleigh","parade","snowy","wassail","blizzard","noel","partridge","give","carols","tree","fireplace","socks","lights","kings","goodwill","sugarplum","bonus","coal","snow","happy","presents","pinecone"];
     let hideDrn = true;
@@ -29,6 +30,36 @@
     var typeGameStart = false;
     var hangmanStart = false;
     let typoCD;
+    var beep = (function () {
+        var ctxClass = window.audioContext ||window.AudioContext || window.AudioContext || window.webkitAudioContext
+        var ctx = new ctxClass();
+        return function (duration, type, finishedCallback) {
+
+            duration = +duration;
+
+            // Only 0-4 are valid types.
+            type = (type % 2) || 0;
+
+            if (typeof finishedCallback != "function") {
+                finishedCallback = function () {};
+            }
+
+            var osc = ctx.createOscillator();
+            osc.frequency.value = 1000;
+            osc.type = type;
+            //osc.type = "sine";
+            osc.connect(ctx.destination);
+            if (osc.noteOn) osc.noteOn(0); // old browsers
+            if (osc.start) osc.start(); // new browsers
+
+            setTimeout(function () {
+                if (osc.noteOff) osc.noteOff(0); // old browsers
+                if (osc.stop) osc.stop(); // new browsers
+                finishedCallback();
+            }, duration);
+
+        };
+    })();
     window.addEventListener("hashchange", addBox);
     let original_fetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (url, init) => {
@@ -50,7 +81,7 @@
                         }
                     }
                     if (data.mapData) {
-                        if (data.mapData.inventory && settings.spawn === 1) {
+                        if (data.mapData.inventory && (settings.spawn === 1 || settings.speed === 1)) {
                             let obj = {};
                             obj.modifier = 0;
                             obj.speedModifier = 0;
@@ -83,8 +114,14 @@
                                     let info = ctHelperGetInfo(image);
                                     if (info.type == "chests"||info.type == "combinationChest") {
                                         chestArray.push([info.name, position.x, position.y, info.index]);
+                                        if(isChecked('sound_notif_helper', 2)){
+                                            beep();
+                                        }
                                     } else {
                                         itemArray.push([info.name, position.x, position.y]);
+                                        if(isChecked('sound_notif_helper', 2)){
+                                            beep();
+                                        }
                                     }
                                 }
                                 chestArray.sort(function(a, b) {
@@ -109,6 +146,7 @@
                         if (data.mapData && data.mapData.trigger && data.mapData.trigger.item) {
                             let trigger = data.mapData.trigger;
                             settings.spawn = 1;
+                            settings.speed = 1;
                             if (trigger.message.includes("You find")) {
                                 let itemUrl = trigger.item.image.url;
                                 let reg = /\/images\/items\/([0-9]+)\/large\.png/g;
@@ -229,6 +267,7 @@
                 }
                 if (data.prizes) {
                     settings.spawn = 1;
+                    settings.speed = 1;
                     if (data.prizes.length > 0) {
                         let savedData = getSaveData();
                         for (const prize of data.prizes) {
@@ -247,6 +286,7 @@
                 if (data.mapData && data.mapData.cellEvent && data.mapData.cellEvent.prizes) {
                     let prizes = data.mapData.cellEvent.prizes;
                     settings.spawn = 1;
+                    settings.speed = 1;
                     if (prizes.length > 0) {
                         let savedData = getSaveData();
                         for (const prize of prizes) {
@@ -271,7 +311,7 @@
         if (!document.querySelector(".hardyCTBox")) {
             if (document.querySelector("#christmastownroot div[class^='appCTContainer']")) {
                 let newBox = document.createElement("div");
-                newBox.innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTContent"><br><a href="#/cthelper" class="ctRecordLink">Settings</a><br><br><p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p><p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p><div class="hardyNearbyItems" style="float: left;"><label>Nearby Items(0)</label><div class="content"></div></div><div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label><div class="content"></div></div></div>';
+                newBox.innerHTML = '<div class="hardyCTHeader hardyCTShadow">Christmas Town Helper</div><div class="hardyCTContent hardyCTShadow"><br><a href="#/cthelper" class="ctRecordLink">Settings</a><br><br><p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p><p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p><div class="hardyNearbyItems" style="float: left;"><label>Nearby Items(0)</label><div class="content"></div></div><div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label><div class="content"></div></div></div>';
                 newBox.className = 'hardyCTBox';
                 let doc = document.querySelector("#christmastownroot div[class^='appCTContainer']");
                 doc.insertBefore(newBox, doc.firstChild.nextSibling);
@@ -279,6 +319,7 @@
                     clearInterval(timedFunction);
                 }
                 settings.spawn = 1;
+                settings.speed = 1;
             } else {
                 var timedFunction = setInterval(addBox, 1000);
             }
@@ -502,7 +543,7 @@
                 }
             });
         }
-        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;"><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'><label for="santa_helper">Highlight Santa</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'><label for="npc_helper">Highlight other NPCs</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'><label for="typocalypsehelper">Typoclypse Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'><label for="item_helper">Highlight Chest and Items</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'><label for="christmas_wreath_helper">Christmas Wreath Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'><label for="snowball_shooter_helper">Snowball Shooter Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'><label for="santa_clawz_helper">Santa Clawz Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'><label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'><label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'><label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a><button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button></div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
+        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;"><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'><label for="santa_helper">Highlight Santa</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'><label for="npc_helper">Highlight other NPCs</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'><label for="typocalypsehelper">Typoclypse Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'><label for="item_helper">Highlight Chest and Items</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'><label for="christmas_wreath_helper">Christmas Wreath Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'><label for="snowball_shooter_helper">Snowball Shooter Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'><label for="santa_clawz_helper">Santa Clawz Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'><label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'><label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'><label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="sound_notif_helper" value="yes"'+isChecked('sound_notif_helper', 1)+'><label for="sound_notif_helper">Sound Notification on Item Find</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a><button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button></div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
         let itemData = localStorage.getItem("ctHelperItemInfo");
         var marketValueData;
         if (typeof itemData == "undefined" || itemData === null) {
@@ -748,6 +789,7 @@
             updateGame(array.join(""));
         }, 500);
     }
+
     GM_addStyle(`
  .ctRecordLink { margin: 18px 9px 18px 18px; padding:10px 5px 10px 5px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
 #hardyctHelperSave {background-color: #2da651;}
@@ -756,9 +798,9 @@
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
-body.dark-mode .hardyCTHeader {background-color: #5b5b5b; border: 2px; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;
-                               box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}}
-body:not(.dark-mode) .hardyCTHeader {background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+body.dark-mode .hardyCTShadow { box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}
+body.dark-mode .hardyCTHeader { background-color: #454545; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+body:not(.dark-mode) ..hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
 body:not(.dark-mode) .hardyCTContent, body:not(.dark-mode) .hardyCTTableBox, body:not(.dark-mode) .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: rgb(242, 242, 242); color: black; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 body.dark-mode .hardyCTContent, body.dark-mode .hardyCTTableBox, body.dark-mode .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: #27292d; color: #b5bbbb; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
