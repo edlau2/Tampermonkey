@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      2.0
+// @version      2.2
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -12,7 +12,6 @@
 // @grant        GM_xmlhttpRequest
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
-// @updateURL    https://raw.githubusercontent.com/sid-the-sloth1/torn-qol-scripts/main/Christmas%20Town.user.js
 // ==/UserScript==
 (function() {
     'use strict';
@@ -23,43 +22,15 @@
     let listofWords = ["elf","eve","fir","ham","icy","ivy","joy","pie","toy","gift","gold","list","love","nice","sled","star","wish","wrap","xmas","yule","angel","bells","cider","elves","goose","holly","jesus","merry","myrrh","party","skate","visit","candle","creche","cookie","eggnog","family","frosty","icicle","joyful","manger","season","spirit","tinsel","turkey","unwrap","wonder","winter","wreath","charity","chimney","festive","holiday","krampus","mittens","naughty","package","pageant","rejoice","rudolph","scrooge","snowman","sweater","tidings","firewood","nativity","reindeer","shopping","snowball","stocking","toboggan","trimming","vacation","wise men","workshop","yuletide","chestnuts","christmas","fruitcake","greetings","mince pie","mistletoe","ornaments","snowflake","tradition","candy cane","decoration","ice skates","jack frost","north pole","nutcracker","saint nick","yule log","card","jolly","hope","scarf","candy","sleigh","parade","snowy","wassail","blizzard","noel","partridge","give","carols","tree","fireplace","socks","lights","kings","goodwill","sugarplum","bonus","coal","snow","happy","presents","pinecone"];
     let hideDrn = true;
     let settings = {"count": 0, "spawn": 0};
+    let lastSoundChirp;
     initiate();
+    let chirp = new Audio("https://www.torn.com/js/chat/sounds/Chirp_1.mp3");
     var hangmanArray = [];
     var hangmanCharactersArray = [];
     var wordFixerStart = false;
     var typeGameStart = false;
     var hangmanStart = false;
     let typoCD;
-    var beep = (function () {
-        var ctxClass = window.audioContext ||window.AudioContext || window.AudioContext || window.webkitAudioContext
-        var ctx = new ctxClass();
-        return function (duration, type, finishedCallback) {
-
-            duration = +duration;
-
-            // Only 0-4 are valid types.
-            type = (type % 2) || 0;
-
-            if (typeof finishedCallback != "function") {
-                finishedCallback = function () {};
-            }
-
-            var osc = ctx.createOscillator();
-            osc.frequency.value = 1000;
-            osc.type = type;
-            //osc.type = "sine";
-            osc.connect(ctx.destination);
-            if (osc.noteOn) osc.noteOn(0); // old browsers
-            if (osc.start) osc.start(); // new browsers
-
-            setTimeout(function () {
-                if (osc.noteOff) osc.noteOff(0); // old browsers
-                if (osc.stop) osc.stop(); // new browsers
-                finishedCallback();
-            }, duration);
-
-        };
-    })();
     window.addEventListener("hashchange", addBox);
     let original_fetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (url, init) => {
@@ -164,7 +135,7 @@
                         }
                     }
                 } else if (url.includes("q=miniGameAction")) {
-                    if (body && body.action && body.action === "complete") {
+                    if (body && body.action && body.action === "complete" && data.message != "") {
                         stopGame();
                         wordFixerStart = false;
                         hangmanStart = false;
@@ -773,6 +744,13 @@
         applyCSS();
         getPrices()
         deleteOldData();
+        let lastSound = GM_getValue("lastSound");
+        if (typeof lastSound === "undefined" || lastSound === null) {
+            GM_setValue("lastSound", "0");
+            lastSoundChirp = 0;
+        } else {
+            lastSoundChirp = lastSound;
+        }
     }
     function startTypo() {
         typoCD = setInterval(()=> {
@@ -789,7 +767,17 @@
             updateGame(array.join(""));
         }, 500);
     }
-
+    function beep() {
+        let now = parseInt(Date.now()/1000);
+        let diff = now - lastSoundChirp;
+        console.log(diff);
+        if (diff >= 60) {
+            console.log("hggghch");
+            GM_setValue("lastSound", now);
+            lastSoundChirp = now;
+            chirp.play();
+        }
+    }
     GM_addStyle(`
  .ctRecordLink { margin: 18px 9px 18px 18px; padding:10px 5px 10px 5px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
 #hardyctHelperSave {background-color: #2da651;}
@@ -800,7 +788,7 @@
 .ct-user-wrap .user-map:before {display:none;}
 body.dark-mode .hardyCTShadow { box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}
 body.dark-mode .hardyCTHeader { background-color: #454545; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
-body:not(.dark-mode) ..hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+body:not(.dark-mode) .hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
 body:not(.dark-mode) .hardyCTContent, body:not(.dark-mode) .hardyCTTableBox, body:not(.dark-mode) .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: rgb(242, 242, 242); color: black; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 body.dark-mode .hardyCTContent, body.dark-mode .hardyCTTableBox, body.dark-mode .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: #27292d; color: #b5bbbb; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
@@ -824,7 +812,8 @@ body.dark-mode .ctHelperSuccess { color: #b5bbbb; margin: 5px; font-weight: bold
 .hardyNearbyItems, .hardyNearbyChests { padding: 4px; display: inline; }
 .hardyNearbyItems label, .hardyNearbyChests label { font-weight: bold; }
 .hardyCTBox p { margin-top: 9px; font-family: Helvetica; }
-.helcostrDoesntLikeGreenCommas {color: #333;}
+body:not(.dark-mode) .helcostrDoesntLikeGreenCommas {color: #333;}
+body.dark-mode .helcostrDoesntLikeGreenCommas {color: #919191;}
 .hardyCTContent .content {overflow-y: auto; height: 60px; margin-right: 3px; margin-top: 3px;}
 .ctHelperSpawnRate {text-align: center; font-size: 14px}
 label[for='accessibility_helper'] {line-height: 1.6; margin-left: 8px;}
