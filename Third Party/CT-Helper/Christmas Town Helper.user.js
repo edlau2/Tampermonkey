@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      1.9.8
+// @version      2.0
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -16,7 +16,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    let version = "1.9.8";
+    let version = "2.0";
     // Thanks to xedx for Dark Mode support
     //Thanks to Ahab and Helcostr for the list of words and all the help.
     let listofWords = ["elf","eve","fir","ham","icy","ivy","joy","pie","toy","gift","gold","list","love","nice","sled","star","wish","wrap","xmas","yule","angel","bells","cider","elves","goose","holly","jesus","merry","myrrh","party","skate","visit","candle","creche","cookie","eggnog","family","frosty","icicle","joyful","manger","season","spirit","tinsel","turkey","unwrap","wonder","winter","wreath","charity","chimney","festive","holiday","krampus","mittens","naughty","package","pageant","rejoice","rudolph","scrooge","snowman","sweater","tidings","firewood","nativity","reindeer","shopping","snowball","stocking","toboggan","trimming","vacation","wise men","workshop","yuletide","chestnuts","christmas","fruitcake","greetings","mince pie","mistletoe","ornaments","snowflake","tradition","candy cane","decoration","ice skates","jack frost","north pole","nutcracker","saint nick","yule log","card","jolly","hope","scarf","candy","sleigh","parade","snowy","wassail","blizzard","noel","partridge","give","carols","tree","fireplace","socks","lights","kings","goodwill","sugarplum","bonus","coal","snow","happy","presents","pinecone"];
@@ -26,7 +26,9 @@
     var hangmanArray = [];
     var hangmanCharactersArray = [];
     var wordFixerStart = false;
+    var typeGameStart = false;
     var hangmanStart = false;
+    let typoCD;
     window.addEventListener("hashchange", addBox);
     let original_fetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (url, init) => {
@@ -39,9 +41,11 @@
                 }
                 if (url.includes("q=move")|| url.includes("q=initMap")) {
                     if (url.includes("q=move")) {
-                        if (wordFixerStart || hangmanStart) {
+                        if (wordFixerStart || hangmanStart || typeGameStart) {
                             wordFixerStart = false;
-                            hangmanStart = false
+                            hangmanStart = false;
+                            typeGameStart = false;
+                            clearInterval(typoCD);
                             stopGame();
                         }
                     }
@@ -121,6 +125,13 @@
                         }
                     }
                 } else if (url.includes("q=miniGameAction")) {
+                    if (body && body.action && body.action === "complete") {
+                        stopGame();
+                        wordFixerStart = false;
+                        hangmanStart = false;
+                        typeGameStart = false;
+                        clearInterval(typoCD);
+                    }
                     if (wordFixerStart) {
                         if (data.finished) {
                             stopGame();
@@ -130,8 +141,7 @@
                                 wordSolver(data.progress.word);
                             }
                         }
-                    }
-                    if (hangmanStart) {
+                    } else if (hangmanStart) {
                         if (data.mistakes === 6 || data.message.startsWith("Congratulations")) {
                             hangmanStart = false;
                             stopGame();
@@ -168,6 +178,8 @@
                                 hangmanMain();
                             }
                         }
+                    } else if (typeGameStart) {
+                        console.log("nothing");
                     }
                     if (body && body.action && body.action === "start") {
                         if(body.gameType) {
@@ -177,8 +189,7 @@
                                 startGame("Word Fixer");
                                 wordSolver(data.progress.word);
 
-                            }
-                            if (gameType === "gameHangman" && isChecked('hangman_helper', 2)) {
+                            } else if (gameType === "gameHangman" && isChecked('hangman_helper', 2)) {
                                 hangmanStart = true;
                                 startGame("Hangman");
                                 hangmanArray = [];
@@ -188,6 +199,28 @@
                                     hangmanStartingFunction(words[0], words[1]);
                                 } else {
                                     hangmanStartingFunction(words[0], 0);
+                                }
+                            } else if (gameType === "gameTypocalypse" && isChecked('typocalypsehelper', 2)) {
+
+                                if (!typeGameStart) {
+                                    typeGameStart = true;
+                                    startGame("Typocalypse Helper");
+                                    document.querySelector(".hardyGameBoxContent").addEventListener("click", (e)=> {
+                                        let target = e.target;
+                                        if (target.className === "hardyCTTypoAnswer") {
+                                            let input = document.querySelector("div[class^='game'] div[class^='board'] input");
+                                            if (input) {
+                                                input.value = target.getAttribute("hardy");//the answer that has to be typed
+                                                let event = new Event('input', { bubbles: true });
+                                                let tracker = input._valueTracker;
+                                                if (tracker) {
+                                                    tracker.setValue('');
+                                                }
+                                                input.dispatchEvent(event);
+                                            }
+                                        }
+                                    });
+                                    startTypo();
                                 }
                             }
                         }
@@ -210,8 +243,8 @@
                         localStorage.setItem("ctHelperFound", JSON.stringify(savedData));
                     }
                 }
-                if (data.mapData && data.mapData.trigger && data.mapData.trigger.prizes) {
-                    let prizes = data.mapData.trigger.prizes;
+                if (data.mapData && data.mapData.cellEvent && data.mapData.cellEvent.prizes) {
+                    let prizes = data.mapData.cellEvent.prizes;
                     settings.spawn = 1;
                     if (prizes.length > 0) {
                         let savedData = getSaveData();
@@ -237,8 +270,8 @@
         if (!document.querySelector(".hardyCTBox")) {
             if (document.querySelector("#christmastownroot div[class^='appCTContainer']")) {
                 let newBox = document.createElement("div");
-                newBox.innerHTML = '<div class="hardyCTHeader' + (darkMode() ? ' hardyCTShadow' : '') + '">Christmas Town Helper</div>' +
-                    '<div class="hardyCTContent hardyCTShadow"><br>' +
+                newBox.innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div>' +
+                    '<div class="hardyCTContent"><br>' +
                     '<a href="#/cthelper" class="ctRecordLink">Settings</a><br><br>' +
                     '<p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p>' +
                     '<p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p>' +
@@ -287,7 +320,7 @@
         let npcList = document.querySelectorAll(".ct-user.npc");
         if (npcList.length > 0) {
             for (const npc of npcList) {
-                if (npc.id === "ctUserb88f81d4672322f54a612cfa608afb11") {
+                if (npc.querySelector("svg").getAttribute("fill").toUpperCase() === "#FA5B27") {
                     npc.setAttribute("npcType", "santa");
                 } else {
                     npc.setAttribute("npcType", "other");
@@ -476,7 +509,7 @@
                 }
             });
         }
-        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;"><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'><label for="santa_helper">Highlight Santa</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'><label for="npc_helper">Highlight other NPCs</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'><label for="item_helper">Highlight Chest and Items</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'><label for="christmas_wreath_helper">Christmas Wreath Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'><label for="snowball_shooter_helper">Snowball Shooter Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'><label for="santa_clawz_helper">Santa Clawz Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'><label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'><label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'><label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a><button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button></div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
+        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;"><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'><label for="santa_helper">Highlight Santa</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'><label for="npc_helper">Highlight other NPCs</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'><label for="typocalypsehelper">Typoclypse Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'><label for="item_helper">Highlight Chest and Items</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'><label for="christmas_wreath_helper">Christmas Wreath Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'><label for="snowball_shooter_helper">Snowball Shooter Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'><label for="santa_clawz_helper">Santa Clawz Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'><label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'><label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'><label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a><button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button></div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
         let itemData = localStorage.getItem("ctHelperItemInfo");
         var marketValueData;
         if (typeof itemData == "undefined" || itemData === null) {
@@ -542,6 +575,7 @@
     function firstRun () {
         if (!isChecked("firstRun", 2)) {
             GM_setValue("christmas_wreath_helper", "yes");
+            GM_setValue("typocalypsehelper", "yes");
             GM_setValue("snowball_shooter_helper", "yes");
             GM_setValue("santa_clawz_helper", "yes");
             GM_setValue("word_fixer_helper", "yes");
@@ -706,8 +740,20 @@
         getPrices()
         deleteOldData();
     }
-    function darkMode() {
-        return $('body')[0].classList.contains('dark-mode');
+    function startTypo() {
+        typoCD = setInterval(()=> {
+            let boxes = document.querySelectorAll("div[class^='game'] div[class^='board'] div[class^='gift']");
+            let length = boxes.length;
+            let array = [];
+            if (length > 0) {
+                for (const gift of boxes) {
+                    let phrase = gift.innerText;
+                    array.push(`<button class="hardyCTTypoAnswer" hardy="${phrase}">${phrase}</button>`);
+                }
+                array.reverse();
+            }
+            updateGame(array.join(""));
+        }, 500);
     }
     GM_addStyle(`
  .ctRecordLink { margin: 18px 9px 18px 18px; padding:10px 5px 10px 5px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
@@ -717,14 +763,9 @@
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
-.hardyCTShadow { box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);
-                 -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}
-.hardyCTHeader { background-color:` + (darkMode() ? `#454545;` : `#0d0d0d; border: 2px solid #000;`) +
-                `border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
-.hardyCTContent, .hardyCTTableBox, .hardyGameBoxContent { border-radius: 0px 0px 8px 8px;
-                 background-color: ` +(darkMode() ? `##27292d;` : `rgb(242, 242, 242);`) +
-                 `color: ` +(darkMode() ? `#b5bbbb;` : `black;`) +
-                `padding: 5px 8px; overflow: auto; }
+.hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+body:not(.dark-mode) .hardyCTContent, body:not(.dark-mode) .hardyCTTableBox, body:not(.dark-mode) .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: rgb(242, 242, 242); color: black; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
+body.dark-mode .hardyCTContent, body.dark-mode .hardyCTTableBox, body.dark-mode .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: #27292d; color: #b5bbbb; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
 .hardyCTBox2 table { color: #333; font-family: Helvetica, Arial, sans-serif; width: 640px; border: 2px #808080 solid; margin: 20px; }
 .hardyCTBox2 td, th { border: 1px solid rgba(0, 0, 0, .55); height: 30px; transition: all 0.3s; }
@@ -740,7 +781,8 @@ table:not([cellpadding]) td {vertical-align: middle;}
 .hardyCTtextBox button { background-color: rgba(240, 60, 17, .91); }
 .hardyCTBox2 button { padding: 8px 5px 8px 5px; border-radius: 4px; color: white; margin: 9px; font-weight: bold;}
 .ctHelperError { color: #ff000091; margin: 5px; }
-.ctHelperSuccess { color: ` + (darkMode() ? `#b5bbbb;` : `black;`) + ` margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
+.body:not(.dark-mode) .ctHelperSuccess { color: black; margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
+body.dark-mode .ctHelperSuccess { color: #b5bbbb; margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
 .hardyCTBox2 p { margin: 15px; font-weight: bold; font-family: Helvetica; }
 .hardyNearbyItems, .hardyNearbyChests { padding: 4px; display: inline; }
 .hardyNearbyItems label, .hardyNearbyChests label { font-weight: bold; }
@@ -750,5 +792,7 @@ table:not([cellpadding]) td {vertical-align: middle;}
 .ctHelperSpawnRate {text-align: center; font-size: 14px}
 .ctHelperSpeedRate {text-align: center; font-size: 14px}
 label[for='accessibility_helper'] {line-height: 1.6; margin-left: 8px;}
+.hardyCTTypoAnswer {padding: 5px 6px; background-color: #4a9f33; color: white; margin: 5px; border-radius: 5px;}
+.hardyCTTypoAnswer:hover, .hardyCTTypoAnswer:focus {color: white;}
 `);
 })();
