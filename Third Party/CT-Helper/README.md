@@ -11,7 +11,7 @@ https://raw.githubusercontent.com/sid-the-sloth1/torn-qol-scripts/main/Christmas
 
 ## CTMAP Extended View
 
-### AKA 'Christmas Town Map View Extender'
+#### AKA 'Christmas Town Map View Extender'
 
 By Heasleys4hemp [1468764]
 
