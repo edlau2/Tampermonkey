@@ -26,9 +26,6 @@
     var hangmanCharactersArray = [];
     var wordFixerStart = false;
     var hangmanStart = false;
-    function darkMode() {
-        return $('body')[0].classList.contains('dark-mode');
-    }
     window.addEventListener("hashchange", addBox);
     let original_fetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (url, init) => {
@@ -51,14 +48,22 @@
                         if (data.mapData.inventory && settings.spawn === 1) {
                             let obj = {};
                             obj.modifier = 0;
+                            obj.speedModifier = 0;
                             for (const ornament of data.mapData.inventory) {
                                 if (ornament.category == "ornaments") {
-                                    obj.modifier += ornament.modifier;
+                                    if (ornament.modifierType == 'itemSpawn')
+                                        obj.modifier += ornament.modifier;
+                                    else if (ornament.modifierType == 'speed')
+                                        obj.speedModifier += ornament.modifier;
+                                    else
+                                        console.debug('CT: Unknown ornament modifier "' + ornament.modifierType + '"');
                                 }
                             }
                             GM_setValue("spawn", obj.modifier);
+                            GM_setValue("speed", obj.speedModifier);
                             setTimeout(updateSpawnRate, 3000);
                             settings.spawn = 0;
+                            settings.speed = 0;
                         }
                         if (data.mapData.items) {
                             let items = data.mapData.items;
@@ -231,7 +236,15 @@
         if (!document.querySelector(".hardyCTBox")) {
             if (document.querySelector("#christmastownroot div[class^='appCTContainer']")) {
                 let newBox = document.createElement("div");
-                newBox.innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTContent"><br><a href="#/cthelper" class="ctRecordLink">Settings</a><br><br><p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p><div class="hardyNearbyItems" style="float: left;"><label>Nearby Items(0)</label><div class="content"></div></div><div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label><div class="content"></div></div></div>';
+                newBox.innerHTML = '<div class="hardyCTHeader' + (darkMode() ? ' hardyCTShadow' : '') + '">Christmas Town Helper</div>' +
+                    '<div class="hardyCTContent hardyCTShadow"><br>' +
+                    '<a href="#/cthelper" class="ctRecordLink">Settings</a><br><br>' +
+                    '<p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p>' +
+                    '<p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p>' +
+                    '<div class="hardyNearbyItems" style="float: left;">' +
+                    '<label>Nearby Items(0)</label><div class="content"></div></div>' +
+                    '<div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label>' +
+                    '<div class="content"></div></div></div>';
                 newBox.className = 'hardyCTBox';
                 let doc = document.querySelector("#christmastownroot div[class^='appCTContainer']");
                 doc.insertBefore(newBox, doc.firstChild.nextSibling);
@@ -666,10 +679,12 @@
     }
     function updateSpawnRate() {
         let spawn = GM_getValue("spawn");
+        let speed = GM_getValue("speed");
         if (typeof spawn == "undefined" || spawn === null) {
             settings.spawn = 1;
         } else {
             document.querySelector(".ctHelperSpawnRate").innerHTML = `You have a spawn rate bonus of ${spawn}%.`;
+            document.querySelector(".ctHelperSpeedRate").innerHTML = `You have a speed rate bonus of ${speed}%.`;
         }
     }
     function checkVersion() {
@@ -690,6 +705,9 @@
         getPrices()
         deleteOldData();
     }
+    function darkMode() {
+        return $('body')[0].classList.contains('dark-mode');
+    }
     GM_addStyle(`
  .ctRecordLink { margin: 18px 9px 18px 18px; padding:10px 5px 10px 5px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
 #hardyctHelperSave {background-color: #2da651;}
@@ -698,10 +716,14 @@
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
-.hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
-.hardyCTContent, .hardyCTTableBox, .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: ` +
-                (darkMode() ? `##27292d;` : `rgb(242, 242, 242);`) + ` color: ` +
-                (darkMode() ? `#b5bbbb;` : `black;`) + `; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
+.hardyCTShadow { box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);
+                 -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64);}
+.hardyCTHeader { background-color:` + (darkMode() ? `#454545;` : `#0d0d0d; border: 2px solid #000;`) +
+                `border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
+.hardyCTContent, .hardyCTTableBox, .hardyGameBoxContent { border-radius: 0px 0px 8px 8px;
+                 background-color: ` +(darkMode() ? `##27292d;` : `rgb(242, 242, 242);`) +
+                 `color: ` +(darkMode() ? `#b5bbbb;` : `black;`) +
+                `padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
 .hardyCTBox2 table { color: #333; font-family: Helvetica, Arial, sans-serif; width: 640px; border: 2px #808080 solid; margin: 20px; }
 .hardyCTBox2 td, th { border: 1px solid rgba(0, 0, 0, .55); height: 30px; transition: all 0.3s; }
@@ -725,6 +747,7 @@ table:not([cellpadding]) td {vertical-align: middle;}
 .helcostrDoesntLikeGreenCommas {color: #333;}
 .hardyCTContent .content {overflow-y: auto; height: 60px; margin-right: 3px; margin-top: 3px;}
 .ctHelperSpawnRate {text-align: center; font-size: 14px}
+.ctHelperSpeedRate {text-align: center; font-size: 14px}
 label[for='accessibility_helper'] {line-height: 1.6; margin-left: 8px;}
 `);
 })();
