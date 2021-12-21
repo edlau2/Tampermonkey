@@ -282,7 +282,26 @@
         if (!document.querySelector(".hardyCTBox")) {
             if (document.querySelector("#christmastownroot div[class^='appCTContainer']")) {
                 let newBox = document.createElement("div");
-                newBox.innerHTML = '<div class="hardyCTHeader hardyCTShadow">Christmas Town Helper</div><div class="hardyCTContent hardyCTShadow"><br><a href="#/cthelper" class="ctRecordLink">Settings</a><br><br><p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p><p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p><div class="hardyNearbyItems" style="float: left;"><label>Nearby Items(0)</label><div class="content"></div></div><div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label><div class="content"></div></div></div>';
+                //newBox.innerHTML = '<div class="hardyCTHeader hardyCTShadow">Christmas Town Helper</div><div class="hardyCTContent hardyCTShadow"><br><a href="#/cthelper" class="ctRecordLink">Settings</a><br><br><p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p><p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p><div class="hardyNearbyItems" style="float: left;"><label>Nearby Items(0)</label><div class="content"></div></div><div class="hardyNearbyChests" style="float:right;"><label>Nearby Chests(0)</label><div class="content"></div></div></div>';
+                newBox.innerHTML =
+                `<div class="hardyCTHeader hardyCTShadow">Christmas Town Helper</div>
+                <div class="hardyCTContent hardyCTShadow"><br>
+                    <div style="display: flex; align-items: flex-start;">
+                        <div class="hardyNearbyItems""><label>Nearby Items(0)</label>
+                            <div class="content"></div>
+                        </div>
+                        <div style="align-self: center; width: 70%;">
+                	        <div style="margin-bottom: 20px;">
+                                <p><a href="#/cthelper" class="ctRecordLink">Settings</a><br></p>
+                            </div>
+                	        <p class="ctHelperSpawnRate ctHelperSuccess">&nbsp;</p>
+                            <p class="ctHelperSpeedRate ctHelperSuccess">&nbsp;</p>
+                        </div>
+                        <div class="hardyNearbyChests""><label>Nearby Chests(0)</label>
+                            <div class="content"></div>
+                        </div>
+                    </div>
+                </div>`;
                 newBox.className = 'hardyCTBox';
                 let doc = document.querySelector("#christmastownroot div[class^='appCTContainer']");
                 doc.insertBefore(newBox, doc.firstChild.nextSibling);
@@ -778,8 +797,10 @@
             chirp.play();
         }
     }
+    // .ctRecordLink {   - margin: 10px 10px 60px 240px; padding:10px 5px 10px 5px;
     GM_addStyle(`
- .ctRecordLink { margin: 18px 9px 18px 18px; padding:10px 5px 10px 5px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
+ .ctRecordLink { margin: 18px 9px 18px 180px; padding:10px 15px 10px 15px;
+ background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
 #hardyctHelperSave {background-color: #2da651;}
 #hardyctHelperSave:hover {background-color: #2da651c4;}
 #hardyctHelperdelete {background-color: #f03b10;}
@@ -790,7 +811,7 @@ body.dark-mode .hardyCTShadow { box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 
 body.dark-mode .hardyCTHeader { background-color: #454545; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
 body:not(.dark-mode) .hardyCTHeader { background-color: #0d0d0d; border: 2px solid #000; border-radius: 0.5em 0.5em 0 0; text-align: center; text-indent: 0.5em; font-size: 16px; color: #b5bbbb; padding: 5px 0px 5px 0px;}
 body:not(.dark-mode) .hardyCTContent, body:not(.dark-mode) .hardyCTTableBox, body:not(.dark-mode) .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: rgb(242, 242, 242); color: black; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
-body.dark-mode .hardyCTContent, body.dark-mode .hardyCTTableBox, body.dark-mode .hardyGameBoxContent { border-radius: 0px 0px 8px 8px; background-color: #27292d; color: #b5bbbb; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
+body.dark-mode .hardyCTContent, body.dark-mode .hardyCTTableBox, body.dark-mode .hardyGameBoxContent {  height: 140px; border-radius: 0px 0px 8px 8px; background-color: #27292d; color: #b5bbbb; box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -moz-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); -webkit-box-shadow: 0px 4px 9px 3px rgba(119, 119, 119, 0.64); padding: 5px 8px; overflow: auto; }
 .hardyCTBox, .hardyCTBox2, .ctHelperGameBox {margin-bottom: 18px;}
 .hardyCTBox2 table { color: #333; font-family: Helvetica, Arial, sans-serif; width: 640px; border: 2px #808080 solid; margin: 20px; }
 .hardyCTBox2 td, th { border: 1px solid rgba(0, 0, 0, .55); height: 30px; transition: all 0.3s; }
@@ -809,12 +830,12 @@ table:not([cellpadding]) td {vertical-align: middle;}
 .body:not(.dark-mode) .ctHelperSuccess { color: black; margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
 body.dark-mode .ctHelperSuccess { color: #b5bbbb; margin: 5px; font-weight: bold; font-size: 16px; line-height: 1.3;}
 .hardyCTBox2 p { margin: 15px; font-weight: bold; font-family: Helvetica; }
-.hardyNearbyItems, .hardyNearbyChests { padding: 4px; display: inline; }
+.hardyNearbyItems, .hardyNearbyChests { padding: 4px; display: inline; margin-top: 0px; width: 30%; }
 .hardyNearbyItems label, .hardyNearbyChests label { font-weight: bold; }
 .hardyCTBox p { margin-top: 9px; font-family: Helvetica; }
 body:not(.dark-mode) .helcostrDoesntLikeGreenCommas {color: #333;}
 body.dark-mode .helcostrDoesntLikeGreenCommas {color: #919191;}
-.hardyCTContent .content {overflow-y: auto; height: 60px; margin-right: 3px; margin-top: 3px;}
+.hardyCTContent .content {overflow-y: auto; height: 100px; margin-right: 3px; margin-top: 3px;}
 .ctHelperSpawnRate {text-align: center; font-size: 14px}
 label[for='accessibility_helper'] {line-height: 1.6; margin-left: 8px;}
 .hardyCTTypoAnswer {padding: 5px 6px; background-color: #4a9f33; color: white; margin: 5px; border-radius: 5px;}
