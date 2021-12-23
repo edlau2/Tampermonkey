@@ -12,6 +12,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_addStyle
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -22,6 +23,8 @@
     const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
     const crimeTriggers = [ 100, 5000, 10000, 20000, 30000, 50000 ];
     const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
+    const caretNode = '<span style="float:right;"><i id="xedx-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
+    var caretState = 'fa-caret-right';
 
     // From: https://wiki.torn.com/wiki/Ranks
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
@@ -36,6 +39,13 @@
         "over 200m",
     ];
 
+    GM_addStyle(".xedx-caret {" +
+                "padding-top:5px;" +
+                "padding-bottom:5px;" +
+                "padding-left:20px;" +
+                "padding-right:10px;" +
+                "}");
+
     const batStatLi = 'xedx-batstat-li';
     var userNW = 0;
     var userLvl = 0;
@@ -45,28 +55,53 @@
 
     // Helper, create <li> to display...
     function createBatStatLI(ul, display, jsonSpy=null) {
-        let detailsDiv = '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>STRENGTH</span></div>' +
-                         '<div class="user-info-value" style="width:50%;"><span>SPEED</span></div></li>' +
-                         '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>DEX</span></div>' +
-                         '<div class="user-info-value" style="width:50%;"><span>DEF</span></div><li>';
         let li = '<li id="'+ batStatLi + '">' +
                      '<div class="user-information-section"><span class="bold">Est. Bat Stats</span></div>' +
-                     '<div class="user-info-value"><span>' + display + '</span></div>' +
-                 '</li>';
+                     '<div class="user-info-value" id="xedx-collapsible"><span>' + display + '</span>' +
+                     ((jsonSpy != null) ? caretNode : '') +
+                  '</div></li>';
 
         if (jsonSpy != null) {
-            li += '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
+            //$("#xedx-collapsible").append(caretNode);
+            li += '<div id="xedx-stat-det" style="display:block;">' +
+                  '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
                   numberWithCommas(jsonSpy.speed) + '</span></div>' +
                   '<div class="user-info-value" style="width:50%;"><span>Str: ' +
                   numberWithCommas(jsonSpy.strength) + '</span></div></li>' +
                   '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Dex: ' +
                   numberWithCommas(jsonSpy.dexterity) + '</span></div>' +
                   '<div class="user-info-value" style="width:50%;"><span>Def: ' +
-                  numberWithCommas(jsonSpy.defense) + '</span></div><li>';
+                  numberWithCommas(jsonSpy.defense) + '</span></div><li></div>';
         }
         $(ul).append(li);
 
+        // Make the details 'collapsible'
+        caretState = GM_getValue('lastState', caretState);
+        document.getElementById("xedx-caret").addEventListener('click', function (event) {
+            handleClick(event)}, { passive: false });
+        caretState = (caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+        handleClick();
+
         return li;
+    }
+
+    function handleClick(e) {
+        log('handleClick: state = ' + caretState);
+        let targetNode = document.querySelector("#xedx-caret"); // e.target
+        let elemState = 'block';
+        let childList = document.querySelector("#nav-home").parentNode.children;
+        if (caretState == 'fa-caret-down') {
+            targetNode.classList.remove("fa-caret-down");
+            targetNode.classList.add("fa-caret-right");
+            caretState = 'fa-caret-right';
+            elemState = 'none';
+        } else {
+            targetNode.classList.remove("fa-caret-right");
+            targetNode.classList.add("fa-caret-down");
+            caretState = 'fa-caret-down';
+        }
+        GM_setValue('lastState', caretState);
+        document.querySelector("#xedx-stat-det").setAttribute('style' , 'display: ' + elemState);
     }
 
     // Get data used to calc bat stats and get NW via the Torn API
@@ -92,19 +127,9 @@
         // Get bat stats spy, or estimate.
         xedx_TornStatsSpy(ID, getBatStatsCB);
 
-        // Display te numeric rank next to textual rank
+        // Display the numeric rank next to textual rank
         addNumericRank();
     }
-
-    /*
-    "spy":{"type":"faction-share","status":true,"message":"Shared stats found.","player_name":"RoninRaven",
-    "player_id":606826,"player_level":0,"player_faction":"LONDON","target_score":112669.02951767252,
-    "your_score":50807.34278825367,"fair_fight_bonus":3,"difference":"2 hours ago","timestamp":1640223069,
-    "strength":420069669,"deltaStrength":-335987804,"effective_strength":567094053,
-    "defense":1005140509,"deltaDefense":-804124814,"effective_defense":1417248117,
-    "speed":831947439,"deltaSpeed":-677136567,"effective_speed":1198004312,
-    "dexterity":1000202499,"deltaDexterity":-774679467,"effective_dexterity":1490301723,"total":3257360116,"deltaTotal":-2591928652,"effective_total":4672648206},
-    */
 
     function getBatStatsCB(respText) {
         // Process result, get spy (if any), if not, use estimated.
