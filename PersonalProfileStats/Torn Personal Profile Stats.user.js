@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -44,9 +44,26 @@
     var targetNode = document.getElementById('profileroot');
 
     // Helper, create <li> to display...
-    function createBatStatLI(ul, display) {
-        let li = '<li id="'+ batStatLi + '"><div class="user-information-section"><span class="bold">Est. Bat Stats</span>' +
-            '</div><div class="user-info-value"><span>' + display + '</span></div></li>';
+    function createBatStatLI(ul, display, jsonSpy=null) {
+        let detailsDiv = '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>STRENGTH</span></div>' +
+                         '<div class="user-info-value" style="width:50%;"><span>SPEED</span></div></li>' +
+                         '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>DEX</span></div>' +
+                         '<div class="user-info-value" style="width:50%;"><span>DEF</span></div><li>';
+        let li = '<li id="'+ batStatLi + '">' +
+                     '<div class="user-information-section"><span class="bold">Est. Bat Stats</span></div>' +
+                     '<div class="user-info-value"><span>' + display + '</span></div>' +
+                 '</li>';
+
+        if (jsonSpy != null) {
+            li += '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
+                  numberWithCommas(jsonSpy.speed) + '</span></div>' +
+                  '<div class="user-info-value" style="width:50%;"><span>Str: ' +
+                  numberWithCommas(jsonSpy.strength) + '</span></div></li>' +
+                  '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Dex: ' +
+                  numberWithCommas(jsonSpy.dexterity) + '</span></div>' +
+                  '<div class="user-info-value" style="width:50%;"><span>Def: ' +
+                  numberWithCommas(jsonSpy.defense) + '</span></div><li>';
+        }
         $(ul).append(li);
 
         return li;
@@ -64,14 +81,13 @@
 
         if (loggingEnabled) {console.log(GM_info.script.name + 'Personal stats: ', jsonResp);}
 
-        // Add NW
-        addNetWorthToProfile(jsonResp.personalstats.networth);
-
-        // Add estimated bat stats
         userNW = jsonResp.personalstats.networth;
         userCrimes = jsonResp.criminalrecord.total;
         userLvl = jsonResp.level;
         userRank = numericRankFromFullRank(jsonResp.rank);
+
+        // Add NW
+        addNetWorthToProfile(userNW);
 
         // Get bat stats spy, or estimate.
         xedx_TornStatsSpy(ID, getBatStatsCB);
@@ -80,24 +96,41 @@
         addNumericRank();
     }
 
+    /*
+    "spy":{"type":"faction-share","status":true,"message":"Shared stats found.","player_name":"RoninRaven",
+    "player_id":606826,"player_level":0,"player_faction":"LONDON","target_score":112669.02951767252,
+    "your_score":50807.34278825367,"fair_fight_bonus":3,"difference":"2 hours ago","timestamp":1640223069,
+    "strength":420069669,"deltaStrength":-335987804,"effective_strength":567094053,
+    "defense":1005140509,"deltaDefense":-804124814,"effective_defense":1417248117,
+    "speed":831947439,"deltaSpeed":-677136567,"effective_speed":1198004312,
+    "dexterity":1000202499,"deltaDexterity":-774679467,"effective_dexterity":1490301723,"total":3257360116,"deltaTotal":-2591928652,"effective_total":4672648206},
+    */
+
     function getBatStatsCB(respText) {
         // Process result, get spy (if any), if not, use estimated.
+        let jsonSpy = null;
         let batStats = 0;
         let data = JSON.parse(respText);
         log('Spy response: ' + respText);
         if (!data.status) {
             log('Error getting spy! Response text: ' + resptext);
         } else {
-            batStats = data.spy.status ? (numberWithCommas(data.spy.total) + ' (' + data.spy.difference + ')') : 0;
+            if (data.spy.status) jsonSpy = {speed: data.spy.speed,
+                                           strength: data.spy.strength,
+                                           defense: data.spy.defense,
+                                           dexterity: data.spy.dexterity};
+            batStats = data.spy.status ? (numberWithCommas(data.spy.total) +
+                                          /*' score '+ numberWithCommas(Math.round(data.spy.target_score)) +*/
+                                          ' (' + data.spy.difference + ')') : 0;
         }
         if (!batStats) {
             batStats = buildBatStatDisplay(); // Calculate bat stats estimate
         }
-        addBatStatsToProfile(batStats);
+        addBatStatsToProfile(batStats, jsonSpy);
     }
 
     // Create the bat stats <li>, add to the profile page
-    function addBatStatsToProfile(batStats) {
+    function addBatStatsToProfile(batStats, jsonSpy=null) {
         log('Adding estimated bat stats to profile.');
         let testDiv = document.getElementById(batStatLi);
         if (validPointer(testDiv)) {return;} // Only do once
@@ -106,7 +139,7 @@
         let targetUL = rootDiv.getElementsByClassName('info-table')[0];
         if (!validPointer(targetUL)) {return;}
 
-        let li = createBatStatLI(targetUL, batStats); // And add to the display
+        let li = createBatStatLI(targetUL, batStats, jsonSpy); // And add to the display
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -120,7 +153,6 @@
     ////////////////////////////////////////////////////////////////////
 
     function buildBatStatDisplay() {
-        // if (userLvl >= 75) {return "Over level 75, N/A.";}
         let trLevel = 0, trCrime = 0, trNetworth = 0;
         for (let l in levelTriggers) {if (levelTriggers[l] <= userLvl) trLevel++;}
         for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
