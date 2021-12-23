@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.2';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.3';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -573,6 +573,7 @@ function updateRunningAverages(item) {
 
   profile();
   console.log('updateRunningAverages, rows: ' + rows);
+  console.log('updateRunningAverages: item = ' + JSON.stringify(item));
   for (let row = 3; row < rows; row++) {
     let name = names[row-3].toString();
     if (item.name.trim() == name.trim()) {
@@ -586,6 +587,8 @@ function updateRunningAverages(item) {
       let prevPrice = isNaN(data[0][2]) ? 0 : data[0][2];
       let prevCount = isNaN(data[0][3]) ? 0 : data[0][3];
       let prevAvg = isNaN(data[0][4]) ? 0 : data[0][4];
+
+      log('updateRunningAverages using' + (item.bulkPrice ? 'BULK' : '') + ' price: ' + item.price + ' and qty ' + item.qty);
       
       // Done for clarity, could do all this in one line.
       let newPrice = Number(prevPrice) + (Number(item.price) * Number(item.qty)); // Goes into D:<row>, used next time through
