@@ -829,11 +829,11 @@
     const addHeight = addSqaures * 30;
     function updateMapView() { // Not on mobile!!!
         if (!isChecked('expand_map', 2)) return;
+
         let mapCont = document.querySelector("#ct-wrap > div.user-map-container");
         if (!mapCont) return setTimeout(updateMapView, 500);
         let width = Number(330 + addWidth).toString() + 'px;';
         let height = Number(330 + addHeight).toString() + 'px;';
-        console.log('Setting mapCont to ' + width);
         mapCont.setAttribute('style', 'width: ' + width + ' height: ' + height); // base + addWidth
 
         let mapView = document.querySelector("#map > div.map-overview.screen-color-transparent");
@@ -854,7 +854,10 @@
         width = Number(330 + addWidth).toString() + 'px;';
         toolView.setAttribute('style', 'width: ' + width + ' height: 138px; max-height: 138px;' +
                              ' margin-top: ' + addHeight + 'px;');
-        console.log('tool view: ', toolView);
+
+        let ctBox = document.querySelector("#christmastownroot > div > div.hardyCTBox");
+        width = Number(784 + addWidth).toString() + 'px;';
+        ctBox.setAttribute('style', 'width: ' + width);
     }
 
     GM_addStyle(`
