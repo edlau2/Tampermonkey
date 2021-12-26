@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      2.3.1
+// @version      2.3.2
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -41,6 +41,7 @@
                 if (init.body) {
                     var body = JSON.parse(init.body);
                 }
+                updateMapView();
                 if (url.includes("q=move")|| url.includes("q=initMap")) {
                     if (url.includes("q=move")) {
                         if (wordFixerStart || hangmanStart || typeGameStart) {
@@ -530,7 +531,32 @@
                 }
             });
         }
-        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div><div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;"><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'><label for="santa_helper">Highlight Santa</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'><label for="npc_helper">Highlight other NPCs</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'><label for="typocalypsehelper">Typoclypse Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'><label for="item_helper">Highlight Chest and Items</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'><label for="christmas_wreath_helper">Christmas Wreath Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'><label for="snowball_shooter_helper">Snowball Shooter Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'><label for="santa_clawz_helper">Santa Clawz Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'><label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'><label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'><label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="sound_notif_helper" value="yes"'+isChecked('sound_notif_helper', 1)+'><label for="sound_notif_helper">Sound Notification on Item Find</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a><button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button></div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
+        document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div>' +
+            '<div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;">' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'>' +
+            '<label for="santa_helper">Highlight Santa</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'>' +
+            '<label for="npc_helper">Highlight other NPCs</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="expand_map"  value="yes"'+isChecked('expand_map', 1)+'>' +
+            '<label for="npc_helper">Expand the map view</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'>' +
+            '<label for="typocalypsehelper">Typoclypse Helper</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'>' +
+            '<label for="item_helper">Highlight Chest and Items</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'>' +
+            '<label for="christmas_wreath_helper">Christmas Wreath Helper</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="snowball_shooter_helper"  value="yes"'+isChecked('snowball_shooter_helper', 1)+'>' +
+            '<label for="snowball_shooter_helper">Snowball Shooter Helper</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="santa_clawz_helper" value="yes"'+isChecked('santa_clawz_helper', 1)+'>' +
+            '<label for="santa_clawz_helper">Santa Clawz Helper</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="word_fixer_helper" value="yes"'+isChecked('word_fixer_helper', 1)+'>' +
+            '<label for="word_fixer_helper">Word Fixer Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="hangman_helper" value="yes"'+isChecked('hangman_helper', 1)+'>' +
+            '<label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'>' +
+            '<label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br>' +
+            '<input type="checkbox" class="hardyCTHelperCheckbox" id="sound_notif_helper" value="yes"'+isChecked('sound_notif_helper', 1)+'>' +
+            '<label for="sound_notif_helper">Sound Notification on Item Find</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a>' +
+            '<button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button>' +
+            '</div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
         let itemData = localStorage.getItem("ctHelperItemInfo");
         var marketValueData;
         if (typeof itemData == "undefined" || itemData === null) {
@@ -603,6 +629,7 @@
             GM_setValue("hangman_helper", "yes");
             GM_setValue("santa_helper", "yes");
             GM_setValue("npc_helper", "yes");
+            GM_setValue("expand_map", "yes");
             GM_setValue("item_helper", "yes");
             GM_setValue("firstRun", "blah");
             GM_setValue("version", version);
@@ -796,6 +823,40 @@
             chirp.play();
         }
     }
+
+    const addSqaures = 2; // This defines how much larger to expand the map, by squares
+    const addWidth = addSqaures * 30;
+    const addHeight = addSqaures * 30;
+    function updateMapView() { // Not on mobile!!!
+        if (!isChecked('expand_map', 2)) return;
+        let mapCont = document.querySelector("#ct-wrap > div.user-map-container");
+        if (!mapCont) return setTimeout(updateMapView, 500);
+        let width = Number(330 + addWidth).toString() + 'px;';
+        let height = Number(330 + addHeight).toString() + 'px;';
+        console.log('Setting mapCont to ' + width);
+        mapCont.setAttribute('style', 'width: ' + width + ' height: ' + height); // base + addWidth
+
+        let mapView = document.querySelector("#map > div.map-overview.screen-color-transparent");
+        mapView.setAttribute('style', 'width: ' + width + ' height: ' + width);  // base + 30
+
+        let titleWrap = document.querySelector("#ct-wrap > div.title-wrap.clearfix");
+        width = Number(784 + addWidth).toString() + 'px;';
+        titleWrap.setAttribute('style', 'max-width: ' + width +  ' width: ' + width);
+
+        let statusCont = document.querySelector("#ct-wrap > div.status-area-container");
+        height = Number(468 + addHeight).toString() + 'px;';
+        statusCont.setAttribute('style', 'height: ' + height);
+
+        let statusView = document.querySelector("#ct-wrap > div.status-area-container > div");
+        statusView.setAttribute('style', 'height: ' + height);
+
+        let toolView = document.querySelector("#ct-wrap > div.items-container.itemsContainer___PeyHI");
+        width = Number(330 + addWidth).toString() + 'px;';
+        toolView.setAttribute('style', 'width: ' + width + ' height: 138px; max-height: 138px;' +
+                             ' margin-top: ' + addHeight + 'px;');
+        console.log('tool view: ', toolView);
+    }
+
     GM_addStyle(`
  .ctRecordLink { margin: 18px 9px 18px 180px; padding:10px 15px 10px 15px; background-color: #4294f2; border-radius: 4px; color: #fdfcfc; text-decoration: none; font-weight: bold;}
 #hardyctHelperSave {background-color: #2da651;}
