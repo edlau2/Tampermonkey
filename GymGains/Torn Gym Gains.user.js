@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/GymGains/Torn-Gym-Gains-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -17,12 +15,12 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-var DEV_MODE = false;
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
-
-    let wrapperDiv = torn_gym_gains_div; // Pulled from the include, 'Torn-Gym-Gains-Div.js'
 
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
@@ -35,91 +33,17 @@ var DEV_MODE = false;
         let refDiv = document.getElementById('gymroot');
         if (!validPointer(refDiv)) {return;}
 
-        $(wrapperDiv).insertBefore(refDiv);
+        $(torn_gym_gains_div).insertBefore(refDiv);
 
-        // Populate perk info/gym gain info via the Torn API
         doUserQuery();
         addOnClickHandlers();
 
-        var add_minutes =  function (dt, minutes) {
+        var add_minutes = function (dt, minutes) {
             return new Date(dt.getTime() + minutes*60000);
         }
 
         var now = function () {
             return new Date().toString();
-        }
-
-        if (true) { // DEV_MODE: Spy on available e
-            /*
-            let newDiv = '<div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-chk-div" >' +
-                '<span id="xedx-chk-span"><input type="checkbox" id="xedx-chk"><B> Dev Mode</B></span></div>';
-            $('#xedx-summary-body').append(newDiv);
-            */
-
-            var currTimeout = null;
-            var barEnergy = document.getElementById('barEnergy');
-            var dexBtn = document.querySelector("#gymroot > div.gym___3whZp > div.gymContentWrapper___2DeUj > div " +
-                                             "> ul > li.dexterity___1YdUM > div.propertyContent___1hg0- > div:nth-child(2) > button");
-            if (barEnergy == null) {return;}
-            var eConfig = { attributes: true, childList: true, subtree: true };
-            let eCallback = function(mutationsList, eObserver) {
-                eObserver.disconnect();
-                if (!DEV_MODE) {
-                    console.log(GM_info.script.name + ': DEV_MODE off, returning.');
-                    return;
-                }
-                let value = document.querySelector("#barEnergy > div.bar-stats___7G40O > p.bar-value___10oCu").innerText;
-                let numE = parseInt(value.slice(0, value.indexOf('/')));
-                console.log(now() + ': Energy is at: ' + numE);
-                //if (numE > 0 && (numE % 25) == 0) {
-                if (numE >= 25) {
-                    console.log(now() + ': Going for more dex (in 5 secs)!');
-                    currTimeout = setTimeout(function() {
-                        dexBtn = document.querySelector("#gymroot > div.gym___3whZp > div.gymContentWrapper___2DeUj > div >" +
-                                               "ul > li.dexterity___1YdUM > div.propertyContent___1hg0- > div:nth-child(2) > button")
-                        console.log('Clicking.');
-                        dexBtn.click();
-                    }, 5000); // Time to cancel...
-                }
-
-                // Turn back on in 3 mins. In reality, make 60 minutes, if not more.
-                // 5 e every 10 minutes, so 25 in 50, full in 18,000 secs
-                let time = 60 * 60 * 1000; // mins * secs/min * 1000 ms/sec
-                currTimeout = setTimeout(function() {eObserver.observe(barEnergy, eConfig);}, time);
-                console.log('setTimeout for: ' + add_minutes(new Date(), 60).toString());
-            };
-            var eObserver = new MutationObserver(eCallback);
-            eObserver.observe(barEnergy, eConfig);
-
-            if (darkMode()) {
-                let table = document.querySelector("#xedx-bat-stat-table");
-                let border = '1px solid rgb(91, 91, 91)'; // #5B5B5B
-                let tds = table.getElementsByTagName('td');
-                for (let i = 0; i < tds.length; i++) {
-                        tds[i].style.borderBottom = border;
-                        tds[i].style.borderTop = border;
-                        tds[i].style.borderLeft = border;
-                        tds[i].style.borderRight = border;
-                        tds[i].style.color = '#FFFFFF';
-                };
-            }
-
-            $('#xedx-chk').click(function(){
-                console.log('Setting DEV_MODE to ', $('#xedx-chk').prop("checked"));
-                DEV_MODE = ($('#xedx-chk').prop("checked") == true);
-                if (DEV_MODE) {
-                    console.log('Turning on e-observer');
-                    eObserver.observe(barEnergy, eConfig);
-                } else {
-                    if (currTimeout) {
-                        console.log('Cancelling running timeout.');
-                        clearTimeout(currTimeout);
-                        currTimeout = null;
-                    }
-                    console.log('Turning off e-observer');
-                    eObserver.disconnect();
-                }
-            });
         }
     }
 
@@ -129,7 +53,6 @@ var DEV_MODE = false;
 
     function addOnClickHandlers() {
         let gymDiv = document.getElementById('gymroot');
-        // Replace these with jquery, get rid of in helper lib
         let rootDiv = myGetElementsByClassName2(gymDiv, 'gymList')[0];
         let buttonDivs = myGetElementsByClassName2(rootDiv, 'gymButton');
 
@@ -152,7 +75,6 @@ var DEV_MODE = false;
                     bodyDiv.style.display = "block";
                     headerDiv.className = 'title main-title title-black top-round active';
                     if (headerDiv.id == 'xedx-bat-stats-hdr-div') {
-                        //queryBatStats();
                         doUserQuery();
                     }
                 }
@@ -199,14 +121,6 @@ var DEV_MODE = false;
     function fillBatStatsDiv(responseText, ID=null, unused=null) {
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-
-        // I don't feel like editing the bat stats div RN, so
-        // add a margin with code, instead.
-        document.querySelector('#row-1-col-0 > b').setAttribute('style', 'margin-left: 10px;');
-        document.querySelector('#row-2-col-0 > b').setAttribute('style', 'margin-left: 10px;');
-        document.querySelector('#row-3-col-0 > b').setAttribute('style', 'margin-left: 10px;');
-        document.querySelector('#row-4-col-0 > b').setAttribute('style', 'margin-left: 10px;');
-        document.querySelector('#row-5-col-0 > b').setAttribute('style', 'margin-left: 10px;');
 
         fillBaseBatStats(jsonResp);
         fillBaseWithPassives(jsonResp);
@@ -260,23 +174,20 @@ var DEV_MODE = false;
         document.getElementById('row-5-col-2').innerHTML = numberWithCommas(Math.round(total));
     }
 
+    const getMod = function(x) {return ' (' + ((x > 0) ? '+' : '') + x + '%)'}
     function fillCurrentEffectiveBatStats(jsonResp) {
         let strMod = jsonResp.strength_modifier;
         let defMod = jsonResp.defense_modifier;
         let speMod = jsonResp.speed_modifier;
         let dexMod = jsonResp.dexterity_modifier;
         let strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
-        document.getElementById('row-1-col-3').innerHTML = numberWithCommas(Math.round(strTot)) +
-            ' (' + ((strMod > 0) ? '+' : '') + strMod + '%)';
+        document.getElementById('row-1-col-3').innerHTML = numberWithCommas(Math.round(strTot)) + getMod(strMod);
         let defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
-        document.getElementById('row-2-col-3').innerHTML = numberWithCommas(Math.round(defTot)) +
-            ' (' + ((defMod > 0) ? '+' : '') + defMod + '%)';
+        document.getElementById('row-2-col-3').innerHTML = numberWithCommas(Math.round(defTot)) + getMod(defMod);
         let speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
-        document.getElementById('row-3-col-3').innerHTML = numberWithCommas(Math.round(speedTot)) +
-            ' (' + ((speMod > 0) ? '+' : '') + speMod + '%)';
+        document.getElementById('row-3-col-3').innerHTML = numberWithCommas(Math.round(speedTot)) + getMod(speMod);
         let dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
-        document.getElementById('row-4-col-3').innerHTML = numberWithCommas(Math.round(dexTot)) +
-            ' (' + ((dexMod > 0) ? '+' : '') + dexMod + '%)';
+        document.getElementById('row-4-col-3').innerHTML = numberWithCommas(Math.round(dexTot)) + getMod(dexMod);
         let total = strTot + defTot + speedTot + dexTot;
         document.getElementById('row-5-col-3').innerHTML = numberWithCommas(Math.round(total));
     }
@@ -340,11 +251,6 @@ var DEV_MODE = false;
         $(ul).empty();
     }
 
-    // This should be in utilities - put it here for now.
-    function handlepiError(text) {
-        log('Error: ' + text);
-    }
-
     function populateGymGainsDiv(responseText, id=null, unused=null) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleApiError(responseText);}
@@ -355,7 +261,7 @@ var DEV_MODE = false;
         const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks'];
         for (let i=0; i<category.length; i++) { // Iterate object's arrays
             let arr = jsonResp[category[i]];
-            for (let j=0; j<arr.length; j++) {  // Iterate category array
+            for (let j=0; j<arr.length; j++) { // Iterate category array
                 // If is a gym gain, create the value span and add to the UL
                 let gymGains = arr[j].toLowerCase().indexOf('gym gains');
                 let val = 0;
@@ -430,11 +336,10 @@ var DEV_MODE = false;
         darkModeFixup();
     }
 
-    // Fixup for other stuff in Dark Mode
+    // Fixup for other stuff in Dark Mode (not from this script!)
     var retries = 0;
     function darkModeFixup() {
        if (darkMode()) {
-           log('Fixing up for Dark Mode.');
            let gainsMsg1 = document.querySelector("#xgr_msg1");
            let gainsMsg2 = document.querySelector("#xgr_msg2");
            console.log('Special Gym Requirements: ', gainsMsg1, gainsMsg2);
@@ -498,6 +403,7 @@ var DEV_MODE = false;
 
     logScriptStart();
     validateApiKey();
+    versionCheck();
 
     var targetNode = document.getElementById('gymroot');
     var config = { attributes: false, childList: true, subtree: true };
@@ -507,6 +413,107 @@ var DEV_MODE = false;
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
+
+    GM_addStyle(`
+    .xedx_mleft {margin-left: 10px;}
+    body.dark-mode .xedx_gg_td {border: 1px solid rgb(91, 91, 91) !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+    body:not(.dark-mode) .xedx_gg_td {border: 1px solid black !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+    `);
+
+    // This is here as if even with the '!important' keyword, the base <td>
+    // color over-rides the specified one. Explicit 'style' does over-ride the base <td>.
+    function modeColor() {
+        return darkMode() ? `style="color: rgb(221, 221, 221);"` : `style="color: black;"`;
+    }
+
+    const torn_gym_gains_div =
+          `<div class="content m-top10 sortable-list ui-sortable" id="xedx-gym-gains-wrap">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext0">
+                <div class="title main-title title-black top-round" role="table" aria-level="5" id="xedx-gym-gains-hdr-div">
+                    <div class="arrow-wrap sortable-list">
+                        <a role="button" href="#/" class="accordion-header-arrow right"></a>
+                    </div>Gym Gains (detailed)
+                </div>
+                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-gym-gains-body">
+                    <div class="cont-gray" style="height: auto;">
+                        <ul class="info-cont-wrap" id="gym-gains-list"></ul>
+                    </div>
+                </div>
+            </div>
+            <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext2">
+                <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-bat-stats-hdr-div">
+                    <div class="arrow-wrap sortable-list">
+                        <a role="button" href="#/" class="accordion-header-arrow right"></a>
+                    </div>Battle Stats
+                </div>
+                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-bat-stats-body">
+                    <div class="cont-gray" style="height: auto;" id="xedx-bat-stats">
+                        <table id="xedx-bat-stat-table" style="width: 782px;">
+                            <tbody>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-0-col-0"></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-1"><b>Base</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-2"><b>Base w/Passives</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-3"><b>Effective</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-4"><b>Base w/Passives &amp; Vico</b></td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-1-col-0"><b>Strength</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-1" id="row-1-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-2" id="row-1-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-3" id="row-1-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-4" id="row-1-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-2-col-0"><b>Defense</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-1" id="row-2-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-2" id="row-2-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-3" id="row-2-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-4" id="row-2-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-3-col-0"><b>Speed</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-4-col-0"><b>Dexterity</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-5-col-0"><b>Total</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-2">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-3">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-4">0
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext1">
+                <div class="title main-title title-black top-round active" role="table" aria-level="5">Gym Gains (summary)</div>
+                <div class="bottom-round" style="display: block; overflow: hidden" id="xedx-summary-body">
+                    <div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-summary-div">
+                        Strength:<span style="color: red; margin: 10px">+0%</span>
+                        Defense:<span style="color: red; margin: 10px">+0%</span>
+                        Speed:<span style="color: red; margin: 10px">+0%</span>
+                        Dexterity:<span style="color: red; margin: 10px">+0%</span>
+                    </div>
+                    <div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-gymsum-contid"></div>
+                </div>
+            </div>
+        </div>`;
+
 })();
 
 
