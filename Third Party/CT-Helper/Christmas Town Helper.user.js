@@ -532,7 +532,7 @@
             });
         }
         document.querySelector(".hardyCTBox2").innerHTML = '<div class="hardyCTHeader">Christmas Town Helper</div>' +
-            '<div class="hardyCTTableBox"><div class="hardyCTbuttonBox" style="margin-top: 8px;">' +
+            '<div class="hardyCTTableBox" style="height: 640px;"><div class="hardyCTbuttonBox" style="margin-top: 8px;">' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="santa_helper"  value="yes"'+isChecked('santa_helper', 1)+'>' +
             '<label for="santa_helper">Highlight Santa</label><br>' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="npc_helper"  value="yes"'+isChecked('npc_helper', 1)+'>' +
