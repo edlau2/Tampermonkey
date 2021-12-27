@@ -824,46 +824,37 @@
         }
     }
 
+    // Globals for map extension stuff.
+    const mobile = isMobile(); // Don't do on mobile, very simplistic check ATM.
+    const addSquares = 2; // This defines how much larger to expand the map, by squares.
+                          // 2, 3 and 4 all seem to work, a little 'jiggy' on the edges the larger this is.
+    const addWidth = addSquares * 30;
+    const addHeight = addSquares * 30;
+    var observer = null;
+    var target = null;
+    const config = {attributes: true, childList: false, characterData: false, subtree:false};
+
+    // This starts an observer to handle the 'you' and map translation smoothly,
+    // so it winds up centered.
+    if (isChecked('expand_map', 2)) startObserver(); // Handles the translation changes
+
     function isMobile() { // TBD...
         return navigator.userAgent.match(/Android/i);
     }
 
-    const addSqaures = 2; // This defines how much larger to expand the map, by squares
-    const addWidth = addSqaures * 30;
-    const addHeight = addSqaures * 30;
-    const mobile = isMobile();
+    // Handles shifting map components, done on fetch interception.
     function updateMapView(mapData) {
         if (!isChecked('expand_map', 2)) return;
-        if (mobile) return; // Prob not too good on mobile...
-
-        // Check for events where we don't want to manipulate the map view?
-        // Not sure this is necessary.
-        /*
-        console.log('updateMapView(mapData)', mapData);
-        if (mapData.cellEvent) {
-            console.log('updateMapView(mapData) cell event, type: ', mapData.cellEvent.type);
-            if (mapData.cellEvent.type == 'chests') {
-                console.log('chest type: ', mapData.cellEvent.chest.type);
-                console.log('chest canOpen: ', mapData.cellEvent.canOpen);
-                //if (mapData.cellEvent.canOpen) return;
-            }
-        }
-        if (mapData.trigger) console.log('updateMapView trigger: ', mapData.trigger.type);
-        */
-        // End check...
-
-        // Opened a combo chest, didn't see the result. But it was logged.
-        // Would like to prevent if at a chest/item is present (just when on top of it?)
-        // if (itemArray.length || chestArray.length) return;
+        if (mobile) return;
 
         let mapCont = document.querySelector("#ct-wrap > div.user-map-container");
-        if (!mapCont) return setTimeout(updateMapView, 500);
+        if (!mapCont) return setTimeout(updateMapView, 25);
         let width = Number(330 + addWidth).toString() + 'px;';
         let height = Number(330 + addHeight).toString() + 'px;';
         mapCont.setAttribute('style', 'width: ' + width + ' height: ' + height);
 
-        let mapView = document.querySelector("#map > div.map-overview.screen-color-transparent");
-        mapView.setAttribute('style', 'width: ' + width + ' height: ' + width);
+        let mapView = document.querySelector("#map > div.map-overview");
+        mapView.setAttribute('style', 'width: ' + width + ' height: ' + height);
         let titleWrap = document.querySelector("#ct-wrap > div.title-wrap.clearfix");
         width = Number(784 + addWidth).toString() + 'px;';
         titleWrap.setAttribute('style', 'max-width: ' + width + ' width: ' + width);
@@ -886,6 +877,65 @@
         let ctBox = document.querySelector("#christmastownroot > div > div.hardyCTBox");
         width = Number(784 + addWidth).toString() + 'px;';
         ctBox.setAttribute('style', 'width: ' + width);
+    }
+
+    // This adjusts the N, S, E, and W indicators to match the 'you' on the map.
+    // Done once, whenthe observer is installed.
+    function adjustMapDirectionIndicators() {
+        let n = document.querySelector("#map > div.map-directions > div.direction.north");
+        let s = document.querySelector("#map > div.map-directions > div.direction.south");
+        let w = document.querySelector("#map > div.map-directions > div.direction.west");
+        let e = document.querySelector("#map > div.map-directions > div.direction.east");
+        n.setAttribute('style', 'margin-left: ' + addWidth/2 + 'px;');
+        s.setAttribute('style', 'margin-left: ' + addWidth/2 + 'px; margin-top: ' + addWidth + 'px;');
+        w.setAttribute('style', 'margin-top: ' + addWidth/2 + 'px;');
+        e.setAttribute('style', 'margin-top: ' + addWidth/2 + 'px;');
+    }
+
+    // This starts an observer to handle the 'you' and map translation smoothly,
+    function startObserver() {
+        if (!isChecked('expand_map', 2)) return;
+        if (!observer) {
+            target = document.querySelector("#world");
+            if (!target) return setTimeout(startObserver, 25);
+            modifyXlation(target);
+            adjustMapDirectionIndicators()
+            console.log('Starting observer!');
+            observer = new MutationObserver(function(mutations) {
+                console.log('Observer triggered!');
+                observer.disconnect();
+                modifyXlation(target);
+                observer.observe(target, config);
+            });
+            observer.observe(target, config);
+        } else {
+            observer.disconnect();
+            modifyXlation(target);
+            observer.observe(target, config);
+        }
+    }
+
+    // This does the actual map translation, centering it in the view.
+    function modifyXlation(xlationSel) {
+        let style = xlationSel.getAttribute('style');
+        console.log('Translation: ', style);
+
+        let offset = Math.floor(addSquares/2) * 30;
+        let parts = style.split(/[(,)]/);
+        console.log('parts: ', parts);
+        let x = parts[1];
+        let y = parts[2];
+        let xneg = (x.indexOf('-') > -1);
+        let yneg = (y.indexOf('-') > -1);
+        let xnum = x.match(/(\d+)/)[0] - offset;
+        let ynum = y.match(/(\d+)/)[0] - offset;
+        if (xneg) x = '-' + xnum + 'px'; else x = xnum + 'px';
+        if (yneg) y = '-' + ynum + 'px'; else y = ynum + 'px';
+
+        // Rebuild and apply
+        let newXlation = parts[0] + '(' + x + ',' + y + ')' + parts[3];
+        console.log('*** Result: ', newXlation);
+        xlationSel.setAttribute('style', newXlation);
     }
 
     GM_addStyle(`
