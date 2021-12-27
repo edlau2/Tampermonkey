@@ -540,7 +540,7 @@
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="expand_map"  value="yes"'+isChecked('expand_map', 1)+'>' +
             '<label for="npc_helper">Expand the map view</label><br>' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="typocalypsehelper" value="yes"'+isChecked("typocalypsehelper", 1)+'>' +
-            '<label for="typocalypsehelper">Typoclypse Helper</label><br>' +
+            '<label for="typocalypsehelper">Typocalypse Helper</label><br>' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="item_helper"  value="yes"'+isChecked('item_helper', 1)+'>' +
             '<label for="item_helper">Highlight Chest and Items</label><br>' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="christmas_wreath_helper"  value="yes"'+isChecked('christmas_wreath_helper', 1)+'>' +
