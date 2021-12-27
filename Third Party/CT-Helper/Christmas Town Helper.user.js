@@ -41,7 +41,7 @@
                 if (init.body) {
                     var body = JSON.parse(init.body);
                 }
-                updateMapView();
+                updateMapView(data.mapData);
                 if (url.includes("q=move")|| url.includes("q=initMap")) {
                     if (url.includes("q=move")) {
                         if (wordFixerStart || hangmanStart || typeGameStart) {
@@ -827,21 +827,24 @@
     const addSqaures = 2; // This defines how much larger to expand the map, by squares
     const addWidth = addSqaures * 30;
     const addHeight = addSqaures * 30;
-    function updateMapView() { // Not on mobile!!!
+    function updateMapView(mapData) { // Not on mobile!!!
         if (!isChecked('expand_map', 2)) return;
+
+        // Opened a combo chest, didn't see the result. But it was logged.
+        // Would like to prevent if at a chest/item is present (just when on top of it?)
+        // if (itemArray.length || chestArray.length) return;
 
         let mapCont = document.querySelector("#ct-wrap > div.user-map-container");
         if (!mapCont) return setTimeout(updateMapView, 500);
         let width = Number(330 + addWidth).toString() + 'px;';
         let height = Number(330 + addHeight).toString() + 'px;';
-        mapCont.setAttribute('style', 'width: ' + width + ' height: ' + height); // base + addWidth
+        mapCont.setAttribute('style', 'width: ' + width + ' height: ' + height);
 
         let mapView = document.querySelector("#map > div.map-overview.screen-color-transparent");
-        mapView.setAttribute('style', 'width: ' + width + ' height: ' + width);  // base + 30
-
+        mapView.setAttribute('style', 'width: ' + width + ' height: ' + width);
         let titleWrap = document.querySelector("#ct-wrap > div.title-wrap.clearfix");
         width = Number(784 + addWidth).toString() + 'px;';
-        titleWrap.setAttribute('style', 'max-width: ' + width +  ' width: ' + width);
+        titleWrap.setAttribute('style', 'max-width: ' + width + ' width: ' + width);
 
         let statusCont = document.querySelector("#ct-wrap > div.status-area-container");
         height = Number(468 + addHeight).toString() + 'px;';
@@ -854,6 +857,9 @@
         width = Number(330 + addWidth).toString() + 'px;';
         toolView.setAttribute('style', 'width: ' + width + ' height: 138px; max-height: 138px;' +
                              ' margin-top: ' + addHeight + 'px;');
+
+        let swiperWrap = document.querySelector("#ct-wrap > div.items-container.itemsContainer___PeyHI > div > " +
+                                                "div > div.swiper-wrapper > div.swiper-slide.swiper-slide-active");
 
         let ctBox = document.querySelector("#christmastownroot > div > div.hardyCTBox");
         width = Number(784 + addWidth).toString() + 'px;';
