@@ -824,11 +824,33 @@
         }
     }
 
+    function isMobile() { // TBD...
+        return navigator.userAgent.match(/Android/i);
+    }
+
     const addSqaures = 2; // This defines how much larger to expand the map, by squares
     const addWidth = addSqaures * 30;
     const addHeight = addSqaures * 30;
-    function updateMapView(mapData) { // Not on mobile!!!
+    const mobile = isMobile();
+    function updateMapView(mapData) {
         if (!isChecked('expand_map', 2)) return;
+        if (mobile) return; // Prob not too good on mobile...
+
+        // Check for events where we don't want to manipulate the map view?
+        // Not sure this is necessary.
+        /*
+        console.log('updateMapView(mapData)', mapData);
+        if (mapData.cellEvent) {
+            console.log('updateMapView(mapData) cell event, type: ', mapData.cellEvent.type);
+            if (mapData.cellEvent.type == 'chests') {
+                console.log('chest type: ', mapData.cellEvent.chest.type);
+                console.log('chest canOpen: ', mapData.cellEvent.canOpen);
+                //if (mapData.cellEvent.canOpen) return;
+            }
+        }
+        if (mapData.trigger) console.log('updateMapView trigger: ', mapData.trigger.type);
+        */
+        // End check...
 
         // Opened a combo chest, didn't see the result. But it was logged.
         // Would like to prevent if at a chest/item is present (just when on top of it?)
