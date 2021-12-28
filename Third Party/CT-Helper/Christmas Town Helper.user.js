@@ -880,7 +880,7 @@
     }
 
     // This adjusts the N, S, E, and W indicators to match the 'you' on the map.
-    // Done once, whenthe observer is installed.
+    // Done once, when the observer is installed.
     function adjustMapDirectionIndicators() {
         let n = document.querySelector("#map > div.map-directions > div.direction.north");
         let s = document.querySelector("#map > div.map-directions > div.direction.south");
@@ -918,11 +918,8 @@
     // This does the actual map translation, centering it in the view.
     function modifyXlation(xlationSel) {
         let style = xlationSel.getAttribute('style');
-        console.log('Translation: ', style);
-
         let offset = Math.floor(addSquares/2) * 30;
         let parts = style.split(/[(,)]/);
-        console.log('parts: ', parts);
         let x = parts[1];
         let y = parts[2];
         let xneg = (x.indexOf('-') > -1);
@@ -934,7 +931,6 @@
 
         // Rebuild and apply
         let newXlation = parts[0] + '(' + x + ',' + y + ')' + parts[3];
-        console.log('*** Result: ', newXlation);
         xlationSel.setAttribute('style', newXlation);
     }
 
