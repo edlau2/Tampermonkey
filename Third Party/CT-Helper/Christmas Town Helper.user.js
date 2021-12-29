@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Christmas Town Helper
 // @namespace    hardy.ct.helper
-// @version      2.3.2
+// @version      2.3.3
 // @description  Christmas Town Helper. Highlights Items, Chests, NPCs. And Games Cheat
 // @author       Hardy [2131687]
 // @match        https://www.torn.com/christmas_town.php*
@@ -15,7 +15,7 @@
 // ==/UserScript==
 (function() {
     'use strict';
-    let version = "2.3.1";
+    let version = "2.3.3";
     // Thanks to xedx for Dark Mode support
     // Thanks Kafia for beep effect
     //Thanks to Ahab and Helcostr for the list of words and all the help.
@@ -529,7 +529,6 @@
                     document.querySelector(".hardyCTtextBox").innerHTML = '<label class="ctHelperSuccess"Data deleted!</label>';
                     document.querySelector(".hardyCTTable").innerHTML = '';
                 } else if (e.target.id == "hardyctHelperBeep") {
-                    console.log('Testing "Beep"');
                     beep(true);
                 } else if (e.target.id == "hardyCTNoDelete") {
                     document.querySelector(".hardyCTtextBox").innerHTML = '';
@@ -837,6 +836,8 @@
         }
     }
 
+    // I left a lot of params here that are unused, for reference.
+    // Only 'test' is used, although 'volume' is referenced.
     function beep(test, duration, frequency, volume, type, callback) {
         let now = parseInt(Date.now()/1000);
         let diff = now - lastSoundChirp;
@@ -934,8 +935,7 @@
             target = document.querySelector("#world");
             if (!target) return setTimeout(startObserver, 25);
             modifyXlation(target);
-            adjustMapDirectionIndicators()
-            console.log('Starting observer!');
+            adjustMapDirectionIndicators();
             observer = new MutationObserver(function(mutations) {
                 observer.disconnect();
                 modifyXlation(target);
