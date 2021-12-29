@@ -23,6 +23,8 @@
     let hideDrn = true;
     let settings = {"count": 0, "spawn": 0, "speed": 0};
     let lastSoundChirp;
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+    let defVolume = 1;
     initiate();
     let chirp = new Audio("https://www.torn.com/js/chat/sounds/Chirp_1.mp3");
     var hangmanArray = [];
@@ -526,6 +528,9 @@
                     localStorage.setItem("ctHelperFound", JSON.stringify(obj));
                     document.querySelector(".hardyCTtextBox").innerHTML = '<label class="ctHelperSuccess"Data deleted!</label>';
                     document.querySelector(".hardyCTTable").innerHTML = '';
+                } else if (e.target.id == "hardyctHelperBeep") {
+                    console.log('Testing "Beep"');
+                    beep(true);
                 } else if (e.target.id == "hardyCTNoDelete") {
                     document.querySelector(".hardyCTtextBox").innerHTML = '';
                 }
@@ -554,9 +559,17 @@
             '<label for="hangman_helper">Hangman Helper</label><br><input type="checkbox" class="hardyCTHelperCheckbox" id="accessibility_helper"  value="yes"'+isChecked('accessibility_helper', 1)+'>' +
             '<label for="accessibility_helper">Accessibility (Dims the highlighter and removes the blinking, for users facing discomfort due to bright color of highlighter)</label><br>' +
             '<input type="checkbox" class="hardyCTHelperCheckbox" id="sound_notif_helper" value="yes"'+isChecked('sound_notif_helper', 1)+'>' +
-            '<label for="sound_notif_helper">Sound Notification on Item Find</label><br><a href="#/" class="ctRecordLink" style="display:inline;">Go back</a>' +
-            '<button id="hardyctHelperSave">Save Settings</button><button id="hardyctHelperdelete">Delete Finds</button>' +
+            '<label for="sound_notif_helper">Sound Notification on Item Find</label>' +
+            '<input type="range" id="volume-control" style="margin-left: 10px; margin-top: 10px;" min="0" max="100" value="100"><br>' +
+            '<a href="#/" class="ctRecordLink" style="display:inline;">Go back</a>' +
+            '<button id="hardyctHelperSave">Save Settings</button>' +
+            '<button id="hardyctHelperdelete">Delete Finds</button>' +
+            '<button id="hardyctHelperBeep">Test Beep</button>' +
             '</div><div class="hardyCTtextBox"></div><br><hr><br><div class="hardyCTTable" style="overflow-x:auto;"></div></div>';
+        let volume = document.querySelector("#volume-control");
+        volume.addEventListener("change", function(e) {
+            defVolume = e.currentTarget.value / 100;
+        });
         let itemData = localStorage.getItem("ctHelperItemInfo");
         var marketValueData;
         if (typeof itemData == "undefined" || itemData === null) {
@@ -814,7 +827,7 @@
             updateGame(array.join(""));
         }, 500);
     }
-    function beep() {
+    function beep2() {
         let now = parseInt(Date.now()/1000);
         let diff = now - lastSoundChirp;
         if (diff >= 60) {
@@ -823,6 +836,28 @@
             chirp.play();
         }
     }
+
+    function beep(test, duration, frequency, volume, type, callback) {
+        let now = parseInt(Date.now()/1000);
+        let diff = now - lastSoundChirp;
+        if (diff >= 60 || test) {
+            GM_setValue("lastSound", now);
+            lastSoundChirp = now;
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (volume){gainNode.gain.value = volume;} else {gainNode.gain.value = defVolume;}
+            if (frequency){oscillator.frequency.value = frequency;}
+            if (type){oscillator.type = type;}
+            if (callback){oscillator.onended = callback;}
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + ((duration || 500) / 1000));
+        }
+    };
 
     // Globals for map extension stuff.
     const mobile = isMobile(); // Don't do on mobile, very simplistic check ATM.
@@ -902,7 +937,6 @@
             adjustMapDirectionIndicators()
             console.log('Starting observer!');
             observer = new MutationObserver(function(mutations) {
-                console.log('Observer triggered!');
                 observer.disconnect();
                 modifyXlation(target);
                 observer.observe(target, config);
@@ -939,6 +973,7 @@
 #hardyctHelperSave {background-color: #2da651;}
 #hardyctHelperSave:hover {background-color: #2da651c4;}
 #hardyctHelperdelete {background-color: #f03b10;}
+#hardyctHelperBeep {background-color: #2da651c4;}
 #hardyctHelperdelete:hover {background-color: #f03b10bd;}
 .ctRecordLink:hover {background-color: #53a3d7;}
 .ct-user-wrap .user-map:before {display:none;}
