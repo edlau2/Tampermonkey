@@ -332,21 +332,6 @@
             content.appendChild(document.createTextNode(attr[i] + ':'));
             content.appendChild(s);
         }
-
-        darkModeFixup();
-    }
-
-    // Fixup for other stuff in Dark Mode (not from this script!)
-    var retries = 0;
-    function darkModeFixup() {
-       if (darkMode()) {
-           let gainsMsg1 = document.querySelector("#xgr_msg1");
-           let gainsMsg2 = document.querySelector("#xgr_msg2");
-           console.log('Special Gym Requirements: ', gainsMsg1, gainsMsg2);
-           if ((!gainsMsg1 || !gainsMsg2) && retries++ < 10) return setTimeout(darkModeFixup, 100);
-           if (gainsMsg1) gainsMsg1.setAttribute('style', 'color:black;');
-           if (gainsMsg2) gainsMsg2.setAttribute('style', 'color:black;');
-       }
     }
 
     // Handler for 'queryGymDetails()', called by 'queryGymInfo()'
