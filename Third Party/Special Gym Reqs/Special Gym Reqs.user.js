@@ -3,7 +3,7 @@
 // @namespace    namespace
 // @version      0.2
 // @description  description
-// @author       tos
+// @author       tos, xedx
 // @match        *.torn.com/gym.php
 // @run-at       document-start
 // @grant        unsafeWindow
