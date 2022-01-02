@@ -1,10 +1,14 @@
 ## Torn Bat Stat Saver
 
+Installation link:
+
+[Torn Bat Stat Saver](	https://github.com/edlau2/Tampermonkey/raw/master/BatStatSaver/Torn%20Bat%20Stat%20Saver.user.js)
+
 This file runs when attacking. It will save the results of an attack (if successful), namely, opponent info and your info - your bat stat score, and use this info to calculate the opponents estimated bat stats.
 
-It uses the Fair Fight formula, found here: 
+It uses the Fair Fight formula, found here: [Torn Wiki](https://wiki.torn.com/wiki/Chain)
 
-Fair fights
+Fair fights:
 The fair fight (FF) multiplier ranges between 1x and 3x and is applied for attacking a target with battle stats that are similar to your own. The simplified mechanics are as follows:
 
 Attacking someone with roughly 50% of your total battle stats or higher yields a FF of 3x (1)
