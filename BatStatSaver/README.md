@@ -13,7 +13,7 @@ Players hitting anyone with a battle stat score higher than the player with the 
 For a more comprehensive understanding JTS (Journal of Torn Science)[1] derived the formulas behind the fair fight mechanic as follows:
 
 The Fair-Fight multiplier is solely contingent upon the battle stats of both you and your opponent. Each player has their own battle stat score (BS Score).
-[BS score](https://cdn.discordapp.com/attachments/784118895366635561/891239826655969310/image0.jpg)
+[BS score](https://github.com/edlau2/Tampermonkey/blob/master/BatStatSaver/BatStatScoreFormula.jpeg)
 
 The battle stat score for the attack and defender is therefore used in the calculation of the fair fight ratio (FF).
 [FF Ratio](https://cdn.discordapp.com/attachments/784118895366635561/891239901301993482/image0.jpg)
