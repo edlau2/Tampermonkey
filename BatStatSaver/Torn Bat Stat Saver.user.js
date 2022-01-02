@@ -9,6 +9,7 @@
 // @connect      www.tornstats.com
 // @connect      localhost
 // @connect      18.119.136.223
+// @connect      *
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
