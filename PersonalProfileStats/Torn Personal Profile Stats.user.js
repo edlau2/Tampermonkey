@@ -273,10 +273,10 @@
         let li = '<li id="'+ batStatLi + '">' +
                      '<div class="user-information-section"><span class="bold">Est. Bat Stats</span></div>' +
                      '<div class="user-info-value" id="xedx-collapsible"><span>' + display + '</span>' +
-                     ((jsonSpy != null) ? caretNode : '') +
+                     ((jsonSpy.status) ? caretNode : '') +
                      '</div></li>';
 
-        if (jsonSpy != null) {
+        if (jsonSpy.status) {
             //$("#xedx-collapsible").append(caretNode);
             li += '<div id="xedx-stat-det" style="display:block;">' +
                   '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
