@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.2
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -9,12 +9,19 @@
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
+// @connect      localhost
+// @connect      18.119.136.223
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -30,13 +37,13 @@
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
     // These are from: https://www.tornstats.com/awards.php
     const estimatedStats = [
-        "under 2k",
-        "2k - 20k",
-        "20k - 250k",
-        "250k - 2.5m",
-        "2.5m - 35m",
-        "35m - 200m",
-        "over 200m",
+        {estimate: "under 2k", low: 2000, high: 2000},
+        {estimate: "2k - 20k", low: 2000, high: 20000},
+        {estimate: "20k - 250k", low: 20000, high: 250000},
+        {estimate: "250k - 2.5m", low: 250000, high: 2500000},
+        {estimate: "2.5m - 35m", low: 2500000, high: 35000000},
+        {estimate: "35m - 200m", low: 35000000, high: 200000000},
+        {estimate: "over 200m", low: 200000000, high: 0},
     ];
 
     GM_addStyle(".xedx-caret {" +
@@ -53,13 +60,221 @@
     var userRank = 0;
     var targetNode = document.getElementById('profileroot');
 
+    function handleClick(e) {
+        log('handleClick: state = ' + caretState);
+        let targetNode = document.querySelector("#xedx-caret"); // e.target
+        let elemState = 'block';
+        let childList = document.querySelector("#nav-home").parentNode.children;
+        if (caretState == 'fa-caret-down') {
+            targetNode.classList.remove("fa-caret-down");
+            targetNode.classList.add("fa-caret-right");
+            caretState = 'fa-caret-right';
+            elemState = 'none';
+        } else {
+            targetNode.classList.remove("fa-caret-right");
+            targetNode.classList.add("fa-caret-down");
+            caretState = 'fa-caret-down';
+        }
+        GM_setValue('lastState', caretState);
+        document.querySelector("#xedx-stat-det").setAttribute('style' , 'display: ' + elemState);
+    }
+
+    // Get data used to calc bat stats and get NW via the Torn API
+    function personalStatsQuery(ID) {
+        log('Calling xedx_TornUserQuery');
+        xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
+    }
+
+    // Callback for above
+    function personalStatsQueryCB(responseText, ID) {
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+
+        if (loggingEnabled) {console.log(GM_info.script.name + 'Personal stats: ', jsonResp);}
+
+        userNW = jsonResp.personalstats.networth;
+        userCrimes = jsonResp.criminalrecord.total;
+        userLvl = jsonResp.level;
+        userRank = numericRankFromFullRank(jsonResp.rank);
+
+        // Add NW
+        addNetWorthToProfile(userNW);
+
+        // Get bat stats spy, or estimate.
+        batStats = getEstimatedStats(); // Calculate bat stats estimate
+
+        log('Calling xedx_TornStatsSpy');
+        xedx_TornStatsSpy(ID, getBatStatsCB); // Get any spies. On completion, get our estimated stats from FF DB.
+
+        // Display the numeric rank next to textual rank
+        addNumericRank();
+    }
+
+    function getBatStatsCB(respText, ID) {
+        // Process result, get spy (if any), if not, use estimated.
+        let data = JSON.parse(respText);
+        log('Spy response: ' + respText);
+        if (!data.status) {
+            log('Error getting spy! Response text: ' + resptext);
+        } else {
+            if (data.spy.status) {
+                jsonSpy = {status: data.spy.status,
+                                           speed: data.spy.speed,
+                                           strength: data.spy.strength,
+                                           defense: data.spy.defense,
+                                           dexterity: data.spy.dexterity,
+                                           score: data.spy.target_score,
+                                           lkg: data.spy.difference,
+                                           estimate: data.spy.total,
+                                           high: data.spy.total,
+                                           low: data.spy.total};
+            }
+        }
+
+        log('Calling getCustomBatStatEst');
+        getCustomBatStatEst(ID, customBatStatEstCB);
+
+        //addBatStatsToProfile();
+    }
+
+    // Call our private bat stat esimator DB
+    function getCustomBatStatEst(ID, callback) {
+        let url = 'http://18.119.136.223:8002/batstats/?cmd=getStats&id=' + ID;
+        try {
+            GM_xmlhttpRequest({
+            method:"GET",
+            url:url,
+            headers: {
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                callback(response.responseText, ID);
+            },
+            onerror: function(response) {
+                console.log('HTTP Error: ', response);
+                addBatStatsToProfile(); // Recover!
+            }});
+        } catch(e) {
+            console.log('Error: ', e);
+            addBatStatsToProfile(); // Recover!
+        }
+    }
+
+    /*
+    {"Row 1":{"rowid":4,"date":"2022-01-01","time":"01:20:38","attackID":177986049,
+    "userID":"2100735","userName":"xedx","oppID":"2503509","oppName":"Admiral_Biatch","oppLevel":68,
+    "lastAction":"31 minutes ago","result":"Mugged","ffMod":3,"userScore":52506.588844970276,
+    "oppScore":39379.94163372771,"scoreRatio":0.75,"oppStatsLow":"387,694,950",
+    "statRatio":"539,347,113","lkg":"596,643,488","lkg_when":"2 weeks ago","oppStatsHigh":"2000"}}
+    */
+    function customBatStatEstCB(resp, ID) {
+        console.log('*** Custom stats: ', resp);
+        let values = [];
+
+        try {
+            let obj = JSON.parse(resp);
+            let keys = Object.keys(obj);
+            for (let i=0; i<keys.length; i++) {
+                console.log('obj[keys[i]]: ', obj[keys[i]]);
+
+                let lkg = obj[keys[i]].lkg;
+                console.log('lkg: ', lkg);
+                if (lkg) lkg = Number(lkg.toString().replaceAll(',', '')); else lkg = 0;
+                console.log('lkg: ', lkg);
+
+                let stats = obj[keys[i]].oppStatsLow;
+                console.log('stats: ', stats);
+                if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
+                console.log('stats: ', stats);
+
+                let value = (lkg > stats) ? lkg : stats;
+                console.log('high value: ', value);
+                console.log('Pushing stat est: ', stats);
+                //values.push(value);
+                values.push(stats);
+            }
+        } catch(e) {
+            console.log('[customBatStatEstCB] Error: ', e);
+        }
+
+        console.log('values: ', values);
+        if (values.length) {
+            let highStat = Math.max(...values);
+            log("*** High stat: " + highStat);
+            custBatStats = {estimate: highStat, low: highStat, high: highStat};
+        }
+
+        addBatStatsToProfile();
+    }
+
+    // Create the bat stats <li>, add to the profile page
+    function addBatStatsToProfile() {
+        log('Adding estimated bat stats to profile.');
+        let testDiv = document.getElementById(batStatLi);
+        if (validPointer(testDiv)) {return;} // Only do once
+
+        let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
+        let targetUL = rootDiv.getElementsByClassName('info-table')[0];
+        if (!validPointer(targetUL)) {return;}
+
+        let li = createBatStatLI(targetUL); // And add to the display
+    }
+
+    // Helper, pick the best of below three values.
+    var batStats = {estimate: 0, low: 0, high: 0}; // Can be 'Unknown' or 'N/A' !!
+    var jsonSpy = {estimate: 0, low: 0, high: 0};
+    var custBatStats = {estimate: 0, low: 0, high: 0};
+
+    function getBestValues() {
+        console.log(GM_info.script.name + ' batStats: ', batStats);
+        console.log(GM_info.script.name + ' custBatStats: ',  custBatStats);
+        console.log(GM_info.script.name + ' jsonSpy: ', jsonSpy);
+
+        // No spy or custom estimate: return basic estimate
+        if (!jsonSpy.low && !custBatStats.low) return batStats.estimate;
+
+        // Spy, but no custom estimate (or lower estimate): return spy
+        if (jsonSpy.low && (jsonSpy.low > custBatStats.low)) return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+
+        // Spy, but no custom estimate: return spy
+        if (jsonSpy.low && !custBatStats.low) return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+
+        // Custom estimate, no spy - see if within batStat ranges
+        // {estimate: "over 200m", low: 200000000, high: 0},
+        if (!jsonSpy.low && custBatStats.low) {
+            if (batStats.estimate == 'N/A' || (batStats.estimate.indexOf('Unknown') > -1))
+                return 'Over ' + numberWithCommas(custBatStats.estimate) + ' (Level holding?)';
+            if (custBatStats.low > batStats.high)
+                return 'Min. ' + numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
+            if (custBatStats.low > batStats.low && !batStats.high)
+                return 'Over ' + numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
+            if (jsonSpy.low < batStats.high)
+                return numberWithCommas(custBatStats.estimate) + ' to ' + numberWithCommas(batStats.high);
+            return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
+        }
+
+        // Spy and custom: return larger of the two. Spy details will be displayed regardless.
+        if (jsonSpy.low && custBatStats.low) {
+            if (jsonSpy.low > custBatStats.low) // Just use the spy
+                return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+            else
+                return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
+        }
+    }
+
     // Helper, create <li> to display...
-    function createBatStatLI(ul, display, jsonSpy=null) {
+    function createBatStatLI(ul) {
+        log('[createBatStatLI]');
+
+        // Need the best of the three - batStats, jsonSpy, and custBatStatsLow.
+        let display = getBestValues();
+        log('Best value: ' + display);
+
         let li = '<li id="'+ batStatLi + '">' +
                      '<div class="user-information-section"><span class="bold">Est. Bat Stats</span></div>' +
                      '<div class="user-info-value" id="xedx-collapsible"><span>' + display + '</span>' +
                      ((jsonSpy != null) ? caretNode : '') +
-                  '</div></li>';
+                     '</div></li>';
 
         if (jsonSpy != null) {
             //$("#xedx-collapsible").append(caretNode);
@@ -85,88 +300,6 @@
         return li;
     }
 
-    function handleClick(e) {
-        log('handleClick: state = ' + caretState);
-        let targetNode = document.querySelector("#xedx-caret"); // e.target
-        let elemState = 'block';
-        let childList = document.querySelector("#nav-home").parentNode.children;
-        if (caretState == 'fa-caret-down') {
-            targetNode.classList.remove("fa-caret-down");
-            targetNode.classList.add("fa-caret-right");
-            caretState = 'fa-caret-right';
-            elemState = 'none';
-        } else {
-            targetNode.classList.remove("fa-caret-right");
-            targetNode.classList.add("fa-caret-down");
-            caretState = 'fa-caret-down';
-        }
-        GM_setValue('lastState', caretState);
-        document.querySelector("#xedx-stat-det").setAttribute('style' , 'display: ' + elemState);
-    }
-
-    // Get data used to calc bat stats and get NW via the Torn API
-    function personalStatsQuery(ID) {
-        xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
-    }
-
-    // Callback for above
-    function personalStatsQueryCB(responseText, ID) {
-        let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
-
-        if (loggingEnabled) {console.log(GM_info.script.name + 'Personal stats: ', jsonResp);}
-
-        userNW = jsonResp.personalstats.networth;
-        userCrimes = jsonResp.criminalrecord.total;
-        userLvl = jsonResp.level;
-        userRank = numericRankFromFullRank(jsonResp.rank);
-
-        // Add NW
-        addNetWorthToProfile(userNW);
-
-        // Get bat stats spy, or estimate.
-        xedx_TornStatsSpy(ID, getBatStatsCB);
-
-        // Display the numeric rank next to textual rank
-        addNumericRank();
-    }
-
-    function getBatStatsCB(respText) {
-        // Process result, get spy (if any), if not, use estimated.
-        let jsonSpy = null;
-        let batStats = 0;
-        let data = JSON.parse(respText);
-        log('Spy response: ' + respText);
-        if (!data.status) {
-            log('Error getting spy! Response text: ' + resptext);
-        } else {
-            if (data.spy.status) jsonSpy = {speed: data.spy.speed,
-                                           strength: data.spy.strength,
-                                           defense: data.spy.defense,
-                                           dexterity: data.spy.dexterity};
-            batStats = data.spy.status ? (numberWithCommas(data.spy.total) +
-                                          /*' score '+ numberWithCommas(Math.round(data.spy.target_score)) +*/
-                                          ' (' + data.spy.difference + ')') : 0;
-        }
-        if (!batStats) {
-            batStats = buildBatStatDisplay(); // Calculate bat stats estimate
-        }
-        addBatStatsToProfile(batStats, jsonSpy);
-    }
-
-    // Create the bat stats <li>, add to the profile page
-    function addBatStatsToProfile(batStats, jsonSpy=null) {
-        log('Adding estimated bat stats to profile.');
-        let testDiv = document.getElementById(batStatLi);
-        if (validPointer(testDiv)) {return;} // Only do once
-
-        let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-        let targetUL = rootDiv.getElementsByClassName('info-table')[0];
-        if (!validPointer(targetUL)) {return;}
-
-        let li = createBatStatLI(targetUL, batStats, jsonSpy); // And add to the display
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Determine the range to display
     //
@@ -177,7 +310,7 @@
     //    https://www.tornstats.com/awards.php
     ////////////////////////////////////////////////////////////////////
 
-    function buildBatStatDisplay() {
+    function getEstimatedStats() {
         let trLevel = 0, trCrime = 0, trNetworth = 0;
         for (let l in levelTriggers) {if (levelTriggers[l] <= userLvl) trLevel++;}
         for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
@@ -190,7 +323,11 @@
         log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
         log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
         if (!estimated) {
-            if (userLvl < 76) {estimated = "Unknown, maybe level holding?";} else {estimated = "N/A";}
+            if (userLvl < 76) {
+                estimated = {estimate: "Unknown, maybe level holding?", low: 0, high: 0};
+            } else {
+                estimated = {estimate: "N/A", low: 0, high: 0};
+            }
         }
 
         return estimated;
