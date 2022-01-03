@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -75,7 +75,7 @@
 
         let lastAttackJSON = getLastAttack(jsonResp.attacks);
         let lastAttack = lastAttackJSON.attack;
-        let res = lastAttack.result;
+        let res = lastAttack.result.toLowerCase();
         console.log('Last attack result: ' + res);
         console.log('Last Attack opponent ID: ', lastAttack.defender_id);
         if (lastAttack.defender_id != opponentID) { // Make sure we have the correct entry!
@@ -110,13 +110,21 @@
         console.log('Attack Result: ', result);
         console.log('Attack Result (stringified): ', JSON.stringify(result));
 
-        // Send to server
-        uploadAttackData(result);
+        // Send to server. Don't bother if FF == 1.00, may be too low or attacker is a recruit.
+        if (Number(lastAttack.modifiers.fair_fight) != 1) {
+            uploadAttackData(result);
+        }
 
         // Put an indicator in the attack window.
         let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
                                               "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
-        $(titleBar).append('<span style="color: red; font-size: 18px;">Fight data saved!</span>');
+        if (Number(lastAttack.modifiers.fair_fight) != 1) {
+            $(titleBar).append('<span style="color: red; font-size: 18px;">Fight data saved (FF = ' +
+                           lastAttack.modifiers.fair_fight + ')</span>');
+        } else {
+            $(titleBar).append('<span style="color: red; font-size: 18px;">Fight data not uploaded (FF = ' +
+                           lastAttack.modifiers.fair_fight + ')</span>');
+        }
     }
 
     // Upload data via POST to the DB server
