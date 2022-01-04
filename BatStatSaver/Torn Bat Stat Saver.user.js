@@ -46,8 +46,8 @@
         if (loggingEnabled) {console.log(GM_info.script.name + 'basic: ', jsonResp);}
 
         opponentLevel = jsonResp.level;
-        //opponentLastAction = jsonResp.last_action.relative;
-        opponentLastAction = new Date(jsonResp.last_action.timestamp*1000);
+        opponentLastAction = jsonResp.last_action.relative;
+        //opponentLastAction = new Date(jsonResp.last_action.timestamp*1000);
     }
 
     // Query stats: attacks and bat stats.
