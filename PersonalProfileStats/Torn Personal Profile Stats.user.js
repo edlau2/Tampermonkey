@@ -359,7 +359,7 @@
         let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
 
-        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + (estimated.estimate ? estimated.estimate : 0));
+        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + ((estimated && estimated.estimate) ? estimated.estimate : 0));
         log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
         log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
         if (!estimated) {
