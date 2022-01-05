@@ -69,19 +69,33 @@ function myPastCrimeLog() {
     scriptProperties.setProperty('TRIGGER_ID', 0);
   }
   
-  //if log is empty, start with today's timestamp, else look for the earliest timestamp
-  if (lastrow == 6) {
-    let jsonTornData = queryData(timestampURL);
-    var lasteventdate = jsonTornData.timestamp[0];
-  } else {
-    var lastgoodrow = lastrow - 1;
-    var lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue();
-    datasheet.deleteRow(lastrow);
-  }
+  // If log is empty, start with today's timestamp, else look for the earliest timestamp
+  // Note: queryData() will rethrow on error. Catch it, if the error code is 'restart',
+  // we can recover by setting our restart trigger and coming back.
+  try {
+    if (lastrow == 6) {
+      let jsonTornData = queryData(timestampURL);
+      var lasteventdate = jsonTornData.timestamp[0];
+    } else {
+      var lastgoodrow = lastrow - 1;
+      var lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue();
+      datasheet.deleteRow(lastrow);
+    }
 
-  setStatusTitle('Getting past log data...');
-  let jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
-  let keys = Object.keys(jsonTornData.log);
+    setStatusTitle('Getting past log data...');
+    let jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
+    let keys = Object.keys(jsonTornData.log);
+  } catch(e) {
+    if (e.code == 'restart') {
+      let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
+      scriptProperties.setProperty('TRIGGER_ID', triggerId);
+      console.log('Saved triggerId ' + triggerId + ' to resume in 10 seconds');
+      setStatus('');
+      setStatusTitle('Pausing, will resume soon...');
+      return console.log('<== [myPastCrimeLog]');
+    }
+    return setStatus("queryData() failed!");
+  }
 
   if (keys.length <= 0) {
     setStatusTitle('Nothing to do!');
@@ -281,20 +295,18 @@ function queryData(url) {
   try {
     jsondata = UrlFetchApp.fetch(url);
   } catch(e) {
-    setStatus("UrlFetchApp() failed!");
     console.error('Error: ', e);
-    Logger.log("UrlFetchApp failed");
+    console.log('<== [queryData] Error.');
+    throw({code: 'restart', error: e})
   }
 
   // This line fails sometimes. Need to catch the exception. Not sure why it fails...
   try {
     object = JSON.parse(jsondata.getContentText());
-  } catch(error) {
-    setStatus("JSON.parse() failed!");
-    console.error('Error: ', error);
-    Logger.log("JSON.parse failed");
+  } catch(e) {
+    console.error('Error: ', e);
     console.log('<== [queryData] Error.');
-    return null;
+    throw({code: 'restart', error: e})
   }
   console.debug('<== [queryData]');
   return object;
