@@ -70,7 +70,7 @@ function myPastCrimeLog() {
   console.log('[myPastCrimeLog] ==>');
   let starttime = new Date();
   let runtime = 0;
-  let lastrow = datasheet.getLastRow();console.debug('Obj = ', obj);
+  let lastrow = datasheet.getLastRow();
   
   //if log is empty, start with today's timestamp, else look for the earliest timestamp
   if (lastrow == 6) {
@@ -196,7 +196,7 @@ function setRowFormulas(row, time) {
 }
 
 function getApiKey() {
-  console.debug('[getApiKey] ==>');
+  console.log('[getApiKey] ==>');
   var scriptProperties = PropertiesService.getScriptProperties();
   var key = scriptProperties.getProperty("API_KEY");
 
@@ -209,7 +209,7 @@ function getApiKey() {
     scriptProperties.setProperty('API_KEY', key);
     }
   }
-  console.debug('<== [getApiKey]');
+  console.log('<== [getApiKey]');
   return key;
 }
 
