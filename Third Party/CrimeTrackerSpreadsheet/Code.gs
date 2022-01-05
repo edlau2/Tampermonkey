@@ -72,19 +72,20 @@ function myPastCrimeLog() {
   // If log is empty, start with today's timestamp, else look for the earliest timestamp
   // Note: queryData() will rethrow on error. Catch it, if the error code is 'restart',
   // we can recover by setting our restart trigger and coming back.
+  var jsonTornData = null, lasteventdate = 0, keys = null;
   try {
     if (lastrow == 6) {
-      let jsonTornData = queryData(timestampURL);
-      var lasteventdate = jsonTornData.timestamp[0];
+      jsonTornData = queryData(timestampURL);
+      lasteventdate = jsonTornData.timestamp[0];
     } else {
       var lastgoodrow = lastrow - 1;
-      var lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue();
+      lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue();
       datasheet.deleteRow(lastrow);
     }
 
     setStatusTitle('Getting past log data...');
-    let jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
-    let keys = Object.keys(jsonTornData.log);
+    jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
+    keys = Object.keys(jsonTornData.log);
   } catch(e) {
     if (e.code == 'restart') {
       let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
