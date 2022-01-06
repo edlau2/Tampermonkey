@@ -115,6 +115,10 @@
         log('Attack Result (stringified): ', JSON.stringify(result));
 
         // Send to server. Don't bother if FF == 1.00, may be too low or attacker is a recruit.
+        // if FF = 1.00, and respect > 0, use 1.01 as FF...
+        if (lastAttack.respect_gain && lastAttack.modifiers.fair_fight == 1.00) {
+            lastAttack.modifiers.fair_fight == 1.01;
+        }
         if (Number(lastAttack.modifiers.fair_fight) != 1) {
             uploadAttackData(result);
         }
