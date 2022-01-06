@@ -270,7 +270,7 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 }
 
 function clearRunningTriggers() {
-  let triggerId = scriptProperties.setProperty('TRIGGER_ID');
+  let triggerId = scriptProperties.getProperty('TRIGGER_ID');
   console.debug('[clearRunningTriggers] triggerID: ', triggerId);
   if (triggerId) {
     deleteTrigger(triggerId);
