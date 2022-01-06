@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -238,7 +238,7 @@
         let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
 
-        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + (estimated.estimate ? estimated.estimate : 0));
+        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + (estimated ? estimated.estimate : 0));
         log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
         log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
         if (!estimated) {
