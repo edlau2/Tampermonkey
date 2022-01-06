@@ -291,11 +291,11 @@ function startNewRestarTrigger(someFunc, secs) {
 function deleteTrigger(triggerId) {
   var allTriggers = ScriptApp.getProjectTriggers();
   console.debug('[deleteTrigger] triggerID: ', triggerId, 
-                ' allTriggers: ', allTriggers, ' len: ', allTriggers.length);
+                ' allTriggers.len: ', allTriggers.length);
   for (var i = 0; i < allTriggers.length; i++) {
-    console.log('trigger# ' + i, ' ', allTriggers[i], ' ID: ', allTriggers[i].getUniqueId());
+    console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId());
     if (allTriggers[i].getUniqueId() === triggerId) {
-      console.log('Deleting trigger ', allTriggers[i]);
+      console.log('Deleting trigger!');
       ScriptApp.deleteTrigger(allTriggers[i]);
       break;
     }
