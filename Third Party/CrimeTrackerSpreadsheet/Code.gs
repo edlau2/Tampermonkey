@@ -64,10 +64,14 @@ function myPastCrimeLog() {
 
   // Delete any previously set trigger
   let triggerId = scriptProperties.getProperty('TRIGGER_ID');
+  console.log('Trigger ID: ', triggerId);
   if (triggerId) {
+    console.log('Deleting trigger: ', triggerId);
     deleteTrigger(triggerId);
     scriptProperties.setProperty('TRIGGER_ID', 0);
   }
+
+  // Replace ^^ that with: clearRunningTriggers();
   
   // If log is empty, start with today's timestamp, else look for the earliest timestamp
   // Note: queryData() will rethrow on error. Catch it, if the error code is 'restart',
@@ -91,11 +95,7 @@ function myPastCrimeLog() {
     keys = Object.keys(jsonTornData.log);
   } catch(e) { // Trap queryData() exceptions
     if (e.code == 'restart') {
-      let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
-      scriptProperties.setProperty('TRIGGER_ID', triggerId);
-      console.log('Saved triggerId ' + triggerId + ' to resume in 10 seconds');
-      setStatus('');
-      setStatusTitle('Pausing, will resume soon...');
+      startNewRestarTrigger("myPastCrimeLog", 10);
       return console.log('<== [myPastCrimeLog]');
     }
     return setStatus("queryData() failed!");
@@ -145,11 +145,7 @@ function myPastCrimeLog() {
         jsonTornData = queryData(url);  
       } catch(e) {
         if (e.code == 'restart') {
-          let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
-          scriptProperties.setProperty('TRIGGER_ID', triggerId);
-          console.log('Saved triggerId ' + triggerId + ' to resume in 10 seconds');
-          setStatus('');
-          setStatusTitle('Pausing, will resume soon...');
+          startNewRestarTrigger("myPastCrimeLog", 10);
           return console.log('<== [myPastCrimeLog]');
         }
         return setStatus("queryData() failed!");
@@ -162,11 +158,7 @@ function myPastCrimeLog() {
 
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME) {
-        let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
-        scriptProperties.setProperty('TRIGGER_ID', triggerId);
-        console.log('Saved triggerId ' + triggerId + ' to resume in 10 seconds');
-        setStatus('');
-        setStatusTitle('Pausing, will resume soon...');
+        startNewRestarTrigger("myPastCrimeLog", 10);
         return console.log('<== [myPastCrimeLog]');
       }
 
@@ -181,11 +173,7 @@ function myPastCrimeLog() {
 
   // If we exceeded our max runtime, set a trigger to fire to restart.
   if (runtime > MAX_RUN_TIME) {
-    let triggerId = createTimeDrivenTrigger(10); // 10 seconds.
-    scriptProperties.setProperty('TRIGGER_ID', triggerId);
-    console.log('Saved triggerId ' + triggerId + ' to resume in 10 seconds');
-    setStatus('');
-    setStatusTitle('Pausing, will resume soon...');
+    startNewRestarTrigger("myPastCrimeLog", 10);
     return console.log('<== [myPastCrimeLog]');
   }
 
@@ -274,18 +262,40 @@ function setRowFormulas(row, time) {
 }
 
 // Helper: create time-driven trigger
-function createTimeDrivenTrigger(timeSecs) {
-  return ScriptApp.newTrigger("myPastCrimeLog")
+function createTimeDrivenTrigger(someFunc, timeSecs) {
+  return ScriptApp.newTrigger(someFunc)
       .timeBased()
       .after(timeSecs * 1000) // After timeSecs seconds 
       .create();
 }
 
+function clearRunningTriggers() {
+  let triggerId = scriptProperties.setProperty('TRIGGER_ID');
+  console.debug('[clearRunningTriggers] triggerID: ', triggerId);
+  if (triggerId) {
+    deleteTrigger(triggerId);
+  }
+  scriptProperties.setProperty('TRIGGER_ID', 0);
+}
+
+function startNewRestarTrigger(someFunc, secs) {
+  clearRunningTriggers();
+  let triggerId = createTimeDrivenTrigger(someFunc, secs); // 10 seconds.
+  scriptProperties.setProperty('[startNewRestarTrigger] TRIGGER_ID', triggerId);
+  console.log('Saved triggerId ' + triggerId + ' to resume in ' + secs + ' seconds');
+  setStatus('');
+  setStatusTitle('Pausing, will resume soon...');
+}
+
 // Helper: delete a trigger
 function deleteTrigger(triggerId) {
   var allTriggers = ScriptApp.getProjectTriggers();
+  console.debug('[deleteTrigger] triggerID: ', triggerId, 
+                ' allTriggers: ', allTriggers, ' len: ', allTriggers.length);
   for (var i = 0; i < allTriggers.length; i++) {
+    console.log('trigger# ' + i, ' ', allTriggers[i], ' ID: ', allTriggers[i].getUniqueId());
     if (allTriggers[i].getUniqueId() === triggerId) {
+      console.log('Deleting trigger ', allTriggers[i]);
       ScriptApp.deleteTrigger(allTriggers[i]);
       break;
     }
