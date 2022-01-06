@@ -151,6 +151,18 @@ function myPastCrimeLog() {
         return setStatus("queryData() failed!");
       }
 
+      if (!jsonTornData || !jsonTornData.log) {
+        console.error('[myPastCrimeLog] jsonTornData error: ', jsonTornData);
+        console.debug('Finished with past data?');
+        jsonTornData = null;
+      }
+
+      runtime = new Date() - starttime;
+      if (runtime > MAX_RUN_TIME || !jsonTornData) {
+        startNewRestarTrigger("myPastCrimeLog", 10);
+        return console.log('<== [myPastCrimeLog]');
+      }
+
       keys = Object.keys(jsonTornData.log);
       nextentry = jsonTornData.log[keys[0]].timestamp;
       console.log('First entry: ', firstentry, " Next entry: ", nextentry, 
@@ -261,6 +273,13 @@ function setRowFormulas(row, time) {
   console.debug('<== [setRowFormulas]');
 }
 
+// Debug fn: spit out what we know about a trigger.
+function logTrigger(trigger) {
+  console.debug('Trigger ID ', trigger.getUniqueId() + '\n' +
+      'Handler: ', trigger.getHandlerFunction() + '\n' + 
+      'Trigger Source: ', trigger.getTriggerSource());
+}
+
 // Helper: create time-driven trigger
 function createTimeDrivenTrigger(someFunc, timeSecs) {
   return ScriptApp.newTrigger(someFunc)
@@ -269,6 +288,7 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
       .create();
 }
 
+// Helper: delete any of our triggers.
 function clearRunningTriggers() {
   let triggerId = scriptProperties.getProperty('TRIGGER_ID');
   console.debug('[clearRunningTriggers] triggerID: ', triggerId);
@@ -278,6 +298,7 @@ function clearRunningTriggers() {
   scriptProperties.setProperty('TRIGGER_ID', 0);
 }
 
+// Helper: start a new 'restart' trigger, deleting any existing first.
 function startNewRestarTrigger(someFunc, secs) {
   clearRunningTriggers();
   let triggerId = createTimeDrivenTrigger(someFunc, secs); // 10 seconds.
@@ -287,13 +308,14 @@ function startNewRestarTrigger(someFunc, secs) {
   setStatusTitle('Pausing, will resume soon...');
 }
 
-// Helper: delete a trigger
+// Helper: delete a trigger by ID
 function deleteTrigger(triggerId) {
   var allTriggers = ScriptApp.getProjectTriggers();
   console.debug('[deleteTrigger] triggerID: ', triggerId, 
                 ' allTriggers.len: ', allTriggers.length);
   for (var i = 0; i < allTriggers.length; i++) {
     console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId());
+    logTrigger(allTriggers[i]);
     if (allTriggers[i].getUniqueId() === triggerId) {
       console.log('Deleting trigger!');
       ScriptApp.deleteTrigger(allTriggers[i]);
@@ -302,6 +324,7 @@ function deleteTrigger(triggerId) {
   }
 }
 
+// Helper: get a saved API key or else prompt for one.
 function getApiKey() {
   console.log('[getApiKey] ==>');
   let scriptProperties = PropertiesService.getScriptProperties();
@@ -320,6 +343,7 @@ function getApiKey() {
   return key;
 }
 
+// Helper: prompt for a new API key
 function resetApiKey() {
   console.debug('[resetApiKey] ==>');
   let ui = SpreadsheetApp.getUi();
@@ -332,6 +356,7 @@ function resetApiKey() {
   console.debug('<== [resetApiKey]');
 }
 
+// Wraps a call to UrlFetchApp()
 function queryData(url) {
   console.debug('[queryData] ==>');
   let object = null;
@@ -352,6 +377,6 @@ function queryData(url) {
     console.log('<== [queryData] Error.');
     throw({code: 'restart', error: e})
   }
-  console.debug('<== [queryData]');
+  console.debug('<== [queryData] ' + object);
   return object;
 }
