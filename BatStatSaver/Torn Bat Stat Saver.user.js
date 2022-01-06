@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -43,7 +43,7 @@
         log('[profileQueryCB]');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-        if (loggingEnabled) {console.log(GM_info.script.name + 'basic: ', jsonResp);}
+        log('basic: ', jsonResp);
 
         opponentLevel = jsonResp.level;
         opponentLastAction = jsonResp.last_action.relative;
@@ -61,7 +61,7 @@
         log('[statsQueryCB]');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-        if (loggingEnabled) {console.log(GM_info.script.name + 'attacks,battlestats: ', jsonResp);}
+        log('attacks,battlestats: ', jsonResp);
 
         let batStats = {'strength': jsonResp.strength,
                         'speed': jsonResp.speed,
@@ -69,7 +69,7 @@
                         'defense': jsonResp.defense,
                         'total': jsonResp.total,
                         'score': 0};
-        console.log('batstats: ', batStats);
+        log('batstats: ', batStats);
         let score = calculateScore(batStats);
         log('Calculated score: ' + score);
         batStats.score = score;
@@ -77,20 +77,23 @@
         let lastAttackJSON = getLastAttack(jsonResp.attacks);
         let lastAttack = lastAttackJSON.attack;
         let res = lastAttack.result.toLowerCase();
-        console.log('Last attack result: ' + res);
-        console.log('Last Attack opponent ID: ', lastAttack.defender_id);
+        log('Last attack result: ' + res);
+        log('Last Attack opponent ID: ', lastAttack.defender_id);
         if (lastAttack.defender_id != opponentID) { // Make sure we have the correct entry!
             log('**** Wrong attack! opp ID: ' + opponentID + ' ID in log: ' + lastAttack.defender_id);
-            //return;
+            statusLine.textContent = 'Internal error! Wrong ID in log.';
+            return;
         }
-        console.log('Last Attack ID: ', lastAttackJSON.id);
-        console.log('Last Attack: ', lastAttack);
-        console.log('Attack result: ', lastAttack.result);
+        log('Last Attack ID: ', lastAttackJSON.id);
+        log('Last Attack: ', lastAttack);
+        log('Attack result: ', lastAttack.result);
 
         // Don't send up junk results.
         // Possibilities: attacked, mugged, lost, assist, special, hospitalized, escape, stalemate, ???
         if (res == 'lost' || res == 'assist' || res == 'escape' || res == 'stalemate') {
             log("Didn't win this one, result = " + res + ". Not reporting.");
+            let statusLine = document.querySelector("#xedx-status");
+            statusLine.textContent = 'Not reporting a ' + res + '...';
             return;
         }
 
@@ -101,30 +104,26 @@
                         'result': lastAttack.result,
                         'lkg': tornStatSpy ? tornStatSpy.total : 0,
                         'when': tornStatSpy ? tornStatSpy.when : 0};
-        console.log('opponent: ', opponent);
+        log('opponent: ', opponent);
         let user = {'id': jsonResp.player_id, 'name': jsonResp.name};
         let modifiers = {'ff': lastAttack.modifiers.fair_fight,
                          'respect': lastAttack.respect_gain};
-        console.log('modifiers: ',modifiers);
+        log('modifiers: ',modifiers);
         let result = {'attack_result': {'id': lastAttackJSON.id, 'user': user, 'batstats': batStats, 'opponent': opponent, 'modifiers': modifiers}};
 
-        console.log('Attack Result: ', result);
-        console.log('Attack Result (stringified): ', JSON.stringify(result));
+        log('Attack Result: ', result);
+        log('Attack Result (stringified): ', JSON.stringify(result));
 
         // Send to server. Don't bother if FF == 1.00, may be too low or attacker is a recruit.
         if (Number(lastAttack.modifiers.fair_fight) != 1) {
             uploadAttackData(result);
         }
 
-        // Put an indicator in the attack window.
-        let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
-                                              "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
+        let statusLine = document.querySelector("#xedx-status");
         if (Number(lastAttack.modifiers.fair_fight) != 1) {
-            $(titleBar).append('<span style="color: red; font-size: 18px;">Fight data saved (FF = ' +
-                           lastAttack.modifiers.fair_fight + ')</span>');
+            statusLine.textContent = 'Fight data saved (FF = ' + lastAttack.modifiers.fair_fight + ')';
         } else {
-            $(titleBar).append('<span style="color: red; font-size: 18px;">Fight data not uploaded (FF = ' +
-                           lastAttack.modifiers.fair_fight + ')</span>');
+            statusLine.textContent = 'Fight data not uploaded (FF = ' + lastAttack.modifiers.fair_fight + ')';
         }
     }
 
@@ -139,10 +138,10 @@
                 "Content-Type": "Content-Type: application/json"
             },
             onload: function (response) {
-                console.log(response.responseText);
+                log('response: ', response.responseText);
             },
             onerror: function(error) {
-                console.log("error: ", error);
+                log("error: ", error);
             }
         } );
 
@@ -156,13 +155,8 @@
     // Get the last attack from the attack log.
     function getLastAttack(attacks) {
         let keys = Object.keys(attacks);
-        console.log('Keys: ', keys, ' length: ', keys.length);
-        let len = keys.length;
-        let key = keys[len-1];
-        log('Key: ' + key);
-        let la = attacks[key];
-        console.log('Last Attack: ', la);
-        return {'id': key, 'attack': la};
+        let key = keys[keys.length-1];
+        return {'id': key, 'attack': attacks[key]};
     }
 
     // Check the status of the fight periodically, once it appears, the fight is over, one way or another.
@@ -172,21 +166,24 @@
             let result = sel.innerText;
             if (result) {
                 let resultlc = result.toLowerCase();
-                // TBD: get list of results...
-                // THIS PERSON IS CURRENTLY IN HOSPITAL AND CANNOT BE ATTACKED
-                // Possibilities: attacked, mugged, lost, assist, special, hospitalized, escape, stalemate, ???
-                console.log('Result: ', sel.innerText);
+                log('Result: ', sel.innerText);
                 log('***** Fight Over! *****');
+                if (intId) clearInterval(intId);
 
                 if (resultlc.indexOf('cannot be attacked') > -1) return;
+                if (resultlc.indexOf('enough energy') > -1) return;
 
-                if (intId) clearInterval(intId);
                 if (resultlc.indexOf('lost') > -1) {
                     log('Bummer, you Lost!');
                     return;
                 }
                 // Something like 'you hospitalized, you mugged, ...
                 log('Good news, you won!');
+
+                // Add a staus indicator to header div
+                let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
+                                              "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
+                $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">Preparing to upload fight data...</span>');
                 setTimeout(getBatStats, 2000); // Give time for fight stats to get there.
             }
         }
