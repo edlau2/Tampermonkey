@@ -10,6 +10,7 @@ const totalsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Totals
 const statusTitleCell = totalsSheet.getRange('AA14');
 const statusCell = totalsSheet.getRange('AA15');
 const timeCell = totalsSheet.getRange('AA16');
+const dateCell = totalsSheet.getRange('AA17');
 const MAX_RUN_TIME = 275000;
 const NEW_CRIME_INT = 3600; // Seconds for new crimes trigger interval
 const OLD_CRIME_INT = 10; // Seconds for new crimes trigger interval
@@ -34,7 +35,8 @@ function timer_myPastCrimeLog() {
     fromTimer = true;
     myPastCrimeLog();
   } catch (e) {
-    console.log('[myPastCrimeLog, timer driven] error: ', e);
+    console.error('[myPastCrimeLog, timer driven] error: ', e);
+    throw(e);
   }
 }
 
@@ -43,7 +45,8 @@ function timer_myCurrentCrimeLog() {
     fromTimer = true;
     myCurrentCrimeLog();
   } catch (e) {
-    console.log('[myCurrentCrimeLog, timer driven] error: ', e);
+    console.error('[myCurrentCrimeLog, timer driven] error: ', e);
+    throw(e);
   }
 }
 
@@ -53,20 +56,21 @@ function myCurrentCrimeLog() {
   setStatusTitle('Getting current crime data...');
   updateElapsed();
   let jsonTornData = queryData(baseURL + "key=" + APIkey);
-  let keys = Object.keys(jsonTornData.log);
+  let keys = jsonTornData ? Object.keys(jsonTornData.log) : null;
   let lastlog = datasheet.getRange("A7").getValue();
-
-  setStatusTitle('Parsing current log data...');
-  if (keys.length <= 0) {
+  if (!keys || keys.length <= 0) {
     setStatusTitle('Nothing to do!');
+    setStatus('No new events.');
     return;
   }
 
+  setStatusTitle('Parsing current log data...');
   for (let i = 0; i < keys.length; i++) {
     setStatus('Parsing entry ' + (i+1) + ' of ' + keys.length);
-    updateElapsed();
     let row = 7 + i;
     let time = jsonTornData.log[keys[i]].timestamp;
+    updateElapsed();
+    updateEntryDate(time);
     
     if (time > lastlog) {
       datasheet.insertRowAfter(row-1);
@@ -108,16 +112,19 @@ function myPastCrimeLog() {
     } else {
       var lastgoodrow = lastrow - 1;
       lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
-      if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
+      //if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
       datasheet.deleteRow(lastrow);
       console.log('Getting data from last known date, ', lasteventdate);
     }
+
+    console.log('Retrieving data from: ' + theDate(lasteventdate));
 
     setStatusTitle('Getting past log data...');
     jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
     if (jsonTornData.log == null) { // No more data! All done'
       setStatusTitle('No more data, complete!');
       setStatus('');
+      console.log('Setting trigger for timer_myCurrentCrimeLog');
       startNewRestarTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
       return;
     }
@@ -148,33 +155,48 @@ function myPastCrimeLog() {
       
       setStatus('Parsing entry ' + (i+1) + ' of ' + keys.length);
       updateElapsed();
-      time = jsonTornData.log[keys[i]].timestamp;
-      let row = grouprow + 1 + i;
-      setRowFormulas(row, time);
-      
+      //time = jsonTornData.log[keys[i]].timestamp; // replace 'time' w/lasteventdate
+      lasteventdate = jsonTornData.log[keys[i]].timestamp;
+      updateEntryDate(lasteventdate);
+      let row = grouprow + 1 + i; // ??? Had moved this from *after* next line - row woud have been prev. row?
       logCrimeData(jsonTornData.log[keys[i]], row);
+      setRowFormulas(row, lasteventdate);
+      // End replace 'time' w/lasteventdate
+
+      console.log('Saving last date processed: ', lasteventdate, ' as date: ', theDate(lasteventdate));
+      scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);
       runtime = new Date() - starttime;
       console.log('runtime: ', runtime);
     }
 
     //record last timestamp from previous API call before making next call
+    // No longer required!
+    /*
     if (time) {
       lasteventdate = time;
+      console.log('Saving last timestamp, time: ', time, ' lasteventdate: ', lasteventdate);
       scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);  // Not sure if I'll need  this...
-      console.debug('Saved lasteventdate to storage: ', lasteventdate);
+      console.debug('Saved lasteventdate to storage: ', theDate(lasteventdate));
     }
+    */
+
     setStatus('Parse complete.');
+    console.log('Last event date: ', + theDate(lasteventdate));
+    console.log('runtime: ' + runtime);
 
     // Get next chunk of data (log entries) to parse, max 100 at a time.
     // API function call will sometimes return same crimes, repeat until new set with a pause
     let nextentry = firstentry; 
     let retries = 0;
+    console.log('Getting next entry for while loop, first entry = ' + theDate(firstentry));
     while (firstentry == nextentry) {
       url = baseURL + "to=" + lasteventdate + "&key=" + APIkey; // Is this inclusive?
+      console.log('url: ', url);
       try {
         jsonTornData = queryData(url);  
       } catch(e) {
         if (e.code == 'restart') {
+          console.log('Starting trigger: "e.code == `restart`" ~183');
           startNewRestarTrigger();
           return console.log('<== [myPastCrimeLog]');
         }
@@ -188,19 +210,25 @@ function myPastCrimeLog() {
         jsonTornData = null;
       }
 
+      if (!jsonTornData) console.log('No more data!! Should bail now!!!');
+
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME || !jsonTornData) {
+        console.log('Starting trigger: "runtime > MAX_RUN_TIME || !jsonTornData"');
         startNewRestarTrigger();
-        return console.log('<== [myPastCrimeLog]');
+        console.log('<== [myPastCrimeLog] jsonTornData: ' + jsonTornData);
+        return;
       }
 
       keys = Object.keys(jsonTornData.log);
       nextentry = jsonTornData.log[keys[0]].timestamp;
-      console.log('First entry: ', firstentry, " Next entry: ", nextentry, 
-          " lasteventdate: ", lasteventdate, " retries: ", retries);
+      console.log('Got next entry: ' + theDate(nextentry));
+      //console.log('First entry: ', firstentry, " Next entry: ", nextentry, 
+      //    " lasteventdate: ", lasteventdate, " retries: ", retries);
 
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME) {
+        console.log('Starting trigger: "runtime > MAX_RUN_TIME" ~211');
         startNewRestarTrigger();
         return console.log('<== [myPastCrimeLog]');
       }
@@ -216,6 +244,7 @@ function myPastCrimeLog() {
 
   // If we exceeded our max runtime, set a trigger to fire to restart.
   if (runtime > MAX_RUN_TIME) {
+    console.log('Starting trigger: "runtime > MAX_RUN_TIME" ~217');
     startNewRestarTrigger();
     return console.log('<== [myPastCrimeLog]');
   }
@@ -234,7 +263,7 @@ function setStatus(msg) {
 function setStatusTitle(msg) {
   console.debug(msg);
   statusTitleCell.setValue(msg);
-  }
+}
 
 // Helper to update elapsed time
 var displayTimeStart = 0;
@@ -243,6 +272,14 @@ function updateElapsed() {
   if (!displayTimeStart) return (displayTimeStart = now);
   let elapsed = now - displayTimeStart; 
   timeCell.setValue('Elapsed time: ' + millisToMinutesAndSeconds(elapsed));
+}
+
+function updateEntryDate(timestamp) {
+  dateCell.setValue('Entry: ' + theDate(timestamp));
+}
+
+function theDate(timestamp) {
+  return new Date(timestamp*1000).toLocaleString();
 }
 
 function millisToMinutesAndSeconds(millis) {
