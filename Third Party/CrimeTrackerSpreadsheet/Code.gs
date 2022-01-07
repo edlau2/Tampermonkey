@@ -322,12 +322,12 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 // Something is wrong here - the ID is incorrect (always'0.0')
 // Use new 'by func name' routing (could pass in name)
 function clearRunningTriggers() {
-  let result = deleteFunctionTriggers("time_myPastCrimeLog");
+  let result = deleteFunctionTriggers("timer_myPastCrimeLog");
   console.debug('Triggers cleared by func name: "' + result + '"');
 }
 
 // Helper: start a new 'restart' trigger, deleting any existing first.
-function startNewRestarTrigger(someFunc="time_myPastCrimeLog", secs=OLD_CRIME_INT) {
+function startNewRestarTrigger(someFunc="timer_myPastCrimeLog", secs=OLD_CRIME_INT) {
   clearRunningTriggers();
   let triggerId = createTimeDrivenTrigger(someFunc, secs); 
   scriptProperties.setProperty('RUN_NUMBER', ++runNumber);
