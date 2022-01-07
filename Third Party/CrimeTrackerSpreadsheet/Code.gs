@@ -62,16 +62,8 @@ function myPastCrimeLog() {
   let runtime = 0;
   let lastrow = datasheet.getLastRow();
 
-  // Delete any previously set trigger
-  let triggerId = scriptProperties.getProperty('TRIGGER_ID');
-  console.log('Trigger ID: ', triggerId);
-  if (triggerId) {
-    console.log('Deleting trigger: ', triggerId);
-    deleteTrigger(triggerId);
-    scriptProperties.setProperty('TRIGGER_ID', 0);
-  }
-
-  // Replace ^^ that with: clearRunningTriggers();
+  // Delete any previously set trigger(s))
+  clearRunningTriggers();
   
   // If log is empty, start with today's timestamp, else look for the earliest timestamp
   // Note: queryData() will rethrow on error. Catch it, if the error code is 'restart',
@@ -84,24 +76,30 @@ function myPastCrimeLog() {
       console.log('Getting data from now, ', lasteventdate);
     } else {
       var lastgoodrow = lastrow - 1;
-      lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
-      if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
+      //lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
+      //if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
       datasheet.deleteRow(lastrow);
       console.log('Getting data from last known date, ', lasteventdate);
     }
 
     setStatusTitle('Getting past log data...');
     jsonTornData = queryData(baseURL + "to=" + lasteventdate + "&key=" + APIkey);
-    keys = Object.keys(jsonTornData.log);
+    if (jsonTornData.log == null) { // No more data! All done'
+      setStatusTitle('No more data, complete!');
+      setStatus('');
+      return;
+    }
   } catch(e) { // Trap queryData() exceptions
     if (e.code == 'restart') {
       startNewRestarTrigger("myPastCrimeLog", 10);
       return console.log('<== [myPastCrimeLog]');
     }
+    console.log('Initial load, queryData error: ', e);
     return setStatus("queryData() failed!");
   }
 
-  if (keys.length <= 0) {
+  keys = Object.keys(jsonTornData.log);
+  if (keys.length <= 0) { // Shouldn't happen, returns NULL instead
     setStatusTitle('Nothing to do!');
     console.log('<== [myPastCrimeLog]');
     return;
@@ -130,8 +128,8 @@ function myPastCrimeLog() {
     //record last timestamp from previous API call before making next call
     if (time) {
       lasteventdate = time;
-      scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);  // Not sure if I'll need  this...
-      console.log('Saved lasteventdate to storage: ', lasteventdate);
+      //scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);  // Not sure if I'll need  this...
+      //console.log('Saved lasteventdate to storage: ', lasteventdate);
     }
     setStatus('Parse complete.');
 
@@ -148,6 +146,7 @@ function myPastCrimeLog() {
           startNewRestarTrigger("myPastCrimeLog", 10);
           return console.log('<== [myPastCrimeLog]');
         }
+        console.log('Parse complete. queryData error: ', e);
         return setStatus("queryData() failed!");
       }
 
@@ -276,8 +275,7 @@ function setRowFormulas(row, time) {
 // Debug fn: spit out what we know about a trigger.
 function logTrigger(trigger) {
   console.debug('Trigger ID ', trigger.getUniqueId() + '\n' +
-      'Handler: ', trigger.getHandlerFunction() + '\n' + 
-      'Trigger Source: ', trigger.getTriggerSource());
+      'Handler: ', trigger.getHandlerFunction());
 }
 
 // Helper: create time-driven trigger
@@ -289,13 +287,11 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 }
 
 // Helper: delete any of our triggers.
+// Something is wrong here - the ID is incorrect (always'0.0')
+// Use new 'by func name' routing (could pass in name)
 function clearRunningTriggers() {
-  let triggerId = scriptProperties.getProperty('TRIGGER_ID');
-  console.debug('[clearRunningTriggers] triggerID: ', triggerId);
-  if (triggerId) {
-    deleteTrigger(triggerId);
-  }
-  scriptProperties.setProperty('TRIGGER_ID', 0);
+  let result = deleteFunctionTriggers("myPastCrimeLog");
+  console.debug('Triggers cleared by func name: "' + result + '"');
 }
 
 // Helper: start a new 'restart' trigger, deleting any existing first.
@@ -309,7 +305,9 @@ function startNewRestarTrigger(someFunc, secs) {
 }
 
 // Helper: delete a trigger by ID
+/*
 function deleteTrigger(triggerId) {
+  let result = 0;
   var allTriggers = ScriptApp.getProjectTriggers();
   console.debug('[deleteTrigger] triggerID: ', triggerId, 
                 ' allTriggers.len: ', allTriggers.length);
@@ -319,9 +317,31 @@ function deleteTrigger(triggerId) {
     if (allTriggers[i].getUniqueId() === triggerId) {
       console.log('Deleting trigger!');
       ScriptApp.deleteTrigger(allTriggers[i]);
+      result++;
       break;
     }
   }
+  return result;
+}
+*/
+
+// Delete triggers by handler func name
+function deleteFunctionTriggers(funcName) {
+  let result = 0;
+  var allTriggers = ScriptApp.getProjectTriggers();
+  console.debug('[deleteFunctionTriggers] name: ', funcName, 
+                ' allTriggers.len: ', allTriggers.length);
+  for (var i = 0; i < allTriggers.length; i++) {
+    console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId(), 
+                ' Handler: ', allTriggers[i].getHandlerFunction());
+    logTrigger(allTriggers[i]);
+    if (allTriggers[i].getHandlerFunction() === funcName) {
+      console.log('Deleting trigger!');
+      ScriptApp.deleteTrigger(allTriggers[i]);
+      result++;
+    }
+  }
+  return result;
 }
 
 // Helper: get a saved API key or else prompt for one.
@@ -364,7 +384,8 @@ function queryData(url) {
   try {
     jsondata = UrlFetchApp.fetch(url);
   } catch(e) {
-    console.error('Error: ', e);
+    console.error('queryData Error: ', e);
+    console.log('url: ', url);
     console.log('<== [queryData] Error.');
     throw({code: 'restart', error: e})
   }
@@ -377,6 +398,8 @@ function queryData(url) {
     console.log('<== [queryData] Error.');
     throw({code: 'restart', error: e})
   }
-  console.debug('<== [queryData] ' + object);
+  console.debug('[queryData] jsondata: ', jsondata);
+  console.debug('[queryData] object: ', object);
+  console.debug('<== [queryData]');
   return object;
 }
