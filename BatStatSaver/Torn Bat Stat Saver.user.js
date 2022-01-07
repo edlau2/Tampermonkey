@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -187,7 +187,9 @@
                 // Add a staus indicator to header div
                 let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
                                               "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
-                $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">Preparing to upload fight data...</span>');
+                // Note: container is flex, so 2nd span centers the first.
+                $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">Preparing to upload fight data...</span>' +
+                                   '<span>&nbsp</span>');
                 setTimeout(getBatStats, 2000); // Give time for fight stats to get there.
             }
         }
