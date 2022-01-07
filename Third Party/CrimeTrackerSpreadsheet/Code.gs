@@ -11,6 +11,8 @@ const statusTitleCell = totalsSheet.getRange('AA14');
 const statusCell = totalsSheet.getRange('AA15');
 const timeCell = totalsSheet.getRange('AA16');
 const MAX_RUN_TIME = 275000;
+const NEW_CRIME_INT = 3600; // Seconds for new crimes trigger interval
+const OLD_CRIME_INT = 10; // Seconds for new crimes trigger interval
 const debug = true;
 var fromTimer = false;
 var runNumber = 1; // When loading old logs, keep track of how many runs
@@ -116,12 +118,12 @@ function myPastCrimeLog() {
     if (jsonTornData.log == null) { // No more data! All done'
       setStatusTitle('No more data, complete!');
       setStatus('');
-      startNewRestarTrigger("timer_myCurrentCrimeLog", 300);
+      startNewRestarTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
       return;
     }
   } catch(e) { // Trap queryData() exceptions
     if (e.code == 'restart') {
-      startNewRestarTrigger("timer_myPastCrimeLog", 10);
+      startNewRestarTrigger();
       return console.log('<== [myPastCrimeLog]');
     }
     console.log('Initial load, queryData error: ', e);
@@ -173,7 +175,7 @@ function myPastCrimeLog() {
         jsonTornData = queryData(url);  
       } catch(e) {
         if (e.code == 'restart') {
-          startNewRestarTrigger("timer_myPastCrimeLog", 10);
+          startNewRestarTrigger();
           return console.log('<== [myPastCrimeLog]');
         }
         console.log('Parse complete. queryData error: ', e);
@@ -188,7 +190,7 @@ function myPastCrimeLog() {
 
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME || !jsonTornData) {
-        startNewRestarTrigger("timer_myPastCrimeLog", 10);
+        startNewRestarTrigger();
         return console.log('<== [myPastCrimeLog]');
       }
 
@@ -199,7 +201,7 @@ function myPastCrimeLog() {
 
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME) {
-        startNewRestarTrigger("timer_myPastCrimeLog", 10);
+        startNewRestarTrigger();
         return console.log('<== [myPastCrimeLog]');
       }
 
@@ -214,7 +216,7 @@ function myPastCrimeLog() {
 
   // If we exceeded our max runtime, set a trigger to fire to restart.
   if (runtime > MAX_RUN_TIME) {
-    startNewRestarTrigger("timer_myPastCrimeLog", 10);
+    startNewRestarTrigger();
     return console.log('<== [myPastCrimeLog]');
   }
 
@@ -325,11 +327,12 @@ function clearRunningTriggers() {
 }
 
 // Helper: start a new 'restart' trigger, deleting any existing first.
-function startNewRestarTrigger(someFunc, secs) {
+function startNewRestarTrigger(someFunc="time_myPastCrimeLog", secs=OLD_CRIME_INT) {
   clearRunningTriggers();
-  let triggerId = createTimeDrivenTrigger(someFunc, secs); // 10 seconds.
+  let triggerId = createTimeDrivenTrigger(someFunc, secs); 
   scriptProperties.setProperty('RUN_NUMBER', ++runNumber);
   console.log('[startNewRestarTrigger] next run #' + runNumber + ' to start in ' + secs + ' seconds');
+  console.log('[startNewRestarTrigger] run function: ' + someFunc);
   setStatus('');
   setStatusTitle('Pausing, will resume soon...');
 }
