@@ -105,7 +105,7 @@ function myPastCrimeLog() {
       console.log('Getting data from now, ', lasteventdate);
     } else {
       var lastgoodrow = lastrow - 1;
-      //lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
+      lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
       if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
       datasheet.deleteRow(lastrow);
       console.log('Getting data from last known date, ', lasteventdate);
@@ -116,6 +116,7 @@ function myPastCrimeLog() {
     if (jsonTornData.log == null) { // No more data! All done'
       setStatusTitle('No more data, complete!');
       setStatus('');
+      startNewRestarTrigger("timer_myCurrentCrimeLog", 300);
       return;
     }
   } catch(e) { // Trap queryData() exceptions
