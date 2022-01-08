@@ -76,7 +76,8 @@ function myCurrentCrimeLog() {
       datasheet.insertRowAfter(row-1);
       setRowFormulas(row, time);
       logCrimeData(jsonTornData.log[keys[i]], row);
-    }
+    } // Could just 'break' here and be done, no real harm to continue
+      // Or invert the check to a '<'
   }
   setStatus('');
   setStatusTitle('Success!');
@@ -108,13 +109,11 @@ function myPastCrimeLog() {
     if (lastrow == 6) {
       jsonTornData = queryData(timestampURL);
       lasteventdate = jsonTornData.timestamp[0];
-      console.log('Getting data from now, ', lasteventdate);
     } else {
       var lastgoodrow = lastrow - 1;
       lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
       //if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
       datasheet.deleteRow(lastrow);
-      console.log('Getting data from last known date, ', lasteventdate);
     }
 
     console.log('Retrieving data from: ' + theDate(lasteventdate));
@@ -124,11 +123,10 @@ function myPastCrimeLog() {
     if (jsonTornData.log == null) { // No more data! All done'
       setStatusTitle('No more data, complete!');
       setStatus('');
-      console.log('Setting trigger for timer_myCurrentCrimeLog');
       startNewRestarTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
       return;
     }
-  } catch(e) { // Trap queryData() exceptions
+  } catch(e) { // Trap intentionally thrown queryData() exceptions
     if (e.code == 'restart') {
       startNewRestarTrigger();
       return console.log('<== [myPastCrimeLog]');
@@ -138,9 +136,9 @@ function myPastCrimeLog() {
   }
 
   keys = Object.keys(jsonTornData.log);
-  if (keys.length <= 0) { // Shouldn't happen, returns NULL instead
-    setStatusTitle('Nothing to do!');
-    console.log('<== [myPastCrimeLog]');
+  if (keys.length <= 0) {                // Shouldn't happen, returns NULL instead. 
+    setStatusTitle('Nothing to do!');    // Should prob install the current crime log trigger here.
+    console.log('<== [myPastCrimeLog]'); 
     return;
   }
 
@@ -155,30 +153,17 @@ function myPastCrimeLog() {
       
       setStatus('Parsing entry ' + (i+1) + ' of ' + keys.length);
       updateElapsed();
-      //time = jsonTornData.log[keys[i]].timestamp; // replace 'time' w/lasteventdate
       lasteventdate = jsonTornData.log[keys[i]].timestamp;
       updateEntryDate(lasteventdate);
-      let row = grouprow + 1 + i; // ??? Had moved this from *after* next line - row woud have been prev. row?
+      let row = grouprow + 1 + i;
       logCrimeData(jsonTornData.log[keys[i]], row);
       setRowFormulas(row, lasteventdate);
-      // End replace 'time' w/lasteventdate
 
       console.log('Saving last date processed: ', lasteventdate, ' as date: ', theDate(lasteventdate));
       scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);
       runtime = new Date() - starttime;
       console.log('runtime: ', runtime);
     }
-
-    //record last timestamp from previous API call before making next call
-    // No longer required!
-    /*
-    if (time) {
-      lasteventdate = time;
-      console.log('Saving last timestamp, time: ', time, ' lasteventdate: ', lasteventdate);
-      scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);  // Not sure if I'll need  this...
-      console.debug('Saved lasteventdate to storage: ', theDate(lasteventdate));
-    }
-    */
 
     setStatus('Parse complete.');
     console.log('Last event date: ', + theDate(lasteventdate));
@@ -210,8 +195,6 @@ function myPastCrimeLog() {
         jsonTornData = null;
       }
 
-      if (!jsonTornData) console.log('No more data!! Should bail now!!!');
-
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME || !jsonTornData) {
         console.log('Starting trigger: "runtime > MAX_RUN_TIME || !jsonTornData"');
@@ -223,12 +206,9 @@ function myPastCrimeLog() {
       keys = Object.keys(jsonTornData.log);
       nextentry = jsonTornData.log[keys[0]].timestamp;
       console.log('Got next entry: ' + theDate(nextentry));
-      //console.log('First entry: ', firstentry, " Next entry: ", nextentry, 
-      //    " lasteventdate: ", lasteventdate, " retries: ", retries);
 
       runtime = new Date() - starttime;
       if (runtime > MAX_RUN_TIME) {
-        console.log('Starting trigger: "runtime > MAX_RUN_TIME" ~211');
         startNewRestarTrigger();
         return console.log('<== [myPastCrimeLog]');
       }
@@ -244,7 +224,6 @@ function myPastCrimeLog() {
 
   // If we exceeded our max runtime, set a trigger to fire to restart.
   if (runtime > MAX_RUN_TIME) {
-    console.log('Starting trigger: "runtime > MAX_RUN_TIME" ~217');
     startNewRestarTrigger();
     return console.log('<== [myPastCrimeLog]');
   }
