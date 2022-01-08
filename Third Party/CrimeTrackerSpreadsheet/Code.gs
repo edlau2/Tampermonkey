@@ -110,7 +110,7 @@ function myPastCrimeLog() {
       jsonTornData = queryData(timestampURL);
       lasteventdate = jsonTornData.timestamp[0];
     } else {
-      var lastgoodrow = lastrow - 1;
+      //var lastgoodrow = lastrow - 1;
       lasteventdate = scriptProperties.getProperty('LAST_EVENT_DATE');
       //if (!lasteventdate) lasteventdate = datasheet.getRange("A" + lastgoodrow).getValue(); // failsafe
       datasheet.deleteRow(lastrow);
@@ -132,7 +132,8 @@ function myPastCrimeLog() {
       return console.log('<== [myPastCrimeLog]');
     }
     console.log('Initial load, queryData error: ', e);
-    return setStatus("queryData() failed!");
+    setStatus("queryData() failed!");
+    throw(e); // Exception will bubble up, show on sheet.
   }
 
   keys = Object.keys(jsonTornData.log);
@@ -186,7 +187,8 @@ function myPastCrimeLog() {
           return console.log('<== [myPastCrimeLog]');
         }
         console.log('Parse complete. queryData error: ', e);
-        return setStatus("queryData() failed!");
+        setStatus("queryData() failed!");
+        throw(e); // Exception will bubble up, show on sheet.
       }
 
       if (!jsonTornData || !jsonTornData.log) {
@@ -269,55 +271,68 @@ function millisToMinutesAndSeconds(millis) {
 
 // Helper: log crime data
 function logCrimeData(logEntry, row) {
-  let categorynum = logEntry.log;
-  if (categorynum == "8842") { // Nerve bar change
-    var nervechange = 
-      "Nerve has increased from " + logEntry.data.maximum_nerve_before + " to " + logEntry.data.maximum_nerve_after;
-    datasheet.getRange("D"+ row ).setValue(nervechange);
-  } else { // OC or reguar crimes
-    var crime = logEntry.data.crime;
-    datasheet.getRange("B"+ row ).setValue(crime);
-    
-    if (categorynum == "6791") { // OCs
-      var result = logEntry.data.result;
-    } else { // Regular crimes
-      var result = logEntry.title;
-      logMoneyGains(logEntry, row);
+  try {
+    let categorynum = logEntry.log;
+    if (categorynum == "8842") { // Nerve bar change
+      var nervechange = "Nerve has increased from " + logEntry.data.maximum_nerve_before + " to " + 
+            logEntry.data.maximum_nerve_after;
+      datasheet.getRange("D"+ row ).setValue(nervechange);
+    } else { // OC or reguar crimes
+      var crime = logEntry.data.crime;
+      datasheet.getRange("B"+ row ).setValue(crime);
+      
+      let result = null;
+      if (categorynum == "6791") { // OCs
+        result = logEntry.data.result;
+      } else { // Regular crimes
+        result = logEntry.title;
+        logMoneyGains(logEntry, row);
+      }
+      datasheet.getRange("D"+ row ).setValue(result);
     }
-    datasheet.getRange("D"+ row ).setValue(result);
+  } catch (e) {
+    console.error('[logCrimeData] Error: ', e);
   }
 }
 
 // Helper: record money gains
 function logMoneyGains(logEntry, row) {
-  console.debug('[logMoneyGains] ==>');
-  let money_gain = logEntry.data.money_gained;
-  let money_lost = logEntry.data.money_lost;
-  let item_gain = logEntry.data.item_gained;
+  try {
+    console.debug('[logMoneyGains] ==>');
+    let money_gain = logEntry.data.money_gained;
+    let money_lost = logEntry.data.money_lost;
+    let item_gain = logEntry.data.item_gained;
 
-  datasheet.getRange("F"+ row ).setValue(money_gain);
-  datasheet.getRange("G"+ row ).setValue(money_lost);
-  datasheet.getRange("H"+ row ).setValue(item_gain);
-  console.debug('<== [logMoneyGains]');
+    datasheet.getRange("F"+ row ).setValue(money_gain);
+    datasheet.getRange("G"+ row ).setValue(money_lost);
+    datasheet.getRange("H"+ row ).setValue(item_gain);
+    console.debug('<== [logMoneyGains]');
+  } catch (e) {
+    console.error('[logMoneyGains] Error: ', e);
+  }
 }
 
 // Helper - set row formulas
 function setRowFormulas(row, time) {
-  console.debug('[setRowFormulas] ==>');
-  let formulaC = "=if(B"+row +"=\"\",\"\",if(or(D"+row +"=\"failure\",D"+row +
-                "=\"success\"),vlookup(B"+row +",OCs,2,false),vlookup(B"+row +",Crimes,2,false)))";
-  let formulaE = "=if(B"+row +"=\"\",\"\", vlookup(D"+row +",Results,2,false))";
-  let formulaI = "=if(isblank(H"+row +"),sum(F"+row +",-G"+row +"),vlookup(H"+row +",Items,10,false))";
-  let formulaJ = "=if(B"+row +"=\"\",\"\",if(D"+row +"=\"success\",vlookup(B"+row +
-                 ",OCs,3,false),vlookup(B"+row +",Crimes,3,false)*ifs(E"+row +
-                "=\"Success\",1,E"+row +"=\"Jail\",-20,True,0)))";
+  try {
+    console.debug('[setRowFormulas] ==>');
+    let formulaC = "=if(B"+row +"=\"\",\"\",if(or(D"+row +"=\"failure\",D"+row +
+                  "=\"success\"),vlookup(B"+row +",OCs,2,false),vlookup(B"+row +",Crimes,2,false)))";
+    let formulaE = "=if(B"+row +"=\"\",\"\", vlookup(D"+row +",Results,2,false))";
+    let formulaI = "=if(isblank(H"+row +"),sum(F"+row +",-G"+row +"),vlookup(H"+row +",Items,10,false))";
+    let formulaJ = "=if(B"+row +"=\"\",\"\",if(D"+row +"=\"success\",vlookup(B"+row +
+                  ",OCs,3,false),vlookup(B"+row +",Crimes,3,false)*ifs(E"+row +
+                  "=\"Success\",1,E"+row +"=\"Jail\",-20,True,0)))";
 
-  datasheet.getRange("A"+ row ).setValue(time);
-  datasheet.getRange("C" + row).setFormula(formulaC);
-  datasheet.getRange("E" + row).setFormula(formulaE);
-  datasheet.getRange("I" + row).setFormula(formulaI);
-  datasheet.getRange("J" + row).setFormula(formulaJ);
-  console.debug('<== [setRowFormulas]');
+    datasheet.getRange("A"+ row ).setValue(time);
+    datasheet.getRange("C" + row).setFormula(formulaC);
+    datasheet.getRange("E" + row).setFormula(formulaE);
+    datasheet.getRange("I" + row).setFormula(formulaI);
+    datasheet.getRange("J" + row).setFormula(formulaJ);
+    console.debug('<== [setRowFormulas]');
+  } catch (e) {
+    console.error('[setRowFormulas] Error: ', e);
+  }
 }
 
 // Debug fn: spit out what we know about a trigger.
@@ -334,15 +349,13 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
       .create();
 }
 
-// Helper: delete any of our triggers.
-// Something is wrong here - the ID is incorrect (always'0.0')
-// Use new 'by func name' routing (could pass in name)
+// Helper: delete any of our triggers. Only deletes past crime log triggers.
 function clearRunningTriggers() {
   let result = deleteFunctionTriggers("timer_myPastCrimeLog");
-  console.debug('Triggers cleared by func name: "' + result + '"');
+  console.debug('Triggers cleared by func name: ' + result + '');
 }
 
-// Helper: start a new 'restart' trigger, deleting any existing first.
+// Helper: start a new 'restart' trigger, deleting any existing past crimes ones first.
 function startNewRestarTrigger(someFunc="timer_myPastCrimeLog", secs=OLD_CRIME_INT) {
   clearRunningTriggers();
   let triggerId = createTimeDrivenTrigger(someFunc, secs); 
@@ -406,26 +419,21 @@ function resetApiKey() {
 
 // Wraps a call to UrlFetchApp()
 function queryData(url) {
-  console.debug('[queryData] ==>');
   let object = null;
-  let jsondata = null;
   try {
-    jsondata = UrlFetchApp.fetch(url);
+    console.debug('[queryData] ==>');
+    let jsondata = UrlFetchApp.fetch(url);
+    object = jsondata ? JSON.parse(jsondata.getContentText()) : null;
   } catch(e) {
-    console.error('UrlFetchApp Error: ', e);
-    console.log('url: ', url);
-    console.log('<== [queryData] Error.');
+    console.error('<== [queryData] Error: ', e);
     throw({code: 'restart', error: e})
   }
 
-  // This line fails sometimes. Need to catch the exception. Not sure why it fails...
-  try {
-    object = JSON.parse(jsondata.getContentText());
-  } catch(e) {
-    console.error('JSON.parse Error: ', e);
-    console.log('<== [queryData] Error.');
-    throw({code: 'restart', error: e})
-  }
   console.debug('<== [queryData]');
   return object;
 }
+
+
+
+
+
