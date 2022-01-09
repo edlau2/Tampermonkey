@@ -12,7 +12,7 @@ const statusCell = totalsSheet.getRange('AA15');
 const timeCell = totalsSheet.getRange('AA16');
 const dateCell = totalsSheet.getRange('AA17');
 const MAX_RUN_TIME = 275000;
-const NEW_CRIME_INT = 3600; // Seconds for new crimes trigger interval
+const NEW_CRIME_INT = 60; // Minutes for new crimes trigger interval
 const OLD_CRIME_INT = 10; // Seconds for new crimes trigger interval
 const debug = true;
 var fromTimer = false;
@@ -123,7 +123,7 @@ function myPastCrimeLog() {
     if (jsonTornData.log == null) { // No more data! All done'
       setStatusTitle('No more data, complete!');
       setStatus('');
-      startNewRestarTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
+      startPeriodicTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
       return;
     }
   } catch(e) { // Trap intentionally thrown queryData() exceptions
@@ -150,7 +150,11 @@ function myPastCrimeLog() {
     let grouprow = datasheet.getLastRow();
     let firstentry = jsonTornData.log[keys[0]].timestamp;
     for (let i = 0; i < keys.length; i++) {
-      if (runtime > MAX_RUN_TIME) break;
+      if (runtime > MAX_RUN_TIME) {
+        startNewRestarTrigger();
+        console.log('<== [myPastCrimeLog] (max runtime exceeded)');
+        return;
+      }
       
       setStatus('Parsing entry ' + (i+1) + ' of ' + keys.length);
       updateElapsed();
@@ -191,14 +195,22 @@ function myPastCrimeLog() {
         throw(e); // Exception will bubble up, show on sheet.
       }
 
-      if (!jsonTornData || !jsonTornData.log) {
-        console.error('[myPastCrimeLog] jsonTornData error: ', jsonTornData);
-        console.debug('Finished with past data?');
-        jsonTornData = null;
+      if (!jsonTornData) { //} || !jsonTornData.log) { // Must be finished!
+        console.error('[myPastCrimeLog] jsonTornData unknown error');
+        startNewRestarTrigger();
+        console.log('<== [myPastCrimeLog] (error)');
+        return;
       }
 
+      if (!jsonTornData.log) { // Must be finished!)
+        setStatus('');
+        setStatusTitle('Success!');
+        console.log('<== [myPastCrimeLog] (complete)');
+        return;
+        }
+
       runtime = new Date() - starttime;
-      if (runtime > MAX_RUN_TIME || !jsonTornData) {
+      if (runtime > MAX_RUN_TIME) {
         console.log('Starting trigger: "runtime > MAX_RUN_TIME || !jsonTornData"');
         startNewRestarTrigger();
         console.log('<== [myPastCrimeLog] jsonTornData: ' + jsonTornData);
@@ -208,18 +220,12 @@ function myPastCrimeLog() {
       keys = Object.keys(jsonTornData.log);
       nextentry = jsonTornData.log[keys[0]].timestamp;
       console.log('Got next entry: ' + theDate(nextentry));
-
-      runtime = new Date() - starttime;
-      if (runtime > MAX_RUN_TIME) {
-        startNewRestarTrigger();
-        return console.log('<== [myPastCrimeLog]');
-      }
-
       if (firstentry == nextentry) {
         retries++;
         Utilities.sleep(8000);
       }
     }
+    
     //check runtime after each call, ends at 5 minutes
     runtime = new Date() - starttime;
   }
@@ -227,23 +233,43 @@ function myPastCrimeLog() {
   // If we exceeded our max runtime, set a trigger to fire to restart.
   if (runtime > MAX_RUN_TIME) {
     startNewRestarTrigger();
-    return console.log('<== [myPastCrimeLog]');
+    console.log('<== [myPastCrimeLog] (max runtime exceeded)');
+    return;
   }
 
   setStatus('');
   setStatusTitle('Success!');
-  console.log('<== [myPastCrimeLog]');
+  console.log('<== [myPastCrimeLog] (complete)');
 }
 
 // Helpers to indicate status on the main sheet.
 function setStatus(msg) {
-  console.debug(msg);
-  statusCell.setValue(msg);
+  try {
+    console.debug(msg);
+    if (statusCell) {
+      statusCell.setValue(msg);
+    } else {
+      statusCell = totalsSheet.getRange('AA15');
+      if (statusCell) statusCell.setValue(msg);
+    }
+  } catch (e) {
+    console.error('Exception in [setStatus] (ignored): ' ,e);
   }
+}
 
 function setStatusTitle(msg) {
-  console.debug(msg);
-  statusTitleCell.setValue(msg);
+  try {
+    console.debug(msg);
+    statusTitleCell.setValue(msg);
+    if (statusTitleCell) {
+      statusTitleCell.setValue(msg);
+    } else {
+      statusTitleCell = totalsSheet.getRange('AA14');
+      if (statusTitleCell) statusCell.setValue(msg);
+    }
+  } catch (e) {
+    console.error('Exception in [statusTitleCell] (ignored): ' ,e);
+  }
 }
 
 // Helper to update elapsed time
@@ -346,6 +372,17 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
   return ScriptApp.newTrigger(someFunc)
       .timeBased()
       .after(timeSecs * 1000) // After timeSecs seconds 
+      .create();
+}
+
+// Helper: create a periodic (ever timeMins minutes) trigger
+function startPeriodicTrigger(someFunc, timeMins) {
+  clearRunningTriggers();
+  setStatusTitle('Will recheck in' + timeMins + ' minutes');
+  setStatus('');
+  return ScriptApp.newTrigger(someFunc)
+      .timeBased()
+      .everyMinutes(timeMins) // After timeMins minutes 
       .create();
 }
 
