@@ -12,7 +12,7 @@ const statusCell = totalsSheet.getRange('AA15');
 const timeCell = totalsSheet.getRange('AA16');
 const dateCell = totalsSheet.getRange('AA17');
 const MAX_RUN_TIME = 275000;
-const NEW_CRIME_INT = 60; // Minutes for new crimes trigger interval
+const NEW_CRIME_INT = 1; // Hours for new crimes trigger interval
 const OLD_CRIME_INT = 10; // Seconds for new crimes trigger interval
 const debug = true;
 var fromTimer = false;
@@ -239,6 +239,7 @@ function myPastCrimeLog() {
 
   setStatus('');
   setStatusTitle('Success!');
+  startPeriodicTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
   console.log('<== [myPastCrimeLog] (complete)');
 }
 
@@ -376,13 +377,12 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 }
 
 // Helper: create a periodic (ever timeMins minutes) trigger
-function startPeriodicTrigger(someFunc, timeMins) {
+function startPeriodicTrigger(someFunc, hours) {
   clearRunningTriggers();
-  setStatusTitle('Will recheck in' + timeMins + ' minutes');
-  setStatus('');
+  setStatus('Will recheck in' + hours + ' hour(s)');
   return ScriptApp.newTrigger(someFunc)
       .timeBased()
-      .everyMinutes(timeMins) // After timeMins minutes 
+      .everyHours(hours)
       .create();
 }
 
