@@ -213,6 +213,7 @@ function myPastCrimeLog() {
       if (!jsonTornData.log) { // Must be finished!)
         setStatus('');
         setStatusTitle('Success!');
+        startPeriodicTrigger("timer_myCurrentCrimeLog", NEW_CRIME_INT);
         console.log('<== [myPastCrimeLog] (complete)');
         return;
         }
