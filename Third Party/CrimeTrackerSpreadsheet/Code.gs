@@ -27,6 +27,12 @@ var runNumber = 1; // When loading old logs, keep track of how many runs
 if (!debug) {console.debug = function(){};}
 else {console.debug = function(...x){console.log(...x)};}
 
+// TEMPORARY function to set the 'lasteventdate' to anything 
+function setLastEventDate() {
+  const date = 1641333302;
+  scriptProperties.setProperty('LAST_EVENT_DATE', date);
+}
+
 // Stubs to launch the two main functions, so I can detect if timer-driven
 // or menu driven (or editor driven). These call the normal functions in a
 // try-catch block to catch any completely unhandled exceptions.
