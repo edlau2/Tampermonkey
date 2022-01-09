@@ -379,6 +379,7 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 // Helper: create a periodic (ever timeMins minutes) trigger
 function startPeriodicTrigger(someFunc, hours) {
   clearRunningTriggers();
+  deleteFunctionTriggers(someFunc);
   setStatus('Will recheck in' + hours + ' hour(s)');
   return ScriptApp.newTrigger(someFunc)
       .timeBased()
