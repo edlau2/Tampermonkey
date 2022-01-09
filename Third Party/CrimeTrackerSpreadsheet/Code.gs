@@ -67,8 +67,10 @@ function myCurrentCrimeLog() {
   let keys = jsonTornData ? Object.keys(jsonTornData.log) : null;
   let lastlog = datasheet.getRange("A7").getValue();
   if (!keys || keys.length <= 0) {
-    setStatusTitle('Nothing to do!');
-    setStatus('No new events.');
+    setStatusTitle('No new crimes!');
+    setStatus('Will check for new crimes every hour.');
+    timeCell.setValue('');
+    dateCell.setValue('');
     return;
   }
 
@@ -87,8 +89,11 @@ function myCurrentCrimeLog() {
     } // Could just 'break' here and be done, no real harm to continue
       // Or invert the check to a '<'
   }
-  setStatus('');
+
   setStatusTitle('Success!');
+  setStatus('Will check for new crimes every hour.');
+  timeCell.setValue('');
+  dateCell.setValue('');
   console.log('<== [myCurrentCrimeLog]');
 }
 
