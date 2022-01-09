@@ -27,10 +27,12 @@ var runNumber = 1; // When loading old logs, keep track of how many runs
 if (!debug) {console.debug = function(){};}
 else {console.debug = function(...x){console.log(...x)};}
 
-// TEMPORARY function to set the 'lasteventdate' to anything 
-function setLastEventDate() {
-  const date = 1641333302;
-  scriptProperties.setProperty('LAST_EVENT_DATE', date);
+// TEMPORARY function to set the 'lasteventdate' to last row on the 'Log' sheet 
+function debug_setLastEventDate() {
+  let lastrow = datasheet.getLastRow();
+  let lasteventdate = datasheet.getRange("A" + lastrow).getValue();
+  console.log('Setting last event date to: ', lasteventdate + ' (', theDate(lasteventdate), ')')
+  scriptProperties.setProperty('LAST_EVENT_DATE', lasteventdate);
 }
 
 // Stubs to launch the two main functions, so I can detect if timer-driven
