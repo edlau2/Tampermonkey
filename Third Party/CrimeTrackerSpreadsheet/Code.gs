@@ -389,7 +389,11 @@ function createTimeDrivenTrigger(someFunc, timeSecs) {
 function startPeriodicTrigger(someFunc, hours) {
   clearRunningTriggers();
   deleteFunctionTriggers(someFunc);
-  setStatus('Will recheck in' + hours + ' hour(s)');
+  let popDate = new Date(Date.now() + (hours * (60 * 60 * 1000)));
+  setStatus('Will check for new crimes every hour.');
+  //timeCell.setValue(popDate.toLocaleString('en-GB', { timeZone: 'UTC' }) + ' TCT');
+  timeCell.setValue('');
+  dateCell.setValue('');
   return ScriptApp.newTrigger(someFunc)
       .timeBased()
       .everyHours(hours)
