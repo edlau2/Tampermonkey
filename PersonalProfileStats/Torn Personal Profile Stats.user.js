@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.5
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -86,8 +86,6 @@
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
-        if (loggingEnabled) {console.log(GM_info.script.name + 'Personal stats: ', jsonResp);}
-
         let userNW = jsonResp.personalstats.networth;
         let userCrimes = jsonResp.criminalrecord.total;
         let userLvl = jsonResp.level;
@@ -118,6 +116,14 @@
             log('Error getting spy! Response text: ' + respText);
         } else {
             if (data.spy.status) {
+                // If no total, adjust high/low accordingly!!!
+                let low = 0;
+                if (!data.spy.total || isNaN(data.spy.total)) {
+                    const nFilter = function(x){return isNaN(x) ? 0 : x;}
+                    low = nFilter(data.spy.speed) + nFilter(data.spy.strength) +
+                                     nFilter(data.spy.dexterity) + nFilter(data.spy.defense);
+                    log('No spy total, adjusted "low" to ' + low);
+                }
                 jsonSpy = {status: data.spy.status,
                            speed: data.spy.speed,
                            strength: data.spy.strength,
@@ -127,7 +133,8 @@
                            lkg: data.spy.difference,
                            estimate: data.spy.total,
                            high: data.spy.total,
-                           low: data.spy.total};
+                           low: low ? low : data.spy.total};
+                log('Spy result: ', jsonSpy);
             }
         }
 
@@ -150,11 +157,11 @@
                 callback(response.responseText, ID);
             },
             onerror: function(response) {
-                console.log('HTTP Error: ', response);
+                log('HTTP Error: ', response);
                 addBatStatsToProfile(); // Recover!
             }});
         } catch(e) {
-            console.log('Error: ', e);
+            log('Error: ', e);
             addBatStatsToProfile(); // Recover!
         }
     }
@@ -162,7 +169,7 @@
     // Parses the JSON data from our custom FF bat stat estimate, into a JSON object:
     // {estimate: estStat, low: lowStat, high: highStat}
     function customBatStatEstCB(resp, ID) {
-        console.log('*** Custom stats: ', resp);
+        log('*** Custom stats: ', resp);
         let values = [];
 
         try {
@@ -170,16 +177,16 @@
             let keys = Object.keys(obj);
             for (let i=0; i<keys.length; i++) {
                 let stats = obj[keys[i]].oppStatsLow;
-                console.log('stats: ', stats);
+                log('stats: ', stats);
                 if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
-                console.log('stats: ', stats);
+                log('stats: ', stats);
                 values.push(stats);
             }
         } catch(e) {
-            console.log('[customBatStatEstCB] Error: ', e);
+            log('[customBatStatEstCB] Error: ', e);
         }
 
-        console.log('values: ', values);
+        log('values: ', values);
         if (values.length) {
             let estStat = Math.max(...values);
             let lowStat = estStat;
@@ -228,9 +235,9 @@
     var custBatStats = {estimate: 0, low: 0, high: 0};
 
     function getBestValues() {
-        console.log(GM_info.script.name + ' batStats: ', batStats);
-        console.log(GM_info.script.name + ' custBatStats: ',  custBatStats);
-        console.log(GM_info.script.name + ' jsonSpy: ', jsonSpy);
+        log('batStats: ', batStats);
+        log('custBatStats: ',  custBatStats);
+        log('jsonSpy: ', jsonSpy);
 
         // No spy or custom estimate: return basic estimate
         if (!jsonSpy.estimate && !custBatStats.low) return batStats.estimate;
@@ -280,6 +287,7 @@
             if (jsonSpy.low > custBatStats.low) { // Just use the spy
                 return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
             } else {
+                let estDisplay = massageEstimate(custBatStats.estimate);
                 return 'Over ' + estDisplay + ' (FF estimate)';
                 //return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
             }
