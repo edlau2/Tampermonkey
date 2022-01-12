@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Secret Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Detects when your 'secret' changes.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
