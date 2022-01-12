@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Secret Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.4
 // @description  Detects when your 'secret' changes.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -38,6 +38,10 @@
 
     const savedSecret = GM_getValue('secret'); 
     var secret = $('script[secret]').attr("secret");
+    let msg = 'Secrets: \n\n' +
+              'Saved : ' + savedSecret + '\n' +
+              'Secret: ' + secret;
+    log(msg);
     if (savedSecret == undefined || !savedSecret) {
         log('Saving current secret: ', secret);
         GM_setValue('secret',  secret);
