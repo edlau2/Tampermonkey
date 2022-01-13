@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php?page=people*
@@ -15,15 +15,24 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
 
     const loggingEnabled = true;
     var requestsPaused = false;
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
-    //const cacheMaxSecs = 600 * 1000; // 10 min in ms
-    const cacheMaxSecs = 180 * 1000; // 3 min in ms
+    const cacheMaxSecs = 600 * 1000; // 10 min in ms
+    //const cacheMaxSecs = 180 * 1000; // 3 min in ms
     //const cacheMaxSecs = 60 * 1000; // 1 min in ms
+
+    const recoverableErrors = [5, // Too many requests
+                               8, // IP Block
+                               9, // API disabled
+                               ];
 
     // Global cache of ID->Rank associations
     var rank_cache = [{ID: 0, numeric_rank: 0, access: 0}];
@@ -31,18 +40,42 @@
         return {ID: ID, numeric_rank: rank, access: new Date().getTime()};
     }
 
-    // Query profile information based on ID
-    function getRankFromId(ID, li, optMsg = null) {
-        log("Querying Torn for rank, ID = " + ID + 'Requests are ' + requestsPaused ? 'PAUSED' : 'ACTIVE');
+    // Queue of rank from ID requests, from the Torn API
+    const queueIntms = 250; // Ms between popping queue item
+    var queryQueue = []; // The queue
+    var queryQueueId = null; // ID for queue check interval
+    function processQueryQueue() {processQueueMsg(queryQueue.pop());} // Pop message from queue and dispatch
+
+    function processQueueMsg(msg) { // Process a queued message (request) for rank from ID
+        if (!validPointer(msg)) return;
+        let ID = msg.ID;
+        let li = msg.li;
+        let optMsg = msg.optMsg;
+
+        log('Processing queued ID ' + ID);
         if (optMsg) {log(optMsg)};
         if (requestsPaused) {
-            log("Requests pause, can't make request. Try refreshing later.");
-            setTimeout(function(){
-                log('Queueing ' + ID + ' for later.');
-                getRankFromId(ID, li, "Requeud from previous pause!");}, 20000);
-            return;
+            log("Requests pause, can't make request. Will retry later.");
+            return queryQueue.push(msg);
         }
         xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+    }
+
+    // Query profile information based on ID. Places on a queue for later processing
+    function getRankFromId(ID, li, optMsg = null) {
+        log("Querying Torn for rank, ID = " + ID + 'Requests are ' + requestsPaused ? 'PAUSED' : 'ACTIVE');
+        let msg = {ID: ID, li: li, optMsg: optMsg};
+        queryQueue.push(msg);
+        if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, queueIntms);}
+    }
+
+    function pauseRequests(timeout) {
+        if (!requestsPaused) {setTimeout(function(){
+            requestsPaused = false;
+            log('Restarting requests.');}, timeout*1000); // Turn back on in 'timeout' secs.
+        }
+        log('Pausing requests for ' + timeout + ' seconds.');
+        return (requestsPaused = true);
     }
 
     function updateUserLevelsCB(responseText, ID, li) {
@@ -50,13 +83,8 @@
         log("updateUserLevelsCB = " + ID);
         if (jsonResp.error) {
             log('Error: ' + JSON.stringify(jsonResp.error));
-            if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
-                if (!requestsPaused) {setTimeout(function(){
-                    requestsPaused = false;
-                    log('Restarting requests.');}, 15000);  // Turn back on in 15 secs.
-                }
-                log(requestsPaused ? 'Requests already paused' : 'Pausing requests.');
-                requestsPaused = true;
+            if (recoverableErrors.includes(jsonResp.error.code)) { // Recoverable - pause for now.
+                pauseRequests(15); // Pause for 15 secs
             }
             return handleError(responseText);
         }
@@ -106,7 +134,7 @@
             cacheObj.access = now;
             rank_cache.push(cacheObj);
             log("Returning storage cached rank: " + ID + " ==> " + cacheObj.numeric_rank);
-            updateLiWithRank(li, rank_cache[i].numeric_rank);
+            updateLiWithRank(li, cacheObj.numeric_rank);
             return cacheObj.numeric_rank;
         }
         log("didn't find " + ID + " in cache. Cache has " + rank_cache.length + " items.");
@@ -219,7 +247,7 @@
         setInterval(function() {
             log('**** Performing interval driven cache clearing ****');
             clearStorageCache();},
-                    (0.5*cacheMaxSecs)); // And at intervals, half max cache age.
+                    (0.5*cacheMaxSecs)); // Check for expired cache entries at intervals, half max cache age.
 
         //var contentRootName = "content";
         var ulRootContainerName = 'travel-people';
