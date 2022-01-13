@@ -16,6 +16,8 @@
 (function() {
     'use strict';
 
+    const savedSecret = GM_getValue('secret');
+
     //////////////////////////////////////////////////////////////////////
     // Main.
     //////////////////////////////////////////////////////////////////////
@@ -23,8 +25,6 @@
     logScriptStart();
     versionCheck();
     getSecret();
-
-    const savedSecret = GM_getValue('secret');
 
     function timenow() {
         return new Date().toLocaleString();
