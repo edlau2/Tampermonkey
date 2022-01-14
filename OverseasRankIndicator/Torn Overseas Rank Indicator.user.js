@@ -22,6 +22,10 @@
 (function() {
     'use strict';
 
+    const displayRank = true;
+    const displayHealth = true;
+    const displayLastAction = true;
+
     const loggingEnabled = true;
     var requestsPaused = false;
 
@@ -126,9 +130,11 @@
         let lifeMax = cacheObj.lifem;
         let ul = li.querySelector("div.center-side-bottom.left > ul");
         let div = li.querySelector("div.center-side-bottom.left");
-        $(div).append('<span style="float: right; margin-left: 50px; font-size: 12px;"> ' + lifeCurr + '/' + lifeMax + '</span>');
-        if (statusNode) statusNode.textContent = statusNode.textContent + ' ' + la;
-        lvlNode.childNodes[2].data = /*la +*/ text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+
+        if (displayHealth) $(div).append('<span style="float: right; margin-left: 50px; font-size: 12px;"> ' + lifeCurr + '/' + lifeMax + '</span>');
+        if (statusNode && displayLastAction) statusNode.textContent = statusNode.textContent + ' ' + la;
+        if (displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+
         observer.observe(targetNode, config);
     }
 
