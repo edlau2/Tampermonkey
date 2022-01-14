@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php?page=people*
@@ -24,6 +24,8 @@
 
     const loggingEnabled = true;
     var requestsPaused = false;
+
+    // Cache 'lifetime', time to expire
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
     const cacheMaxSecs = 600 * 1000; // 10 min in ms
     //const cacheMaxSecs = 180 * 1000; // 3 min in ms
@@ -36,15 +38,15 @@
 
     // Global cache of ID->Rank associations
     var rank_cache = [{ID: 0, numeric_rank: 0, access: 0}];
-    function newCacheItem(ID, rank) {
-        return {ID: ID, numeric_rank: rank, access: new Date().getTime()};
+    function newCacheItem(ID, rank, la, curr, max) {
+        return {ID: ID, numeric_rank: rank, la: la, lifec: curr, lifem: max, access: new Date().getTime()};
     }
 
     // Queue of rank from ID requests, from the Torn API
-    const queueIntms = 250; // Ms between popping queue item
+    const queueIntms = 300; // Ms between popping queue item
     var queryQueue = []; // The queue
     var queryQueueId = null; // ID for queue check interval
-    function processQueryQueue() {processQueueMsg(queryQueue.pop());} // Pop message from queue and dispatch
+    function processQueryQueue() {if (!requestsPaused) processQueueMsg(queryQueue.pop());} // Pop message from queue and dispatch
 
     function processQueueMsg(msg) { // Process a queued message (request) for rank from ID
         if (!validPointer(msg)) return;
@@ -58,17 +60,25 @@
             log("Requests pause, can't make request. Will retry later.");
             return queryQueue.push(msg);
         }
-        xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+        xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, msg);
     }
 
-    // Query profile information based on ID. Places on a queue for later processing
+    // Query profile information based on ID. Places on a queue for later processing.
+    // In case we are recalled before getting an answer, save the ID's we've already
+    // sent requests for.
+    var sentIdQueue = [];
     function getRankFromId(ID, li, optMsg = null) {
-        log("Querying Torn for rank, ID = " + ID + 'Requests are ' + requestsPaused ? 'PAUSED' : 'ACTIVE');
+        if (sentIdQueue.includes(ID)) {
+            return;
+        }
+        log("Querying Torn for rank, ID = " + ID);
         let msg = {ID: ID, li: li, optMsg: optMsg};
+        sentIdQueue.push(ID);
         queryQueue.push(msg);
         if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, queueIntms);}
     }
 
+    // Pauses further requets to the Torn API for 'timeout' seconds
     function pauseRequests(timeout) {
         if (!requestsPaused) {setTimeout(function(){
             requestsPaused = false;
@@ -78,37 +88,47 @@
         return (requestsPaused = true);
     }
 
-    function updateUserLevelsCB(responseText, ID, li) {
+    // Callback from querying the Torn API
+    function updateUserLevelsCB(responseText, ID, msg) {
         var jsonResp = JSON.parse(responseText);
         log("updateUserLevelsCB = " + ID);
         if (jsonResp.error) {
             log('Error: ' + JSON.stringify(jsonResp.error));
             if (recoverableErrors.includes(jsonResp.error.code)) { // Recoverable - pause for now.
                 pauseRequests(15); // Pause for 15 secs
+                queryQueue.push(msg);
             }
             return handleError(responseText);
         }
+        let li = msg.li;
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
         log("Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
-        let cacheObj = newCacheItem(ID, numeric_rank);
+        let cacheObj = newCacheItem(ID, numeric_rank, jsonResp.last_action.relative, jsonResp.life.current, jsonResp.life.maximum);
         rank_cache.push(cacheObj);
         log('Caching ID ' + ID + ' to storage.');
         GM_setValue(ID, cacheObj);
-        if (validPointer(li)) {updateLiWithRank(li, numeric_rank);}
+        if (validPointer(li)) {updateLiWithRank(li, cacheObj);}
     }
 
     // Write to the UI
-    function updateLiWithRank(li, numeric_rank) {
+    function updateLiWithRank(li, cacheObj) {
         observer.disconnect();
-        let testLvlNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.level");
         let lvlNode = li.getElementsByClassName('level')[0];
+        let statusNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.status > span.t-green");
         let text = lvlNode.childNodes[2].data;
         if (text.indexOf("/") != -1) { // Don't do again!
             observer.observe(targetNode, config);
             return;
         }
-
-        lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+        let numeric_rank = cacheObj.numeric_rank;
+        let la = cacheObj.la;
+        let lifeCurr = cacheObj.lifec;
+        let lifeMax = cacheObj.lifem;
+        let ul = li.querySelector("div.center-side-bottom.left > ul");
+        let div = li.querySelector("div.center-side-bottom.left");
+        $(div).append('<span style="float: right; margin-left: 50px; font-size: 12px;"> ' + lifeCurr + '/' + lifeMax + '</span>');
+        if (statusNode) statusNode.textContent = statusNode.textContent + ' ' + la;
+        lvlNode.childNodes[2].data = /*la +*/ text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
         observer.observe(targetNode, config);
     }
 
@@ -117,7 +137,7 @@
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
                 log("Returning mem cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
-                updateLiWithRank(li, rank_cache[i].numeric_rank);
+                updateLiWithRank(li, rank_cache[i]);
                 return rank_cache[i].numeric_rank;
             }
         }
@@ -134,7 +154,7 @@
             cacheObj.access = now;
             rank_cache.push(cacheObj);
             log("Returning storage cached rank: " + ID + " ==> " + cacheObj.numeric_rank);
-            updateLiWithRank(li, cacheObj.numeric_rank);
+            updateLiWithRank(li, cacheObj);
             return cacheObj.numeric_rank;
         }
         log("didn't find " + ID + " in cache. Cache has " + rank_cache.length + " items.");
@@ -182,7 +202,7 @@
         let items = $('ul.' + ulRootClassName +  ' > li');
         if (!validPointer(items)) {return;}
 
-        log('detected ' + items.length + ' user entries');
+        log('Detected ' + items.length + ' user entries');
         for (let i = 0; i < items.length; i++) {
             let li = items[i];
             if (window.getComputedStyle(li).display === "none") {continue;}
@@ -214,14 +234,6 @@
         }
 
         log('Finished iterating ' + items.length + ' users, ' + rank_cache.length + ' cache entries.');
-    }
-
-    // Simple logging helper
-    // @param data - What to log.
-    function log(data) {
-        if (loggingEnabled) {
-            console.log(GM_info.script.name + ': ' + data);
-        }
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -266,7 +278,7 @@
             updateUserLevels('Ready State Complete!');
         }
     } catch(e) {
-        console.log('Error:', e);
+        log('Error:', e);
     }
 
 })();
