@@ -81,22 +81,15 @@ async function updateDriversList() {
     updating = true;
     $('#updating').size() < 1 && $('#racingupdatesnew').prepend('<div id="updating" style="color: green; font-size: 12px; line-height: 24px;">Updating drivers\' RS and skins...</div>');
 
-    log('Fetching RS? ', FETCH_RS);
     const racingSkills = FETCH_RS ? await getRacingSkillForDrivers(driverIds) : {};
-    log('Finished getting RS');
-    log('Getting skins? ', SHOW_SKINS);
     const racingSkins = SHOW_SKINS ? await getRacingSkinOwners(driverIds) : {};
-    log('Finished getting skins');
-    log('Preparing to add RS: ', driversList.querySelectorAll('.driver-item').length, ' drivers');
     for (let driver of driversList.querySelectorAll('.driver-item')) {
         const driverId = getDriverId(driver);
-        log('Add RS?');
         if (FETCH_RS && !!racingSkills[driverId]) {
             const skill = racingSkills[driverId];
             const nameDiv = driver.querySelector('.name');
             nameDiv.style.position = 'relative';
             nameDiv.insertAdjacentHTML('beforeend', `<span style="position:absolute;right:5px;">RS:${skill}</span>`);
-            log('Added RS to name div');
         } else if (!FETCH_RS) {
             const nameDiv = $(driver).find('li.name');
             if ($(nameDiv).find("span:contains('RS')").size() > 0) {
@@ -137,15 +130,9 @@ function getDriverId(driverUl) {
 
 let racersCount = 0;
 async function getRacingSkillForDrivers(driverIds) {
-    log('[getRacingSkillForDrivers]');
     const driverIdsToFetchSkillFor = driverIds.filter(driverId => ! racingSkillCacheByDriverId.has(driverId));
-    log('[getRacingSkillForDrivers] ids: ', driverIdsToFetchSkillFor.length);
     for (const driverId of driverIdsToFetchSkillFor) {
-        log('[getRacingSkillForDrivers] await: ', racersCount);
         const json = await fetchRacingSkillForDrivers(driverId);
-        log('[getRacingSkillForDrivers] resolve/reject: ', racersCount);
-        log('[getRacingSkillForDrivers] caching RS for driver, RS=',
-            json && json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A', ' ID: ', driverId);
         racingSkillCacheByDriverId.set(+driverId, json && json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A');
         if (json && json.error) {
             $('#racingupdatesnew').prepend(`<div style="color: red; font-size: 12px; line-height: 24px;">API error: ${JSON.stringify(json.error)}</div>`);
@@ -153,12 +140,9 @@ async function getRacingSkillForDrivers(driverIds) {
         }
         racersCount++;
         if (racersCount > 20) {
-            log('Sleeping for 1500: ', new Date().toLocaleTimeString());
             await sleep(1500);
-            log('Wait ended: ', new Date().toLocaleTimeString());
         }
     }
-    log('[getRacingSkillForDrivers] loop done.');
 
     const resultHash = {};
     for (const driverId of driverIds) {
@@ -237,10 +221,8 @@ function formatDate(date) {
     return date.getUTCFullYear() + '-' + pad(month, 2) + '-' + pad(date.getUTCDate(), 2) + ' ' + formatTime(date);
 }
 
-var rsCalls = 0;
 function fetchRacingSkillForDrivers(driverIds) {
     const apiKey = GM_getValue('apiKey');
-    log('[fetchRacingSkillForDrivers] calls: ', ++rsCalls);
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: 'POST',
@@ -250,10 +232,8 @@ function fetchRacingSkillForDrivers(driverIds) {
             },
             onload: (response) => {
                 try {
-                    log('[fetchRacingSkillForDrivers] resolved.');
                     resolve(JSON.parse(response.responseText));
                 } catch(err) {
-                    log('[fetchRacingSkillForDrivers] err: ', err);
                     reject(err);
                 }
             },
