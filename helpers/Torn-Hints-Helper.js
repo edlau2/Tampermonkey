@@ -1,7 +1,7 @@
 // ==UserScript==
 // @exclude     *
 // @namespace   https://github.com/edlau2
-// @version     1.3
+// @version     1.4
 // ==UserLibrary==
 // @name        Torn-Hints-Helper
 // @description 'Hints' placed in various places
@@ -50,7 +50,22 @@ var temporaryHints = [{"name":"Epinephrine", "id": 463, "hint": "(Str +500% for 
                      {"name":"Pepper Spray", "id": 392, "hint": "(Dex -1/5th for 15-20 seconds)"},
                      {"name":"Smoke Grenade", "id": 226, "hint": "(Spd -1/3rd for 120-180 seconds)"},
                      {"name":"Flash Grenade", "id": 222, "hint": "(Spd -1/5th for 15-20 seconds)"},
-                     {"name":"Tear Gas", "id": 256, "hint": "(Dex -1/3rd for 120-180 seconds)"}];
+                     {"name":"Concussion Grenade", "id": 1042, "hint": "(Dex -1/5th for 15-20 seconds)"},
+                     {"name":"Tear Gas", "id": 256, "hint": "(Dex -1/3rd for 120-180 seconds)"},
+                      {"name":"Trout", "id": 616, "hint": "(Dmg: 35.00  Acc: 90.00)"},
+                      {"name":"Grenade", "id": 220, "hint": "(Dmg: 86.00 Acc: 106.00)" },
+                      {"name":"HEG", "id": 242, "hint": "(Dmg: 90.00 Acc: 116.00)" },
+                      {"name":"Snowball", "id": 611, "hint": "(Dmg: 5.00 Acc: 50.00)" },
+                      {"name":"Brick", "id": 394, "hint": "(Dmg: 28.00 Acc: 43.00)" },
+                      {"name":"Claymore Mine", "id": 229, "hint": "(Dmg: 83.00 Acc: 27.00)" },
+                      {"name":"Molotov Cocktail", "id": 742, "hint": "(Dmg: 85.00 Acc: 78.00)" },
+                      {"name":"Stick Grenade", "id": 221, "hint": "(Dmg: 87.00 Acc: 97.00)" },
+                      {"name":"Throwing Knife", "id": 257, "hint": "(Dmg: 69.00 Acc: 10.00)" },
+                      {"name":"Ninja Stars", "id": 239, "hint": "(Dmg: 67.00 Acc: 14.00)" },
+                      {"name":"Nail Bomb", "id": 840, "hint": "(Dmg: 99.00 Acc: 106.00)" },
+                      {"name":"Book", "id": 581, "hint": "(Dmg: 10.00 Acc: 88.00)" },
+                      {"name":"Fireworks", "id": 246, "hint": "(Dmg: 45.00 Acc: 34.00)" },
+                     ];
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Find items we care about (via our hint arrays) and add the hint
