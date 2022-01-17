@@ -18,6 +18,8 @@
 // @run-at       document-body
 // ==/UserScript==
 
+if (navigator.userAgent.toLowerCase().indexOf("android") > -1) return;
+
 // Whether to show notifications.
 const NOTIFICATIONS = GM_getValue('showNotifChk') != 0;
 
@@ -59,8 +61,27 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// NEW NEW NEW
+//
+// By the time we call this, the selector should already
+// be present, so no real need to return a promise or
+// insert a delay. Should be able to immediately return:
+// document.querySelector("#raceLink")getAttribute('href').match(/(\d+)/)[0];
+//
+async function getRaceId() {
+    return new Promise(function(resolve, reject) {
+        let sel = document.querySelector("#raceLink");
+        if (!sel) return setTimeout(getRaceId, 500);
+        let id = sel.getAttribute('href').match(/(\d+)/)[0];
+        log('race ID: ', id);
+        resolve (id);
+    });
+}
+
 // Shared racing skill
-const racingSkillCacheByDriverId = new Map();
+var racingSkillCacheByDriverId = null;
+
+// End NEW NEW NEW
 
 let updating = false;
 async function updateDriversList() {
@@ -81,7 +102,26 @@ async function updateDriversList() {
     updating = true;
     $('#updating').size() < 1 && $('#racingupdatesnew').prepend('<div id="updating" style="color: green; font-size: 12px; line-height: 24px;">Updating drivers\' RS and skins...</div>');
 
+    // NEW NEW NEW
+    // Shared racing skill
+    const raceId = await getRaceId();
+    var savedRaceId = GM_getValue('raceid');
+    if (raceId == savedRaceId) {
+        let mapData = GM_getValue('rsMap', null);
+        if (mapData) racingSkillCacheByDriverId = new Map(JSON.parse(mapData));
+        log('Using cached map data: ', racingSkillCacheByDriverId);
+    }
+    if (!racingSkillCacheByDriverId) racingSkillCacheByDriverId = new Map();
+    GM_setValue('raceid', raceId);
+
     const racingSkills = FETCH_RS ? await getRacingSkillForDrivers(driverIds) : {};
+
+    if (FETCH_RS && racingSkillCacheByDriverId) {
+        GM_setValue('rsMap', JSON.stringify(Array.from(racingSkillCacheByDriverId.entries()))); // Save to cache
+        log('Cached RS: ', racingSkillCacheByDriverId);
+    }
+    // END NEW NEW NEW
+
     const racingSkins = SHOW_SKINS ? await getRacingSkinOwners(driverIds) : {};
     for (let driver of driversList.querySelectorAll('.driver-item')) {
         const driverId = getDriverId(driver);
@@ -129,18 +169,28 @@ function getDriverId(driverUl) {
 }
 
 let racersCount = 0;
+var cachedIds = [];
 async function getRacingSkillForDrivers(driverIds) {
     const driverIdsToFetchSkillFor = driverIds.filter(driverId => ! racingSkillCacheByDriverId.has(driverId));
+    log('[getRacingSkillForDrivers], cache length: ', racingSkillCacheByDriverId.size);
+    log('[getRacingSkillForDrivers], ' + driverIdsToFetchSkillFor.length + ' IDs');
     for (const driverId of driverIdsToFetchSkillFor) {
+        log('[getRacingSkillForDrivers] fetching ID ' + driverId + ' counter: ' + racersCount);
+        log('Has ID ' + driverId + ' been cached: ', cachedIds.includes(driverId));
         const json = await fetchRacingSkillForDrivers(driverId);
+        log('caching ID ' + driverId);
+        cachedIds.push(driverId);
         racingSkillCacheByDriverId.set(+driverId, json && json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A');
+        log('[getRacingSkillForDrivers] got RS: ', json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A');
         if (json && json.error) {
             $('#racingupdatesnew').prepend(`<div style="color: red; font-size: 12px; line-height: 24px;">API error: ${JSON.stringify(json.error)}</div>`);
             break;
         }
         racersCount++;
         if (racersCount > 20) {
+            log('Sleeping for 1500: ', new Date().toLocaleTimeString());
             await sleep(1500);
+            log('Done sleeping: ', new Date().toLocaleTimeString());
         }
     }
 
@@ -234,6 +284,7 @@ function fetchRacingSkillForDrivers(driverIds) {
                 try {
                     resolve(JSON.parse(response.responseText));
                 } catch(err) {
+                    log('Error: ', err);
                     reject(err);
                 }
             },
