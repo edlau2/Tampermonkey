@@ -6,7 +6,6 @@
 // @author       Lugburz
 // @match        https://www.torn.com/*
 // @require      https://raw.githubusercontent.com/f2404/torn-userscripts/e3bb87d75b44579cdb6f756435696960e009dc84/lib/lugburz_lib.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @updateURL    https://github.com/f2404/torn-userscripts/raw/master/racing_show_speed.user.js
 // @connect      api.torn.com
 // @connect      race-skins.brainslug.nl
@@ -73,14 +72,11 @@ async function getRaceId() {
         let sel = document.querySelector("#raceLink");
         if (!sel) return setTimeout(getRaceId, 500);
         let id = sel.getAttribute('href').match(/(\d+)/)[0];
-        log('race ID: ', id);
         resolve (id);
     });
 }
 
-// Shared racing skill
-var racingSkillCacheByDriverId = null;
-
+var racingSkillCacheByDriverId = null; // Shared racing skill
 // End NEW NEW NEW
 
 let updating = false;
@@ -105,11 +101,9 @@ async function updateDriversList() {
     // NEW NEW NEW
     // Shared racing skill
     const raceId = await getRaceId();
-    var savedRaceId = GM_getValue('raceid');
-    if (raceId == savedRaceId) {
+    if (raceId == GM_getValue('raceid', 0)) {
         let mapData = GM_getValue('rsMap', null);
         if (mapData) racingSkillCacheByDriverId = new Map(JSON.parse(mapData));
-        log('Using cached map data: ', racingSkillCacheByDriverId);
     }
     if (!racingSkillCacheByDriverId) racingSkillCacheByDriverId = new Map();
     GM_setValue('raceid', raceId);
@@ -118,7 +112,6 @@ async function updateDriversList() {
 
     if (FETCH_RS && racingSkillCacheByDriverId) {
         GM_setValue('rsMap', JSON.stringify(Array.from(racingSkillCacheByDriverId.entries()))); // Save to cache
-        log('Cached RS: ', racingSkillCacheByDriverId);
     }
     // END NEW NEW NEW
 
@@ -172,25 +165,17 @@ let racersCount = 0;
 var cachedIds = [];
 async function getRacingSkillForDrivers(driverIds) {
     const driverIdsToFetchSkillFor = driverIds.filter(driverId => ! racingSkillCacheByDriverId.has(driverId));
-    log('[getRacingSkillForDrivers], cache length: ', racingSkillCacheByDriverId.size);
-    log('[getRacingSkillForDrivers], ' + driverIdsToFetchSkillFor.length + ' IDs');
     for (const driverId of driverIdsToFetchSkillFor) {
-        log('[getRacingSkillForDrivers] fetching ID ' + driverId + ' counter: ' + racersCount);
-        log('Has ID ' + driverId + ' been cached: ', cachedIds.includes(driverId));
         const json = await fetchRacingSkillForDrivers(driverId);
-        log('caching ID ' + driverId);
         cachedIds.push(driverId);
         racingSkillCacheByDriverId.set(+driverId, json && json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A');
-        log('[getRacingSkillForDrivers] got RS: ', json.personalstats && json.personalstats.racingskill ? json.personalstats.racingskill : 'N/A');
         if (json && json.error) {
             $('#racingupdatesnew').prepend(`<div style="color: red; font-size: 12px; line-height: 24px;">API error: ${JSON.stringify(json.error)}</div>`);
             break;
         }
         racersCount++;
         if (racersCount > 20) {
-            log('Sleeping for 1500: ', new Date().toLocaleTimeString());
             await sleep(1500);
-            log('Done sleeping: ', new Date().toLocaleTimeString());
         }
     }
 
@@ -284,7 +269,7 @@ function fetchRacingSkillForDrivers(driverIds) {
                 try {
                     resolve(JSON.parse(response.responseText));
                 } catch(err) {
-                    log('Error: ', err);
+                    console.log('Error: ', err);
                     reject(err);
                 }
             },
