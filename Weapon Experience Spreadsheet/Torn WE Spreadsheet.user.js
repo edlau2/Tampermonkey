@@ -153,19 +153,6 @@
 
         // Query inventory, to see what is equipped.
         xedx_TornUserQuery(null, 'inventory', inventoryCB);
-
-        /*
-        // Query weapons experience - once that completes,
-        // we will call the function to modify the page.
-        if (itemsArray == null) {
-            xedx_TornTornQuery(null, 'items', tornQueryCB);
-        } else {
-            xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
-        }
-
-        // Query personal stats, for finishing hits
-        xedx_TornUserQuery(null, 'personalstats', userPersonalstatsCB);
-        */
     }
 
     // Step 1a: Callback for inventory query.
@@ -202,7 +189,7 @@
     }
 
     // Step 3a:
-    // Response handler for Torn API 'user' query, above.
+    // Response handler for Torn API 'user' query for weaponexp, above.
     function userQueryCB(responseText, ID, param) {
         log('User weaponexperience callback.');
         var jsonResp = JSON.parse(responseText);
@@ -283,17 +270,23 @@
         let newDiv = newTopDiv + fhRows + newMiddleDiv + weRows + newBottomDiv;
 
         $(newDiv).insertBefore(refDiv);
-        //let titleSel = document.querySelector("#xedx-we-title");
-        //titleSel.innerText = "Weapon Experience and Finishing Hits (" +
-        //    weAt100pct + " weapons at 100%)";
-        document.querySelector("#xedx-we-title").innerText = "Weapon Experience and Finishing Hits (" +
-            weAt100pct + " weapons at 100%)";
+        setTitlebar();
         installClickHandler();
     }
 
     //////////////////////////////////////////////////////////////////////
     // Helper functions
     //////////////////////////////////////////////////////////////////////
+
+    // Helper to set the title in the title bar to reflect # of weapons completed to 100%
+    function setTitlebar() {
+        if (!validPointer($("#xedx-we-title"))) {
+            setTimeout(setTitlebar, 1000);
+        } else {
+            document.querySelector("#xedx-we-title").innerText = "Weapon Experience and Finishing Hits (" +
+                weAt100pct + ") weapons at 100%. Total rounds fired: " + numberWithCommas(fhArray.roundsfired) + "/1,000,000";
+        }
+    }
 
     // Function to build the table rows from our arrays for Weapon Experience
     function buildWeTableRows() {
@@ -407,7 +400,7 @@
     logScriptStart();
     validateApiKey();
 
-    // The queries will take a bit - just go ahead ans start the party!
+    // The queries will take a bit - just go ahead and start the party!
     handlePageLoad();
 
     // Wait for full page load.
