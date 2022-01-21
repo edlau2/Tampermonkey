@@ -5,7 +5,6 @@
 // @match       https://www.torn.com/factions.php*
 // @run-at      document-end
 // @grant       GM_addStyle
-// @grant       GM_getValue
 // @grant       GM_xmlhttpRequest
 // @version     1.16
 // @author      finally
