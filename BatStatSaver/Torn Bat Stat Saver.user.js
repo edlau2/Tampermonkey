@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -27,6 +27,7 @@
 
     const userQuery = 'https://api.torn.com/user/?selections=attacks,battlestats&key=';
     const uploadServer = 'http://18.119.136.223:8002/batstats/?cmd=saveStats';
+    const REQUEST_DELAY = 250; // ms before getting attack data
     var opponentID = 0;
     var opponentLevel = 0;
     var opponentLastAction = 0;
@@ -88,12 +89,18 @@
         log('Last Attack: ', lastAttack);
         log('Attack result: ', lastAttack.result);
 
+        // MAXIMUM AMOUNT OF GROUP ATTACKERS REACHED, YOU CAN'T ATTACK WHILE IN HOSPITAL
+        if (res.indexOf('maximum') > -1 || res.indexOf("can't attack") > -1) {
+            statusLine.textContent = 'Maximum attackers...';
+            return;
+            }
+
         // Don't send up junk results.
         // Possibilities: attacked, mugged, lost, assist, special, hospitalized, escape, stalemate, ???
         if (res == 'lost' || res == 'assist' || res == 'escape' || res == 'stalemate') {
             log("Didn't win this one, result = " + res + ". Not reporting.");
             let statusLine = document.querySelector("#xedx-status");
-            statusLine.textContent = 'Not reporting a ' + res + '...';
+            statusLine.textContent = 'Not reporting ' + ((res == 'assist' || res == 'escape') ? 'an ' : 'a ') + res + '...';
             return;
         }
 
@@ -128,6 +135,7 @@
             statusLine.textContent = 'Fight data saved (FF = ' + lastAttack.modifiers.fair_fight + ')';
         } else {
             statusLine.textContent = 'Fight data not uploaded (FF = ' + lastAttack.modifiers.fair_fight + ')';
+            log('Respect: ', lastAttack.respect_gain, ' FF: ', lastAttack.modifiers.fair_fight);
         }
     }
 
@@ -190,7 +198,7 @@
                 // Note: container is flex, so 2nd span centers the first.
                 $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">Preparing to upload fight data...</span>' +
                                    '<span>&nbsp</span>');
-                setTimeout(getBatStats, 2000); // Give time for fight stats to get there.
+                setTimeout(getBatStats, REQUEST_DELAY); // Give time for fight stats to get there.
             }
         }
     }
