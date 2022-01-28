@@ -26,6 +26,7 @@
     var allStocks = null; // Data returned from a Torn Torn->Stocks API call
     var ownedStocksDone = false; // TRUE once the CB has processed the User->Stocks call
     var allStocksDone = false; // TRUE once the CB has processed the Torn->Stocks call
+    var colorCode = true; // TRUE to color-code stocks I own (may be done by page)
 
     // Notes: the ID's must be in order, as the array index must match the stock ID. This also implies that
     //        any skipped ID numbers must be filled in with null data. The names here are replaced by the
@@ -64,6 +65,7 @@
                       {name: "Torn City Clothing", ID: 31, owned: 0, required: 0, price: 0, tier: 0},
                       {name: "Alcoholics Synonymous", ID: 32, owned: 0, required: 0, price: 0, tier: 0}];
 
+    // Callback from the User->Stocks query
     function ownedStocksCB(responseText) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
@@ -81,6 +83,7 @@
         if (allStocksDone) handlePageLoad();
     }
 
+    // Callback from the Torn->Stocks query
     function allStocksCB(responseText) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
@@ -97,6 +100,57 @@
         if (ownedStocksDone) handlePageLoad();
     }
 
+    // Helper to convert the benefit column to total benefit.
+    // If tier 1 gives 100e, for example, and tier 2 another 100,
+    // dislay 200 total for tier 2. And 300 for tier 3. etc.
+    // There are 3 cases to consider:
+    // 1. nX of something
+    // 2. nnn somthing
+    // 3. $nnn,nnn
+    function convertBenefitToTotal(tier, benefit) {
+         // case 2: 1000 happiness, for example.
+        let parts = benefit.split(' ');
+        if (!isNaN(parts[0])) {
+            parts[0] = Number(parts[0]) * Number(tier);
+            return parts.join(' ');
+        }
+
+        // Case 2: 1x Drug Pack, for example.
+        // Or worse, 1x Box of Grenades.
+        if (benefit.indexOf('x') > -1) {
+            let parts = benefit.split(' ');
+            console.log('parts: ', parts);
+            parts[0] = (Number(parts[0].match(/(\d+)/)[0]) * Number(tier)) + 'x';
+            return parts.join(' ');
+        }
+
+        // Case 3: $25,000,000, for example.
+        if (benefit.indexOf('$') > -1) {
+            let amount = benefit.replace(/[$,]+/g,"");
+            let result = Number(amount) * Number(tier);
+            return '$' + numberWithCommas(result);
+        }
+
+        return benefit; // Unknown: don't change.
+    }
+
+    // Determine is own a partial block for the next tier
+    // Return shares needed if so, 0 otherwise
+    function partiallyOwned(thisStock, tier) {
+        if (thisStock.tier > 0 || thisStock.owned) {
+            let reqTotalThisTier = 0, reqLastTier = 0, needed = 0;
+            for (let i=0; i < tier; i++) {
+                if (i == (tier-1)) reqLastTier = reqTotalThisTier;
+                reqTotalThisTier += thisStock.required * Math.pow(2, i);
+            }
+            needed = reqTotalThisTier - thisStock.owned;
+            if ((thisStock.owned > reqLastTier) && (needed > 0)) return needed;
+        }
+        return 0;
+    }
+
+
+    // Handle editing the UI, if needed.
     function handlePageLoad() {
         log('[handlePageLoad] City Stocks: ', cityStocks);
 
@@ -104,65 +158,114 @@
         let input = document.querySelector("body > form > p:nth-child(1) > input[type=text]");
         input.value = getApiKey();
 
-        // See if on a 'Stocks' page. This highlights stock I currently own.
-        let table = document.querySelector("#nextStocksTable"); // "Get List of Stocks to Buy Sorted by ROI"
+        // See if on either of the 'Stocks' pages. These highlights stock I currently own, and show what I need for the next tier.
+
+        // "Get List of Stocks to Buy Sorted by ROI"
+        let table = document.querySelector("#nextStocksTable");
         if (table) {
+            let legendTable = document.querySelector("body > table:nth-child(7) > tbody");
+            if (colorCode) {
+                let firstTableRow = document.querySelector("body > table:nth-child(7) > tbody > tr:nth-child(1) > td");
+                firstTableRow.textContent = `Stocks in Lime Green are stocks you own, and can afford more with cash-on-hand and in vault`;
+                $(legendTable).append(`<tr class="owned"><td>Stocks in Light Blue are owned stocks`);
+                $(legendTable).append(`<tr class="partial-and-afford"><td>Stocks in Yellow are stocks you own part of a block and can afford the rest of the block`);
+                $(legendTable).append(`<tr class="partial"><td>Stocks in Gold are stocks you own part of a block of`);
+                $(legendTable).append(`<tr class="unowned"><td>Stocks in White are stocks you do not own, and can't afford with cash on hand and in vault`);
+            } else {
+                $(legendTable).append(`<tr><td>Stocks preceeded by an asterisk ('*') are owned stocks`);
+                $(legendTable).append(`<tr><td>Stocks preceeded by an dollar sign ('$') indicate a partial block is owned`);
+            }
+
+            if (colorCode) {
+                let target = document.querySelector("body > form");
+                $(target).after(`<p><span>Color added by XedX</span></p>`);
+            }
+
             let rows = table.getElementsByTagName('tr');
             log('Rows: ', rows.length);
-            for (let i = 0; i < rows.length; i++) {
+            for (let i = 1; i < rows.length; i++) { // Start at 1 to skip header
+                let name = rows[i].childNodes[0].textContent;
                 let tier = rows[i].childNodes[1].textContent;
-                if (Number(tier) > 1) { // Means I own it
-                    rows[i].classList.add('owned');
+                let thisStock = cityStocks.filter(e => name == e.name)[0];
+                let needed = partiallyOwned(thisStock, tier);
+                console.log('Row #' + i + ' Name: ' + name + ' Tier: ' + tier + ' Owned tier: ' + (thisStock ? thisStock.tier : 0));
+
+                let benefitColumn = rows[i].querySelector("td:nth-child(5)");
+                let benefit = benefitColumn.textContent;
+                let convertedBenefit = convertBenefitToTotal(tier, benefit);
+                benefitColumn.textContent = convertedBenefit;
+
+                let partialAttr = rows[i].getAttribute('bgcolor') ? 'partial-and-afford' : 'partial';
+                let ownedAttr = rows[i].getAttribute('bgcolor') ? 'owned-and-afford' : 'owned';
+                if (colorCode) rows[i].classList.add('unowned');
+
+                if (needed && Number(thisStock.tier) == 0) {
+                    rows[i].classList.remove('unowned');
+                    if (colorCode)
+                        rows[i].classList.add(partialAttr);
+                    else
+                        rows[i].childNodes[0].textContent = '$ ' + name;
+                }
+
+                if (Number(thisStock.tier) > 0) { // Means I completely own at least one tier
+                    rows[i].classList.remove('unowned');
+                    if (colorCode)
+                        rows[i].classList.add(needed ? partialAttr : ownedAttr);
+                    else
+                        rows[i].childNodes[0].textContent = (needed ? '$* ' : '* ') + name;
+                }
+
+                // Add tool tips
+                if (needed) {
+                    let cost = (needed * thisStock.price).toString().split(".")[0];
+                    rows[i].classList.add('tooltip');
+                    $(rows[i].firstChild).append('<span class="tooltiptext">' + name + '<br />Shares Needed: ' +
+                                                 numberWithCommas(needed) + '<br />Cost: $' +
+                                                 numberWithCommas(cost) + '</span>');
                 }
             }
         }
 
-        // Private - this is the general formula I use RN.
-
-        table = document.querySelector("#allStocksTable"); // Get List of All Stocks Sorted by ROI(In Testing)
+        // "Get List of All Stocks Sorted by ROI"
+        table = document.querySelector("#allStocksTable");
         if (table) {
+            colorCode = false;
+            if (colorCode) {
+                let target = document.querySelector("body > form");
+                $(target).after(`<p><span>Color added by XedX</span></p>`);
+            }
+
             log('On the "Get List of All Stocks Sorted by ROI(In Testing)" page');
             let rows = table.getElementsByTagName('tr');
-            log('Rows: ', rows.length);
-
-            for (let i = 1; i < rows.length; i++) { // Iterates the table rows. This would be replaced by where you build the rows.
+            for (let i = 1; i < rows.length; i++) { // Start at 1 to skip header
                 let name = rows[i].childNodes[0].textContent;
-                log('Row #' + i + ' Stock: ', name);
-
-                // figure out which stock it is, by name, and get which tier it's for
-                let thisStock = cityStocks.filter(e => name == e.name)[0]; // Gets the details of the stock - how many I own, price, amt. for a BB
+                let thisStock = cityStocks.filter(e => name == e.name)[0];
                 let tier = Number(rows[i].querySelector("td:nth-child(2)").textContent);
+                log('Row #' + i + ' Stock: ', name);
                 console.log('This stock: ', thisStock, ' Name: ', name, ' tier: ' + tier);
 
+                let benefit = rows[i].querySelector("td:nth-child(6)").textContent;
+                let convertedBenefit = convertBenefitToTotal(tier, benefit);
+                rows[i].querySelector("td:nth-child(6)").textContent = convertedBenefit;
+
                 if (thisStock.tier > 0 || thisStock.owned) { // If I own it:
-                    if (thisStock.tier >= tier) rows[i].classList.add('owned'); // Color it green.
-
-                    // Calculate total shares for up to this tier (total) and the last tier, total, and also JUST this tier
-                    let reqTotalThisTier = 0;
-                    let reqLastTier = 0;
-                    for (let i=0; i < tier; i++) {
-                        if (i == (tier-1)) reqLastTier = reqTotalThisTier; // Amount needed for prior tier. At tier 1, will be 0, tier 2, inital BB cost, etc.
-                        reqTotalThisTier += thisStock.required * Math.pow(2, i); // TOTAL to get to this tier.
-                    }
-                    let reqThisTier = thisStock.required * Math.pow(2, tier); // What this tier (col 2) needs for a block, total. JUST this tier
-                    let needed = reqTotalThisTier - thisStock.owned; // If we own some, what's still needed
-                    console.log('Owned: ' + thisStock.owned + ' Needed: ' + needed + ' reqTotalThisTier: ' + reqTotalThisTier + ' reqLastTier: ' + reqLastTier);
-
-                    // Here, determine if I have a partial chunk into this tier (this tier represents the *next* tier I could have, in this case)
-                    if ((needed % thisStock.required != 0) && (thisStock.owned > reqLastTier) && (needed > 0)) {
+                    if (colorCode && thisStock.tier >= tier) rows[i].classList.add('owned'); // Color it green.
+                }
+                let needed = partiallyOwned(thisStock, tier);
+                if (needed) {
+                    if (colorCode) { // Color it yellow
                         rows[i].classList.remove('owned');
-
-                        // Add shares needed and cost tooltip
-                        let cost = (needed * thisStock.price).toString().split(".")[0];
-                        rows[i].classList.add('partial', 'tooltip'); // Color yellow
-                        $(rows[i].firstChild).append('<span class="tooltiptext">' + name + '<br />Shares Needed: ' +
-                                                     numberWithCommas(needed) + '<br />Cost: $' +
-                                                     numberWithCommas(cost) + '</span>');
+                        rows[i].classList.add('partial');
                     }
+                    // And add tool tips.
+                    let cost = (needed * thisStock.price).toString().split(".")[0];
+                    rows[i].classList.add('tooltip');
+                    $(rows[i].firstChild).append('<span class="tooltiptext">' + name + '<br />Shares Needed: ' +
+                                                 numberWithCommas(needed) + '<br />Cost: $' +
+                                                 numberWithCommas(cost) + '</span>');
                 }
 
-                // If I don't own it, it's white.
-                if (!rows[i].classList.contains('owned') && !rows[i].classList.contains('partial')) {
+                if (colorCode && !rows[i].classList.contains('owned') && !rows[i].classList.contains('partial')) {
                     rows[i].classList.add('unowned');
                 }
             }
@@ -177,7 +280,7 @@
     validateApiKey();
     versionCheck();
 
-    // FInd the stocks I own, then handle the page load.
+    // Find the stocks I own, then handle the page load.
     xedx_TornUserQuery(null, 'stocks', ownedStocksCB);
     xedx_TornTornQuery(null, 'stocks', allStocksCB);
 
@@ -186,9 +289,11 @@
                     -webkit-animation: highlight-active 1s linear 0s infinite normal;
                     animation: highlight-active 1s linear 0s infinite normal;}
 
-                .owned {background-color: lime;}
+                .owned {background-color: LightSkyBlue;}
+                .owned-and-afford {background-color: lime;}
 
-                .partial {background-color: yellow;}
+                .partial {background-color: gold;}
+                .partial-and-afford {background-color: yellow;}
 
                 .unowned {background-color: white;}
 
