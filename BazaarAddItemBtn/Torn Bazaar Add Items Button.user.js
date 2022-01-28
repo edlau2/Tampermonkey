@@ -43,6 +43,9 @@
         if (substrings.some(v => hash.includes(v))) return;
         targetNode = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz > " +
                                             "div.topSection___OilHR > div.titleContainer___LJY0N");
+        if (!targetNode)
+            targetNode = document.querySelector("#bazaarRoot > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY > " +
+                               "div.topSection___OilHR > div.titleContainer___LJY0N");
         if (!targetNode && retries++ < 10) return setTimeout(handlePageLoaded, 50);
         if (!location.href.includes('userid=')) {
             $(targetNode).append(addBtnDiv);
