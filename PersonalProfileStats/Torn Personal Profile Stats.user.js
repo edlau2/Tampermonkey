@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.7
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -294,7 +294,7 @@
         }
     }
 
-    // 'massage' the numeric value, converting to display values such as '250k' or '2.5m'
+    // 'massage' the numeric value, converting to display values such as '250k' or '2.5M'
     function massageEstimate(value) {
         if (value < 2000) return value;
         let base = Math.floor(value/1000);
@@ -305,7 +305,7 @@
         base = Math.floor(base/1000);
         var rounded = Math.round(base * 10) / 10;
         log('massageEstimate: base = ' + base + ' rounded = ' + rounded);
-        return rounded + 'm';
+        return numberWithCommas(rounded) + 'M';
     }
 
     // Helper, create <li> to display...
@@ -337,7 +337,7 @@
         $(ul).append(li);
 
         // Make the details 'collapsible'
-        if (document.getElementById("xedx-caret")) {
+        if (document.getElementById("xedx-caret") && !abroad()) {
             caretState = GM_getValue('lastState', caretState);
             document.getElementById("xedx-caret").addEventListener('click', function (event) {
                 handleClick(event)}, { passive: false });
