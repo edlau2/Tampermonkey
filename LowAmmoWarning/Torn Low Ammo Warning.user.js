@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Low Ammo Warning
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Warns, on the attack page, if the ammo for an equipped weapon is beneath a certain threshold.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID=*
@@ -59,6 +59,7 @@
         parseEquippedWeapons(jsonResp);
     }
 
+    var nodeRetries = 0;
     function parseEquippedWeapons(jsonResp) {
         if (intSet) {
             let mainSel = document.querySelector("#weapon_main");
@@ -74,7 +75,17 @@
         let priCapSel = document.querySelector("#weapon_main > div.bottom___rh6Yy > div.bottomMarker___XEMiE > span");
         let secCapSel = document.querySelector("#weapon_second > div.bottom___rh6Yy > div.bottomMarker___XEMiE > span");
         log ('Weapon selectors, primary: ', priCapSel, ' secondary: ', secCapSel);
-        if (!priCapSel || !secCapSel) return setTimeout(parseEquippedWeapons(jsonResp), 1000);
+        if (!priCapSel || !secCapSel) {
+            if (nodeRetries++ < 10) {
+                log('Retrying #' + nodeRetries);
+                return setTimeout(parseEquippedWeapons(jsonResp), 1000);
+            } else {
+                nodeRetries = 0;
+                log('Unable to find equiped primary/secondary weapon nodes!');
+                return;
+            }
+
+        }
         if (priCapSel) priCap = priCapSel.textContent;
         if (secCapSel) secCap = secCapSel.textContent;
         log('Primary capacity: ', priCap, ' Secondary capacity: ', secCap);
@@ -99,6 +110,7 @@
         let secParts = secCap ? secCap.split(/[()/]/g) : null;
         log('pri parts: ', priParts, ' sec parts: ', secParts);
 
+        // Since no check for NULL here, breaks if priCapSel/secCapSel are NULL.
         let priThreshold = priParts[1] * (Number(priParts[2])+1) * 3; // mag cap. * mags * 3 attacks
         let secThreshold = secParts[1] * (Number(secParts[2])+1) * 3; // mag cap. * mags * 3 attacks
         log('Primary threshold: ', priThreshold, ' Secondary threshold: ', secThreshold);
@@ -117,9 +129,10 @@
         // Trigger a warning at a certain threshold.
         if (priAmmoCount < priThreshold) highlightPrimary();
         if (secAmmoCount < secThreshold) highlightSecondary();
+        //if (secAmmoCount < 99999) highlightSecondary(); // Test (secondary should flash)
 
         // If from the initial query, set a check for the end of the fight to alert again.
-        if (!intSet) {
+        if (!intSet) { // 'interval timer set'
             log('Setting interval timer');
             intId = setInterval(checkRes, 250); // Check for fight result.
             intSet = true;
