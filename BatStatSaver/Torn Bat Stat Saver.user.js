@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -15,35 +15,44 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint curly: 0*/
 
 (function() {
     'use strict';
 
+    // Some constants
     const userQuery = 'https://api.torn.com/user/?selections=attacks,battlestats&key=';
     const uploadServer = 'http://18.119.136.223:8002/batstats/?cmd=saveStats';
     const REQUEST_DELAY = 500; // ms before getting attack data
-    const MAX_REQ_RETRIES = 24; // Max times to retry in case of wrong ID (attack result not there yet) 12 = 3 secs.
+    const MAX_REQ_RETRIES = 24; // Max times to retry in case of wrong ID (attack result not there yet)
 
-    var opponentID = 0;
-    var opponentLevel = 0;
-    var opponentLastAction = 0;
-    var intId = null;
 
-    var g_tornStatSpy = null; // member for 'result' that is uploaded
-    var g_batStats = null; // member for 'result' that is uploaded
-    var g_user = null; // member for 'result' that is uploaded
+    //var g_opponentID = 0;
+    //var g_opponentLevel = 0;
+    //var g_opponentLastAction = 0;
+
+    // Some globals
+    var g_intId = null; // ID for the interval timer that checks for fight end.
+
+    //var g_tornStatSpy = null; // member for 'result' that is uploaded
+    let g_opponent = // member for 'result' that is uploaded, their data, both inbound and outbound
+        {'id': 0, 'name': '', 'level': 'N/A', 'lastaction': 'N/A', 'result': '', 'lkg': 0, 'when': 0};
+    var g_batStats = null; // member for 'result' that is uploaded, my batstats
+    var g_user = null; // member for 'result' that is uploaded, defines me, the attacker
+
     var g_oldestAttack = 0; // Last attack in the attack log, before this fight ends.
     var g_oldLossArray = []; // Array of as yet unprocessed losses in the log
 
     // Get the basic details (level and last action) of the opponent
-    function queryOpponentLevel(opponentID, param=null) {
-        xedx_TornUserQuery(opponentID, 'profile', profileQueryCB, param);
+    function queryOpponentLevel(id, param=null) {
+        xedx_TornUserQuery(id, 'profile', profileQueryCB, param);
     }
 
     // Callback from above
@@ -53,8 +62,8 @@
         if (jsonResp.error) {return handleError(responseText);}
         log('basic: ', jsonResp);
 
-        opponentLevel = jsonResp.level;
-        opponentLastAction = jsonResp.last_action.relative;
+        g_opponent.level = jsonResp.level;
+        g_opponent.lastaction = jsonResp.last_action.relative;
     }
 
     // Query stats: my older attacks, my current bat stats, my basic info.
@@ -99,12 +108,42 @@
         let lastAttack = lastAttackJSON.attack;
         g_oldestAttack = lastAttackJSON.id;
 
+        // If we have a saved attack result that hasn't had time to upload,
+        // see if it matches this latest attack. If so, upload it.
+        let savedOpp = GM_getValue('savedAttack', null);
+        if (savedOpp) {
+            log('Have previous attack saved!');
+            let opponent = JSON.parse(savedOpp);
+            log('Opponent: ', opponent);
+            log('lastAttack: ', lastAttack);
+            if (opponent.id == lastAttack.defender_id) {
+                log('Last attack matches saved attack!');
+                let res = lastAttack.result.toLowerCase();
+                if (res == 'lost' || res == 'assist' || res == 'escape' || res == 'stalemate') {
+                    log("Didn't win this one, result = " + res + ". Not reporting.");
+                } else {
+                    // Could get opponent level and last action here... TBD
+                    let result = buildResult(lastAttackJSON, opponent, 'outbound');
+                    if (lastAttack.respect_gain && lastAttack.modifiers.fair_fight == 1.00) lastAttack.modifiers.fair_fight == 1.01;
+                    if (Number(lastAttack.modifiers.fair_fight) != 1) {
+                        log('Uploading attack ' + lastAttackJSON.id);
+                        uploadAttackData(result);
+                    } else {
+                        log('Saved fight NOT uploaded. FF = ' + lastAttack.modifiers.fair_fight);
+                    }
+                }
+            }
+            GM_deleteValue('savedAttack');
+        }
+
         // Go through old attacks, incoming ...
         if (findLatestLosses(jsonResp.attacks)) {
             log('Found ' + g_oldLossArray.length + ' old losses not yet uploaded!');
             for (let i = 0; i < g_oldLossArray.length; i++) {
                 let attack = g_oldLossArray.pop();
-                let result = buildResult(attack, 0, null, null, 'inbound'); // Could get level and spy here, maybe...TBD
+                // Could get opponent level and last action here... TBD
+                let opponent = {'id': 0, 'name': '', 'level': 'N/A', 'lastaction': 'N/A', 'result': '', 'lkg': 0, 'when': 0};
+                let result = buildResult(attack, opponent, 'inbound'); // Could get level and spy here, maybe...TBD
                 log('Uploading a loss: ', result);
                 uploadAttackData(result);
             }
@@ -146,15 +185,19 @@
         let lastAttack = lastAttackJSON.attack;
         let lastAttackId = lastAttackJSON.id;
 
+        // Save this opponent data in case we don't get attack data in time.
+        GM_setValue('savedAttack', JSON.stringify(g_opponent));
+
         let res = lastAttack.result.toLowerCase();
         log('Last attack result: ' + res);
         log('Last Attack opponent ID: ', lastAttack.defender_id);
-        if (lastAttack.defender_id != opponentID || g_oldestAttack >= lastAttackId) { // Make sure we have the correct entry!
-            if (lastAttack.defender_id != opponentID) log('**** Wrong opponent ID! opp ID: ' + opponentID + ' ID in log: ' + lastAttack.defender_id);
+        if (lastAttack.defender_id != g_opponent.id || g_oldestAttack >= lastAttackId) { // Make sure we have the correct entry!
+            if (lastAttack.defender_id != g_opponent.id) log('**** Wrong opponent ID! opp ID: ' + g_opponent.id + ' ID in log: ' + lastAttack.defender_id);
             if (g_oldestAttack <= lastAttackId) log('**** Wrong attack ID! last: ' + g_oldestAttack + ' this: ' + lastAttackId);
             if (lastAttackRetries++ < MAX_REQ_RETRIES) {
                 log('Retrying... (#' + lastAttackRetries + ')');
-                statusLine.textContent = 'Retry attempt #' + lastAttackRetries;
+                if (lastAttackRetries % 2 == 0 && lastAttackRetries > 0)
+                    statusLine.textContent = 'Waiting for API to catch up (' + (lastAttackRetries/2) + ' secs)';
                 return setTimeout(getAttacks, REQUEST_DELAY);
             }
             statusLine.textContent = 'Internal error! Wrong ID in log.';
@@ -164,22 +207,17 @@
         log('Last Attack: ', lastAttack);
         log('Attack result: ', lastAttack.result);
 
-        // MAXIMUM AMOUNT OF GROUP ATTACKERS REACHED, YOU CAN'T ATTACK WHILE IN HOSPITAL
-        if (res.indexOf('maximum') > -1 || res.indexOf("can't attack") > -1) {
-            statusLine.textContent = 'No attack to log.';
-            return;
-            }
-
         // Don't send up junk results.
         // Possibilities: attacked, mugged, lost, assist, special, hospitalized, escape, stalemate, ???
         if (res == 'lost' || res == 'assist' || res == 'escape' || res == 'stalemate') {
             log("Didn't win this one, result = " + res + ". Not reporting.");
             statusLine = document.querySelector("#xedx-status");
             statusLine.textContent = 'Not reporting ' + ((res == 'assist' || res == 'escape') ? 'an ' : 'a ') + res + '...';
+            GM_deleteValue('savedAttack');
             return;
         }
 
-        let result = buildResult(lastAttackJSON, opponentLevel, opponentLastAction, g_tornStatSpy, 'outbound');
+        let result = buildResult(lastAttackJSON, g_opponent, /*g_opponent.level, g_opponent.lastaction, g_tornStatSpy,*/ 'outbound');
 
         // Send to server. Don't bother if FF == 1.00, may be too low or attacker is a recruit.
         // if FF = 1.00, and respect > 0, use 1.01 as FF...
@@ -189,6 +227,8 @@
         if (Number(lastAttack.modifiers.fair_fight) != 1) {
             uploadAttackData(result);
         }
+
+        GM_deleteValue('savedAttack');
 
         if (Number(lastAttack.modifiers.fair_fight) != 1) {
             statusLine.textContent = 'Fight data saved (FF = ' + lastAttack.modifiers.fair_fight + ')';
@@ -202,16 +242,23 @@
     // We do this separate from the globals as we need to wait for the last attack
     // to be present to get the FF modifier. We don't need this for previous,
     // incoming attacks.
-    function buildResult(attackLog, oppLevel, oppLastAction, spy, direction) {
+    function buildResult(attackLog, opponent, /*oppLevel, oppLastAction, spy,*/ direction) {
         let theAttack = attackLog.attack;
         let outbound = (direction == 'outbound');
-        let opponent = {'id': outbound ? theAttack.defender_id : theAttack.attacker_id, // opponentID,
+        /*
+        let opponent = {'id': outbound ? theAttack.defender_id : theAttack.attacker_id,
                         'name': outbound ? theAttack.defender_name : theAttack.attacker_name,
                         'level': oppLevel ? oppLevel : 'N/A',
                         'lastaction': oppLastAction ? oppLastAction : 'N/A',
                         'result': theAttack.result,
                         'lkg': spy ? spy.total : 0,
                         'when': spy ? spy.when : 0};
+        */
+
+        opponent.id = outbound ? theAttack.defender_id : theAttack.attacker_id;
+        opponent.name = outbound ? theAttack.defender_name : theAttack.attacker_name;
+        opponent.result = theAttack.result;
+
         if (!outbound && !opponent.name && !opponent.id) {
             opponent.name = 'stealthed';
             opponent.id = 'stealthed';
@@ -277,7 +324,8 @@
                 let resultlc = result.toLowerCase();
                 log('Result: ', sel.innerText);
                 log('***** Fight Over! *****');
-                if (intId) clearInterval(intId);
+                if (g_intId) clearInterval(g_intId);
+                g_intId = null;
 
                 // Add a staus indicator to header div
                 let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
@@ -326,24 +374,29 @@
             log('Error getting spy! Response text: ' + resptext);
         } else {
             if (data.spy.status) {
+                /*
                 g_tornStatSpy = {speed: data.spy.speed,
                                strength: data.spy.strength,
                                defense: data.spy.defense,
                                dexterity: data.spy.dexterity,
                                total: data.spy.total,
                                when: data.spy.difference};
+                */
+
+                g_opponent.lkg = data.spy.total;
+                g_opponent.when = data.spy.difference;
             }
         }
     }
 
     function handlePageLoad() {
         log('[handlePageLoad]');
-        intId = setInterval(checkRes, 250); // Check for fight result.
+        g_intId = setInterval(checkRes, 250); // Check for fight result.
         const params = new URLSearchParams(location.search);
-        opponentID = params.get('user2ID');
-        xedx_TornStatsSpy(opponentID, tornStatSpyCB);
-        queryOpponentLevel(opponentID);
-        log('[handlePageLoad] Opponent ID: ' + opponentID);
+        g_opponent.id = params.get('user2ID');
+        xedx_TornStatsSpy(g_opponent.id, tornStatSpyCB);
+        queryOpponentLevel(g_opponent.id);
+        log('[handlePageLoad] Opponent ID: ' + g_opponent.id);
     }
 
     //////////////////////////////////////////////////////////////////////
