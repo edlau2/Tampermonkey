@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn WE Spreadsheet
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Creates a new expandable DIV on the Items page with Weapon Experience info in a table
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/GymGains/Torn-Gym-Gains-Div.js
@@ -14,6 +14,10 @@
 // @grant        unsafeWindow
 // @run-at       document-start
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -151,66 +155,34 @@
         log('handlePageLoad.');
         loadTableStyles();
 
-        // Query inventory, to see what is equipped.
-        xedx_TornUserQuery(null, 'inventory', inventoryCB);
+        // Query inventory,weaponexp,personalstats
+        xedx_TornUserQuery(null, 'inventory,weaponexp,personalstats', inventoryCB);
     }
 
-    // Step 1a: Callback for inventory query.
-    // Launches other queries.
+    // Step 2: Callback for inventory,weaponexp,personalstats query.
+    // Launches torn items query.
     function inventoryCB(responseText, ID, param) {
         log('User inventory query callback.');
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-        inventoryArray = jsonResp.inventory;
+        inventoryArray = jsonResp.inventory; // Array of our inventory
+        weArray = jsonResp.weaponexp; // Array of 'weaponexperience' objects: {"itemID", "name", "Exp"}
+        fhArray = jsonResp.personalstats; // Array of 'personalstats', including finishing hits
 
-        // Query weapons experience - once that completes,
-        // we will call the function to modify the page.
-        if (itemsArray == null) {
-            xedx_TornTornQuery(null, 'items', tornQueryCB);
-        } else {
-            xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
-        }
-
-        // Query personal stats, for finishing hits
-        xedx_TornUserQuery(null, 'personalstats', userPersonalstatsCB);
+        xedx_TornTornQuery(null, 'items', tornQueryCB);
     }
 
-    // Step 2:
+    // Step 3:
     // Response handler for Torn API 'torn' query, above.
     function tornQueryCB(responseText, ID, param) {
         log('Torn items query callback.');
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
-
-        // This will be an array of "key (item ID)" : {...}
-        // We just save this for now, to locate weapon type, later.
-        itemsArray = jsonResp.items;
-        xedx_TornUserQuery(null, 'weaponexp', userQueryCB);
+        itemsArray = jsonResp.items; // Array of Torn items
+        sortArrays(); // Also calls 'modifyPage()'
     }
 
-    // Step 3a:
-    // Response handler for Torn API 'user' query for weaponexp, above.
-    function userQueryCB(responseText, ID, param) {
-        log('User weaponexperience callback.');
-        var jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
-        weArray = jsonResp.weaponexp; // Array of 'weaponexperience' objects: {"itemID", "name", "Exp"}
-        sortArrays();
-    }
-
-    // Step 3b:
-    // Response handler for personal stats query
-    function userPersonalstatsCB(responseText, ID, param) {
-        log('User personalstats callback.');
-        var jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
-        fhArray = jsonResp.personalstats; // Array of 'personalstats', including finishing hits
-
-        fhRows = buildFhTableRows(fhArray);
-        modifyPage();
-    }
-
-    // Step 3a helper:
+    // Step 4:
     // Sorts and merges the two arrays, items and experience, into 4 new arrays,
     // primary, secondary, melee and temporary weapons and their WE.
     // Also count the ## at 100% (weAt100pct)
@@ -237,6 +209,7 @@
         }
 
         weRows = buildWeTableRows();
+        fhRows = buildFhTableRows(fhArray);
         modifyPage();
     }
 
@@ -251,16 +224,6 @@
             console.log('Do something here!!');
             // Set up an observer, or timer, ....
             return;
-        }
-
-        // Wait until -both- tables have been built
-        if (fhRows ==  null || weRows ==  null) {
-            log('Not all rows complete - will return.');
-            setTimeout(modifyPage, 500);
-            return;
-        } else {
-            log('Both weRows and fhRows complete.');
-            log('Weapons at 100%: ' + weAt100pct);
         }
 
         if (validPointer(document.querySelector("#xedx-we-spreadsheet-div"))) {
@@ -402,14 +365,5 @@
 
     // The queries will take a bit - just go ahead and start the party!
     handlePageLoad();
-
-    // Wait for full page load.
-    /*
-    if (document.readyState === 'complete') {
-        handlePageLoad();
-    } else {
-        window.onload = function(e){handlePageLoad();}
-    }
-    */
 
 })();
