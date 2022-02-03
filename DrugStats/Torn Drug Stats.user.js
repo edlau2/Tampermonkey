@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -20,6 +20,8 @@
 
 (function() {
     'use strict';
+
+    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     // Callback triggered once we have received a response from
     // the Torn API; the DIV has already been built at this point.
@@ -63,7 +65,14 @@
     logScriptStart();
     validateApiKey();
 
-    window.onload = function () {
+    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', handlePageLoaded);
+    } else {
+        handlePageLoaded();
+    }
+
+    function handlePageLoaded() {
         console.log(GM_info.script.name + ' onLoad');
         if (awayFromHome()) {return;}
         let extDivId = 'xedx-drugstats-ext-div';
@@ -79,6 +88,7 @@
     //////////////////////////////////////////////////////////////////////
 
     // TBD: these are visible off-screen! Well, on the bottom, on screen!!!!
+    // FIXED!!! GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     function addToolTips() {
         addToolTipStyle();
