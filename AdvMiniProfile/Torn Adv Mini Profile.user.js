@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -93,10 +93,8 @@
         let userRank = numericRankFromFullRank(jsonResp.rank);
 
         // Get bat stats estimate, based on rank triggers (sync)
-        let batStats = getEstimatedBatStats(networth, crimes, userLvl, userRank); // Calculate bat stats estimate
-        if (tornSpy.estimate) {
-            batStats.estimate = numberWithCommas(tornSpy.estimate) + ' (' + tornSpy.lkg + ')';
-        }
+        batStats = getEstimatedBatStats(networth, crimes, userLvl, userRank); // Calculate bat stats estimate
+        let useStats = getBestBatStatEstValues();
 
         let ttNode = node.querySelectorAll(`[class^="tt-mini-data"]`)[0];
         if (ttNode) {
@@ -122,7 +120,7 @@
                     '</tr>' +
                     '<tr>' +
                         '<td class="xtdmp" colspan="2"><strong>Est Bat Stats: </strong>' +
-                        '<span>' + batStats.estimate + '</span></td>' +
+                        '<span>' + useStats + '</span></td>' +
                     '</tr>' +
                     '<tr>' +
                         '<td class="xtdmp" colspan="2"><strong>Last Action: </strong>' +
@@ -154,12 +152,10 @@
             let id = idNode.id.replace('-user', '');
             log('User ID = ' + id);
             xedx_TornStatsSpy(id, getTornSpyCB, node);
-            //queryUserProfile(node, id);
             profileQueried = true;
         }
     }
 
-    let tornSpy = {estimate: 0, low: 0, high: 0};
     function getTornSpyCB(respText, ID, node) {
         let data = JSON.parse(respText);
         log('Spy response: ' + respText);
@@ -167,7 +163,7 @@
             log('Error getting spy! Response text: ' + respText);
         } else {
             if (data.spy.status) {
-                tornSpy = {status: data.spy.status,
+                jsonSpy = {status: data.spy.status,
                            speed: data.spy.speed,
                            strength: data.spy.strength,
                            defense: data.spy.defense,
@@ -180,12 +176,155 @@
             }
         }
 
-        queryUserProfile(node, ID);
-        //profileQueried = true;
-
         // Get our own custom 'spy' (async) (TBD)
-        //log('Calling getCustomBatStatEst');
-        //getCustomBatStatEst(ID, customBatStatEstCB);
+        log('Calling getCustomBatStatEst');
+        getCustomBatStatEst(ID, customBatStatEstCB);
+    }
+
+    // Call our private bat stat esimator DB
+    function getCustomBatStatEst(ID, callback) {
+        let url = 'http://18.119.136.223:8002/batstats/?cmd=getStats&id=' + ID;
+        try {
+            GM_xmlhttpRequest({
+            method:"GET",
+            url:url,
+            headers: {
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                callback(response.responseText, ID);
+            },
+            onerror: function(response) {
+                log('HTTP Error: ', response);
+                addBatStatsToProfile(); // Recover!
+            }});
+        } catch(e) {
+            log('Error: ', e);
+            addBatStatsToProfile(); // Recover!
+        }
+    }
+
+    // Parses the JSON data from our custom FF bat stat estimate, into a JSON object:
+    // {estimate: estStat, low: lowStat, high: highStat}
+    function customBatStatEstCB(resp, ID) {
+        log('*** Custom stats: ', resp);
+        let values = [];
+
+        try {
+            let obj = JSON.parse(resp);
+            let keys = Object.keys(obj);
+            for (let i=0; i<keys.length; i++) {
+                let stats = obj[keys[i]].oppStatsLow;
+                log('stats: ', stats);
+                if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
+                log('stats: ', stats);
+                values.push(stats);
+            }
+        } catch(e) {
+            log('[customBatStatEstCB] Error: ', e);
+        }
+
+        log('values: ', values);
+        if (values.length) {
+            let estStat = Math.max(...values);
+            let lowStat = estStat;
+            let highStat = estStat;
+            log("*** High stat: " + highStat);
+
+            // Find range values
+            let range = getRangeValues(highStat);
+            if (range) {
+                lowStat = range.low;
+                highStat = range.high;
+            }
+            custBatStats = {estimate: estStat, low: lowStat, high: highStat};
+        }
+
+        queryUserProfile(target, ID);
+    }
+
+    // Using the estimated stats from the FF calc, determine which range it falls under
+    // int he rank trigger based bat stat estimate, to clarify high and low values.
+    // Return the JSON range, {estimated, low, high}
+    function getRangeValues(highStat) {
+        for (let i=0; i<estimatedStats.length; i++) {
+            if (highStat > estimatedStats[i].low && highStat < estimatedStats[i].high)
+                return estimatedStats[i];
+        }
+        return null;
+    }
+
+    // Helper, pick the best of below three values.
+    var batStats = {estimate: 0, low: 0, high: 0}; // Can be 'Unknown' or 'N/A' !!
+    var jsonSpy = {estimate: 0, low: 0, high: 0};
+    var custBatStats = {estimate: 0, low: 0, high: 0};
+
+    function getBestBatStatEstValues() {
+        log('batStats: ', batStats);
+        log('custBatStats: ',  custBatStats);
+        log('jsonSpy: ', jsonSpy);
+
+        // No spy or custom estimate: return basic estimate
+        if (!jsonSpy.estimate && !custBatStats.low) return batStats.estimate;
+
+        // Spy, but no custom estimate (or lower estimate): return spy
+        if (jsonSpy.estimate && (jsonSpy.low > custBatStats.low)) return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+
+        // Spy, but no custom estimate: return spy
+        if (jsonSpy.estimate && !custBatStats.low) return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+
+        // Custom estimate, no spy - see if within batStat ranges
+        // {estimate: "over 200m", low: 200000000, high: 0},
+        if (!jsonSpy.estimate && custBatStats.estimate) {
+            let estDisplay = massageEstimate(custBatStats.estimate);
+            log('Est. Display value: ' + estDisplay);
+            if (batStats.estimate == 'N/A' || (batStats.estimate.indexOf('Unknown') > -1)) {
+                return 'Over ' + estDisplay + ' (Level holding?)';
+            }
+            if (custBatStats.estimate > batStats.high) {
+                if (custBatStats.estimate != custBatStats.high) {
+                    let displayHigh = massageEstimate(custBatStats.high);
+                    log('Display values: ' + estDisplay + ', ' + displayHigh);
+                    return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
+                } else {
+                    return 'Min. ' + estDisplay + ' (FF estimate)';
+                }
+            }
+            if (custBatStats.estimate > batStats.low && !batStats.high) {
+                return 'Over ' + estDisplay + ' (FF estimate)';
+            }
+            if (custBatStats.estimate <= batStats.high) {
+                let displayHigh = massageEstimate(batStats.high);
+                log('Display values: ' + estDisplay + ', ' + displayHigh);
+                return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
+            }
+            return 'Over ' + estDisplay + ' (FF estimate)';
+        }
+
+        // Spy and custom: return larger of the two. Spy details will be displayed regardless.
+        if (jsonSpy.low && custBatStats.low) {
+            if (jsonSpy.low > custBatStats.low) { // Just use the spy
+                return numberWithCommas(jsonSpy.estimate) + ' (' + jsonSpy.lkg + ')';
+            } else {
+                let estDisplay = massageEstimate(custBatStats.estimate);
+                return 'Over ' + estDisplay + ' (FF estimate)';
+                //return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
+            }
+        }
+    }
+
+    // 'massage' the numeric value, converting to display values such as '250k' or '2.5M'
+    function massageEstimate(value) {
+        if (value < 2000) return value;
+        let base = Math.floor(value/1000);
+        log('massageEstimate: value = ' + value + ' base = ' + base);
+        if (base.toString().length <=3) return (base + 'k');
+
+        // 1000+
+        base = Math.floor(base/1000);
+        var rounded = Math.round(base * 10) / 10;
+        log('massageEstimate: base = ' + base + ' rounded = ' + rounded);
+        return numberWithCommas(rounded) + 'M';
     }
 
     // Handle the new nodes that are added.
