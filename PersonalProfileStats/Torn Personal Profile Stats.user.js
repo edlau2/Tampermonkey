@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local        file://///Users/edlau/Documents/Tampermonkey Scripts/helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -32,6 +31,7 @@
     const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
     const caretNode = '<span style="float:right;"><i id="xedx-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
     var caretState = 'fa-caret-right';
+    const custBatStatsEnabled = true; // Turn off if my IP (18.119.136.223) goes away, it's at AWS
 
     // From: https://wiki.torn.com/wiki/Ranks
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
@@ -138,9 +138,13 @@
             }
         }
 
-        // Get our own custom 'spy' (async)
-        log('Calling getCustomBatStatEst');
-        getCustomBatStatEst(ID, customBatStatEstCB);
+        // Get our own custom 'spy' (async) if enabled.
+        if (custBatStatsEnabled) {
+            log('Calling getCustomBatStatEst');
+            getCustomBatStatEst(ID, customBatStatEstCB);
+        } else {
+            addBatStatsToProfile();
+        }
     }
 
     // Call our private bat stat esimator DB
@@ -234,7 +238,7 @@
     var jsonSpy = {estimate: 0, low: 0, high: 0};
     var custBatStats = {estimate: 0, low: 0, high: 0};
 
-    function getBestValues() {
+    function getBestBatStatEstValues() {
         log('batStats: ', batStats);
         log('custBatStats: ',  custBatStats);
         log('jsonSpy: ', jsonSpy);
@@ -255,31 +259,25 @@
             log('Est. Display value: ' + estDisplay);
             if (batStats.estimate == 'N/A' || (batStats.estimate.indexOf('Unknown') > -1)) {
                 return 'Over ' + estDisplay + ' (Level holding?)';
-                //return 'Over ' + numberWithCommas(custBatStats.estimate) + ' (Level holding?)';
             }
             if (custBatStats.estimate > batStats.high) {
                 if (custBatStats.estimate != custBatStats.high) {
                     let displayHigh = massageEstimate(custBatStats.high);
                     log('Display values: ' + estDisplay + ', ' + displayHigh);
                     return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
-                    //return numberWithCommas(custBatStats.estimate) + ' to ' + numberWithCommas(custBatStats.high) + ' (FF estimate)';
                 } else {
                     return 'Min. ' + estDisplay + ' (FF estimate)';
-                    //return 'Min. ' + numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
                 }
             }
             if (custBatStats.estimate > batStats.low && !batStats.high) {
                 return 'Over ' + estDisplay + ' (FF estimate)';
-                //return 'Over ' + numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
             }
             if (custBatStats.estimate <= batStats.high) {
                 let displayHigh = massageEstimate(batStats.high);
                 log('Display values: ' + estDisplay + ', ' + displayHigh);
                 return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
-                //return numberWithCommas(custBatStats.estimate) + ' to ' + numberWithCommas(batStats.high) + ' (FF estimate)';
             }
             return 'Over ' + estDisplay + ' (FF estimate)';
-            //return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
         }
 
         // Spy and custom: return larger of the two. Spy details will be displayed regardless.
@@ -289,7 +287,6 @@
             } else {
                 let estDisplay = massageEstimate(custBatStats.estimate);
                 return 'Over ' + estDisplay + ' (FF estimate)';
-                //return numberWithCommas(custBatStats.estimate) + ' (FF estimate)';
             }
         }
     }
@@ -313,7 +310,7 @@
         log('[createBatStatLI]');
 
         // Need the best of the three - batStats, jsonSpy, and custBatStats.
-        let display = getBestValues();
+        let display = getBestBatStatEstValues();
         log('Best value: ' + display);
 
         let li = '<li id="'+ batStatLi + '">' +
