@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -58,6 +60,7 @@
                  '</div></li>';
         $(ul).append(li);
         if (displayToolTips) addFacToolTip(li); // <== This is broken somehow, the background is not opaque...
+                                                // FIXED!!! See the 2 required version of jquery and the added style!
     }
 
     function addFacToolTip(li) {
@@ -119,6 +122,8 @@
     if (awayFromHome()) {return;}
     validateApiKey();
     versionCheck();
+
+    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     window.onload = function () {
         let html = $('#skip-to-content').html();
