@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.11
+// @version      0.12
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -19,6 +19,8 @@
 
 (function() {
     'use strict';
+
+    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     // Globals
     debugLoggingEnabled = false;
