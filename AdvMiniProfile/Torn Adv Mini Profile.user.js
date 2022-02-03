@@ -29,6 +29,7 @@
     var observer = null;
     var target = document.body;
     var config = {childList: true, subtree: true, attributes: false, characterData: false};
+    const custBatStatsEnabled = true; // Turn off if my IP (18.119.136.223) goes away, it's at AWS
 
     // Helpers
     function observeOn() {
@@ -176,9 +177,13 @@
             }
         }
 
-        // Get our own custom 'spy' (async) (TBD)
-        log('Calling getCustomBatStatEst');
-        getCustomBatStatEst(ID, customBatStatEstCB);
+        // Get our own custom 'spy' (async)
+        if (custBatStatsEnabled) {
+            log('Calling getCustomBatStatEst');
+            getCustomBatStatEst(ID, customBatStatEstCB);
+        } else {
+            queryUserProfile(target, ID);
+        }
     }
 
     // Call our private bat stat esimator DB
