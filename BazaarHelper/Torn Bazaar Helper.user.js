@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Bazaar Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.4
-// @description  try to take over the world!
+// @version      0.5
+// @description  Custom sorting, auto-confirm purchases.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/bazaar.php?userId*
 // @connect      api.torn.com
@@ -17,7 +17,7 @@
 (function() {
     'use strict';
 
-    let autoConfirm = true;
+    var autoConfirm = true;
     var targetNode = null;
     var observer = null;
     const config = { attributes: true, childList: true, subtree: true };
@@ -26,7 +26,12 @@
     function hookupObserver() {
         targetNode = document.querySelector("#react-root > div > div.segment___A6rRN.noPadding___dfjfn.itemsContainner___jjKJf" +
                            " > div.ReactVirtualized__Grid.ReactVirtualized__List > div");
-        if (!targetNode && obsRetries++ < 10) return setTimeout(hookupObserver, 200);
+        if (!targetNode) targetNode = document.querySelector("#bazaarRoot > div > div.segment___A6rRN.noPadding___dfjfn.itemsContainner___jjKJf" +
+                           " > div.ReactVirtualized__Grid.ReactVirtualized__List > div");
+        if (!targetNode && obsRetries++ < 10) {
+            log('Didn`t find target node!');
+            return setTimeout(hookupObserver, 200);
+        }
         if (!observer) observer = new MutationObserver(callback);
         observer.observe(targetNode, config);
     }
@@ -57,7 +62,9 @@
         let selID = document.querySelector('input[name="sortopts"]:checked').value;
         console.log('Radio Button Selected: ' + selID);
         GM_setValue('selectedBtn', selID);
-        document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(" + selID + ")").click();
+        let node = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(" + selID + ")");
+        if (!node) node = document.querySelector("#bazaarRoot > div > div.searchBar___usfAr > button:nth-child(" + selID + ")");
+        if (node) node.click();
     }
 
     function onCheckboxClicked() {
@@ -68,6 +75,7 @@
 
     function installUI() {
         let parent = document.querySelector("#react-root > div > div.wrapper");
+        if (!parent) parent = document.querySelector("#bazaarRoot > div > div.wrapper");
         if (!parent) return setTimeout(installUI, 50);
         if (!document.querySelector("xedx-bazaar-ext")) $(parent).append(optionsDiv);
 
@@ -92,6 +100,7 @@
     function clickCostOrValue() {
         let selID = GM_getValue('selectedBtn', 4);
         let useBtn = document.querySelector("#react-root > div > div.searchBar___usfAr > button:nth-child(" + selID + ")");
+        if (!useBtn) useBtn = document.querySelector("#bazaarRoot > div > div.searchBar___usfAr > button:nth-child(" + selID + ")");
 
         if (!useBtn && ccvRetries++ < 25) {
             return setTimeout(clickCostOrValue, 100);
@@ -110,6 +119,7 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+
     installUI();
     clickCostOrValue();
 
