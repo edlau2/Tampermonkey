@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.0
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -29,19 +29,12 @@
 
     // Some constants
     const userQuery = 'https://api.torn.com/user/?selections=attacks,battlestats&key=';
-    const uploadServer = 'http://18.119.136.223:8002/batstats/?cmd=saveStats';
+    const uploadServer = 'http://18.119.136.223:8002/batstats/?cmd=';
     const REQUEST_DELAY = 500; // ms before getting attack data
     const MAX_REQ_RETRIES = 24; // Max times to retry in case of wrong ID (attack result not there yet)
 
-
-    //var g_opponentID = 0;
-    //var g_opponentLevel = 0;
-    //var g_opponentLastAction = 0;
-
     // Some globals
     var g_intId = null; // ID for the interval timer that checks for fight end.
-
-    //var g_tornStatSpy = null; // member for 'result' that is uploaded
     let g_opponent = // member for 'result' that is uploaded, their data, both inbound and outbound
         {'id': 0, 'name': '', 'level': 'N/A', 'lastaction': 'N/A', 'result': '', 'lkg': 0, 'when': 0};
     var g_batStats = null; // member for 'result' that is uploaded, my batstats
@@ -102,6 +95,11 @@
         // Fill global user struct (my details, name/ID)
         g_user = {'id': jsonResp.player_id, 'name': jsonResp.name};
         log('user: ', g_user);
+
+        // Upload fac member score data to DB
+        let scoreData = {'memberID': g_user.id, 'memberName': g_user.name, 'memberScore': g_batStats.score};
+        log('Uploading score data: ', scoreData);
+        uploadScoreData(scoreData);
 
         // Save last attack so we don't mistake previous attacks against same person for this one
         let lastAttackJSON = getLastAttack(jsonResp.attacks);
@@ -242,18 +240,9 @@
     // We do this separate from the globals as we need to wait for the last attack
     // to be present to get the FF modifier. We don't need this for previous,
     // incoming attacks.
-    function buildResult(attackLog, opponent, /*oppLevel, oppLastAction, spy,*/ direction) {
+    function buildResult(attackLog, opponent, direction) {
         let theAttack = attackLog.attack;
         let outbound = (direction == 'outbound');
-        /*
-        let opponent = {'id': outbound ? theAttack.defender_id : theAttack.attacker_id,
-                        'name': outbound ? theAttack.defender_name : theAttack.attacker_name,
-                        'level': oppLevel ? oppLevel : 'N/A',
-                        'lastaction': oppLastAction ? oppLastAction : 'N/A',
-                        'result': theAttack.result,
-                        'lkg': spy ? spy.total : 0,
-                        'when': spy ? spy.when : 0};
-        */
 
         opponent.id = outbound ? theAttack.defender_id : theAttack.attacker_id;
         opponent.name = outbound ? theAttack.defender_name : theAttack.attacker_name;
@@ -264,7 +253,6 @@
             opponent.id = 'stealthed';
         }
         log('opponent: ', opponent);
-        //let user = {'id': jsonResp.player_id, 'name': jsonResp.name}; // From the 'basic' query - this is me on attack
         let modifiers = {'ff': theAttack.modifiers.fair_fight,
                          'respect': theAttack.respect_gain};
         log('modifiers: ', modifiers);
@@ -279,20 +267,33 @@
     }
 
     // Upload data via POST to the DB server
+    // const uploadServer = 'http://18.119.136.223:8002/batstats/?cmd=saveStats';
     function uploadAttackData(result) {
-        log('[uploadAttackData]');
+        let URL = uploadServer + 'saveStats';
+        uploadData(URL, result);
+    }
+
+    function uploadScoreData(result) {
+        let URL = uploadServer + 'saveScore';
+        uploadData(URL, result);
+    }
+
+    // Upload data via POST to the DB server
+    function uploadData(URL, result) {
+        log('[uploadData] URL=' + URL);
         GM_xmlhttpRequest ( {
             method: "POST",
-            url: uploadServer,
+            url: URL,
             data: JSON.stringify(result),
             headers:{
                 "Content-Type": "Content-Type: application/json"
             },
             onload: function (response) {
-                log('response: ', response.responseText);
+                log('[uploadData] response: ', response.responseText);
+                log('[uploadData] URL was: ' + UTL);
             },
             onerror: function(error) {
-                log("error: ", error);
+                log("[uploadData] error: ", error);
             }
         } );
 
@@ -349,15 +350,6 @@
                 }
                 // Something like 'you hospitalized, you mugged, ...
                 log('Good news, you won!');
-
-                /*
-                // Add a staus indicator to header div
-                let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
-                                              "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
-                // Note: container is flex, so 2nd span centers the first.
-                $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">Preparing to upload fight data...</span>' +
-                                   '<span>&nbsp</span>');
-                */
 
                 statusLine.textContent = 'Preparing to upload fight data...';
                 setTimeout(getAttacks, REQUEST_DELAY); // Give time for fight stats to get there.
