@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -97,7 +97,9 @@
         log('user: ', g_user);
 
         // Upload fac member score data to DB
-        let scoreData = {'memberID': g_user.id, 'memberName': g_user.name, 'memberScore': g_batStats.score};
+        let lkg = new Date().getTime();
+        let scoreData = {'memberID': g_user.id, 'memberName': g_user.name, 'memberLevel': jsonResp.level,
+                         'memberScore': g_batStats.score, 'lkg': lkg};
         log('Uploading score data: ', scoreData);
         uploadScoreData(scoreData);
 
@@ -142,6 +144,7 @@
                 // Could get opponent level and last action here... TBD
                 let opponent = {'id': 0, 'name': '', 'level': 'N/A', 'lastaction': 'N/A', 'result': '', 'lkg': 0, 'when': 0};
                 let result = buildResult(attack, opponent, 'inbound'); // Could get level and spy here, maybe...TBD
+                                                                       // Wait, we get spy client side?
                 log('Uploading a loss: ', result);
                 uploadAttackData(result);
             }
