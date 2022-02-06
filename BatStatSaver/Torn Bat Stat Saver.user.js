@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -124,7 +124,7 @@
                 } else {
                     // Could get opponent level and last action here... TBD
                     let result = buildResult(lastAttackJSON, opponent, 'outbound');
-                    if (lastAttack.respect_gain && lastAttack.modifiers.fair_fight == 1.00) lastAttack.modifiers.fair_fight == 1.01;
+                    if (lastAttack.respect_gain && lastAttack.modifiers.fair_fight == 1.00) lastAttack.modifiers.fair_fight = 1.01;
                     if (Number(lastAttack.modifiers.fair_fight) != 1) {
                         log('Uploading attack ' + lastAttackJSON.id);
                         uploadAttackData(result);
