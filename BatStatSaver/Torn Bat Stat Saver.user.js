@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -160,8 +160,9 @@
         for (let i=0; i < keys.length; i++) {
             let key = keys[i];
             let attack = attacks[key];
-            if (attack.defender_name != g_user.name) continue;
-            if (lossTypes.includes(attack.result) && attack.modifiers.fair_fight > 1) {
+            if (attack.defender_name != g_user.name) continue; // Not a defend
+            if (!attack.defender_name && !attack.defender_id) continue; // Stealthed
+            if (lossTypes.includes(attack.result) && attack.modifiers.fair_fight > 0) {
                 if (attack.timestamp_started > oldestAttackTime) {
                     g_oldLossArray.push({'id': key, 'attack': attack});
                     GM_setValue('oldestAttackTime', attack.timestamp_started);
