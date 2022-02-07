@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -294,7 +294,7 @@
             },
             onload: function (response) {
                 log('[uploadData] response: ', response.responseText);
-                log('[uploadData] URL was: ' + UTL);
+                log('[uploadData] URL was: ' + URL);
             },
             onerror: function(error) {
                 log("[uploadData] error: ", error);
