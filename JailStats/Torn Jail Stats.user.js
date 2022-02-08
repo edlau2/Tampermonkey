@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -224,19 +224,4 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     } else {
         buildJailStatsDiv();
     }
-
-    /*
-    // We don't want an observer on the home page, NPC Timers will cause all sorts of page changes.
-    var targetNode = document.getElementById('mainContainer');
-    var config = { attributes: false, childList: true, subtree: true };
-    var callback = function(mutationsList, observer) {
-        if (awayFromHome()) {return;}
-        observer.disconnect();
-        // This call either immediately calls the provided callback and re-connects the observer,
-        // or else sets a timeout to re-connect when we land, if we are travelling.
-        checkTravelling(buildJailStatsDiv, observer, targetNode, config);
-    };
-    var observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
-    */
 })();
