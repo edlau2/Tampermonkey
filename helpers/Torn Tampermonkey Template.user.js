@@ -21,12 +21,12 @@
 (function() {
     'use strict';
 
-     function handlePageLoad() {
+    function handlePageLoad() {
         // Can check for any required DIV here and setTimeout() if not available,
         // or trigger any required API calls...
     }
 
-  //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
     // Main.
     //////////////////////////////////////////////////////////////////////
 
@@ -34,6 +34,6 @@
     validateApiKey();
     versionCheck();
 
-    callOnContentLoaded(handlePageLoaded);
+    callOnContentLoaded(handlePageLoad);
 
 })();
