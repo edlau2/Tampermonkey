@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -16,6 +16,10 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 const extDivId = 'xedx-jailstats-ext-div';
 const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId + '">' +
@@ -48,8 +52,7 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     //////////////////////////////////////////////////////////////////////
 
     function buildJailStatsDiv() {
-        // Only do this once
-        if (extendedDivExists(extDivId)) {return;}
+        if (document.querySelector(extDivId)) {return;} // Only do this once
 
         var mainDiv = document.getElementById('column0');
         if (!validPointer(mainDiv)) {return;}
@@ -76,8 +79,7 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
                 console.log('Unable to find proper span: ' + searchName + ' at ' + document.URL);
                 continue;
             }
-            if (!validPointer(stats[name])) {continue;} // May not be in data (never done). Not an error.
-
+            if (!validPointer(stats[name])) {continue;}
             if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
                 valSpan.innerText = '$' + numberWithCommas(stats[name]);
             } else {
@@ -109,18 +111,6 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
         }
     }
 
-    function displayToolTip(div, text) {
-        $(document).ready(function() {
-            $(div).attr("title", "original");
-            $(div).tooltip({
-                content: text,
-                classes: {
-                    "ui-tooltip": "tooltip3"
-                }
-            });
-        })
-    }
-
     function buildFeesToolTip(title) {
         var feesLi = document.getElementById('xedx-fees');
         var feesText = document.getElementById('xedx-val-span-totalbountyreward').innerText;
@@ -134,7 +124,6 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
         }
 
         var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B> ' + pctText;
-
         displayToolTip(feesLi, text);
     }
 
@@ -214,14 +203,18 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
-    logScriptStart();
-    validateApiKey();
     if (awayFromHome()) {return;}
 
-    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    logScriptStart();
+    validateApiKey();
+
+    callOnContentLoaded(buildJailStatsDiv);
+
+    /* Delay until DOM content load (not full page) complete, so that other scripts run first.
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', buildJailStatsDiv);
     } else {
         buildJailStatsDiv();
     }
+    */
 })();
