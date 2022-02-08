@@ -302,8 +302,8 @@ function numericRankFromFullRank(fullRank) {
 
     // Lookup name in our table (array) to convert to number
     let numeric_rank = 0;
-    for (let i = 0; i < ranks.length; i++) {
-        if (rank == ranks[i]) {
+    for (let i = 0; i < _ranks.length; i++) {
+        if (rank == _ranks[i]) {
             numeric_rank = i;
             break;
         }
@@ -372,8 +372,7 @@ function displayToolTip(node, text) {
 // Map textual rank names to numeric, via array index
 //////////////////////////////////////////////////////////////////////
 
-/*
-var ranks = ['Absolute beginner',
+var _ranks = ['Absolute beginner',
              'Beginner',
              'Inexperienced',
              'Rookie',
@@ -399,7 +398,6 @@ var ranks = ['Absolute beginner',
              'Legendary',
              'Elite',
              'Invincible'];
-*/
 
 /////////////////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API
@@ -495,21 +493,6 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
             handleSysError(response.responseText);
         }
     });
-}
-
-//////////////////////////////////////////////////////////////////
-// Function to create a hash for a string. Returns a positive
-// 32 bit int.
-//////////////////////////////////////////////////////////////////
-
-String.prototype.hashCode = function(){
-    var hash = 0;
-    for (var i = 0; i < this.length; i++) {
-        var character = this.charCodeAt(i);
-        hash = ((hash<<5)-hash)+character;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
 }
 
 //////////////////////////////////////////////////////////////////////
