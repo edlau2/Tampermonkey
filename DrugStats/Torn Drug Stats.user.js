@@ -18,77 +18,16 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
-
-    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
-
-    // Callback triggered once we have received a response from
-    // the Torn API; the DIV has already been built at this point.
-    // Just fill in the values.
-    function personalStatsQueryCB(responseText, ID, name) {
-        let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
-
-        let stats = jsonResp.personalstats;
-        let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
-                          'opitaken', 'opitaken', 'shrtaken', 'spetaken',
-                          'pcptaken', 'xantaken', 'victaken', 'drugsused',
-                          'overdosed', 'rehabs', 'rehabcost'];
-
-        knownSpans.forEach((name) => {
-            let id = 'xedx-val-span-' + name;
-            let valSpan = document.getElementById(id);
-            let value = stats[name];
-            if (typeof value === 'undefined' || value === null) {value = 0;} // Drug not taken yet
-
-            // Format properly and insert.
-            if (!name.localeCompare('rehabcost')) {
-                valSpan.innerText = '$' + numberWithCommas(value);
-            } else if (!name.localeCompare('overdosed')) {
-                var pct = (Number(value) / Number(stats['drugsused'])*100).toFixed(2);
-                valSpan.innerText = value + ' (' + pct + '%)';
-            } else {
-                valSpan.innerText = value;
-            }
-        });
-
-        addToolTips();
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Main entry point
-    //////////////////////////////////////////////////////////////////////
-
-    let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js'
-
-    logScriptStart();
-    validateApiKey();
-
-    // Delay until DOM content load (not full page) complete, so that other scripts run first.
-    if (document.readyState == 'loading') {
-        document.addEventListener('DOMContentLoaded', handlePageLoaded);
-    } else {
-        handlePageLoaded();
-    }
-
-    function handlePageLoaded() {
-        console.log(GM_info.script.name + ' onLoad');
-        if (awayFromHome()) {return;}
-        let extDivId = 'xedx-drugstats-ext-div';
-        let mainDiv = document.getElementById('column0');
-        if (!validPointer(mainDiv)) {return;}
-        $(mainDiv).append(extDiv);
-        xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB, '');
-    }
-
 
     //////////////////////////////////////////////////////////////////////
     // Function(s) to add appropriate tool tip(s).
     //////////////////////////////////////////////////////////////////////
-
-    // TBD: these are visible off-screen! Well, on the bottom, on screen!!!!
-    // FIXED!!! GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     function addToolTips() {
         addToolTipStyle();
@@ -103,18 +42,6 @@
         buildUseString('pcptaken');
         buildUseString('xantaken');
         buildUseString('victaken');
-    }
-
-    function displayToolTip(div, text) {
-        $(document).ready(function() {
-            $(div.parentNode).attr("title", "original");
-            $(div.parentNode).tooltip({
-                content: text,
-                classes: {
-                    "ui-tooltip": "tooltip3"
-                }
-            });
-        })
     }
 
     function buildUseString(item) {
@@ -208,8 +135,64 @@
         }
         text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
             CRLF + 'Chance of OD: ' + odChance;
-        displayToolTip(useDiv, text);
+        displayToolTip(useDiv.parentNode, text);
     }
+
+    // Callback triggered once we have received a response from
+    // the Torn API; the DIV has already been built at this point.
+    // Just fill in the values.
+    function personalStatsQueryCB(responseText, ID, name) {
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
+
+        let stats = jsonResp.personalstats;
+        let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
+                          'opitaken', 'opitaken', 'shrtaken', 'spetaken',
+                          'pcptaken', 'xantaken', 'victaken', 'drugsused',
+                          'overdosed', 'rehabs', 'rehabcost'];
+
+        knownSpans.forEach((name) => {
+            let id = 'xedx-val-span-' + name;
+            let valSpan = document.getElementById(id);
+            let value = stats[name];
+            if (typeof value === 'undefined' || value === null) {value = 0;} // Drug not taken yet
+
+            // Format properly and insert.
+            if (!name.localeCompare('rehabcost')) {
+                valSpan.innerText = '$' + numberWithCommas(value);
+            } else if (!name.localeCompare('overdosed')) {
+                var pct = (Number(value) / Number(stats['drugsused'])*100).toFixed(2);
+                valSpan.innerText = value + ' (' + pct + '%)';
+            } else {
+                valSpan.innerText = value;
+            }
+        });
+
+        addToolTips();
+    }
+
+    function handlePageLoaded() {
+        console.log(GM_info.script.name + ' onLoad');
+        if (awayFromHome()) {return;}
+        let extDivId = 'xedx-drugstats-ext-div';
+        let mainDiv = document.getElementById('column0');
+        if (!validPointer(mainDiv)) {return;}
+        $(mainDiv).append(extDiv);
+        xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB, '');
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Main entry point
+    //////////////////////////////////////////////////////////////////////
+
+    let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js'
+
+    logScriptStart();
+    validateApiKey();
+
+    // Delay until DOM content load (not full page) complete, so that other scripts run first.
+    callOnContentLoaded(handlePageLoaded);
+
 })();
 
 
