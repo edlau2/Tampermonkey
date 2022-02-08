@@ -13,19 +13,21 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.25
+// @version     2.26
 // @license     MIT
 // ==/UserLibrary==
 
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Validate an API key and prompt if misssing
 ///////////////////////////////////////////////////////////////////////////////////
 
-var api_key = GM_getValue('gm_api_key');
+const api_key = GM_getValue('gm_api_key');
+
 function validateApiKey() {
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
         api_key = prompt(GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -64,26 +66,25 @@ function logScriptStart() {
     console.log(GM_info.script.name + ' version ' + GM_info.script.version + ' script started!');
 }
 
-function logScriptComplete() {
-    console.log(GM_info.script.name + ' script complete!');
-}
-
-// Get rid of this - returns hosting script version, not this library's version
-function getHelperVersion() {
-    console.log('**** Please notify xedx [2100735], deprecated function call - ' +
-                '"getHelperVersion()" in script "' + GM_info.script.name +'"');
-    return '0.2';
-}
-
+// non-blocking (async) delay, use with 'await' in an async function
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Call the callback once page content laoded.
+function callOnContentLoaded(callback) {
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
+    } else {
+        callback();
+    }
 }
 
 // Store latest version info and notify if updated.
 var silentUpdates = false;
 function versionCheck() {
     let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
-    if  (Number(GM_info.script.version) > Number(curr_ver)) {
+    if (Number(GM_info.script.version) > Number(curr_ver)) {
         let msg = 'Your version of ' + GM_info.script.name + ' has been updated to version ' + GM_info.script.version +
               ' ! Press OK to continue.';
         if (!silentUpdates) {alert(msg);}
@@ -219,7 +220,6 @@ function timenow() {
   return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
 }
 
-
 // Add commas at thousand place - works with decimal numbers
 function numberWithCommas(x) {
     var parts = x.toString().split(".");
@@ -227,7 +227,7 @@ function numberWithCommas(x) {
     return parts.join(".");
 }
 
-// Check to see if a pointer is valid
+// Check to see if a pointer (sic) is valid
 // Note: "val == undefined" is the same as the coercion, "val == null", and 'val'.
 function validPointer(val, dbg = false) {
     if (typeof val !== undefined && val) {return true;}
@@ -257,28 +257,6 @@ String.prototype.hashCode = function(){
         hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash);
-}
-
-//
-// Wildcard version of getElementsByClassName()
-// Note: easier to use $(selector).find(...); instead.
-//
-// Only used by 'Torn Racing - Car Order' and 'Torn Gym Gains'
-function myGetElementsByClassName2(anode, className) {
-    var elems = anode.getElementsByTagName("*");
-    var matches = [];
-    for (var i=0, m=elems.length; i<m; i++) {
-        if (validPointer(elems[i].className) && elems[i].className.indexOf(className) != -1) {
-            matches.push(elems[i]);
-        }
-    }
-
-    return matches;
-}
-
-// Backwards compatibility:
-function myGetElementsByClassName(anode, className) {
-    return myGetElementsByClassName2(anode, className);
 }
 
 // The URL expected is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
@@ -312,7 +290,7 @@ function useridFromProfileURL(URL) {
     return ID;
 }
 
-// Return the numeric equivalent of the full rank returned by the 'profie' selection
+// Return the numeric equivalent of the full rank returned by the 'profile' selection
 // Torn 'user' API query.
 function numericRankFromFullRank(fullRank) {
     let parts = fullRank.split(' ');
@@ -336,7 +314,14 @@ function numericRankFromFullRank(fullRank) {
 
 // Add the style(s) I use for tool-tips
 // tooltip3 is the correct one, with an opaque gray background
+//
+// Important: Add these to your script:
+//
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+//
 function addToolTipStyle() {
+    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
     GM_addStyle(".tooltip2 {" +
               "radius: 4px !important;" +
               "background-color: #ddd !important;" +
@@ -370,11 +355,11 @@ function addToolTipStyle() {
               "}");
 }
 
-// Adds a tool tip to a DIV
-function displayToolTip(div, text) {
+// Adds a tool tip to a node/element
+function displayToolTip(node, text) {
     $(document).ready(function() {
-        $(div.parentNode).attr("title", "original");
-        $(div.parentNode).tooltip({
+        $(node).attr("title", "original");
+        $(node).tooltip({
             content: text,
             classes: {
                 "ui-tooltip": "tooltip3"
@@ -387,6 +372,7 @@ function displayToolTip(div, text) {
 // Map textual rank names to numeric, via array index
 //////////////////////////////////////////////////////////////////////
 
+/*
 var ranks = ['Absolute beginner',
              'Beginner',
              'Inexperienced',
@@ -413,6 +399,7 @@ var ranks = ['Absolute beginner',
              'Legendary',
              'Elite',
              'Invincible'];
+*/
 
 /////////////////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API
@@ -529,83 +516,6 @@ String.prototype.hashCode = function(){
 // ************************ Travel Related ***************************
 //////////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////////
-// Functions to query the Torn API for travel stats.
-//
-// Use this if the @include or @match is https://www.torn.com/index.php
-// It checks to see if travelling, which refreshes the page constantly,
-// so the 'main' enrty point, if triggered using an observer, will
-// constantly get called. Instead, call this function:
-//
-// checkTravelling(callback, observer, targetNode, config);
-// where 'callback' is the actual function you'd normally call.
-//
-// observer, targetNode, and config will be used as follows:
-// observer.observe(targetNode, config);
-//
-// The code either executes the callback immediately, if not
-// travelling, with the observer disconnected, and reconnects after
-// the call.
-//
-// If travelling, the observer is reconnected on landing, and
-// hence this will be called again.
-//
-// TBD: This could be re-written to use the new simplified travel funcs, from below.
-//
-//////////////////////////////////////////////////////////////////////
-
-function checkTravelling(callback, observer, targetNode, config) {
-    var cbStruct = {callback:callback, observer:observer,
-                    targetNode:targetNode, config:config};
-    xedx_TornUserQuery('', 'travel', xedx_travelCB, cbStruct);
-}
-
-function xedx_travelCB(responseText, ID, cbStruct) {
-    let jsonResp = JSON.parse(responseText);
-    if (jsonResp.error) {return handleError(responseText);}
-
-    let stats = jsonResp.travel;
-    let callback = cbStruct.callback;
-    let observer = cbStruct.observer;
-    let targetNode = cbStruct.targetNode;
-    let config = cbStruct.config;
-    observer.disconnect();
-    if (stats.time_left == 0 && stats.destination == 'Torn') {
-        if (callback != null) {
-            callback(); // Calls whatever work needs to be done, with observer disconnected
-            observer.observe(targetNode, config);
-        }
-    } else {
-        // If travelling, set timeout to re-connect the observer when we are scheduled to land.
-        console.log('(JS-Helper) ' + GM_info.script.name + ' Destination: "' + stats.destination +
-                '" time_left: ' + stats.time_left + ' seconds.');
-        setTimeout(function(){observer.observe(targetNode, config); }, stats.time_left * 1000);
-    }
-}
-
-// Return TRUE if on the 'Traveling' screen
-// Left here for backwards compatibility.
-function areTraveling() {
-    return travelling();
-}
-
-/*
-This is in dark mode ('dark mode' will not be in the class otherwise), when in Torn:
-
-<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
-data-country="torn" data-celebration="none" data-traveling="false" data-abroad="false" data-dark-mode-logo="regular">
-
-While flying:
-
-<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
-data-country="cayman-islands" data-celebration="none" data-traveling="true" data-abroad="true" data-dark-mode-logo="">
-
-When landed:
-
-<body id="body" class="d body webp-support r regular dark-mode" data-layout="regular"
-data-country="cayman-islands" data-celebration="none" data-traveling="false" data-abroad="true" data-dark-mode-logo="">
-*/
-
 // Return what country we are in (or going to!)
 function currentCountry() {
     return $('body')[0].getAttribute('data-country');
@@ -631,17 +541,10 @@ function darkMode() {
     return $('body')[0].classList.contains('dark-mode');
 }
 
-/*
-// Function to register a callback if the 'body' tag changes, which can trigger on dark-mode change
-function addDarkModeObserver(callback) {
-    var observer = new MutationObserver(callback);
-    observer.observe($('body')[0] ,{attributes: true, childList: false, subtree: false});
-}
-*/
-
-/////////////////////////////////////////////////////////////////////////////////
-// Very simple error handler; only displayed (and logged) once <== this is a lie.
-/////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+// Very simple error handler; only displayed (and logged) [once <== this is a lie!]
+// Called from the various xedx_Torn*Query() functions
+/////////////////////////////////////////////////////////////////////////////////////
 
 // TBD: Change this to a self-closing message.
 var errorLogged = false;
@@ -670,7 +573,6 @@ function handleError(responseText) {
         errorLogged = true;
     }
 }
-
 function handleSysError(response, addlText=null) {
     let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
         response.error;
@@ -680,131 +582,7 @@ function handleSysError(response, addlText=null) {
     console.log(errorText);
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-// UI helpers. These are all being deprecated in favor of importing fully formed
-// HTML via a @require, see 'Torn Drug Stats' or 'Torn Gym Gains' as examples.
-///////////////////////////////////////////////////////////////////////////////////
-
-function createExtendedDiv(extDivId) {
-    var extendedDiv = document.createElement('div');
-    extendedDiv.className = 'sortable-box t-blue-cont h';
-    extendedDiv.id = extDivId;
-    return extendedDiv;
-}
-
-function createBodyDiv(id=null) {
-    var bodyDiv = document.createElement('div');
-    bodyDiv.className = 'bottom-round';
-    if (id) {bodyDiv.id = id;}
-    return bodyDiv;
-}
-
-function extendedDivExists(extDivId) {
-    var testDiv = document.getElementById(extDivId);
-    if (validPointer(testDiv)) {
-        return true;
-    }
-    return false;
-}
-
-function createHeaderDiv() {
-    var headerDiv = document.createElement('div');
-    headerDiv.id = 'xedx-header_div';
-    headerDiv.className = 'title main-title title-black active top-round';
-    headerDiv.setAttribute('role', 'heading');
-    headerDiv.setAttribute('aria-level', '5');
-
-    var arrowDiv = createArrowDiv();
-    var moveDiv = createMoveDiv();
-    headerDiv.appendChild(arrowDiv);
-    headerDiv.appendChild(moveDiv);
-    return headerDiv;
-}
-
-function createDividerSpan(item, name) {
-    var dividerSpan = document.createElement('span');
-    dividerSpan.className = ('divider');
-    dividerSpan.id = 'xedx-div-span-' + item;
-    var nameSpan = document.createElement('span');
-    nameSpan.innerText = name;
-    dividerSpan.appendChild(nameSpan);
-    return dividerSpan;
-}
-
-function createArrowDiv() {
-    var arrowDiv = document.createElement('div');
-    arrowDiv.className = 'arrow-wrap';
-    var a = document.createElement('i');
-    a.className = 'accordion-header-arrow right';
-    arrowDiv.appendChild(a);
-    return arrowDiv;
-}
-
-function createHeaderDivEx(title=null, hdrId=null, bodyDiv=null, hidden=false) {
-    var headerDiv = document.createElement('div');
-    headerDiv.className = 'title main-title title-black border-round';
-    headerDiv.setAttribute('role', 'table');
-    headerDiv.setAttribute('aria-level', '5');
-    if (hdrId) {headerDiv.id = hdrId;}
-    if (bodyDiv && hdrId) {
-        if (validPointer(bodyDiv)) {
-            if (hidden) {bodyDiv.style.display = "none";}
-            else {bodyDiv.style.display = "block";}
-        }
-        let arrowDiv = createArrowDivEx(bodyDiv.id, hdrId);
-        headerDiv.appendChild(arrowDiv);
-    }
-    if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
-    return headerDiv;
-}
-
-function createArrowDivEx(bodyId, hdrId) {
-    var arrowDiv = document.createElement('div');
-    arrowDiv.className = 'arrow-wrap sortable-list';
-    var a = document.createElement('a');
-    a.setAttribute('role', 'button');
-    a.setAttribute('href', '#/');
-    a.className = 'accordion-header-arrow right';
-    arrowDiv.appendChild(a);
-    arrowDiv.addEventListener("click", function() {
-        var bodyDiv = document.getElementById(bodyId);
-        var headerDiv = document.getElementById(hdrId);
-        if (bodyDiv.style.display === "block") {
-            bodyDiv.style.display = "none";
-            headerDiv.className = 'title main-title title-black border-round';
-        } else {
-            bodyDiv.style.display = "block";
-            headerDiv.className = 'title main-title title-black top-round active';
-        }
-    });
-
-    return arrowDiv;
-}
-
-function createMoveDiv() {
-    var moveDiv = document.createElement('div');
-    moveDiv.className = 'move-wrap';
-    var b = document.createElement('i');
-    b.className = 'accordion-header-move right';
-    moveDiv.appendChild(b);
-    return moveDiv;
-}
-
-function createSeparator() {
-    var sepHr = document.createElement('hr');
-    sepHr.className = 'delimiter-999 m-top10 m-bottom10';
-    return sepHr;
-}
-
-function createSmallSeparator() {
-    var sepHr = document.createElement('hr');
-    sepHr.className = 'delimiter-999';
-    sepHr.setAttribute('style', 'margin-top: 5px; margin-bottom: 5px;');
-    return sepHr;
-}
-
 /**
- *
  * @auther SM@K<smali.kazmi@hotmail.com>
  * @description website: smak.pk
  */
@@ -812,90 +590,33 @@ function createSmallSeparator() {
 // usage: alert(SmartPhone.isAny());
 // if (SmartPhone.isAny()) {...}
 
-(function() {
+(function() { // SmartPhone = function(obj) {
     var root = this;
-
     var SmartPhone = function(obj) {
-        if (obj instanceof SmartPhone)
-            return obj;
-        if (!(this instanceof SmartPhone))
-            return new SmartPhone(obj);
+        if (obj instanceof SmartPhone) return obj;
+        if (!(this instanceof SmartPhone)) return new SmartPhone(obj);
         this._wrapped = obj;
     };
 
     SmartPhone.userAgent = null;
-    SmartPhone.getUserAgent = function() {
-        return this.userAgent;
-    };
-
-    SmartPhone.setUserAgent = function(userAgent) {
-        this.userAgent = userAgent;
-    };
-
-    SmartPhone.isAndroid = function() {
-        return this.getUserAgent().match(/Android/i);
-    };
-
-    SmartPhone.isBlackBerry = function() {
-        return this.getUserAgent().match(/BlackBerry/i);
-    };
-
-    SmartPhone.isBlackBerryPlayBook = function() {
-        return this.getUserAgent().match(/PlayBook/i);
-    };
-
-    SmartPhone.isBlackBerry10 = function() {
-        return this.getUserAgent().match(/BB10/i);
-    };
-
-    SmartPhone.isIOS = function() {
-        return this.isIPhone() || this.isIPad() || this.isIPod();
-    };
-
-    SmartPhone.isIPhone = function() {
-        return this.getUserAgent().match(/iPhone/i);
-    };
-
-    SmartPhone.isIPad = function() {
-        return this.getUserAgent().match(/iPad/i);
-    };
-
-    SmartPhone.isIPod = function() {
-        return this.getUserAgent().match(/iPod/i);
-    };
-
-    SmartPhone.isOpera = function() {
-        return this.getUserAgent().match(/Opera Mini/i);
-    };
-
-    SmartPhone.isWindows = function() {
-        return this.isWindowsDesktop() || this.isWindowsMobile();
-    };
-
-    SmartPhone.isWindowsMobile = function() {
-        return this.getUserAgent().match(/IEMobile/i);
-    };
-
-    SmartPhone.isWindowsDesktop = function() {
-        return this.getUserAgent().match(/WPDesktop/i);
-    };
-
-    SmartPhone.isFireFox = function() {
-        return this.getUserAgent().match(/Firefox/i);
-    };
-
-    SmartPhone.isNexus = function() {
-        return this.getUserAgent().match(/Nexus/i);
-    };
-
-    SmartPhone.isKindleFire = function() {
-        return this.getUserAgent().match(/Kindle Fire/i);
-    };
-
-    SmartPhone.isPalm = function() {
-        return this.getUserAgent().match(/PalmSource|Palm/i);
-    };
-
+    SmartPhone.getUserAgent = function() {return this.userAgent;};
+    SmartPhone.setUserAgent = function(userAgent) {this.userAgent = userAgent;};
+    SmartPhone.isAndroid = function() {return this.getUserAgent().match(/Android/i);};
+    SmartPhone.isBlackBerry = function() {return this.getUserAgent().match(/BlackBerry/i);};
+    SmartPhone.isBlackBerryPlayBook = function() {return this.getUserAgent().match(/PlayBook/i);};
+    SmartPhone.isBlackBerry10 = function() {return this.getUserAgent().match(/BB10/i);};
+    SmartPhone.isIOS = function() {this.isIPhone() || this.isIPad() || this.isIPod();};
+    SmartPhone.isIPhone = function() {return this.getUserAgent().match(/iPhone/i);};
+    SmartPhone.isIPad = function() {return this.getUserAgent().match(/iPad/i);};
+    SmartPhone.isIPod = function() {return this.getUserAgent().match(/iPod/i);};
+    SmartPhone.isOpera = function() {return this.getUserAgent().match(/Opera Mini/i);};
+    SmartPhone.isWindows = function() {return this.isWindowsDesktop() || this.isWindowsMobile();};
+    SmartPhone.isWindowsMobile = function() {return this.getUserAgent().match(/IEMobile/i);};
+    SmartPhone.isWindowsDesktop = function() {return this.getUserAgent().match(/WPDesktop/i);};
+    SmartPhone.isFireFox = function() {return this.getUserAgent().match(/Firefox/i);};
+    SmartPhone.isNexus = function() {return this.getUserAgent().match(/Nexus/i);};
+    SmartPhone.isKindleFire = function() {return this.getUserAgent().match(/Kindle Fire/i);};
+    SmartPhone.isPalm = function() {return this.getUserAgent().match(/PalmSource|Palm/i);};
     SmartPhone.isAny = function() {
         var foundAny = false;
         var getAllMethods = Object.getOwnPropertyNames(SmartPhone).filter(function(property) {
@@ -921,32 +642,24 @@ function createSmallSeparator() {
     }
 
     if (typeof exports !== 'undefined') {
-
         var middleware = function(isMiddleware) {
-
-            isMiddleware = isMiddleware === (void 0)  ? true : isMiddleware;
-
+            isMiddleware = isMiddleware === (void 0) ? true : isMiddleware;
             if(isMiddleware) {
                 return function(req, res, next) {
-
                     var userAgent = req.headers['user-agent'] || '';
                     SmartPhone.setUserAgent(userAgent);
                     req.SmartPhone = SmartPhone;
-
                     if ('function' === typeof res.locals) {
                         res.locals({SmartPhone: SmartPhone});
                     } else {
                         res.locals.SmartPhone = SmartPhone;
                     }
-
                     next();
                 };
             } else {
                 return SmartPhone;
             }
-
         };
-
         if (typeof module !== 'undefined' && module.exports) {
             var exports = module.exports = middleware;
         }
@@ -954,6 +667,5 @@ function createSmallSeparator() {
     } else {
         root.SmartPhone = SmartPhone;
     }
-
 }.call(this));
 
