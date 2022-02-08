@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.12
+// @version      0.13
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php
@@ -96,19 +96,6 @@
         }
 
         return pctText;
-    }
-
-    // Function to insert the tooltip.
-    function displayToolTip(li, text) {
-        $(document).ready(function() {
-            $(li).attr("title", "original");
-            $(li).tooltip({
-                content: text,
-                classes: {
-                    "ui-tooltip": "tooltip3"
-                }
-            });
-        })
     }
 
     function dispIllegalProductsTT(li, crimes) {
