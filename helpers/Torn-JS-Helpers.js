@@ -26,7 +26,7 @@
 // Validate an API key and prompt if misssing
 ///////////////////////////////////////////////////////////////////////////////////
 
-const api_key = GM_getValue('gm_api_key');
+var api_key = GM_getValue('gm_api_key');
 
 function validateApiKey() {
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
