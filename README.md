@@ -194,9 +194,9 @@ This script lets you click the Daily Dime 'buy' button with one click - up to th
 
 </details>
 
-#### **_Torn User List Extender_**
+#### **_Torn User List Extender v2_**
 
-- [Torn User List Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/UserListExtender/Torn%20User%20List%20Extender.user.js)
+- [Torn User List Extender v2.user.js](https://github.com/edlau2/Tampermonkey/raw/master/UserListExtender/Torn%20User%20List%20Extender%20v2.user.js)
 
 Images:
 
