@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -16,9 +16,9 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-// Note:
-// GM_xmlhttpRequest, GM_getValue and GM_setValue are used to interact with the Torn API.
-// GM_addStyle is used to create the tooltip style.
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -59,8 +59,7 @@
                      '<span class="desc">' + respect.toLocaleString("en") + '</span>' +
                  '</div></li>';
         $(ul).append(li);
-        if (displayToolTips) addFacToolTip(li); // <== This is broken somehow, the background is not opaque...
-                                                // FIXED!!! See the 2 required version of jquery and the added style!
+        addFacToolTip(li); 
     }
 
     function addFacToolTip(li) {
@@ -118,12 +117,11 @@
     // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
-    logScriptStart();
     if (awayFromHome()) {return;}
+
+    logScriptStart();
     validateApiKey();
     versionCheck();
-
-    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
 
     window.onload = function () {
         let html = $('#skip-to-content').html();
