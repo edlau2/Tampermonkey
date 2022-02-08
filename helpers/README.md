@@ -10,6 +10,12 @@ To use, include in your script header like this:
 - [Torn-JS-helpers.js](https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js)
 - [tinysort.js](https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js)
 
+#### Template I use for new scripts, is saved in the Tampermoney dashboard:
+
+- [Torn Tampermonkey Template.user.js](	https://github.com/edlau2/Tampermonkey/raw/master/helpers/Torn%20Tampermonkey%20Template.user.js)
+
+This is inserted into the Tampermonkey Dashboard, Setting, New userscript template: ECMAScript 5
+
 #### Other libraries: 
 
 Torn-Hints-Helper.js (used only to display 'hints' on certain pages), not generic and used by a few of my scripts.<br>
