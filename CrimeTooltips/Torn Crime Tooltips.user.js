@@ -17,6 +17,10 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
 
