@@ -10,12 +10,86 @@
 // @connect      localhost
 // @connect      18.119.136.223
 // @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const apikey = '###PDA-APIKEY###';
+    var apikey = '###PDA-APIKEY###'; // Use 'var' instead of 'const' so I can change if NOT on Torn PDA
+    var universalGet = null;
+    var universalPost = null;
+
+    if (apikey != '###PDA-APIKEY###') {
+        universalGet = function(url) {PDA_httpGet(url)}
+        universalPost = function(url, headers, body) {PDA_httpPost(url, headers, body)}
+    } else {
+        apikey = '4ZMAvIBON4zZLrd9';
+        universalGet = function(url) {
+            return new Promise(function(resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                log('[XMLHttpRequest] xhr: ', xhr);
+                xhr.open('GET', url);
+                log('[XMLHttpRequest] GET ' + url);
+                xhr.onload = function() {
+                  log('[XMLHttpRequest] GET onload');
+                  if (xhr.status == 200) {
+                      log('[XMLHttpRequest] GET success');
+                      resolve(xhr);
+                  } else {
+                      log('[XMLHttpRequest] GET error');
+                      reject(Error(xhr.statusText));
+                  }
+                };
+                xhr.onerror = function() {
+                  log('[XMLHttpRequest] GET onerror');
+                };
+                xhr.send();
+            });
+        };
+        universalPost = function(url, headers, body) {
+            return new Promise(function(resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                log('[XMLHttpRequest] xhr: ', xhr);
+                log('[XMLHttpRequest] POST ' + url);
+                xhr.open('POST', url, true);
+
+                // TBD: parse 'headers' param
+                xhr.setRequestHeader("Content-Type", "Content-Type: application/json");
+
+                xhr.onload = function() {
+                  log('[XMLHttpRequest] POST onload');
+                  if (xhr.status == 200) {
+                      log('[XMLHttpRequest] POST success');
+                      resolve(xhr);
+                  } else {
+                      log('[XMLHttpRequest] POST error');
+                      reject(Error(xhr));
+                  }
+                };
+
+                xhr.onreadystatechange = function() {//Call a function when the state changes.
+                    log('[XMLHttpRequest] onreadystatechange: ', xhr.readyState);
+                }
+
+                xhr.onerror = function(e) {
+                  log('[XMLHttpRequest] POST onerror (event): ', e);
+                  log('[XMLHttpRequest] POST onerror (request): ', xhr);
+                  reject(Error(e));
+                };
+
+                xhr.onabort = function() {
+                  log('[XMLHttpRequest] POST onabort: ', xhr);
+                };
+
+                xhr.onprogress = function() {
+                  log('[XMLHttpRequest] POST onprogress: ', xhr);
+                };
+
+                xhr.send(body);
+            });
+        };
+    }
 
     // Wrappers, mostly from Torn-JS_Helpers.js, to replace Tampermonkey stuff I can't use on the PDA version
     // Temporary: minimal crap from my normal library, and GM_* over-rides
@@ -32,18 +106,24 @@
     function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
         let url = "https://api.torn.com/" + section + "/" + ID + "?selections=" + selection + "&key=" + apikey;
         log('(PDA-Helper) Querying ' + section + ':' + selection);
-        PDA_httpGet(url).then(response => {
-            if (Number(response.status) != 200) return handleError(response.responseText);
-            callback(response.responseText, ID, param);});
+        universalGet(url).then(
+            response => {
+                log('[universalGet] response: ', response);
+                if (Number(response.status) != 200) return handleError(response.responseText);
+                callback(response.responseText, ID, param);},
+            error => {
+                log('[universalGet] error: ', error);
+        });
     }
     function xedx_TornStatsSpy(ID, callback, param=null) {
         let url = 'https://www.tornstats.com/api/v1/' + apikey + '/spy/' + ID;
         log('(PDA-Helper) Spying ' + ID + ' via TornStats');
-        PDA_httpGet(url).then(response => {
+        universalGet(url).then(response => {
             if (Number(response.status) != 200) return handleError(response.responseText);
             callback(response.responseText, ID, param);});
     }
     function handleError(responseText) {
+        log('[handleError] responseText: ', responseText);
         let jsonResp = JSON.parse(responseText);
         log('Error querying the Torn API.\nCode: ' + jsonResp.error.code +'\nError: ' + jsonResp.error.error);
     }
@@ -174,7 +254,7 @@
     }
 
     // Out of an attack log, collect losses
-    var lossTypes = ["Hospitalized", "Mugged", "Lost", "Attacked"];
+    var lossTypes = ["Hospitalized", "Mugged", /*"Lost",*/ "Attacked"];
     function findLatestLosses(attacks) {
         let keys = Object.keys(attacks);
         log('[findLatestLosses] found ' + keys.length + ' attack entries');
@@ -199,7 +279,7 @@
     // Callback from the latest attacks query, once fight is over. Prepare to upload to server
     var lastAttackRetries = 0;
     function getAttacksCB(responseText, ID) {
-        log('[statsQueryCB]');
+        log('[getAttacksCB]');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
         log('attacks: ', jsonResp);
@@ -308,22 +388,13 @@
     // Upload data via POST to the DB server
     function uploadData(URL, result) {
         log('[uploadData] URL=' + URL);
-        GM_xmlhttpRequest ( {
-            method: "POST",
-            url: URL,
-            data: JSON.stringify(result),
-            headers:{
-                "Content-Type": "Content-Type: application/json"
+        universalPost(URL, '', JSON.stringify(result)).then(
+            resolve => {
+                log('[uploadData] Success!');
             },
-            onload: function (response) {
-                log('[uploadData] response: ', response.responseText);
-                log('[uploadData] URL was: ' + URL);
-            },
-            onerror: function(error) {
-                log("[uploadData] error: ", error);
-            }
-        } );
-
+            error => {
+                log('[uploadData] Error!', error);
+            });
     }
 
     // Calculate the bat stat 'score'
@@ -344,8 +415,12 @@
     }
 
     // Check the status of the fight periodically, once it appears, the fight is over, one way or another.
+    var checkResCtr = 0;
     function checkRes() {
         let sel = document.querySelector("#defender > div.playerArea___W1SRh > div.modal___EfpxI.defender___vDcLc > div > div > div.title___VHuxs");
+        if ((checkResCtr++ % 20) == 0) { // Every 5 secs
+            console.log('[checkRes] sel = ', sel);
+        }
         if (sel) {
             let result = sel.innerText;
             if (result) {
@@ -388,7 +463,7 @@
     function tornStatSpyCB(respText) {
         let batStats = 0;
         let data = JSON.parse(respText);
-        log('Spy response: ' + respText);
+        log('Spy response: ' + data.status);
         if (!data.status) {
             log('Error getting spy! Response text: ' + resptext);
         } else {
