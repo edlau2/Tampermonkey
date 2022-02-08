@@ -1,7 +1,7 @@
 /// ==UserScript==
 // @name         Torn Racing - Car Order
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.6
 // @description  Allows cars to be sorted in any order when starting a race.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=racing*
@@ -36,7 +36,8 @@
     const refDivId = 'racingAdditionalContainer';
 
     function getCurrentCarOrder(parentNode) {
-        let elemList = myGetElementsByClassName(parentNode, 'model-car-name');
+        //let elemList = myGetElementsByClassName(parentNode, 'model-car-name');
+        let elemList = parentNode.querySlectorAll('span[class*="model-car-name"]');
         let nameArray = [];
         elemList.forEach(element => nameArray.push(element.className));
         return nameArray;
@@ -69,9 +70,6 @@
             if(!arrayFilled) {
                 for (var i = 0, len = ul.children.length; i < len; i++ ) {
                     var li = ul.children[i];
-                    console.log('putCarsInOrder: ');
-                    console.dir(li);
-                    console.log('innerText: ' + li.innerText);
                     if(savedCarsArray.includes(li, 0)){
                         continue;
                     }
@@ -81,7 +79,6 @@
                     savedCarsArray.push(li);
                 }
             } // !arrayFilled
-            arrayFilled = true;
             $(ul).empty();
             carList.forEach(function(car){
                 var li = findSavedCar(car, savedCarsArray);
@@ -118,7 +115,6 @@
             let contentDiv = createContentDiv();
             let hdrDiv = createHeaderDivEx('Car Order', hdrDivId, bodyDiv, true); // true to start hidden
 
-            //hdrDiv.appendChild(document.createTextNode('Car Order'));
             extDiv.appendChild(hdrDiv);
             extDiv.appendChild(bodyDiv);
             bodyDiv.appendChild(contentDiv);
@@ -183,6 +179,74 @@
     }
 
     //////////////////////////////////////////////////////////////////////
+    //
+    // Bunch of UI stuff that used to be in the helper lib.
+    // Deprecated in favor of using JQuery, but I haven't modified
+    // this yet, so I just moved here for now. TBD - simplify!!!
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    function createExtendedDiv(extDivId) {
+        var extendedDiv = document.createElement('div');
+        extendedDiv.className = 'sortable-box t-blue-cont h';
+        extendedDiv.id = extDivId;
+        return extendedDiv;
+    }
+
+    function createBodyDiv(id=null) {
+        var bodyDiv = document.createElement('div');
+        bodyDiv.className = 'bottom-round';
+        if (id) {bodyDiv.id = id;}
+        return bodyDiv;
+    }
+
+    function extendedDivExists(extDivId) {
+        var testDiv = document.getElementById(extDivId);
+        if (validPointer(testDiv)) {
+            return true;
+        }
+        return false;
+    }
+
+    function createHeaderDiv() {
+        var headerDiv = document.createElement('div');
+        headerDiv.id = 'xedx-header_div';
+        headerDiv.className = 'title main-title title-black active top-round';
+        headerDiv.setAttribute('role', 'heading');
+        headerDiv.setAttribute('aria-level', '5');
+
+        var arrowDiv = createArrowDiv();
+        var moveDiv = createMoveDiv();
+        headerDiv.appendChild(arrowDiv);
+        headerDiv.appendChild(moveDiv);
+        return headerDiv;
+    }
+
+    function createHeaderDivEx(title=null, hdrId=null, bodyDiv=null, hidden=false) {
+        var headerDiv = document.createElement('div');
+        headerDiv.className = 'title main-title title-black border-round';
+        headerDiv.setAttribute('role', 'table');
+        headerDiv.setAttribute('aria-level', '5');
+        if (hdrId) {headerDiv.id = hdrId;}
+        if (bodyDiv && hdrId) {
+            if (validPointer(bodyDiv)) {
+                if (hidden) {bodyDiv.style.display = "none";}
+                else {bodyDiv.style.display = "block";}
+            }
+            let arrowDiv = createArrowDivEx(bodyDiv.id, hdrId);
+            headerDiv.appendChild(arrowDiv);
+        }
+        if (title != null) {headerDiv.appendChild(document.createTextNode(title));}
+        return headerDiv;
+    }
+
+    function createSeparator() {
+        var sepHr = document.createElement('hr');
+        sepHr.className = 'delimiter-999 m-top10 m-bottom10';
+        return sepHr;
+    }
+
+    //////////////////////////////////////////////////////////////////////
     // DnD handlers
     //////////////////////////////////////////////////////////////////////
 
@@ -190,10 +254,8 @@
 
     var dragSrcEl = null;
     function handleDragStart(e) {
-        // this / e.target is the source node.
         console.log('handleDragStart: ', e);
         // this.style.opacity = '0.4';  // Done automatically in Chrome...
-
         dragSrcEl = this;
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/html', this.innerHTML);
@@ -201,15 +263,12 @@
 
     function handleDragOver(e) {
         console.log('handleDragOver: ', e);
-        if (e.preventDefault) {
-            e.preventDefault(); // Necessary. Allows us to drop.
-        }
+        if (e.preventDefault) e.preventDefault(); // Necessary. Allows us to drop.
         e.dataTransfer.dropEffect = 'move'; // See the section on the DataTransfer object.
         return false;
     }
 
     function handleDragEnter(e) {
-        // this / e.target is the current hover target.
         console.log('handleDragEnter: ', e);
         this.classList.add('over');
     }
@@ -351,7 +410,7 @@
 
     // Set up a handler for the page 2 button
     function clickHandler() {
-        // Need page-value=10 and also active
+        // Need page-value=10
         let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left > a.page-number.active.t-gray-3.h.pager-link.page-show");
         let page = element.getAttribute('page-value');
         let active = element.hasAttribute('active');
@@ -367,7 +426,7 @@
     function populatePageTwo() {
         let enlistList = document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist");
         $(enlistList).empty();
-        for (let i=9; i < savedCarsArray.length; i++) {
+        for (let i=9; i < savedCarsArray.length; i++) { // 9 as only 10 cars are displayed per page
             let li = savedCarsArray[i];
              if (validPointer(li)) {
                  let element = li.getElementsByClassName('enlist-bars')[0];
@@ -457,6 +516,15 @@
         alert(helpText);
     }
 
+    function connectObserver() {
+        targetNode = document.getElementById('racingMainContainer');
+        if (!targetNode) {
+            setTimeout(connectObserver, 1000);
+            return;
+        }
+        observer.observe(targetNode, config);
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
     // actually get to the page(s) - technically, when the page(s) change.
@@ -464,6 +532,8 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    versionCheck();
+
     var targetNode = document.getElementById('racingMainContainer');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
@@ -472,6 +542,10 @@
         observer.observe(targetNode, config);
     };
     var observer = new MutationObserver(callback);
+    if (!targetNode) {
+        setTimeout(connectObserver, 1000);
+        return;
+    }
     observer.observe(targetNode, config);
 })();
 
