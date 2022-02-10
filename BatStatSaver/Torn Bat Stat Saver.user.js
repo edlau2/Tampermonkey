@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -152,7 +152,7 @@
     }
 
     // Out of an attack log, collect losses
-    var lossTypes = ["Hospitalized", "Mugged", "Lost", "Attacked"];
+    var lossTypes = ["Hospitalized", "Mugged", /*"Lost",*/ "Attacked"];
     function findLatestLosses(attacks) {
         let keys = Object.keys(attacks);
         log('[findLatestLosses] found ' + keys.length + ' attack entries');
@@ -177,7 +177,7 @@
     // Callback from the latest attacks query, once fight is over. Prepare to upload to server
     var lastAttackRetries = 0;
     function getAttacksCB(responseText, ID) {
-        log('[statsQueryCB]');
+        log('[getAttacksCB]');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
         log('attacks: ', jsonResp);
@@ -202,7 +202,8 @@
                     statusLine.textContent = 'Waiting for API to catch up (' + (lastAttackRetries/2) + ' secs)';
                 return setTimeout(getAttacks, REQUEST_DELAY);
             }
-            statusLine.textContent = 'Internal error! Wrong ID in log.';
+            log('Too many retries, will try again later.');
+            statusLine.textContent = 'Too many retries, will try again later.'; //'Internal error! Wrong ID in log.';
             return;
         }
         log('Last Attack ID: ', lastAttackJSON.id);
