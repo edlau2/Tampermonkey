@@ -51,6 +51,7 @@ isaNumber(x)<br>
 asCurrency(num)<br>
 timenow()<br>
 numberWithCommas(x)<br>
+getRandomInt(max)<br>
 validPointer(val, dbg = false)<br>
 String.prototype.hashCode()<br>
 xidFromProfileURL(URL)<br>
