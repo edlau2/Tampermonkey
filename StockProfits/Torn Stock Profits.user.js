@@ -78,7 +78,8 @@
                 let ownedShares = owned[keys[j]].shares;
                 let boughtPrice = owned[keys[j]].bought_price;
                 let profit = (stockPrice - boughtPrice) * ownedShares; // Gross profit
-                profit = profit * .999; // -.1% fee.
+                let fee = stockPrice * ownedShares * .001;
+                profit = profit - fee; // -.1% fee.
                 if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
                 if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
             }
