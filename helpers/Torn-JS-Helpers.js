@@ -244,6 +244,11 @@ function validPointer(val, dbg = false) {
     */
 }
 
+// Return a random int, 0 up to 'max', inclusive.
+function getRandomInt(max) {
+  return Math.floor(Math.random() * (max+1));
+}
+
 //////////////////////////////////////////////////////////////////
 // Function to create a hash for a string. Returns a positive
 // 32 bit int.
@@ -450,11 +455,11 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
         },
         onabort: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
-            handleSysError(response.responseText);
+            handleSysError(response);
         },
         ontimeout: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
-            handleSysError(response.responseText);
+            handleSysError(response);
         }
     });
 }
@@ -480,17 +485,17 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
         onerror: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onerror');
             console.debug(response);
-            handleSysError(response.responseText);
+            handleSysError(response);
         },
         onabort: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
             console.debug(response);
-            handleSysError(response.responseText);
+            handleSysError(response);
         },
         ontimeout: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
             console.debug(response);
-            handleSysError(response.responseText);
+            handleSysError(response);
         }
     });
 }
@@ -563,6 +568,8 @@ function handleSysError(response, addlText=null) {
     errorText += '\n\nPress OK to continue.';
     alert(errorText);
     console.log(errorText);
+    console.log(response);
+    console.log(response.error);
 }
 
 /**
