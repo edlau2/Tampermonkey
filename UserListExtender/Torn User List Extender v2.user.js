@@ -44,11 +44,15 @@
           '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
               '<br>' +
               '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
-              '<table style="margin-top: 10px; width: 400px;"><tbody>' +
+              '<table style="margin-top: 10px; width: 500px;"><tbody>' +
                   '<tr>' + // Row 1
                       '<td class="xtdx" ><div>' +
                           '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
                           '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
+                      '</div></td>' +
+                      '<td class="xtdx"><div>' +
+                          '<input type="checkbox" class="xcbx" id="xedx-hidefallen-opt" name="hidefallen">' +
+                          '<label for="hidefallen"><span style="margin-left: 15px;">Hide Fallen</span></label>' +
                       '</div></td>' +
                       '<td class="xtdx""><div>' +
                           '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
@@ -97,6 +101,7 @@
     var opt_devmode = false;
     var opt_loggingEnabled = false; // Only affect debug logging, not regular
     var opt_hidefedded = true;
+    var opt_hidefallen = true;
     var opt_hidetravel = true;
     var opt_showcaymans = false;
     var opt_hidehosp = true;
@@ -332,6 +337,9 @@
     function isFedded(li) {
         return (li.querySelector("[id^='icon70___']")) ? true : false;
     }
+    function isFallen(li) {
+        return (li.querySelector("[id^='icon77___']")) ? true : false;
+    }
     function isTravelling(li) {
         return (li.querySelector("[id^='icon71___']")) ? true : false;
     }
@@ -362,6 +370,10 @@
             log('***** preFilter: fedded! (' + name + + ' [' + ID + '])');
             return true;
         }
+        if (opt_hidefallen && isFallen(li)) {
+            log('***** preFilter: fallen! (' + name + + ' [' + ID + '])');
+            return true;
+        }
         if (opt_hidetravel && isTravelling(li)) {
             log('***** preFilter: travelling! (' + name + + ' [' + ID + '])');
             return true;
@@ -381,6 +393,7 @@
 
         let isHosped = isInHosp(li);
         let infed = isFedded(li);
+        let fallen = isFallen(li);
         let travelling = isTravelling(li);
         if (isHosped || infed || travelling) {
             log('Hosp: ' + isHosped + ' Fedded: ' + infed + ' IsTravelling: ' + travelling);
@@ -399,6 +412,13 @@
                 if (opt_hidefedded) {
                     if (infed) log('**** Shouldn`t be here? *****');
                     debug('***** Filtered - fedded.');
+                    return true;
+                }
+                break;
+            case 'Fallen':
+                if (opt_hidefallen) {
+                    if (infed) log('**** Shouldn`t be here? *****');
+                    debug('***** Filtered - fallen.');
                     return true;
                 }
                 break;
@@ -561,6 +581,11 @@
                 GM_setValue("opt_hidefedded", opt_hidefedded);
                 debug('Saved value for opt_hidefedded');
                 break;
+            case "xedx-hidefallen-opt":
+                opt_hidefallen = this.checked;
+                GM_setValue("opt_hidefallen", opt_hidefallen);
+                debug('Saved value for opt_hidefallen');
+                break;
             case "xedx-devmode-opt":
                 opt_devmode = this.checked;
                 GM_setValue("opt_devmode", opt_devmode);
@@ -637,6 +662,7 @@
         opt_devmode = GM_getValue("opt_devmode", opt_devmode);
         debugLoggingEnabled = opt_loggingEnabled = GM_getValue("opt_loggingEnabled", opt_loggingEnabled);
         opt_hidefedded = GM_getValue("opt_hidefedded", opt_hidefedded);
+        opt_hidefallen = GM_getValue("opt_hidefallen", opt_hidefallen);
         opt_hidetravel = GM_getValue("opt_hidetravel", opt_hidetravel);
         opt_showcaymans = GM_getValue("opt_showcaymans", opt_showcaymans);
         opt_hidehosp = GM_getValue("opt_hidehosp", opt_hidehosp);
@@ -648,6 +674,7 @@
         log('Getting saved options.');
         GM_setValue("opt_loggingEnabled", opt_loggingEnabled);
         GM_setValue("opt_hidefedded", opt_hidefedded);
+         GM_setValue("opt_hidefallen", opt_hidefallen);
         GM_setValue("opt_hidetravel", opt_hidetravel);
         GM_setValue("opt_showcaymans", opt_showcaymans);
         GM_setValue("opt_hidehosp", opt_hidehosp);
@@ -660,6 +687,7 @@
         $("#xedx-loggingEnabled-opt")[0].checked = GM_getValue("opt_loggingEnabled", opt_loggingEnabled);
         $("#xedx-devmode-opt")[0].checked = GM_getValue("opt_devmode", opt_devmode);
         $("#xedx-hidefedded-opt")[0].checked = GM_getValue("opt_hidefedded", opt_hidefedded);
+        $("#xedx-hidefallen-opt")[0].checked = GM_getValue("opt_hidefallen", opt_hidefallen);
         $("#xedx-hidetravel-opt")[0].checked = GM_getValue("opt_hidetravel", opt_hidetravel);
         $("#xedx-showcaymans-opt")[0].checked = GM_getValue("opt_showcaymans", opt_showcaymans);
         $("#xedx-hidehosp-opt")[0].checked = GM_getValue("opt_hidehosp", opt_hidehosp);
