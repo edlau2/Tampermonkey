@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -18,6 +18,7 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint no-sequences: 0*/
 
 (function() {
     'use strict';
@@ -53,8 +54,8 @@
 
     function addOnClickHandlers() {
         let gymDiv = document.getElementById('gymroot');
-        let rootDiv = myGetElementsByClassName2(gymDiv, 'gymList')[0];
-        let buttonDivs = myGetElementsByClassName2(rootDiv, 'gymButton');
+        let rootDiv = document.querySelector(".gym___iaU92");
+        let buttonDivs = rootDiv.querySelectorAll('button[class*="gymButton"]');
 
         for (let i=0; i < buttonDivs.length; i++) {
             buttonDivs[i].addEventListener("click", onGymClick, false);
@@ -67,7 +68,8 @@
             const headerDiv = document.getElementById(idArray[i].hdrId);
             const arrowDiv = headerDiv.parentElement;
 
-            arrowDiv.addEventListener("click", function() {
+            arrowDiv.addEventListener("click", function(e) {
+                log('Click: ', e);
                 if (bodyDiv.style.display === "block") {
                     bodyDiv.style.display = "none";
                     headerDiv.className = 'title main-title title-black border-round';
@@ -222,8 +224,9 @@
     // etc.
     ////////////////////////////////////////////////////////////////////////
 
-    // These two func over-ride those in the helper lib (?)
-    // Either fix in helper lib, or make more general...
+    // Can make this *much* simpler using JQuery. TBD...
+    // eg $(node).append(`<span class="">...</span>`);
+
     function createValueSpan(value) {
         let valSpan = document.createElement('span');
         valSpan.setAttribute('style', 'display: inline-block; width: 366px; padding: 5px 10px; ' +
@@ -407,6 +410,7 @@
 
     // This is here as if even with the '!important' keyword, the base <td>
     // color over-rides the specified one. Explicit 'style' does over-ride the base <td>.
+    // TBD: just use CSS syntax '.dark-mode', ':not(.dark-mode)' ...
     function modeColor() {
         return darkMode() ? `style="color: rgb(221, 221, 221);"` : `style="color: black;"`;
     }
