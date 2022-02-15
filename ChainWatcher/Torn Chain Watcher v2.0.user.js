@@ -56,7 +56,7 @@
                                      <label for="visual"><span class="xedx-span">Visual</span></label>
                                  </div></td>
                                  <td class="xtdx">
-                                     <select id="visible-select" class="xedx-select"">
+                                     <select id="visible-select" class="xedx-select-row2">
                                           <option value="$">--Please Select--</option>
                                           <option value="60">1:00</option>
                                           <option value="75">1:!5</option>
@@ -310,6 +310,10 @@
     addStyles();
     callOnContentLoaded(handlePageLoad);
 
+    // 609926
+    // 5b9224
+    // 0CB814
+
     function addStyles() {
         GM_addStyle(`.xedx-chain {text-align: center;
                               font-size: 56px; color: red; width: auto; margin-top: 10px; margin-left: 60px;}
@@ -328,8 +332,10 @@
                  .xcbx {margin-left: 10px; margin-top: 0px; border-radius: 50%; vertical-align: middle;
                          width: 1.1em; height: 1.1em; background-color: white;
                         border: 1px solid #ddd; appearance: none; -webkit-appearance: none;}
+                 .xcbx:checked {background-color: #0032E0;}
                  .xtdx {color: white;}
                  .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 10px;}
+                 .xedx-select-row2 {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 0px;}
                  .xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}
                  .box-div {width: 50%;}
                  .box {display: flex !important; align-items: center;}
