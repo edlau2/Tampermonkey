@@ -35,7 +35,7 @@
                                     </select>
                                  </td>
                                  <td>
-                                     <Button class="button-off" id="test-audio" value="off">Test Audio</Button>
+                                     <Button class="button-off" id="test-audio" value="off">Test</Button>
                                  </td>
                             </tr>
                             <tr>
@@ -59,7 +59,7 @@
                                     </select>
                                  </td>
                                  <td>
-                                     <Button class="button-off" id="test-video" value="off">Test Video</Button>
+                                     <Button class="button-off" id="test-video" value="off">Test</Button>
                                  </td>
                              </tr>
                              <tr>
@@ -106,6 +106,9 @@
         const sheet = style.sheet;
         sheet.insertRule(css, (sheet.rules || sheet.cssRules || []).length);
     }
+
+    function GM_setValue(a, b) {window.localStorage.setItem(a, b);}
+    function GM_getValue(a, b) {return (window.localStorage.getItem(a)) ? window.localStorage.getItem(a) : b;}
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
     function beep(duration, frequency, volume, type, callback) {
@@ -200,6 +203,7 @@
             $("#xedx-chain-span").removeClass('xedx-chain-alert');
         }
         $("#xedx-chain-span")[0].textContent = targetNode.textContent + ' | ' + chainNode.textContent.split('/')[0];
+        //$("#xedx-chain-span")[0].textContent = targetNode.textContent;
     };
 
     function saveOptions() {
@@ -232,6 +236,18 @@
         $('#xedx-audible-opt').prop('checked', !muted);
         $('#xedx-visual-opt').prop('checked', flashOn);
         $('#type-select')[0].value = beepType;
+    }
+
+    function startTimer() {
+        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
+        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+
+        if (!targetNode || !chainNode) {
+            log('Unable to find target nodes! ', targetNode, chainNode);
+            return setTimeout(startTimer, 1000);
+        }
+
+        setInterval(timerTimeout, 1000);
     }
 
     function handlePageLoad() {
@@ -321,10 +337,7 @@
 
         });
 
-        setInterval(timerTimeout, 1000);
-
-        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
-        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+        startTimer();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -338,50 +351,50 @@
 
     function addStyles() {
         GM_addStyle(`.xedx-chain {text-align: center;
-                              font-size: 56px; color: red; width: auto; margin-top: 10px; margin-left: 60px;}
-                 body.dark-mode .xedx-chain-alert {text-align: center;
+                              font-size: 56px; color: red; width: auto; margin-top: 10px; margin-left: 60px;}`);
+
+        GM_addStyle(`body.dark-mode .xedx-chain-alert {text-align: center;
                               font-size: 56px; color: lime; width: auto; margin-top: 10px; margin-left: 60px;
                               -webkit-animation: highlight-active 1s linear 0s infinite normal;
-                              animation: highlight-active 1s linear 0s infinite normal;}
-                 .body:not(.dark-mode) .xedx-chain-alert {text-align: center;
+                              animation: highlight-active 1s linear 0s infinite normal;}`);
+        GM_addStyle(`.body:not(.dark-mode) .xedx-chain-alert {text-align: center;
                               font-size: 56px; color: #0CB814; width: auto; margin-top: 10px; margin-left: 60px;
                               -webkit-animation: highlight-active 1s linear 0s infinite normal;
-                              animation: highlight-active 1s linear 0s infinite normal;}
-                 .body.dark-mode .xedx-table {width: auto; color: white; margin-top: 10px;}
+                              animation: highlight-active 1s linear 0s infinite normal;}`);
+        GM_addStyle(`.body.dark-mode .xedx-table {width: auto; color: white; margin-top: 10px;}`);
 
-                 .body:not(.dark-mode) .xedx-table {width: auto; color: white; margin-top: 10px; background: #3D3D3D;
-                                                    border-radius: 10px;}
-                 .xcbx {margin-left: 10px; margin-top: 0px; border-radius: 50%; vertical-align: middle;
+        GM_addStyle(`.body:not(.dark-mode) .xedx-table {width: auto; color: white; margin-top: 10px; background: #3D3D3D;
+                                                    border-radius: 10px;}`);
+        GM_addStyle(`.xcbx {margin-left: 10px; margin-top: 0px; border-radius: 50%; vertical-align: middle;
                          width: 1.1em; height: 1.1em; background-color: white;
-                        border: 1px solid #ddd; appearance: none; -webkit-appearance: none;}
-                 .xcbx:checked {background-color: #0032E0;}
-                 .xtdx {color: white;}
-                 .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 10px;}
-                 .xedx-select-row2 {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 0px;}
-                 .xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}
-                 .box-div {width: 50%;}
-                 .box {display: flex !important; align-items: center;}
-                 #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black; color:black;
-                                          background: white; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
-                 #xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black; color: black;
-                                          background: lime; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
-                 .body:not(.dark-mode) .xedx-span {margin-left: 5px; color: white;}
-                 .body.dark-mode .xedx-span {margin-left: 5px; color: white;}
-                 .xedx-vol-span {margin-left: 20px !important; padding-left: 10px !important;}
-                 .xedx-volume {margin-left: 15px; margin-top: -14px;}
+                        border: 1px solid #ddd; appearance: none; -webkit-appearance: none;}`);
+        GM_addStyle(`.xcbx:checked {background-color: #0032E0;}`);
+        GM_addStyle(`.xtdx {color: white;}`);
+        GM_addStyle(`.xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 10px;}`);
+        GM_addStyle(`.xedx-select-row2 {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 0px;}`);
+        GM_addStyle(`.xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}`);
+        GM_addStyle(`.box-div {width: 100%;}`);
+        GM_addStyle(`.box {display: flex !important; flex-direction: column; align-items: center;}`);
+        GM_addStyle(` #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black; color:black;
+                                          background: white; height: 100%; width: 68px; margin-left: 10px; margin-right: 5px;}`);
+        GM_addStyle(`#xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black; color: black;
+                                          background: lime; height: 100%; width: 68px; margin-left: 10px; margin-right: 5px;}`);
+        GM_addStyle(`.body:not(.dark-mode) .xedx-span {margin-left: 5px; color: white;}`);
+        GM_addStyle(`.body.dark-mode .xedx-span {margin-left: 5px; color: white;}`);
+        GM_addStyle(`.xedx-vol-span {margin-left: 20px !important; padding-left: 10px !important;}`);
+        GM_addStyle(`.xedx-volume {margin-left: 15px; margin-top: -14px;}`);
 
-                 input[type="range"] {
+        GM_addStyle(`input[type="range"] {
                   -webkit-appearance: none;
                   height: 7px;
-                  width: 218px;
                   background: rgba(255, 255, 255, 0.6);
                   border-radius: 5px;
                   background-image: linear-gradient(#0032E0, #0032E0);
                   background-size: 70% 100%;
                   background-repeat: no-repeat;
-                }
+                }`);
 
-                input[type="range"]::-webkit-slider-thumb {
+        GM_addStyle(`input[type="range"]::-webkit-slider-thumb {
                   -webkit-appearance: none;
                   height: 20px;
                   width: 10px;
@@ -390,15 +403,14 @@
                   cursor: ew-resize;
                   box-shadow: 0 0 2px 0 #555;
                   transition: background .3s ease-in-out;
-                }
+                }`);
 
-                input[type=range]::-webkit-slider-runnable-track  {
+        GM_addStyle(`input[type=range]::-webkit-slider-runnable-track  {
                   -webkit-appearance: none;
                   box-shadow: none;
                   border: none;
                   background: transparent;
-                }
-        `);
+                }`);
     }
 
 })();
