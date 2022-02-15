@@ -21,6 +21,9 @@
 (function() {
     'use strict';
 
+    var beepType = "sine"; // "sine", "square", "sawtooth", "triangle" (or 'custom', but then need to define a periodic wave function)
+    var beepFrequency = 440; // In hertz, 440 is middle A
+
     const chainDiv = `<div id="xedx-chain-div" class="box">
                          <div class="box-div"><span id="xedx-chain-span" class="xedx-chain">&nbsp</span></div>
                          <div class="box-div"><table class="xedx-table"><tbody>
@@ -32,12 +35,15 @@
                                  <td class="xtdx">
                                      <select id="audible-select" class="xedx-select">
                                           <option value="$">--Please Select--</option>
-                                          <option value="30">30 Seconds</option>
-                                          <option value="45">45 Seconds</option>
-                                          <option value="60">One Minute</option>
-                                          <option value="90">90 Seconds</option>
-                                          <option value="120">Two Minutes</option>
-                                          <option value="285">4:45</option>
+                                          <option value="60">1:00</option>
+                                          <option value="75">1:!5</option>
+                                          <option value="90">1:30</option>
+                                          <option value="120">2:00</option>
+                                          <option value="150">2:30</option>
+                                          <option value="180">3:00</option>
+                                          <option value="210">3:30</option>
+                                          <option value="240">4:00</option>
+                                          <option value="270">4:30</option>
                                     </select>
                                  </td>
                                  <td>
@@ -52,12 +58,16 @@
                                  <td class="xtdx">
                                      <select id="visible-select" class="xedx-select"">
                                           <option value="$">--Please Select--</option>
-                                          <option value="30">30 Seconds</option>
-                                          <option value="45">45 Seconds</option>
-                                          <option value="60">One Minute</option>
-                                          <option value="90">90 Seconds</option>
-                                          <option value="120">Two Minutes</option>
-                                          <option value="285">4:45</option>
+                                          <option value="60">1:00</option>
+                                          <option value="75">1:!5</option>
+                                          <option value="90">1:30</option>
+                                          <option value="120">2:00</option>
+                                          <option value="150">2:30</option>
+                                          <option value="180">3:00</option>
+                                          <option value="210">3:30</option>
+                                          <option value="240">4:00</option>
+                                          <option value="270">4:30</option>
+                                    </select>
                                     </select>
                                  </td>
                                  <td>
@@ -65,11 +75,19 @@
                                  </td>
                              </tr>
                              <tr>
-                                 <td class="xtdx" ><div>
-                                 </div></td>
+                                 <td class="xtdx">
+                                 <select id="type-select" class="xedx-select"">
+                                          <option value="$">--Please Select--</option>
+                                          "sine", "square", "sawtooth", "triangle"
+                                          <option value="sine">sine</option>
+                                          <option value="square">square</option>
+                                          <option value="sawtooth">sawtooth</option>
+                                          <option value="triangle">triangle</option>
+                                    </select>
+                                 </td>
                                  <td class="xtdx xedx-vol-span" colspan="2">
                                      <span>Volume:</span>
-                                     <input class="xedx-volume" type="range" min="0" max="100" value="50" oninput="rangevalue.value=value"/>
+                                     <input id="rangeslider" class="xedx-volume" type="range" min="0" max="100" value="50" oninput="rangevalue.value=value"/>
                                      <output id="rangevalue">100</output>
                                  </td>
                              </tr>
@@ -78,13 +96,14 @@
 
     var targetNode = null;
     var chainNode = null;
-    var muted = false;
+    var muted = false; // Audio on/off
+    var flashOn = true; // Video on/off
     var beeping = false;
     var beepInt = 0;
     var testBeepInt = 0;
     var testingVideo = false;
-    var blinkOpt = 0;
-    var beepOpt = 0;
+    var blinkOpt = '$'; // Time in sec
+    var beepOpt = '$'; // Time in sec
     var volume = .5;
 
     function handleInputChange(e) {
@@ -101,10 +120,11 @@
 
         target.style.backgroundSize = (val - min) * 100 / (max - min) + '% 100%'
         volume = val/100;
+        saveOptions();
     }
 
     function doBeep() {
-        beep(null, null, volume);
+        beep(null, beepFrequency, volume, beepType);
     }
 
     function beepingOn() {
@@ -127,12 +147,12 @@
     }
 
     function checkBeep(seconds) {
-        if (!beepOpt || muted || beepOpt < seconds) return false;
+        if (!beepOpt || beepOpt == '$' || muted || beepOpt < seconds) return false;
         return true;
     }
 
     function checkBlink(seconds) {
-        if (!blinkOpt || muted || blinkOpt < seconds) return false;
+        if (!blinkOpt || blinkOpt == '$' || blinkOpt < seconds) return false;
         return true;
     }
 
@@ -148,7 +168,7 @@
         }
 
         // Handle video
-        if (checkBlink(seconds) || testingVideo) {
+        if ((checkBlink(seconds) && flashOn) || testingVideo) {
             $("#xedx-chain-span").removeClass('xedx-chain');
             $("#xedx-chain-span").addClass('xedx-chain-alert');
         } else {
@@ -157,6 +177,36 @@
         }
         $("#xedx-chain-span")[0].textContent = targetNode.textContent + ' | ' + chainNode.textContent.split('/')[0];
     };
+
+    function saveOptions() {
+        GM_setValue('flashOn', flashOn);
+        GM_setValue('muted', muted);
+        GM_setValue('beepOpt', beepOpt);
+        GM_setValue('blinkOpt', blinkOpt);
+        GM_setValue('volume', volume);
+    }
+
+    function readOptions() {
+
+        flashOn = GM_getValue('flashOn', flashOn);
+        muted = GM_getValue('muted', muted);
+        beepOpt = GM_getValue('beepOpt', beepOpt);
+        blinkOpt = GM_getValue('blinkOpt', blinkOpt);
+        volume = GM_getValue('volume', volume);
+    }
+
+    function setOptions() {
+        let val = volume * 100;
+        let min = $('#rangeslider')[0].min;
+        let max = $('#rangeslider')[0].min;
+        $('#rangeslider')[0].value = volume * 100;
+        $('#rangeslider')[0].style.backgroundSize = (val - min) * 100 / (max - min) + '% 100%'
+        $("#rangevalue")[0].textContent = volume * 100;
+        $('#audible-select')[0].value = beepOpt;
+        $('#visible-select')[0].value = blinkOpt;
+        $('#xedx-audible-opt').prop('checked', !muted);
+        $('#xedx-visual-opt').prop('checked', flashOn);
+    }
 
     function handlePageLoad() {
         let parent = document.querySelector("#react-root > div > div > hr");
@@ -168,6 +218,10 @@
         }
         $(parent).after(chainDiv);
 
+        // Read saved options
+        readOptions();
+        setOptions();
+
         // Hook up volume control
         let rangeInputs = document.querySelectorAll('input[type="range"]');
         rangeInputs.forEach(input => {
@@ -176,23 +230,42 @@
             input.addEventListener('input', handleInputChange);
         });
 
-        // Hook up mute button
+        // Hook up audio enable button
         $('#xedx-audible-opt').change(function() {
             log('Muting? ', !this.checked);
             mute(!this.checked);
+            saveOptions();
         });
+
+        $('#xedx-visual-opt').change(function() {
+            log('Flashing? ', this.checked);
+            flashOn = this.checked;
+            saveOptions();
+        });
+
 
         // Hookup time (audible/visible) options
         $('#audible-select').change(function() {
             log('audible-select: ', this);
             log('value: ', this.value);
             beepOpt = Number(this.value);
+            saveOptions();
         });
 
         $('#visible-select').change(function() {
             log('visible-select: ', this);
             log('value: ', this.value);
             blinkOpt = Number(this.value);
+            saveOptions();
+        });
+
+
+        $('#type-select').change(function() {
+            log('type-select: ', this);
+            log('value: ', this.value);
+            beepType = this.value;
+            log('Set beep type to ' + beepType);
+            //saveOptions();
         });
 
         // Hook up test buttons
