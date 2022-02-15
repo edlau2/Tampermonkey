@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -30,7 +30,7 @@
                              <tr>
                                  <td class="xtdx"><div>
                                      <input type="checkbox" class="xcbx" id="xedx-audible-opt" name="audible" checked>
-                                     <label for="audible"><span style="margin-left: 5px;">Audible</span></label>
+                                     <label for="audible"><span class="xedx-span">Audible</span></label>
                                  </div></td>
                                  <td class="xtdx">
                                      <select id="audible-select" class="xedx-select">
@@ -53,7 +53,7 @@
                             <tr>
                                  <td class="xtdx"><div>
                                      <input type="checkbox" class="xcbx" id="xedx-visual-opt" name="visual" checked>
-                                     <label for="visual"><span style="margin-left: 5px">Visual</span></label>
+                                     <label for="visual"><span class="xedx-span">Visual</span></label>
                                  </div></td>
                                  <td class="xtdx">
                                      <select id="visible-select" class="xedx-select"">
@@ -313,36 +313,41 @@
     function addStyles() {
         GM_addStyle(`.xedx-chain {text-align: center;
                               font-size: 56px; color: red; width: auto; margin-top: 10px; margin-left: 60px;}
-                 .xedx-chain-alert {text-align: center;
+                 body.dark-mode .xedx-chain-alert {text-align: center;
                               font-size: 56px; color: lime; width: auto; margin-top: 10px; margin-left: 60px;
                               -webkit-animation: highlight-active 1s linear 0s infinite normal;
                               animation: highlight-active 1s linear 0s infinite normal;}
-                 .xedx-table {width: auto; color: white; margin-top: 10px; border: 1px solid black; border-radius: 5px;}
-                 .xcbx {margin-left: 5px; margin-top: 5px;}
+                 .body:not(.dark-mode) .xedx-chain-alert {text-align: center;
+                              font-size: 56px; color: #0CB814; width: auto; margin-top: 10px; margin-left: 60px;
+                              -webkit-animation: highlight-active 1s linear 0s infinite normal;
+                              animation: highlight-active 1s linear 0s infinite normal;}
+                 .body.dark-mode .xedx-table {width: auto; color: white; margin-top: 10px;}
+
+                 .body:not(.dark-mode) .xedx-table {width: auto; color: white; margin-top: 10px; background: #3D3D3D;
+                                                    border-radius: 10px;}
+                 .xcbx {margin-left: 10px; margin-top: 0px; border-radius: 50%; vertical-align: middle;
+                         width: 1.1em; height: 1.1em; background-color: white;
+                        border: 1px solid #ddd; appearance: none; -webkit-appearance: none;}
                  .xtdx {color: white;}
-                 .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px;}
+                 .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 10px;}
                  .xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}
                  .box-div {width: 50%;}
                  .box {display: flex !important; align-items: center;}
-                 #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black;
+                 #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black; color:black;
                                           background: white; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
-                 #xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black;
+                 #xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black; color: black;
                                           background: lime; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
-                 .body:not(.dark-mode) .xedx-span {margin-left: 5px; color: black;}
+                 .body:not(.dark-mode) .xedx-span {margin-left: 5px; color: white;}
                  .body.dark-mode .xedx-span {margin-left: 5px; color: white;}
                  .xedx-vol-span {margin-left: 20px !important; padding-left: 10px !important;}
                  .xedx-volume {margin-left: 15px; margin-top: -14px;}
 
                  input[type="range"] {
                   -webkit-appearance: none;
-                  //margin-right: 15px;
-                  //width: 200px;
                   height: 7px;
                   background: rgba(255, 255, 255, 0.6);
-                  //background: #0032E0;
                   border-radius: 5px;
                   background-image: linear-gradient(#0032E0, #0032E0);
-                  //background-image: linear-gradient(#ff4500, #ff4500);
                   background-size: 70% 100%;
                   background-repeat: no-repeat;
                 }
