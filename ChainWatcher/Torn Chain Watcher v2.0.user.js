@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher v2.0
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      2.0
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -28,7 +28,7 @@
                          <div class="box-div"><span id="xedx-chain-span" class="xedx-chain">&nbsp</span></div>
                          <div class="box-div"><table class="xedx-table"><tbody>
                              <tr>
-                                 <td class="xtdx" ><div>
+                                 <td class="xtdx"><div>
                                      <input type="checkbox" class="xcbx" id="xedx-audible-opt" name="audible" checked>
                                      <label for="audible"><span style="margin-left: 5px;">Audible</span></label>
                                  </div></td>
@@ -76,13 +76,11 @@
                              </tr>
                              <tr>
                                  <td class="xtdx">
-                                 <select id="type-select" class="xedx-select"">
-                                          <option value="$">--Please Select--</option>
-                                          "sine", "square", "sawtooth", "triangle"
-                                          <option value="sine">sine</option>
-                                          <option value="square">square</option>
-                                          <option value="sawtooth">sawtooth</option>
-                                          <option value="triangle">triangle</option>
+                                 <select id="type-select" class="xedx-select2"">
+                                          <option value="sine">Sine</option>
+                                          <option value="square">Square</option>
+                                          <option value="sawtooth">Sawtooth</option>
+                                          <option value="triangle">Triangle</option>
                                     </select>
                                  </td>
                                  <td class="xtdx xedx-vol-span" colspan="2">
@@ -184,10 +182,11 @@
         GM_setValue('beepOpt', beepOpt);
         GM_setValue('blinkOpt', blinkOpt);
         GM_setValue('volume', volume);
+        GM_setValue('beepType', beepType);
     }
 
     function readOptions() {
-
+        beepType = GM_getValue('beepType', beepType);
         flashOn = GM_getValue('flashOn', flashOn);
         muted = GM_getValue('muted', muted);
         beepOpt = GM_getValue('beepOpt', beepOpt);
@@ -206,6 +205,7 @@
         $('#visible-select')[0].value = blinkOpt;
         $('#xedx-audible-opt').prop('checked', !muted);
         $('#xedx-visual-opt').prop('checked', flashOn);
+        $('#type-select')[0].value = beepType;
     }
 
     function handlePageLoad() {
@@ -232,13 +232,11 @@
 
         // Hook up audio enable button
         $('#xedx-audible-opt').change(function() {
-            log('Muting? ', !this.checked);
             mute(!this.checked);
             saveOptions();
         });
 
         $('#xedx-visual-opt').change(function() {
-            log('Flashing? ', this.checked);
             flashOn = this.checked;
             saveOptions();
         });
@@ -246,32 +244,24 @@
 
         // Hookup time (audible/visible) options
         $('#audible-select').change(function() {
-            log('audible-select: ', this);
-            log('value: ', this.value);
             beepOpt = Number(this.value);
             saveOptions();
         });
 
         $('#visible-select').change(function() {
-            log('visible-select: ', this);
-            log('value: ', this.value);
             blinkOpt = Number(this.value);
             saveOptions();
         });
 
 
         $('#type-select').change(function() {
-            log('type-select: ', this);
-            log('value: ', this.value);
             beepType = this.value;
-            log('Set beep type to ' + beepType);
-            //saveOptions();
+            saveOptions();
         });
 
         // Hook up test buttons
         $('#test-audio').click(function() {
             let enabled = ($('#test-audio')[0].value == 'on') ? true : false;
-            log('test-audio: ', $('#test-audio')[0].value, ' : ', enabled);
             if (enabled) {
                 log('Turning off');
                 $('#test-audio')[0].value = 'off';
@@ -291,15 +281,12 @@
 
         $('#test-video').click(function() {
             let enabled = ($('#test-video')[0].value == 'on') ? true : false;
-            log('test-video: ', $('#test-video')[0].value, ' : ', enabled);
             if (enabled) {
-                log('Turning off');
                 testingVideo = false;
                 $('#test-video')[0].value = 'off';
                 $('#test-video').removeClass('button-on');
                 $('#test-video').addClass('button-off');
             } else {
-                log('Turning on');
                 testingVideo = true;
                 $('#test-video')[0].value = 'on';
                 $('#test-video').removeClass('button-off');
@@ -330,16 +317,19 @@
                               font-size: 56px; color: lime; width: auto; margin-top: 10px; margin-left: 60px;
                               -webkit-animation: highlight-active 1s linear 0s infinite normal;
                               animation: highlight-active 1s linear 0s infinite normal;}
-                 .xedx-table {width: auto; color: white; margin-top: 20px;}
-                 .xcbx {margin-left: 0px;}
+                 .xedx-table {width: auto; color: white; margin-top: 10px; border: 1px solid black; border-radius: 5px;}
+                 .xcbx {margin-left: 5px; margin-top: 5px;}
                  .xtdx {color: white;}
                  .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px;}
+                 .xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}
                  .box-div {width: 50%;}
                  .box {display: flex !important; align-items: center;}
                  #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black;
-                                          background: white; height: 100%; width: 168px; margin-left: 10px;}
+                                          background: white; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
                  #xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black;
-                                          background: lime; height: 100%; width: 168px; margin-left: 10px;}
+                                          background: lime; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
+                 .body:not(.dark-mode) .xedx-span {margin-left: 5px; color: black;}
+                 .body.dark-mode .xedx-span {margin-left: 5px; color: white;}
                  .xedx-vol-span {margin-left: 20px !important; padding-left: 10px !important;}
                  .xedx-volume {margin-left: 15px; margin-top: -14px;}
 
