@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -186,12 +186,12 @@
     }
 
     function readOptions() {
-        beepType = GM_getValue('beepType', beepType);
         flashOn = GM_getValue('flashOn', flashOn);
         muted = GM_getValue('muted', muted);
         beepOpt = GM_getValue('beepOpt', beepOpt);
         blinkOpt = GM_getValue('blinkOpt', blinkOpt);
         volume = GM_getValue('volume', volume);
+        beepType = GM_getValue('beepType', beepType);
     }
 
     function setOptions() {
@@ -230,7 +230,7 @@
             input.addEventListener('input', handleInputChange);
         });
 
-        // Hook up audio enable button
+        // Hook up audio/visual enable checkboxes
         $('#xedx-audible-opt').change(function() {
             mute(!this.checked);
             saveOptions();
