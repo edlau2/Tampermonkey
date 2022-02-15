@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher (PDA)
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -96,10 +96,10 @@
     var beepFrequency = 440; // In hertz, 440 is middle A
 
     function GM_addStyle(css) {
-            const style = document.getElementById("GM_addStyleBy8626") || (function() {
+            const style = document.getElementById("GM_addStyleBy2100735") || (function() {
             const style = document.createElement('style');
             style.type = 'text/css';
-            style.id = "GM_addStyleBy8626";
+            style.id = "GM_addStyleBy2100735";
             document.head.appendChild(style);
             return style;
         })();
@@ -111,6 +111,7 @@
     function GM_getValue(a, b) {return (window.localStorage.getItem(a)) ? window.localStorage.getItem(a) : b;}
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+    log('Init audioCtx: ', audioCtx);
     function beep(duration, frequency, volume, type, callback) {
         var oscillator = audioCtx.createOscillator();
         var gainNode = audioCtx.createGain();
@@ -202,8 +203,8 @@
             $("#xedx-chain-span").addClass('xedx-chain');
             $("#xedx-chain-span").removeClass('xedx-chain-alert');
         }
-        $("#xedx-chain-span")[0].textContent = targetNode.textContent + ' | ' + chainNode.textContent.split('/')[0];
-        //$("#xedx-chain-span")[0].textContent = targetNode.textContent;
+        //$("#xedx-chain-span")[0].textContent = targetNode.textContent + ' | ' + chainNode.textContent.split('/')[0];
+        $("#xedx-chain-span")[0].textContent = targetNode.textContent;
     };
 
     function saveOptions() {
@@ -307,7 +308,7 @@
         $('#test-audio').click(function() {
             let enabled = ($('#test-audio')[0].value == 'on') ? true : false;
             if (enabled) {
-                log('Turning off');
+                log('Turning off, context = ', audioCtx);
                 $('#test-audio')[0].value = 'off';
                 $('#test-audio').removeClass('button-on');
                 $('#test-audio').addClass('button-off');
@@ -315,7 +316,7 @@
                 testBeepInt = 0;
             } else {
                 if (testBeepInt) return;
-                log('Turning on');
+                log('Turning on, context = ', audioCtx);
                 $('#test-audio')[0].value = 'on';
                 $('#test-audio').addClass('button-on');
                 $('#test-audio').removeClass('button-off');
