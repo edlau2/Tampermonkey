@@ -351,6 +351,7 @@
                  input[type="range"] {
                   -webkit-appearance: none;
                   height: 7px;
+                  width: 218px;
                   background: rgba(255, 255, 255, 0.6);
                   border-radius: 5px;
                   background-image: linear-gradient(#0032E0, #0032E0);
