@@ -1,0 +1,307 @@
+// ==UserScript==
+// @name         Torn Chain Watcher v2.0
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  Make the chain timeout/count blatantly obvious.
+// @author       xedx [2100735]
+// @include      https://www.torn.com/factions.php*
+// @connect      api.torn.com
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
+// ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
+(function() {
+    'use strict';
+
+    const chainDiv = `<div id="xedx-chain-div" class="box">
+                         <div class="box-div"><span id="xedx-chain-span" class="xedx-chain">&nbsp</span></div>
+                         <div class="box-div"><table class="xedx-table"><tbody>
+                             <tr>
+                                 <td class="xtdx" ><div>
+                                     <input type="checkbox" class="xcbx" id="xedx-audible-opt" name="audible" checked>
+                                     <label for="audible"><span style="margin-left: 5px;">Audible</span></label>
+                                 </div></td>
+                                 <td class="xtdx">
+                                     <select id="audible-select" class="xedx-select">
+                                          <option value="$">--Please Select--</option>
+                                          <option value="30">30 Seconds</option>
+                                          <option value="45">45 Seconds</option>
+                                          <option value="60">One Minute</option>
+                                          <option value="90">90 Seconds</option>
+                                          <option value="120">Two Minutes</option>
+                                          <option value="285">4:45</option>
+                                    </select>
+                                 </td>
+                                 <td>
+                                     <Button class="button-off" id="test-audio" value="off">Test Audio</Button>
+                                 </td>
+                            </tr>
+                            <tr>
+                                 <td class="xtdx"><div>
+                                     <input type="checkbox" class="xcbx" id="xedx-visual-opt" name="visual" checked>
+                                     <label for="visual"><span style="margin-left: 5px">Visual</span></label>
+                                 </div></td>
+                                 <td class="xtdx">
+                                     <select id="visible-select" class="xedx-select"">
+                                          <option value="$">--Please Select--</option>
+                                          <option value="30">30 Seconds</option>
+                                          <option value="45">45 Seconds</option>
+                                          <option value="60">One Minute</option>
+                                          <option value="90">90 Seconds</option>
+                                          <option value="120">Two Minutes</option>
+                                          <option value="285">4:45</option>
+                                    </select>
+                                 </td>
+                                 <td>
+                                     <Button class="button-off" id="test-video" value="off">Test Video</Button>
+                                 </td>
+                             </tr>
+                             <tr>
+                                 <td class="xtdx" ><div>
+                                 </div></td>
+                                 <td class="xtdx xedx-vol-span" colspan="2">
+                                     <span>Volume:</span>
+                                     <input class="xedx-volume" type="range" min="0" max="100" value="50" oninput="rangevalue.value=value"/>
+                                     <output id="rangevalue">100</output>
+                                 </td>
+                             </tr>
+                         </table></div>
+                     </div>`;
+
+    var targetNode = null;
+    var chainNode = null;
+    var muted = false;
+    var beeping = false;
+    var beepInt = 0;
+    var testBeepInt = 0;
+    var testingVideo = false;
+    var blinkOpt = 0;
+    var beepOpt = 0;
+    var volume = .5;
+
+    function handleInputChange(e) {
+        log('handleInputChange: ', e);
+        let target = e.target
+        if (e.target.type !== 'range') {
+            target = document.getElementById('range')
+        }
+        const min = target.min
+        const max = target.max
+        const val = target.value
+        $("#rangevalue")[0].textContent = val;
+        log('min: ' + min + ' max: ' + max + ' val: ' + val + ' background size: ' + target.style.backgroundSize);
+
+        target.style.backgroundSize = (val - min) * 100 / (max - min) + '% 100%'
+        volume = val/100;
+    }
+
+    function doBeep() {
+        beep(null, null, volume);
+    }
+
+    function beepingOn() {
+        if (!muted && !beeping && !beepInt) {
+            beepInt = setInterval(doBeep, 1000);
+            beeping = true;
+        }
+    }
+
+    function beepingOff() {
+        if (beepInt) clearInterval(beepInt);
+        beeping = false;
+        beepInt = 0;
+    }
+
+    function mute(value) { // TRUE to mute
+        log('Muting');
+        muted = value;
+        if (value) beepingOff();
+    }
+
+    function checkBeep(seconds) {
+        if (!beepOpt || muted || beepOpt < seconds) return false;
+        return true;
+    }
+
+    function checkBlink(seconds) {
+        if (!blinkOpt || muted || blinkOpt < seconds) return false;
+        return true;
+    }
+
+    function timerTimeout() {
+        let parts = targetNode.textContent.split(':');
+        let seconds = Number(parts[0]) * 60 + Number(parts[1]);
+
+        // Handle audio
+        if (checkBeep(seconds)) {
+            beepingOn();
+        } else {
+            beepingOff();
+        }
+
+        // Handle video
+        if (checkBlink(seconds) || testingVideo) {
+            $("#xedx-chain-span").removeClass('xedx-chain');
+            $("#xedx-chain-span").addClass('xedx-chain-alert');
+        } else {
+            $("#xedx-chain-span").addClass('xedx-chain');
+            $("#xedx-chain-span").removeClass('xedx-chain-alert');
+        }
+        $("#xedx-chain-span")[0].textContent = targetNode.textContent + ' | ' + chainNode.textContent.split('/')[0];
+    };
+
+    function handlePageLoad() {
+        let parent = document.querySelector("#react-root > div > div > hr");
+
+        // Install UI
+        if (!parent) {
+            log('Parent not found!');
+            return setTimeout(handlePageLoad, 250);
+        }
+        $(parent).after(chainDiv);
+
+        // Hook up volume control
+        let rangeInputs = document.querySelectorAll('input[type="range"]');
+        rangeInputs.forEach(input => {
+            $("#rangevalue")[0].textContent = input.value;
+            input.style.backgroundSize = (input.value - input.min) * 100 / (input.max - input.min) + '% 100%';
+            input.addEventListener('input', handleInputChange);
+        });
+
+        // Hook up mute button
+        $('#xedx-audible-opt').change(function() {
+            log('Muting? ', !this.checked);
+            mute(!this.checked);
+        });
+
+        // Hookup time (audible/visible) options
+        $('#audible-select').change(function() {
+            log('audible-select: ', this);
+            log('value: ', this.value);
+            beepOpt = Number(this.value);
+        });
+
+        $('#visible-select').change(function() {
+            log('visible-select: ', this);
+            log('value: ', this.value);
+            blinkOpt = Number(this.value);
+        });
+
+        // Hook up test buttons
+        $('#test-audio').click(function() {
+            let enabled = ($('#test-audio')[0].value == 'on') ? true : false;
+            log('test-audio: ', $('#test-audio')[0].value, ' : ', enabled);
+            if (enabled) {
+                log('Turning off');
+                $('#test-audio')[0].value = 'off';
+                $('#test-audio').removeClass('button-on');
+                $('#test-audio').addClass('button-off');
+                clearInterval(testBeepInt);
+                testBeepInt = 0;
+            } else {
+                if (testBeepInt) return;
+                log('Turning on');
+                $('#test-audio')[0].value = 'on';
+                $('#test-audio').addClass('button-on');
+                $('#test-audio').removeClass('button-off');
+                testBeepInt = setInterval(doBeep, 1000);
+            }
+        });
+
+        $('#test-video').click(function() {
+            let enabled = ($('#test-video')[0].value == 'on') ? true : false;
+            log('test-video: ', $('#test-video')[0].value, ' : ', enabled);
+            if (enabled) {
+                log('Turning off');
+                testingVideo = false;
+                $('#test-video')[0].value = 'off';
+                $('#test-video').removeClass('button-on');
+                $('#test-video').addClass('button-off');
+            } else {
+                log('Turning on');
+                testingVideo = true;
+                $('#test-video')[0].value = 'on';
+                $('#test-video').removeClass('button-off');
+                $('#test-video').addClass('button-on');
+            }
+
+        });
+
+        setInterval(timerTimeout, 1000);
+
+        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
+        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Main.
+    //////////////////////////////////////////////////////////////////////
+
+    logScriptStart();
+    versionCheck();
+    addStyles();
+    callOnContentLoaded(handlePageLoad);
+
+    function addStyles() {
+        GM_addStyle(`.xedx-chain {text-align: center;
+                              font-size: 56px; color: red; width: auto; margin-top: 10px; margin-left: 60px;}
+                 .xedx-chain-alert {text-align: center;
+                              font-size: 56px; color: lime; width: auto; margin-top: 10px; margin-left: 60px;
+                              -webkit-animation: highlight-active 1s linear 0s infinite normal;
+                              animation: highlight-active 1s linear 0s infinite normal;}
+                 .xedx-table {width: auto; color: white; margin-top: 20px;}
+                 .xcbx {margin-left: 0px;}
+                 .xtdx {color: white;}
+                 .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px;}
+                 .box-div {width: 50%;}
+                 .box {display: flex !important; align-items: center;}
+                 #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black;
+                                          background: white; height: 100%; width: 168px; margin-left: 10px;}
+                 #xedx-chain-div .button-on {display: table-cell; border-radius: 10px; border: 1px solid black;
+                                          background: lime; height: 100%; width: 168px; margin-left: 10px;}
+                 .xedx-vol-span {margin-left: 20px !important; padding-left: 10px !important;}
+                 .xedx-volume {margin-left: 15px; margin-top: -14px;}
+
+                 input[type="range"] {
+                  -webkit-appearance: none;
+                  //margin-right: 15px;
+                  //width: 200px;
+                  height: 7px;
+                  background: rgba(255, 255, 255, 0.6);
+                  //background: #0032E0;
+                  border-radius: 5px;
+                  background-image: linear-gradient(#0032E0, #0032E0);
+                  //background-image: linear-gradient(#ff4500, #ff4500);
+                  background-size: 70% 100%;
+                  background-repeat: no-repeat;
+                }
+
+                input[type="range"]::-webkit-slider-thumb {
+                  -webkit-appearance: none;
+                  height: 20px;
+                  width: 10px;
+                  border-radius: 20%;
+                  background: white;
+                  cursor: ew-resize;
+                  box-shadow: 0 0 2px 0 #555;
+                  transition: background .3s ease-in-out;
+                }
+
+                input[type=range]::-webkit-slider-runnable-track  {
+                  -webkit-appearance: none;
+                  box-shadow: none;
+                  border: none;
+                  background: transparent;
+                }
+        `);
+    }
+
+})();
