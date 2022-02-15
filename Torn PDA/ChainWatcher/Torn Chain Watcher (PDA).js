@@ -239,12 +239,10 @@
     }
 
     function startTimer() {
-        targetNode = document.querySelector("#react-root > div > div > ul >" +
-                               " li.warListItem___Kb1Hh.first-in-row.act.active___kIthT.firstInRow___NsIyI.link___VkUGH" +
-                               " > div > div.chain-box-stats-block > div > span.chain-box-timeleft");
-        chainNode = document.querySelector("#react-root > div > div > ul >" +
-                               " li.warListItem___Kb1Hh.first-in-row.act.active___kIthT.firstInRow___NsIyI.link___VkUGH" +
-                               " > div > div.chain-box-stats-block > div > span.chain-box-center-stat");
+        let targetSel = "#react-root > div > div > ul > li.warListItem___Kb1Hh > div > div.chain-box-stats-block > div > span.chain-box-timeleft";
+        let chainSel = "#react-root > div > div > ul > li.warListItem___Kb1Hh > div > div.chain-box-stats-block > div > span.chain-box-center-stat";
+        targetNode = document.querySelector(targetSel);
+        chainNode = document.querySelector(chainSel);
 
         if (!targetNode || !chainNode) {
             log('Unable to find target nodes! ', targetNode, chainNode);
