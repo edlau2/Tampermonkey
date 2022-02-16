@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -25,8 +25,16 @@
     var beepFrequency = 440; // In hertz, 440 is middle A
 
     const chainDiv = `<div id="xedx-chain-div" class="box">
-                         <div class="box-div"><span id="xedx-chain-span" class="xedx-chain">&nbsp</span></div>
-                         <div class="box-div"><table class="xedx-table"><tbody>
+                         <div class="box-div box-col">
+                             <div id="xedx-opt-label">
+                                 <input type="checkbox" class="xcbx" id="xedx-hide-opt" name="hide" checked>
+                                 <label for="hide"><span class="xedx-span">Hide Opts</shidepan></label>
+                             </div>
+                             <div>
+                                 <span id="xedx-chain-span" class="xedx-chain">&nbsp</span>
+                             </div>
+                         </div>
+                         <div class="box-div" id="xedx-opts"><table class="xedx-table"><tbody>
                              <tr>
                                  <td class="xtdx"><div>
                                      <input type="checkbox" class="xcbx" id="xedx-audible-opt" name="audible" checked>
@@ -103,6 +111,8 @@
     var blinkOpt = '$'; // Time in sec
     var beepOpt = '$'; // Time in sec
     var volume = .5;
+    var intTimer = null;
+    var hideOpts = false;
 
     function handleInputChange(e) {
         log('handleInputChange: ', e);
@@ -158,6 +168,21 @@
         let parts = targetNode.textContent.split(':');
         let seconds = Number(parts[0]) * 60 + Number(parts[1]);
 
+        // Check for chain drop/end
+        let count = Number(chainNode.textContent.split('/')[0]);
+        if (count == 0) {
+            $("#xedx-chain-span")[0].textContent = "No Chain!";
+            if (intTimer) clearInterval(intTimer);
+            intTimer = null;
+            return;
+        }
+        if (parts.len > 2 || Number(parts[0]) > 5 || count == 0) {
+            $("#xedx-chain-span")[0].textContent = "Over!";
+            if (intTimer) clearInterval(intTimer);
+            intTimer = null;
+            return;
+        }
+
         // Handle audio
         if (checkBeep(seconds)) {
             beepingOn();
@@ -183,6 +208,7 @@
         GM_setValue('blinkOpt', blinkOpt);
         GM_setValue('volume', volume);
         GM_setValue('beepType', beepType);
+        GM_setValue('hideOpts', hideOpts);
     }
 
     function readOptions() {
@@ -192,6 +218,7 @@
         blinkOpt = GM_getValue('blinkOpt', blinkOpt);
         volume = GM_getValue('volume', volume);
         beepType = GM_getValue('beepType', beepType);
+        hideOpts = GM_getValue('hideOpts', hideOpts);
     }
 
     function setOptions() {
@@ -206,6 +233,19 @@
         $('#xedx-audible-opt').prop('checked', !muted);
         $('#xedx-visual-opt').prop('checked', flashOn);
         $('#type-select')[0].value = beepType;
+        $('#xedx-hide-opt').prop('checked', hideOpts);
+    }
+
+    function startTimer() {
+        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
+        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+
+        if (!targetNode || !chainNode) {
+            log('Unable to find target nodes! ', targetNode, chainNode);
+            return setTimeout(startTimer, 1000);
+        }
+
+        intTimer = setInterval(timerTimeout, 1000);
     }
 
     function handlePageLoad() {
@@ -241,6 +281,24 @@
             saveOptions();
         });
 
+        // Hide Options checkbox xedx-hide-opt
+        $('#xedx-hide-opt').change(function() {
+            hideOpts = this.checked;
+            if (hideOpts) {
+                $('#xedx-opts').css("display","none");
+                $('#xedx-opt-label').addClass('top-margin20');
+            } else {
+                $('#xedx-opts').css("display","block");
+                $('#xedx-opt-label').removeClass('top-margin20');
+            }
+            saveOptions();
+        });
+        if (hideOpts) {
+            $('#xedx-opts').css("display","none");
+            $('#xedx-opt-label').addClass('top-margin20');
+        } else {
+            $('#xedx-opt-label').removeClass('top-margin20');
+        }
 
         // Hookup time (audible/visible) options
         $('#audible-select').change(function() {
@@ -295,10 +353,7 @@
 
         });
 
-        setInterval(timerTimeout, 1000);
-
-        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
-        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+        startTimer();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -337,7 +392,10 @@
                  .xedx-select {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 10px;}
                  .xedx-select-row2 {margin-left: 10px; margin-bottom: 10px; border-radius: 10px; margin-top: 0px;}
                  .xedx-select2 {margin-left: 4px; margin-bottom: 10px; border-radius: 10px;}
+                 .top-margin10 {margin-top: 10px;}
+                 .top-margin20 {margin-top: 20px;}
                  .box-div {width: 50%;}
+                 .box-col {flex-direction: column;}
                  .box {display: flex !important; align-items: center;}
                  #xedx-chain-div .button-off {display: table-cell; border-radius: 10px; border: 1px solid black; color:black;
                                           background: white; height: 100%; width: 168px; margin-left: 10px; margin-right: 5px;}
