@@ -31,7 +31,8 @@
 
     // Cache 'lifetime', time to expire
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
-    const cacheMaxSecs = 600 * 1000; // 10 min in ms
+    const cacheMaxSecs = 1800 * 1000; // 30 min in ms
+    //const cacheMaxSecs = 600 * 1000; // 10 min in ms
     //const cacheMaxSecs = 180 * 1000; // 3 min in ms
     //const cacheMaxSecs = 60 * 1000; // 1 min in ms
 
