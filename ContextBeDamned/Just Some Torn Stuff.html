@@ -5,9 +5,12 @@
         <title>Just Some Torn Stuff</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script type="text/javascript" async="" src="https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js"></script>
+        <script src="https://edlau2.github.io/tinysort.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js">
         <script type="text/javascript" async="" src="https://bat.bing.com/bat.js"></script>
-        <script>function mySort(e) {console.log('Just Some Torn Stuff, e = ', e);}</script>
+        <script>function mySort(e) {console.log('Just Some Torn Stuff, e = ', e);
+            console.log('nodelist: ', $("#allStocksTable.tr"));
+            tinysort("#allStocksTable > tbody > tr", {selector: "td:nth-child(1)", order: 'asc'});}</script>
     </head>
     <body>
         <form action="torn.php" method="post">
