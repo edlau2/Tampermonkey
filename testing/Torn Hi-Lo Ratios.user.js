@@ -4,6 +4,7 @@
 // @version      1.0
 // @description  Checks the Hi/Lo Win/Loss ratio periodically
 // @author       xedx [2100735]
+// @include      https://www.torn.com/loader.php?sid=viewHighLowStats
 // @include      https://www.torn.com/loader.php?sid=highlow
 // @include      https://www.torn.com/casino.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -18,7 +19,6 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-// @include      https://www.torn.com/loader.php?sid=viewHighLowStats
 // @include      https://www.torn.com/index.php
 
 /*eslint no-undef: 0*/
