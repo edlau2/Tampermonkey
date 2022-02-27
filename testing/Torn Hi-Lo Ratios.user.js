@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hi-Lo Ratios
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Checks the Hi/Lo Win/Loss ratio periodically
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=viewHighLowStats
@@ -19,20 +19,16 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
-// @include      https://www.torn.com/index.php
-
 /*eslint no-undef: 0*/
 
 (async function() {
     'use strict';
 
-    const checkSecs = 10; // Interval, in seconds, between checking for ratio update.
+    debugLoggingEnabled = false;
+
+    const checkMins = 1; // Interval, in minutes, between checking for ratio update. 0-10 minutes will be added at random.
     const orgBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewHighLowStats";
-
-    var intervalID = null;
-    var wlRatioLiSel = null;
-    var wlRatioUlSel = null;
 
     const miniUI = '<div id="xedx-test-ui" class="box">' +
                        '<span id="xedx-stat-span" class="highlight-inactive">Test Script Active</span>' +
@@ -41,8 +37,8 @@
 
     function addWrappers() {
         $.ajaxSettings.beforeSend=function(xhr){
-            log('[beforeSend] xhr: ', xhr);
-            log('[beforeSend] headers: ', xhr.headers);
+            debug('[beforeSend] xhr: ', xhr);
+            debug('[beforeSend] headers: ', xhr.headers);
             orgBeforeSend(xhr);
         };
 
@@ -107,24 +103,31 @@
         `);
     }
 
+    function notify(notifyText) {
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        } else {
+            var notification = new Notification('Hi/Lo Win/Loss Ratio', {
+            icon: 'https://imgur.com/24j01c0.png',
+            body: notifyText,
+            });
+
+            setTimeout(() => {notification.close()}, 4000);
+            notification.onclick = () => {notification.close()};
+        }
+    }
+
     function getWinLossRatio(ul) {
         let ratio = 0;
-        //log('[getWinLossRatio] ul=', ul);
         let liList = ul.getElementsByClassName('stat');
-        //log('liList: ', liList);
         for (let i=0; i<liList.length; i++) {
             let text = liList[i].innerText;
-            //log('Node #' + i + ' stat: ' + text);
             if (text.indexOf('Win/Loss ratio') > -1) {
                 let parentUL = liList[i].parentNode;
-                log('parentNode: ', parentUL);
                 let statLi = parentUL.getElementsByClassName('stat-value')[0];
                 if (statLi) {
-                    if (!wlRatioUlSel) wlRatioUlSel = $(parentUL).getSelector();
-                    if (!wlRatioLiSel) wlRatioLiSel = $(statLi).getSelector();
-                    log('*** WL Ratio Selector: ', wlRatioLiSel);
                     ratio = Number(statLi.textContent);
-                    log("Win/Loss Ratio: ", ratio);
+                    debug("Win/Loss Ratio: ", ratio);
                     break;
                 }
             }
@@ -132,36 +135,51 @@
         return ratio;
     }
 
+    function blinkStats(timeSecs) {
+        $("#xedx-stat-span").addClass('highlight-active');
+        $("#xedx-stat-span").removeClass('highlight-inactive');
+        setTimeout(function(){
+            $("#xedx-stat-span").removeClass('highlight-active');
+            $("#xedx-stat-span").addClass('highlight-inactive');
+        }, timeSecs * 1000);
+    }
+
+    function updateStatSpan(wlRatio) {
+        $("#xedx-stat-span")[0].textContent = "Win/Loss ratio: " + wlRatio;
+        blinkStats(4);
+    }
+
     function refreshCompleteCb() {
         log('[refreshCompleteCb]');
         let ul = document.querySelector("#xedx-result > ul");
         let wlRatio = getWinLossRatio(ul);
         if (wlRatio) {
-            log('getWinLossRatio returned: ', wlRatio);
-            log('span: ', $("#xedx-stat-span"));
-            $("#xedx-stat-span")[0].textContent = "Win/Loss ratio: " + wlRatio;
-            $("#xedx-stat-span").addClass('highlight-active');
-            $("#xedx-stat-span").removeClass('highlight-inactive');
-            setTimeout(function(){
-                $("#xedx-stat-span").removeClass('highlight-active');
-                $("#xedx-stat-span").addClass('highlight-inactive');
-            }, 2000);
+            debug('getWinLossRatio returned: ', wlRatio);
+            notify(wlRatio.toString()); // Notify (with permission)
+            updateStatSpan(wlRatio); // And flash in the UI if enabled.
         }
     }
 
+    function resetRefresh() {
+        let interval = checkMins + getRandomInt(10); // checkMins + 0-10 minutes
+        log('[resetRefresh] checking again in ' + interval + ' minutes.');
+        setTimeout(refresh, interval * 60 * 1000);
+    }
+
     function refresh() {
-        log('[refresh]');
+        debug('[refresh]');
+        if (travelling()) return resetRefresh();
         $("#xedx-result").load(baseURL + " #overall-stats > ul", refreshCompleteCb);
+        resetRefresh();
     }
 
     async function handlePageLoad() {
-        log('[handlePageLoad]');
+        debug('[handlePageLoad]');
         let target = document.querySelector("#mainContainer > div.content-wrapper.m-left20.left > div.content-title.m-bottom10");
         if (!target) return setTimeout(handlePageLoad, 50);
         if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
 
         refresh();
-        intervalID = setInterval(refresh, checkSecs * 1000);
     }
 
     function getIdFromName(name) {
