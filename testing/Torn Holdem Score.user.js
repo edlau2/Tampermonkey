@@ -27,7 +27,7 @@
     debugLoggingEnabled = false;
     const checkSecs = 2;
     var autoClick = false;
-    const GodMode = true;
+    const GodMode = false;
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewPokerStats";
 
