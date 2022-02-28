@@ -25,7 +25,7 @@
     'use strict';
 
     debugLoggingEnabled = false;
-    const checkSecs = 20;
+    const checkSecs = 2;
     var autoClick = false;
     const GodMode = false;
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
@@ -179,6 +179,9 @@
     function refresh(autoReset=true) {
         debug('[refresh] ', autoReset);
         if (travelling()) return resetRefresh();
+        if (hasThreeButtons()) return resetRefresh();
+
+        log('[refresh] active: ', (new Date()));
         $("#xedx-result").load(baseURL + " #your-stats > ul", refreshCompleteCb);
         if (autoReset) resetRefresh();
     }
