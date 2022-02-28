@@ -27,7 +27,7 @@
     debugLoggingEnabled = false;
     const checkSecs = 2;
     var autoClick = false;
-    const GodMode = false;
+    const GodMode = true;
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewPokerStats";
 
@@ -146,6 +146,14 @@
         }, 5000);
     }
 
+    function timeNow() {
+        let today = new Date();
+        let time = ((today.getHours() < 10) ? '0' : '') + today.getHours() + ":" +
+            ((today.getMinutes() < 10) ? '0' : '') + today.getMinutes()  + ":" +
+            (today.getSeconds() < 10 ? '0' : '') + today.getSeconds();
+        return time;
+    }
+
     var currScore = 0;
     var lastScore = 0;
     var scoreGain = 0;
@@ -181,7 +189,7 @@
         if (travelling()) return resetRefresh();
         if (hasThreeButtons()) return resetRefresh();
 
-        log('[refresh] active: ', (new Date()));
+        log('[refresh] active: ', timeNow());
         $("#xedx-result").load(baseURL + " #your-stats > ul", refreshCompleteCb);
         if (autoReset) resetRefresh();
     }
