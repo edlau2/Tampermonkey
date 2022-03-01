@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      1.1
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -22,11 +22,12 @@
     'use strict'
 
     debugLoggingEnabled = false;
+    const devMode = false;
 
-    GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
+    //GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
 
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
-                            'class="chat-box-textarea_1RrlX xedx-chat-overlay" ' +
+                            'class="chat-box-textarea_1RrlX" ' +
                             'style="width: 179.4px; height: 51px;">' +
                         '</textarea>';
 
@@ -233,7 +234,11 @@
         let wrappedStyle = ta.getAttribute('style');
         $(ta).after(chatOverlay);
         myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
-        myChat.setAttribute('style', wrappedStyle + 'background-color: #888888;');
+        if (devMode) {
+            myChat.setAttribute('style', wrappedStyle + 'background-color: #888888;');
+        } else {
+            myChat.setAttribute('style', wrappedStyle);
+        }
         ta.setAttribute('style', (wrappedStyle + 'display: none;'));
         $(myChat).on("keypress", handleChatKeypress);
         if (observer) observer.observe(targetNode, config);
