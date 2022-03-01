@@ -21,11 +21,12 @@
 (function() {
     'use strict'
 
-    debugLoggingEnabled = false;
     const devMode = false;
 
     //GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
 
+    // General globals
+    debugLoggingEnabled = devMode;
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
                             'class="chat-box-textarea_1RrlX" ' +
                             'style="width: 179.4px; height: 51px;">' +
@@ -51,6 +52,7 @@
     // '^2, ^3, ^+, ^-' ==> superscript
     // 'cc' ==> cursive
 
+    // char code -> Unicode mappings
     const italic_lcOffset = 0x1D482 - 'a'.charCodeAt(0);
     const italic_ucOffset = 0x1D468 - 'A'.charCodeAt(0);
     const bold_lcOffset = 0x1D41a - 97; // 'a'.charCodeAt(0), same thing
