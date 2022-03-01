@@ -21,8 +21,8 @@
 (function() {
     'use strict'
 
-    debugLoggingEnabled = false;
-    const devMode = false;
+    debugLoggingEnabled = true;
+    const devMode = true;
 
     //GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
 
@@ -35,7 +35,7 @@
     const targetNode = document.querySelector("#chatRoot");
     const chatboxTextArea = 'chat-box-textarea_1RrlX';
     var observer = null;
-    var config = { attributes: true, childList: true};
+    var config = { attributes: true, childList: true, subtree: true};
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -114,25 +114,29 @@
     function internalFormatText(messageText) {
         log('[internalFormatText] text input', messageText);
 
-        const boldedRegex = /\*\*[A-z0-9 ]+\*\*/gi; // Matches between '**'
-        const italicRegex = /(\*)[A-z0-9 ]+(\*)/gi; // Matches between '*'
-        const strikeoutRegex = /(~~)[A-z0-9 ]+(~~)/gi; // Matches between '~~'
-        const cursiveRegex = /(cc)[A-z0-9 ]+(cc)/gi; // Matches between 'cc'
-        const ulRegex = /(__)[A-z0-9 ]+(__)/gi; // Matches between '__'
+        const boldedRegex = /\*\*[A-z0-9 ':;.,]+\*\*/gi; // Matches between '**'
+        const italicRegex = /(\*)[A-z0-9 ':;.,]+(\*)/gi; // Matches between '*'
+        const strikeoutRegex = /(~~)[A-z0-9 ':;.,]+(~~)/gi; // Matches between '~~'
+        const cursiveRegex = /(cc)[A-z0-9 ':;.,]+(cc)/gi; // Matches between 'cc'
+        const ulRegex = /(__)[A-z0-9 ':;.,]+(__)/gi; // Matches between '__'
 
         // Bold and italic, before both bold and italic (***) (TBD)
 
         // Bold: must be before italic (**)
         let boldedMatches = messageText.match(boldedRegex);
         debug('[internalFormatText] bold matches', boldedMatches);
-        if (boldedMatches) boldedMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBold(e).replaceAll('**', ''))));
-        debug('[internalFormatText] replaced: ', messageText);
+        if (boldedMatches) {
+            boldedMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBold(e).replaceAll('**', ''))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
 
         // Italic (*)
         let italicMatches = messageText.match(italicRegex);
         debug('[internalFormatText] italic matches', italicMatches);
-        if (italicMatches) italicMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeItalics(e).replaceAll('*', ''))));
-        debug('[internalFormatText] replaced: ', messageText);
+        if (italicMatches) {
+            italicMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeItalics(e).replaceAll('*', ''))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
 
         // Subscript (~) must be before strikethrough (TBD)
 
@@ -142,20 +146,26 @@
         // Strikethrough (~~)
         let strikeoutMatches = messageText.match(strikeoutRegex);
         debug('[internalFormatText] strikeout matches', strikeoutMatches);
-        if (strikeoutMatches) strikeoutMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeStrikeout(e))));
-        debug('[internalFormatText] replaced: ', messageText);
+        if (strikeoutMatches) {
+            strikeoutMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeStrikeout(e))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
 
         // Underline (__)
         let ulMatches = messageText.match(ulRegex);
         debug('[internalFormatText] underline matches', ulMatches);
-        if (ulMatches) ulMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeUnderline(e))));
-        debug('[internalFormatText] replaced: ', messageText);
+        if (ulMatches) {
+            ulMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeUnderline(e))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
 
         // cursive (cc)
         let cursiveMatches = messageText.match(cursiveRegex);
         log('[internalFormatText] cursive matches', cursiveMatches);
-        if (cursiveMatches) cursiveMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeCursive(e.replaceAll('cc', '')))));
-        log('[internalFormatText] replaced: ', messageText);
+        if (cursiveMatches) {
+            cursiveMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeCursive(e.replaceAll('cc', '')))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
 
         log('[internalFormatText] text output', messageText);
 
@@ -275,7 +285,6 @@
             addChatOverlay(chatNodes[i]);
         }
 
-        config.attributes = true;
         if (!observer) observer = new MutationObserver(observerCallback);
         observer.observe(targetNode, config);
     }
