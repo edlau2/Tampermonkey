@@ -21,8 +21,8 @@
 (function() {
     'use strict'
 
-    debugLoggingEnabled = true;
-    const devMode = true;
+    debugLoggingEnabled = false;
+    const devMode = false;
 
     //GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
 
