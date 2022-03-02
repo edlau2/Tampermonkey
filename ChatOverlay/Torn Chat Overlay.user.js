@@ -23,7 +23,29 @@
 
     const devMode = false;
 
-    //GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}`);
+    GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
+                 .xedx-hide {display: none;}
+                 .icon_chat_active {margin-bottom: 2px;
+                                    background-position: left top;
+                                    display: inline-block;
+                                    vertical-align: middle;
+                                    height: 34px;
+                                    width: 34px;
+                                    background: url(/images/v2/chat/tab_icons.svg) left top;
+                                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
+                                    margin-left: -20px;
+                                    }
+                 .icon_chat_inactive {margin-bottom: 2px;
+                                    background-position: left top;
+                                    display: none;
+                                    vertical-align: middle;
+                                    height: 34px;
+                                    width: 34px;
+                                    background: url(/images/v2/chat/tab_icons.svg) left top;
+                                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
+                                    margin-left: -20px;
+                                      }
+    `);
 
     // General globals
     debugLoggingEnabled = devMode;
@@ -31,6 +53,7 @@
                             'class="chat-box-textarea_1RrlX" ' +
                             'style="width: 179.4px; height: 51px;">' +
                         '</textarea>';
+    const chatOverlayActive = '<i class="icon_chat_active"></i>';
 
     // Globals for an observer
     const targetNode = document.querySelector("#chatRoot");
@@ -264,33 +287,63 @@
         } else {
             myChat.setAttribute('style', wrappedStyle);
         }
+        addOverlayActive(ta);
         ta.setAttribute('style', (wrappedStyle + 'display: none;'));
         $(myChat).on("keypress", handleChatKeypress);
         if (observer) observer.observe(targetNode, config);
     }
 
-    // Handle new nodes as they're added (only the 'addedNodes' member
-    // of the mutation record is passed here).
-    // Match to this: <textarea name="chatbox2" class="chat-box-textarea_1RrlX" ></textarea>
-    function processNewNodes(nodeList) {
-        log('[processNewNodes]');
-        /*
-        for (let i=0; i<nodeList.length; i++) {
-            let chatNodes = nodeList[i].getElementsByClassName(chatboxTextArea);
-            for (let i=0; i<chatNodes.length; i++) {
-                addChatOverlay(chatNodes[i]);
-            }
-        }
-        */
+    // Add an 'active' indicatoer to the chatbox
+    function addOverlayActive(ta) {
+        let root = ta.parentNode.parentNode.parentNode;
+        //let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .name_314zy') : null;
+        let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
+        debug('[addOverlayActive] root: ', root, ' name: ', name);
+        if (name) $(name).after(chatOverlayActive);
     }
 
-    // Handle target mutations - node additions, in this case.
+    // Handle new nodes as they're added and removed.
+    function processAddedNodes(nodeList, target) {
+        debug('[processAddedNodes]');
+        observer.disconnect();
+        for (let i=0; i < nodeList.length; i++) {
+            debug('Target node ', target, ' being added!');
+            let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
+            if (iconNode) {
+                $(iconNode).removeClass('icon_chat_inactive');
+                $(iconNode).addClass('icon_chat_active');
+            }
+        }
+        observer.observe(targetNode, config);
+    }
+
+    function processRemovedNodes(nodeList, target) {
+        debug('[processRemovedNodes]');
+        observer.disconnect();
+        for (let i=0; i < nodeList.length; i++) {
+            debug('Target node ', target, ' being removed!');
+            let iconNode = target ? target.getElementsByClassName('icon_chat_active')[0] : null;
+            if (iconNode) {
+                $(iconNode).removeClass('icon_chat_active');
+                $(iconNode).addClass('icon_chat_inactive');
+            }
+        }
+        observer.observe(targetNode, config);
+    }
+
+    // Handle target mutations.
     const observerCallback = function(mutationsList, observer) {
-        log('[observerCallback]');
+        debug('[observerCallback]');
+        let nodeList = null;
         for(const mutation of mutationsList) {
             if (mutation.type === 'childList') {
-                let nodeList = mutation.addedNodes;
-                if (nodeList) processNewNodes(nodeList);
+                let target = mutation.target;
+                debug('[childList] target: ', target);
+
+                nodeList = mutation.addedNodes;
+                if (nodeList) processAddedNodes(nodeList, target);
+                nodeList = mutation.removedNodes;
+                if (nodeList) processRemovedNodes(nodeList, target);
             }
         }
     };
