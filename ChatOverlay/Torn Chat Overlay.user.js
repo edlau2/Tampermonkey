@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -21,7 +21,7 @@
 (function() {
     'use strict'
 
-    const devMode = false;
+    const devMode = true;
 
     GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
                  .xedx-hide {display: none;}
@@ -222,21 +222,18 @@
                           composed: true, ctrlKey: false, currentTarget: null,defaultPrevented: true, detail: 0, eventPhase: 0,
                           isComposing: false, isTrusted: true, location: 0, metaKey: false, repeat: false, returnValue: false, shiftKey: false
                           }
-    const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts);
+
     const enterKeypressEvent = new KeyboardEvent("keypress", enterKeyOpts);
-    const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);
+    const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts); // To use, modify opts first...
+    const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);  // To use, modify opts first...
 
     function sendEnter(element) {
         log('[sendEnter]');
-        let useOpts = enterKeyOpts;
-        //useOpts.type = "keypress";
-        element.dispatchEvent(new KeyboardEvent("keypress", useOpts));
-
-        //element.dispatchEvent(enterKeypresEvent);
-        //element.dispatchEvent(enterKeyupEvent);
+        //let useOpts = enterKeyOpts;
+        element.dispatchEvent(new KeyboardEvent("keypress", enterKeyOpts));
       }
 
-    // Sanitize an entered text message and put in the actual, hidden,
+    // Sanitize (format) an entered text message and put in the actual, hidden,
     // wrapped text area and send it.
     function handleOutboundMessage(target) {
         let msg = $(target)[0].value;
@@ -254,7 +251,7 @@
     function handleChatKeypress(e) {
         let target = e.target;
         if (e.keyCode == 13) { // If the user has pressed enter
-            handleOutboundMessage(target); //$(target)[0].value);
+            handleOutboundMessage(target);
             $(target)[0].value = '';
             return false;
         }
@@ -270,6 +267,7 @@
     // Wrap an existing chat textarea with our own private one,
     // to trap written text.
     function addChatOverlay(ta) {
+        if (!ta) return;
         if (observer) observer.disconnect();
         log('[addChatOverlay]');
         let myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
@@ -295,8 +293,12 @@
 
     // Add an 'active' indicatoer to the chatbox
     function addOverlayActive(ta) {
+        if (!ta) return;
         let root = ta.parentNode.parentNode.parentNode;
-        //let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .name_314zy') : null;
+        if (root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active')) {
+            log('icon_chat_active already exists.');
+            return;
+        }
         let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
         debug('[addOverlayActive] root: ', root, ' name: ', name);
         if (name) $(name).after(chatOverlayActive);
@@ -308,6 +310,10 @@
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
             debug('Target node ', target, ' being added!');
+
+            let ta = target ? target.querySelector('.chat-box-input_1Nsmp > div > textarea') : null;
+            debug('textarea: ', ta);
+            if (ta) addChatOverlay(ta);
             let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
             if (iconNode) {
                 $(iconNode).removeClass('icon_chat_inactive');
