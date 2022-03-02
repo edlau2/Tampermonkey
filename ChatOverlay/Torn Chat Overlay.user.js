@@ -23,29 +23,32 @@
 
     const devMode = true;
 
-    GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
-                 .xedx-hide {display: none;}
-                 .icon_chat_active {margin-bottom: 2px;
-                                    background-position: left top;
-                                    display: inline-block;
-                                    vertical-align: middle;
-                                    height: 34px;
-                                    width: 34px;
-                                    background: url(/images/v2/chat/tab_icons.svg) left top;
-                                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
-                                    margin-left: -20px;
-                                    }
-                 .icon_chat_inactive {margin-bottom: 2px;
-                                    background-position: left top;
-                                    display: none;
-                                    vertical-align: middle;
-                                    height: 34px;
-                                    width: 34px;
-                                    background: url(/images/v2/chat/tab_icons.svg) left top;
-                                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
-                                    margin-left: -20px;
-                                      }
-    `);
+    // Function so I can use code collapse to see stuff easier.
+    function addStyles() {
+        GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
+                     .xedx-hide {display: none;}
+                     .icon_chat_active {margin-bottom: 2px;
+                                        background-position: left top;
+                                        display: inline-block;
+                                        vertical-align: middle;
+                                        height: 34px;
+                                        width: 34px;
+                                        background: url(/images/v2/chat/tab_icons.svg) left top;
+                                        filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
+                                        margin-left: -20px;
+                                        }
+                     .icon_chat_inactive {margin-bottom: 2px;
+                                          background-position: left top;
+                                          display: none;
+                                          vertical-align: middle;
+                                          height: 34px;
+                                          width: 34px;
+                                          background: url(/images/v2/chat/tab_icons.svg) left top;
+                                          filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
+                                          margin-left: -20px;
+                                          }
+        `);
+    }
 
     // General globals
     debugLoggingEnabled = devMode;
@@ -295,12 +298,9 @@
     function addOverlayActive(ta) {
         if (!ta) return;
         let root = ta.parentNode.parentNode.parentNode;
-        if (root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active')) {
-            log('icon_chat_active already exists.');
-            return;
-        }
+        let indicator = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active') : null;
         let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
-        debug('[addOverlayActive] root: ', root, ' name: ', name);
+        if (indicator) $(indicator).remove();
         if (name) $(name).after(chatOverlayActive);
     }
 
@@ -372,7 +372,7 @@
     logScriptStart();
     //validateApiKey();
     versionCheck();
-
+    addStyles();
     callOnContentLoaded(handlePageLoad);
 
 })();
