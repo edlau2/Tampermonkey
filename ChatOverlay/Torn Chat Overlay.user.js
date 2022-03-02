@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -22,6 +22,7 @@
     'use strict'
 
     const devMode = false;
+    const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
     function addStyles() {
@@ -296,7 +297,7 @@
 
     // Add an 'active' indicatoer to the chatbox
     function addOverlayActive(ta) {
-        if (!ta) return;
+        if (!ta || !indicatorsOn) return;
         let root = ta.parentNode.parentNode.parentNode;
         let indicator = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active') : null;
         let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
