@@ -9,10 +9,11 @@ Superscript only works for the listed characters.<br>
 
 ```
 1. '~~' ==> strikeout
-2.  '__' ==> underline
+2. '__' ==> underline
+3. '***' ==> bold italic
 3. '**' ==> bold
 4. '*' ==> italic
 5. '^2, ^3, ^+, ^-, ^.' ==> superscript
-6. 'cc' ==> cursive
+6. 'cc' ==> cursive (I removed this, ugly as all hell)
 ```
 
