@@ -14,6 +14,6 @@ Superscript only works for the listed characters.<br>
 3. '**' ==> bold
 4. '*' ==> italic
 5. '^2, ^3, ^+, ^-, ^.' ==> superscript
-6. 'cc' ==> cursive (I removed this, ugly as all hell)
+6. 'cc' ==> cursive (To be removed, ugly as all hell)
 ```
 
