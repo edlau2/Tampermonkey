@@ -21,7 +21,7 @@
 (function() {
     'use strict'
 
-    const devMode = true;
+    const devMode = false;
 
     // Function so I can use code collapse to see stuff easier.
     function addStyles() {
