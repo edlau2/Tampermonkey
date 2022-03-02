@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -80,10 +80,12 @@
     // 'cc' ==> cursive
 
     // char code -> Unicode mappings
-    const italic_lcOffset = 0x1D482 - 'a'.charCodeAt(0);
-    const italic_ucOffset = 0x1D468 - 'A'.charCodeAt(0);
-    const italicbold_lcOffset = 0x1D482 - 'a'.charCodeAt(0);
-    const italicbold_ucOffset = 0x1D468 - 'A'.charCodeAt(0);
+    const italic_lcOffset = 0x1D44E - 'a'.charCodeAt(0); // serif, except 'h'
+    const italic_ucOffset = 0x1D434 - 'A'.charCodeAt(0);  // serif
+    const italic_lcOffset_ss = 0x1D622 - 'a'.charCodeAt(0); // sans-serif
+    const italic_ucOffset_ss = 0x1D608 - 'A'.charCodeAt(0); // sans-serif
+    const italicbold_lcOffset = 0x1D482 - 'a'.charCodeAt(0); // With serif
+    const italicbold_ucOffset = 0x1D468 - 'A'.charCodeAt(0); // With serif
     const bold_lcOffset = 0x1D41a - 97; // 'a'.charCodeAt(0), same thing
     const bold_ucOffset = 0x1D400 - 65; // 'A'.charCodeAt(0);, same thing
     const cursive_lcOffset = 0x1D4Ea - 97; // 'a'.charCodeAt(0), same thing
@@ -91,8 +93,13 @@
 
     function genericStrToUnicode(inStr, lcOffset, ucOffset) {
         let outStr = '';
+        let isItalic = (lcOffset == italic_lcOffset);
         for (let i=0; i< inStr.length; i++) {
             let decNum = inStr.charCodeAt(i);
+            // Exceptions
+            /* if (inStr.charAt(i) == 'h' && isItalic) { // temporary - map replacements based on name...
+                outStr += '\u1d629';
+            } else */
             if (inStr.charAt(i) <= 'z' && inStr.charAt(i) >= 'a') {
                 let newNum = decNum + lcOffset;
                 outStr += String.fromCodePoint(newNum);
@@ -106,7 +113,7 @@
         return outStr;
     }
     function strToUnicodeItalics(inStr) {
-        return genericStrToUnicode(inStr, italic_lcOffset, italic_ucOffset);
+        return genericStrToUnicode(inStr, italic_lcOffset_ss, italic_ucOffset_ss);
     }
     function strToUnicodeBold(inStr) {
         return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset);
@@ -150,7 +157,8 @@
 
         const italicboldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
-        const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
+        const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
+        //const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
         const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
         const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
         const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
@@ -163,21 +171,24 @@
             debug('[internalFormatText] replaced: ', messageText);
         }
 
-
         // Bold: must be before italic (**)
         let boldedMatches = messageText.match(boldedRegex);
         debug('[internalFormatText] bold matches', boldedMatches);
-        if (boldedMatches) {
-            boldedMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBold(e).replaceAll('**', ''))));
+        while (boldedMatches) {
+            messageText = messageText.replace(boldedMatches[0], strToUnicodeBold(boldedMatches[0]).replaceAll('**', ''));
+            //boldedMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBold(e).replaceAll('**', ''))));
             debug('[internalFormatText] replaced: ', messageText);
+            boldedMatches = messageText.match(boldedRegex);
         }
 
         // Italic (*)
         let italicMatches = messageText.match(italicRegex);
         debug('[internalFormatText] italic matches', italicMatches);
-        if (italicMatches) {
-            italicMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeItalics(e).replaceAll('*', ''))));
+        while (italicMatches) {
+            messageText = messageText.replace(italicMatches[0], strToUnicodeItalics(italicMatches[0]).replaceAll('*', ''));
+            //italicMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeItalics(e).replaceAll('*', ''))));
             debug('[internalFormatText] replaced: ', messageText);
+            italicMatches = messageText.match(italicRegex);
         }
 
         // Subscript (~) must be before strikethrough (TBD)
@@ -202,12 +213,14 @@
         }
 
         // cursive (cc)
+        /*
         let cursiveMatches = messageText.match(cursiveRegex);
         debug('[internalFormatText] cursive matches', cursiveMatches);
         if (cursiveMatches) {
             cursiveMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeCursive(e.replaceAll('cc', '')))));
             debug('[internalFormatText] replaced: ', messageText);
         }
+        */
 
         log('[internalFormatText] text output', messageText);
 
