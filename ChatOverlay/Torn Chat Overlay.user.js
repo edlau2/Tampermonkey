@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -55,6 +55,8 @@
     // char code -> Unicode mappings
     const italic_lcOffset = 0x1D482 - 'a'.charCodeAt(0);
     const italic_ucOffset = 0x1D468 - 'A'.charCodeAt(0);
+    const italicbold_lcOffset = 0x1D482 - 'a'.charCodeAt(0);
+    const italicbold_ucOffset = 0x1D468 - 'A'.charCodeAt(0);
     const bold_lcOffset = 0x1D41a - 97; // 'a'.charCodeAt(0), same thing
     const bold_ucOffset = 0x1D400 - 65; // 'A'.charCodeAt(0);, same thing
     const cursive_lcOffset = 0x1D4Ea - 97; // 'a'.charCodeAt(0), same thing
@@ -81,6 +83,9 @@
     }
     function strToUnicodeBold(inStr) {
         return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset);
+    }
+    function strToUnicodeBoldItalic(inStr) {
+        return genericStrToUnicode(inStr, italicbold_lcOffset, italicbold_ucOffset);
     }
     function strToUnicodeStrikeout(inStr) {
         let cArr = inStr.replaceAll('~~', '').split('');
@@ -116,13 +121,21 @@
     function internalFormatText(messageText) {
         log('[internalFormatText] text input', messageText);
 
-        const boldedRegex = /\*\*[A-z0-9 ':;.,]+\*\*/gi; // Matches between '**'
-        const italicRegex = /(\*)[A-z0-9 ':;.,]+(\*)/gi; // Matches between '*'
-        const strikeoutRegex = /(~~)[A-z0-9 ':;.,]+(~~)/gi; // Matches between '~~'
-        const cursiveRegex = /(cc)[A-z0-9 ':;.,]+(cc)/gi; // Matches between 'cc'
-        const ulRegex = /(__)[A-z0-9 ':;.,]+(__)/gi; // Matches between '__'
+        const italicboldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
+        const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
+        const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
+        const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
+        const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
+        const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
 
-        // Bold and italic, before both bold and italic (***) (TBD)
+        // Bold and italic, before both bold and italic (***)
+        let italicboldMatches = messageText.match(italicboldRegex);
+        debug('[internalFormatText] italicbold matches', italicboldMatches);
+        if (italicboldMatches) {
+            italicboldMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBoldItalic(e).replaceAll('***', ''))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
+
 
         // Bold: must be before italic (**)
         let boldedMatches = messageText.match(boldedRegex);
@@ -163,7 +176,7 @@
 
         // cursive (cc)
         let cursiveMatches = messageText.match(cursiveRegex);
-        log('[internalFormatText] cursive matches', cursiveMatches);
+        debug('[internalFormatText] cursive matches', cursiveMatches);
         if (cursiveMatches) {
             cursiveMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeCursive(e.replaceAll('cc', '')))));
             debug('[internalFormatText] replaced: ', messageText);
@@ -260,12 +273,15 @@
     // of the mutation record is passed here).
     // Match to this: <textarea name="chatbox2" class="chat-box-textarea_1RrlX" ></textarea>
     function processNewNodes(nodeList) {
+        log('[processNewNodes]');
+        /*
         for (let i=0; i<nodeList.length; i++) {
             let chatNodes = nodeList[i].getElementsByClassName(chatboxTextArea);
             for (let i=0; i<chatNodes.length; i++) {
                 addChatOverlay(chatNodes[i]);
             }
         }
+        */
     }
 
     // Handle target mutations - node additions, in this case.
@@ -280,7 +296,6 @@
     };
 
     function handlePageLoad() {
-
         let chatNodes = targetNode.getElementsByClassName(chatboxTextArea);
         log('Found ' + chatNodes.length + ' existing open chat boxes');
         for (let i=0; i<chatNodes.length; i++) {
