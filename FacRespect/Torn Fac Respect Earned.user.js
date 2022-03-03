@@ -16,6 +16,8 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+// Note: requiring those versions of JQuery is very important for the ToolTips to display properly!
+
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
@@ -30,10 +32,10 @@
     function personalStatsQueryCB(responseText, ID, param) {
         jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
-            console.log('personalStatsQueryCB error! ', responseText);
+            log('personalStatsQueryCB error! ', responseText);
             return handleError(responseText);
         }
-        console.log('personalStatsQueryCB: ', jsonResp);
+        log('personalStatsQueryCB: ', jsonResp);
         buildPersonalRespectLi();
     }
 
@@ -52,7 +54,7 @@
             }
         };
         if (useSel) ul = $(useSel).find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-        console.log('buildPersonalRespectLi ul = ', ul);
+        log('buildPersonalRespectLi ul = ', ul);
         if (!ul) return console.log('Unable to find correct ul!');
         let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned"><div id="xedx-respect">' +
                      '<span class="divider"><span>Personal Respect Earned</span></span>' +
@@ -117,9 +119,10 @@
     // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
+    logScriptStart();
+
     if (awayFromHome()) {return;}
 
-    logScriptStart();
     validateApiKey();
     versionCheck();
 
@@ -130,3 +133,4 @@
         }
     };
 })();
+
