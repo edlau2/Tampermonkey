@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -26,6 +26,8 @@
 
     // Function so I can use code collapse to see stuff easier.
     function addStyles() {
+        // Note: change this: background: url(/images/v2/chat/tab_icons.svg) left top;
+        // to selct the idle/offline icons - instead of 'left' (0px), -34px, -68px
         GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
                      .xedx-hide {display: none;}
                      .icon_chat_active {margin-bottom: 2px;
@@ -36,7 +38,7 @@
                                         width: 34px;
                                         background: url(/images/v2/chat/tab_icons.svg) left top;
                                         filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
-                                        margin-left: -20px;
+                                        margin-left: -20px; margin-right: 10px;
                                         }
                      .icon_chat_inactive {margin-bottom: 2px;
                                           background-position: left top;
@@ -47,6 +49,7 @@
                                           background: url(/images/v2/chat/tab_icons.svg) left top;
                                           filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));
                                           margin-left: -20px;
+                                          background-position: -72px top;
                                           }
         `);
     }
@@ -80,16 +83,22 @@
     // 'cc' ==> cursive
 
     // char code -> Unicode mappings
-    const italic_lcOffset = 0x1D44E - 'a'.charCodeAt(0); // serif, except 'h'
-    const italic_ucOffset = 0x1D434 - 'A'.charCodeAt(0);  // serif
-    const italic_lcOffset_ss = 0x1D622 - 'a'.charCodeAt(0); // sans-serif
-    const italic_ucOffset_ss = 0x1D608 - 'A'.charCodeAt(0); // sans-serif
-    const italicbold_lcOffset = 0x1D482 - 'a'.charCodeAt(0); // With serif
-    const italicbold_ucOffset = 0x1D468 - 'A'.charCodeAt(0); // With serif
-    const bold_lcOffset = 0x1D41a - 97; // 'a'.charCodeAt(0), same thing
-    const bold_ucOffset = 0x1D400 - 65; // 'A'.charCodeAt(0);, same thing
-    const cursive_lcOffset = 0x1D4Ea - 97; // 'a'.charCodeAt(0), same thing
-    const cursive_ucOffset = 0x1D4D0 - 65; // 'A'.charCodeAt(0);, same thing
+    const ca = 'a'.charCodeAt(0); // == 97
+    const cA = 'A'.charCodeAt(0); // == 65
+    const LC_SHIFT = function(x) {return x-ca;}
+    const UC_SHIFT = function(x) {return x-cA;}
+
+    // Offsets from 'a' and 'A' into unicode versions
+    const italic_lcOffset     = LC_SHIFT(0x1D44E); // With serif, except 'h' https://www.w3.org/TR/xml-entity-names/1D4.html
+    const italic_ucOffset     = UC_SHIFT(0x1D434);
+    const italic_lcOffset_ss  = LC_SHIFT(0x1D622); // sans-serif https://www.w3.org/TR/xml-entity-names/1D6.html (has an 'h')
+    const italic_ucOffset_ss  = UC_SHIFT(0x1D608);
+    const italicbold_lcOffset = LC_SHIFT(0x1D482); // With serif https://www.w3.org/TR/xml-entity-names/1D4.html
+    const italicbold_ucOffset = UC_SHIFT(0x1D468);
+    const bold_lcOffset       = LC_SHIFT(0x1D41A);
+    const bold_ucOffset       = UC_SHIFT(0x1D400);
+    const cursive_lcOffset    = LC_SHIFT(0x1D4EA);
+    const cursive_ucOffset    = UC_SHIFT(0x1D4D0);
 
     function genericStrToUnicode(inStr, lcOffset, ucOffset) {
         let outStr = '';
@@ -113,20 +122,21 @@
         return outStr;
     }
     function strToUnicodeItalics(inStr) {
-        return genericStrToUnicode(inStr, italic_lcOffset_ss, italic_ucOffset_ss);
+        return genericStrToUnicode(inStr, italic_lcOffset_ss, italic_ucOffset_ss).replaceAll('*', '');
     }
     function strToUnicodeBold(inStr) {
-        return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset);
+        return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset).replaceAll('**', '');
     }
     function strToUnicodeBoldItalic(inStr) {
-        return genericStrToUnicode(inStr, italicbold_lcOffset, italicbold_ucOffset);
+        return genericStrToUnicode(inStr, italicbold_lcOffset, italicbold_ucOffset).replaceAll('***', '');
     }
     function strToUnicodeStrikeout(inStr) {
         let cArr = inStr.replaceAll('~~', '').split('');
-        let outStr = '';
-        for (let i=0; i < cArr.length; i++) {
-            outStr += '\u0336' + cArr[i];
+        let outStr = ''; let i=0; let len = cArr.length; // Hack to make the strikeout look better.
+        for (i=0; i < (len > 1 ? len-1 : len); i++) { // The 'one less', last one bleeds over.
+            outStr += cArr[i] + '\u0336';
         }
+        if (len > 1) outStr += cArr[i]; // Hack to make the strikeout look better.
         return outStr;
     }
     function strToUnicodeCursive(inStr) {
@@ -135,9 +145,7 @@
     function strToUnicodeUnderline(inStr) {
         let cArr = inStr.replaceAll('__', '').split('');
         let outStr = '';
-        for (let i=0; i < cArr.length; i++) {
-            outStr += '\u0332' + cArr[i];
-        }
+        for (let i=0; i < cArr.length; i++) outStr += cArr[i] + '\u0332'; // Hack: place the underlne after, instead of before
         return outStr;
     }
     function strToUnicodeSuperscripts(inStr) {
@@ -158,7 +166,6 @@
         const italicboldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
         const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
-        //const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
         const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
         const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
         const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
@@ -167,7 +174,7 @@
         let italicboldMatches = messageText.match(italicboldRegex);
         debug('[internalFormatText] italicbold matches', italicboldMatches);
         if (italicboldMatches) {
-            italicboldMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBoldItalic(e).replaceAll('***', ''))));
+            italicboldMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBoldItalic(e))));
             debug('[internalFormatText] replaced: ', messageText);
         }
 
@@ -175,8 +182,7 @@
         let boldedMatches = messageText.match(boldedRegex);
         debug('[internalFormatText] bold matches', boldedMatches);
         while (boldedMatches) {
-            messageText = messageText.replace(boldedMatches[0], strToUnicodeBold(boldedMatches[0]).replaceAll('**', ''));
-            //boldedMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBold(e).replaceAll('**', ''))));
+            messageText = messageText.replace(boldedMatches[0], strToUnicodeBold(boldedMatches[0]));
             debug('[internalFormatText] replaced: ', messageText);
             boldedMatches = messageText.match(boldedRegex);
         }
@@ -185,8 +191,7 @@
         let italicMatches = messageText.match(italicRegex);
         debug('[internalFormatText] italic matches', italicMatches);
         while (italicMatches) {
-            messageText = messageText.replace(italicMatches[0], strToUnicodeItalics(italicMatches[0]).replaceAll('*', ''));
-            //italicMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeItalics(e).replaceAll('*', ''))));
+            messageText = messageText.replace(italicMatches[0], strToUnicodeItalics(italicMatches[0]));
             debug('[internalFormatText] replaced: ', messageText);
             italicMatches = messageText.match(italicRegex);
         }
