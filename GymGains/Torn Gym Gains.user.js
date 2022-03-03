@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      2.0
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @include      https://www.torn.com/gym.php
@@ -23,6 +23,8 @@
 (function() {
     'use strict';
 
+    debugLoggingEnabled = false;
+
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
     //////////////////////////////////////////////////////////////////////
@@ -38,14 +40,6 @@
 
         doUserQuery();
         addOnClickHandlers();
-
-        var add_minutes = function (dt, minutes) {
-            return new Date(dt.getTime() + minutes*60000);
-        }
-
-        var now = function () {
-            return new Date().toString();
-        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +63,7 @@
             const arrowDiv = headerDiv.parentElement;
 
             arrowDiv.addEventListener("click", function(e) {
-                log('Click: ', e);
+                debug('Click: ', e);
                 if (bodyDiv.style.display === "block") {
                     bodyDiv.style.display = "none";
                     headerDiv.className = 'title main-title title-black border-round';
@@ -124,10 +118,15 @@
         var jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
-        fillBaseBatStats(jsonResp);
-        fillBaseWithPassives(jsonResp);
-        fillCurrentEffectiveBatStats(jsonResp);
-        fillBaseWithPassivesAndVico(jsonResp);
+        let totalBase = fillBaseBatStats(jsonResp);
+        let totalPass = fillBaseWithPassives(jsonResp);
+        let totalEff = fillCurrentEffectiveBatStats(jsonResp);
+        let totalVico = fillBaseWithPassivesAndVico(jsonResp);
+
+        debug('totalBase: ', totalBase, ' totalPass: ', totalPass, ' totalEff: ', totalEff, ' totalVico: ', totalVico);
+
+        $("#xedx-stat-base")[0].textContent = "Base: " + numberWithCommas(Math.round(totalBase));
+        $("#xedx-stat-eff")[0].textContent = "Effective: " + numberWithCommas(Math.round(totalEff));
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -155,6 +154,7 @@
         document.getElementById('row-3-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.speed));
         document.getElementById('row-4-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.dexterity));
         document.getElementById('row-5-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.total));
+        return jsonResp.total;
     }
 
     function fillBaseWithPassives(jsonResp) {
@@ -174,6 +174,8 @@
         document.getElementById('row-4-col-2').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
         let total = strTot + defTot + speedTot + dexTot;
         document.getElementById('row-5-col-2').innerHTML = numberWithCommas(Math.round(total));
+
+        return total;
     }
 
     const getMod = function(x) {return ' (' + ((x > 0) ? '+' : '') + x + '%)'}
@@ -192,13 +194,15 @@
         document.getElementById('row-4-col-3').innerHTML = numberWithCommas(Math.round(dexTot)) + getMod(dexMod);
         let total = strTot + defTot + speedTot + dexTot;
         document.getElementById('row-5-col-3').innerHTML = numberWithCommas(Math.round(total));
+        return total;
     }
 
     function fillBaseWithPassivesAndVico(jsonResp) {
-        let strMod = getPassives(jsonResp, 'strength') + 25;
-        let speMod = getPassives(jsonResp, 'speed') + 25;
-        let defMod = getPassives(jsonResp, 'defense') + 25;
-        let dexMod = getPassives(jsonResp, 'dexterity') + 25;
+        const VICO_BOOST = 25;
+        let strMod = getPassives(jsonResp, 'strength') + VICO_BOOST;
+        let speMod = getPassives(jsonResp, 'speed') + VICO_BOOST;
+        let defMod = getPassives(jsonResp, 'defense') + VICO_BOOST;
+        let dexMod = getPassives(jsonResp, 'dexterity') + VICO_BOOST;
 
         let strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
         document.getElementById('row-1-col-4').innerHTML = numberWithCommas(Math.round(strTot)) + ' (+' + strMod + '%)';
@@ -210,6 +214,8 @@
         document.getElementById('row-4-col-4').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
         let total = strTot + defTot + speedTot + dexTot;
         document.getElementById('row-5-col-4').innerHTML = numberWithCommas(Math.round(total));
+
+        return total;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -224,7 +230,7 @@
     // etc.
     ////////////////////////////////////////////////////////////////////////
 
-    // Can make this *much* simpler using JQuery. TBD...
+    // Can make this *much* simpler using JQuery and classes. TBD...
     // eg $(node).append(`<span class="">...</span>`);
 
     function createValueSpan(value) {
@@ -403,9 +409,10 @@
     observer.observe(targetNode, config);
 
     GM_addStyle(`
-    .xedx_mleft {margin-left: 10px;}
-    body.dark-mode .xedx_gg_td {border: 1px solid rgb(91, 91, 91) !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
-    body:not(.dark-mode) .xedx_gg_td {border: 1px solid black !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+        .xedx_mleft {margin-left: 10px;}
+        body.dark-mode .xedx_gg_td {border: 1px solid rgb(91, 91, 91) !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+        body:not(.dark-mode) .xedx_gg_td {border: 1px solid black !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+        .xedx-stat-span {width: 40%; text-align: center; color: #DDDDDD;}
     `);
 
     // This is here as if even with the '!important' keyword, the base <td>
@@ -434,7 +441,12 @@
                 <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-bat-stats-hdr-div">
                     <div class="arrow-wrap sortable-list">
                         <a role="button" href="#/" class="accordion-header-arrow right"></a>
-                    </div>Battle Stats
+                    </div>
+                    <div style="width: 720px; display: flex;">
+                        <span id="xedx-bat-stats" class="" style="width: 10%;">Battle Stats</span>
+                        <span id="xedx-stat-base" class="xedx-stat-span">Base:</span>
+                        <span id="xedx-stat-eff" class="xedx-stat-span">Effective:</span>
+                    </div>
                 </div>
                 <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-bat-stats-body">
                     <div class="cont-gray" style="height: auto;" id="xedx-bat-stats">
