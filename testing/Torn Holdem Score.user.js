@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Holdem Score
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Checks the poker score
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=holdem*
@@ -33,6 +33,10 @@
     const GodMode = false; // Enables the auto-click chekbox
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewPokerStats";
+
+    var observer = false;
+    var targetNode = null;
+
 
     const miniUI = '<div id="xedx-test-ui" class="box">' +
                        '<span id="xedx-stat-span" class="highlight-inactive">Test Script Active</span>' +
@@ -197,7 +201,7 @@
         if (travelling()) return resetRefresh();
         if (hasThreeButtons()) return resetRefresh();
 
-        log('[refresh] active: ', timeNow());
+        debug('[refresh] active: ', timeNow());
         $("#xedx-result").load(baseURL + " #your-stats > ul", refreshCompleteCb);
         if (autoReset) resetRefresh();
     }
@@ -291,6 +295,25 @@
         }
     }
 
+    const posClass = 'panelPositioner___NjQfb';
+    const watchClass = 'watcherPanel____y_5Y';
+    const config = {attributes: true, /*attributeFilter: ['class'],*/ childList: false, characterData: false, subtree: true};
+    const handleClassChange = function(mutationsList, observer) {
+        let watcher = document.querySelector("#react-root > main > div > div.watcherPanel____y_5Y");
+        let positioner = document.querySelector("#react-root > main > div > div.panelPositioner___NjQfb");
+        let myUI = document.querySelector("#xedx-test-ui");
+        debug('[handleClassChange] ', watcher, positioner, myUI);
+        if (positioner &&!myUI) {
+            observer.disconnect();
+            $(positioner).after(miniUI);
+            observer.observe(positioner.parentNode, config);
+        } else if (watcher && myUI) {
+            observer.disconnect();
+            $(myUI).remove();
+            observer.observe(watcher.parentNode, config);
+        }
+    }
+
     async function handlePageLoad() {
         debug('[handlePageLoad]');
         let altTarget = document.querySelector("#react-root > div.wrapper");
@@ -299,10 +322,10 @@
             refresh(false);
         }
         //let target = document.querySelector("#react-root > main > div > div.watcherPanel____y_5Y > div.panelTopRow___BiAd0");
-        let target = document.querySelector("#react-root > main > div > div.panelPositioner___NjQfb")
-        if (!target) return setTimeout(handlePageLoad, 50);
+        targetNode = document.querySelector("#react-root > main > div > div.panelPositioner___NjQfb")
+        if (!targetNode) return setTimeout(handlePageLoad, 50);
 
-        if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
+        if (!document.querySelector("#xedx-test-ui")) $(targetNode).after(miniUI);
 
         document.querySelector("#auto-disable").addEventListener('click', function (e) {
             let target = e.target;
@@ -328,6 +351,13 @@
             let gm = document.querySelector("#god-mode");
             $(gm).removeClass('xedx-gm-inactive');
             $(gm).addClass('xedx-gm-active');
+        }
+
+        //const not_working = false;
+        //if (not_working) setInterval(handleClassChange, 500);
+        if (!observer) {
+            observer = new MutationObserver(handleClassChange);
+            observer.observe(targetNode.parentNode, config);
         }
 
         refresh();
