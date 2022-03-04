@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Holdem Score
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Checks the poker score
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=holdem*
@@ -25,17 +25,25 @@
     'use strict';
 
     debugLoggingEnabled = false;
+
     const checkSecs = 2;
-    var autoClick = false;
-    const GodMode = false;
+    var autoClick = false; // Auto-clicks center button (in GodMode)
+    var autoDisable = false; // Disables all buttons but the center
+    var autoDisableTimer = null;
+    const GodMode = false; // Enables the auto-click chekbox
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewPokerStats";
 
     const miniUI = '<div id="xedx-test-ui" class="box">' +
                        '<span id="xedx-stat-span" class="highlight-inactive">Test Script Active</span>' +
+
+                       // 'Auto Click' checkbox, only available if GodMode is. Allows to auto-click center button ('autoClick')
                        '<div id="god-mode" class="xedx-gm-inactive"><input class="xedx-chk" type="checkbox" id="auto" name="auto" value="auto">' +
-                       '<label for="confirm" class="xedx-label">Auto</label></div>'+
-                       //'<div id="xedx-result" class="xedx-res"> res </div>' +
+                       '<label for="disable" class="xedx-label">God Mode (prob illegal)</label></div>'+
+
+                       // 'Disable' checkbox to disable the leave/sit out buttons ('autoDisable')
+                       '<div id="auto-disable" class="xedx-gm-active"><input class="xedx-chk" type="checkbox" id="disable" name="disable" value="disable">' +
+                       '<label for="disable" class="xedx-label">Auto-Disable Leave/Sit-Out</label></div>'+
                    '</div>';
 
     const altMiniUI = '<div id="xedx-test-ui-alt" class="box">' +
@@ -228,6 +236,47 @@
         return false;
     }
 
+    // Disable buttons 1 and 3 (if 3) otherwise 1 and 2
+    // Send false to re-enable
+    GM_addStyle(`.xedx-disabled {background: black !important;}`);
+    function disableButtons(disable) {
+        let btns = getButtons();
+        log('[disableButtons] ' + disable + ' count = ', btns.length);
+
+        for (let i=0; i<btns.length; i++) {
+            if (!disable) { // Turn all back on.
+                log('[disableButtons] Enabling button #' + i);
+                btns[i].disabled = false;
+                $(btns[i]).removeClass('xedx-disabled');
+                continue;
+            }
+
+            let text = btns[i].innerText.toLowerCase().trim();
+            if (text == "sit out" || text == "leave") {
+                log('[disableButtons] Disabling "' + text + '" button');
+                btns[i].disabled = true;
+                $(btns[i]).addClass('xedx-disabled');
+            } else {
+                log('[disableButtons] Enabling "' + text + '" button');
+                btns[i].disabled = false;
+                $(btns[i]).removeClass('xedx-disabled');
+            }
+        }
+    }
+
+    function toggleAutoDisable(value) {
+        log('[toggleAutoDisable] value: ', value, ' autoDisable: ', autoDisable);
+        if (autoDisable) {
+            if (!autoDisableTimer) autoDisableTimer = setInterval(disableButtons(true), 100);
+        } else {
+            if (autoDisableTimer) {
+                clearInterval(autoDisableTimer);
+                autoDisableTimer = null;
+            }
+            disableButtons(false);
+        }
+    }
+
     function checkClick() {
         let btn = secondButton();
         if (!btn) {
@@ -255,7 +304,26 @@
 
         if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
 
-        document.querySelector("#auto").addEventListener('click', function (e) {autoClick = this.checked;});
+        document.querySelector("#auto-disable").addEventListener('click', function (e) {
+            let target = e.target;
+            debug('auto-disable event: ', e);
+            debug('auto-disable target: ', target);
+            debug('auto-disable selector: ', this);
+            log('auto-disable checked: ', target.checked);
+            autoDisable = target.checked;
+            toggleAutoDisable(autoDisable);
+        });
+        toggleAutoDisable();
+
+        document.querySelector("#auto").addEventListener('click', function (e) {
+            let target = e.target;
+            debug('auto-click event: ', e);
+            debug('auto-click target: ', target);
+            debug('auto-click selector: ', this);
+            log('auto-click checked: ', target.checked);
+            autoClick = target.checked;
+        });
+
         if (GodMode) {
             let gm = document.querySelector("#god-mode");
             $(gm).removeClass('xedx-gm-inactive');
