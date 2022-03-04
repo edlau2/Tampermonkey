@@ -14,8 +14,20 @@ function readRows() {
     var row = values[i];
     Logger.log(row);
   }
-};
+}
 
+function testImportJson() {
+  console.log('[testImportJson]');
+  return newImportJSON();
+}
+
+const your_api_key = '123456789'; // <=== PUT YOUR KEY HERE!!!!
+function newImportJSON(a=null, b=null, c=null, d=null) {
+  console.log('[newImportJSON]');
+  let url = "https://api.torn.com/torn/?selections=items&key=" + your_api_key;
+  if (!a) a = url;
+  return ImportJSON(a, b, c, d);
+};
 
 /**
  * Adds a custom menu to the active spreadsheet, containing a single menu item
@@ -93,6 +105,7 @@ function onOpen() {
  * @customfunction
  **/
 function ImportJSON(url, query, options, dummy) {
+  console.log('[ImportJSON]')
   return ImportJSONAdvanced(url, query, options, includeXPath_, defaultTransform_);
 }
 
@@ -129,7 +142,15 @@ function ImportJSON(url, query, options, dummy) {
  * @return a two-dimensional array containing the data, with the first row containing headers
  **/
 function ImportJSONAdvanced(url, query, options, includeFunc, transformFunc) {
-  var jsondata = UrlFetchApp.fetch(url);
+  console.log('[ImportJSONAdvanced]');
+  console.log('URL: ', url);
+  var jsondata = null;
+  try {
+    jsondata = UrlFetchApp.fetch(url);
+  } catch (e) {
+    console.log('importJSON error: ', e);
+  }
+
   var object   = JSON.parse(jsondata.getContentText());
   
   return parseJSONObject_(object, query, options, includeFunc, transformFunc);
