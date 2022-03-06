@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Holdem Score
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Checks the poker score
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=holdem*
@@ -27,10 +27,10 @@
     debugLoggingEnabled = false;
 
     const checkSecs = 2;
-    var autoClick = false; // Auto-clicks center button (in GodMode)
-    var autoDisable = false; // Disables all buttons but the center
+    var autoClick = false; // Auto-clicks center button (in GodMode) - enable via checkbox
+    var autoDisable = false; // Disables all buttons but the center - enable via checkbox
     var autoDisableTimer = null;
-    const GodMode = false; // Enables the auto-click chekbox
+    const GodMode = true; // Enables the auto-click checkbox OPTION
     const wrappedBeforeSend = function(xhr){$.ajaxSettings.beforeSend;}
     const baseURL = "https://www.torn.com/loader.php?sid=viewPokerStats";
 
@@ -243,12 +243,12 @@
     // Disable buttons 1 and 3 (if 3) otherwise 1 and 2
     // Send false to re-enable
     GM_addStyle(`.xedx-disabled {background: black !important;}`);
-    function disableButtons(disable) {
+    function disableButtons() {
         let btns = getButtons();
-        log('[disableButtons] ' + disable + ' count = ', btns.length);
+        log('[disableButtons] ' + autoDisable + ' count = ', btns.length);
 
         for (let i=0; i<btns.length; i++) {
-            if (!disable) { // Turn all back on.
+            if (!autoDisable) { // Turn all back on.
                 log('[disableButtons] Enabling button #' + i);
                 btns[i].disabled = false;
                 $(btns[i]).removeClass('xedx-disabled');
@@ -256,7 +256,7 @@
             }
 
             let text = btns[i].innerText.toLowerCase().trim();
-            if (text == "sit out" || text == "leave") {
+            if (text == "sit out" || text == "leave" || text == "fold") {
                 log('[disableButtons] Disabling "' + text + '" button');
                 btns[i].disabled = true;
                 $(btns[i]).addClass('xedx-disabled');
@@ -271,13 +271,16 @@
     function toggleAutoDisable(value) {
         log('[toggleAutoDisable] value: ', value, ' autoDisable: ', autoDisable);
         if (autoDisable) {
-            if (!autoDisableTimer) autoDisableTimer = setInterval(disableButtons(true), 100);
+            if (!autoDisableTimer) {
+                log('Turning on autoDisableTimer');
+                autoDisableTimer = setInterval(disableButtons, 100);
+            }
         } else {
             if (autoDisableTimer) {
                 clearInterval(autoDisableTimer);
                 autoDisableTimer = null;
             }
-            disableButtons(false);
+            disableButtons();
         }
     }
 
