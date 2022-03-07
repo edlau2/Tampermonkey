@@ -36,5 +36,5 @@ Superscript only works for the listed characters.<br>
 ``:winking face:`` ==> 😉 <br>
 ``:grinning_squinting_face:`` ==> 😆 <br>
 
-
+Note: many more are being (and have been) added; using auto-complete will display them all.
 
