@@ -71,7 +71,7 @@
     var config = { attributes: true, childList: true, subtree: true};
 
     // Auto-complete (see https://github.com/zurb/tribute)
-    function initTributeStyles() {
+    function initEmojiStyles() {
         GM_addStyle(`.tribute-container {
                       position: absolute;
                       top: 0;
@@ -107,7 +107,7 @@
                     }
                     `);
     }
-    function initTributeCollection() {
+    function initEmojiCollection() {
         let collection = {
           trigger: ':',
 
@@ -118,7 +118,8 @@
 
           // template for displaying item in menu
           menuItemTemplate: function (item) {
-            return item.string;
+            //return item.string;
+            return item.string + ' ' + item.original.code;
           },
 
           noMatchTemplate: function(t){return null;},
@@ -168,34 +169,35 @@
 
         return collection;
     }
-    function initTributeValues() {
+    function initEmojiValues() {
         let values = [
-            {key: "shrug", value: "shrug"},
-            {key: "facepalm", value: "facepalm"},
-            {key: "rofl", value: "rofl"},
-            {key: "thinking", value: "thinking"},
-            {key: "grin", value: "grin"},
-            {key: "grinning", value: "grinning"},
-            {key: "zany_face", value: "zany_face"},
-            {key: "kissing_heart", value: "kissing_heart"},
-            {key: "kiss_heart", value: "kissing_heart"},
-            {key: "heart_eyes", value: "heart_eyes"},
-            {key: "face_with_tears_of_joy", value: "face_with_tears_of_joy"},
-            {key: "tears_of_joy", value: "face_with_tears_of_joy"},
-            {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts"},
-            {key: "3_hearts", value: "smiling_face_with_3_hearts"},
-            {key: "shushing_face", value: "shushing_face"},
-            {key: "smiley_face", value: "smiley_face"},
-            {key: "winking face", value: "face"},
-            {key: "grinning_squinting_face", value: "grinning_squinting_face"},
+            {key: "shrug", value: "shrug", code: '\u{1F937}'},
+            {key: "facepalm", value: "facepalm", code: '\u{1F926}'},
+            {key: "rofl", value: "rofl", code: '\u{1F923}'},
+            {key: "thinking", value: "thinking", code: '\u{1F914}'},
+            {key: "grin", value: "grin", code: '\u{1F606}'},
+            {key: "grinning", value: "grinning", code: '\u{1F604}'},
+            {key: "zany_face", value: "zany_face", code: '\u{1F92A}'},
+            {key: "kissing_heart", value: "kissing_heart", code: '\u{1F618}'},
+            {key: "kiss_heart", value: "kissing_heart", code: '\u{1F618}'},
+            {key: "heart_eyes", value: "heart_eyes", code: '\u{1F60D}'},
+            {key: "face_with_tears_of_joy", value: "face_with_tears_of_joy", code: '\u{1F602}'},
+            {key: "tears_of_joy", value: "face_with_tears_of_joy", code: '\u{1F602}'},
+            {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
+            {key: "3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
+            {key: "shushing_face", value: "shushing_face", code: '\u{1F92B}'},
+            {key: "smiley_face", value: "smiley_face", code: '\u{1F60A}'},
+            {key: "winking_face", value: "winking_face", code: '\u{1F609}'},
+            {key: "grinning_squinting_face", value: "grinning_squinting_face", code: '\u{1F606}'},
         ];
 
         return values;
     }
 
-    initTributeStyles();
-    let collection = initTributeCollection();
-    collection.values = initTributeValues();
+    const emojiArray = initEmojiValues();
+    initEmojiStyles();
+    let collection = initEmojiCollection();
+    collection.values = emojiArray;
     var tribute = new Tribute({collection: [collection]});
 
     ////////////////////////////////////////////////////////////////////////
@@ -204,13 +206,7 @@
     //
     ////////////////////////////////////////////////////////////////////////
 
-    // Supported markdown:
-    // '~~' ==> strikeout
-    // '__' ==> underline
-    // '**' ==> bold
-    // '*' ==> italic
-    // '^2, ^3, ^+, ^-' ==> superscript
-    // 'cc' ==> cursive (disabled for now, real ugly)
+    // Supported markdown: see https://github.com/edlau2/Tampermonkey/blob/master/ChatOverlay/README.md
 
     // char code -> Unicode mappings: Offsets from 'a' and 'A' into unicode versions
     const ca = 'a'.charCodeAt(0); // == 97
@@ -219,11 +215,11 @@
     const UC_SHIFT = function(x) {return x-cA;}
 
     const italic_lcOffset     = LC_SHIFT(0x1D44E); // With serif, except 'h' https://www.w3.org/TR/xml-entity-names/1D4.html
-    const italic_ucOffset     = UC_SHIFT(0x1D434);
+    const italic_ucOffset     = UC_SHIFT(0x1D434); // ...
     const italic_lcOffset_ss  = LC_SHIFT(0x1D622); // sans-serif https://www.w3.org/TR/xml-entity-names/1D6.html (has an 'h')
-    const italic_ucOffset_ss  = UC_SHIFT(0x1D608);
+    const italic_ucOffset_ss  = UC_SHIFT(0x1D608); // ...
     const italicbold_lcOffset = LC_SHIFT(0x1D482); // With serif https://www.w3.org/TR/xml-entity-names/1D4.html
-    const italicbold_ucOffset = UC_SHIFT(0x1D468);
+    const italicbold_ucOffset = UC_SHIFT(0x1D468); // ...
     const bold_lcOffset       = LC_SHIFT(0x1D41A);
     const bold_ucOffset       = UC_SHIFT(0x1D400);
     const cursive_lcOffset    = LC_SHIFT(0x1D4EA);
@@ -292,6 +288,12 @@
         inStr = inStr.replaceAll(':', '');
         let matchTo = inStr.toLowerCase().trim();
         debug('Matching to: ' + matchTo);
+
+        let match = emojiArray.filter(obj => obj.key == matchTo)[0];
+        debug('Word: ' + matchTo + ' Match: ' + match + ' Code: ' + (match ? match.code : null));
+        if (match) outStr = match.code;
+
+        /*
         switch (matchTo) {
             case 'shrug':
                 outStr = '\u{1F937}';
@@ -345,10 +347,12 @@
                 debug('Not match for ' + matchTo + ' found');
                 break;
         }
+        */
+
         return outStr;
     }
 
-    // Text conversion main functions, calls appropriate function as dictated markup matches.
+    // Text conversion main function, calls appropriate functions as specified markup matches.
     function internalFormatText(messageText) {
         log('[internalFormatText] text input', messageText);
 
