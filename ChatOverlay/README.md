@@ -7,13 +7,26 @@ Adds support for Discord style markdown (formatting) to Torn chat boxes.
 Markdown tage for strikeout, underline, bold, cursive and italic must come both before and after text to be affected.<br>
 Superscript only works for the listed characters.<br>
 
-```
-1. '~~' ==> strikeout
-2. '__' ==> underline
-3. '***' ==> bold italic
-3. '**' ==> bold
-4. '*' ==> italic
-5. '^2, ^3, ^+, ^-, ^.' ==> superscript
-6. 'cc' ==> cursive (To be removed, ugly as all hell)
-```
 
+1. ``~~strikeout~~`` ==> ~~strikeout~~
+2. ``__underline__`` ==> <ins>underline</ins>
+3. ``***bold italic***`` ==> ***bold italic***
+3. ``**bold**`` ==> **bold**
+4. ``*italic*`` ==> *italic*
+5. ``__**underline bold**__`` ==> TBD
+6. ``__*underline italics*__`` ==> TBD
+7. ``__***underline bold italics***__`` ==> TBD 
+8. ``3^2, 2^3, A^+, B^-, 78^.`` ==> superscript 3<sup>2</sup>, 2<sup>3</sup>, A<sup>+</sup>, B<sup>-</sup>, 78&deg;
+
+
+Emojis:
+
+``:shrug:`` :shrug: <br>
+``:facepalm:`` :facepalm: <br>
+``:rofl:`` :rofl: <br>
+``:thinking:`` :thinking: <br>
+``:grin:`` :grin: <br>
+``:grinning:`` :grinning: <br>
+``:zany_face:`` :zany_face: <br>
+``:kissing_heart:, :kiss_heart:`` :kissing_heart: <br>
+``:heart_eyes:`` :heart_eyes: <br>
