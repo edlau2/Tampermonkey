@@ -25,13 +25,12 @@ Superscript only works for the listed characters.<br>
 ``:facepalm:`` ==> :facepalm: <br>
 ``:rofl:`` ==> :rofl: <br>
 ``:thinking:`` ==> :thinking: <br>
-``:grin:`` ==> :grin: <br>
 ``:grinning:`` ==> :grinning: <br>
 ``:zany_face:`` ==> :zany_face: <br>
-``:kissing_heart:, :kiss_heart:`` ==> :kissing_heart: <br>
+``:kissing_heart:`` ==> :kissing_heart: <br>
 ``:heart_eyes:`` ==> :heart_eyes: <br>
-``:face_with_tears_of_joy:, :tears_of_joy:`` ==> 😂 <br>
-``:smiling_face_with_3_hearts:, :3_hearts:`` ==> [No Preview] <br>
+``:face_with_tears_of_joy:`` ==> 😂 <br>
+``:smiling_face_with_3_hearts:`` ==> [No Preview] <br>
 ``:shushing_face:`` ==> :shushing_face: <br>
 ``:smiley_face:`` ==> ☺ <br>
 ``:winking face:`` ==> 😉 <br>
