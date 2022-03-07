@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tribute.js
-// @local      file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/tribute.js
+// @local        file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/tribute.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -175,16 +175,12 @@
             {key: "facepalm", value: "facepalm", code: '\u{1F926}'},
             {key: "rofl", value: "rofl", code: '\u{1F923}'},
             {key: "thinking", value: "thinking", code: '\u{1F914}'},
-            {key: "grin", value: "grin", code: '\u{1F606}'},
             {key: "grinning", value: "grinning", code: '\u{1F604}'},
             {key: "zany_face", value: "zany_face", code: '\u{1F92A}'},
             {key: "kissing_heart", value: "kissing_heart", code: '\u{1F618}'},
-            //{key: "kiss_heart", value: "kissing_heart", code: '\u{1F618}'},
             {key: "heart_eyes", value: "heart_eyes", code: '\u{1F60D}'},
             {key: "face_with_tears_of_joy", value: "face_with_tears_of_joy", code: '\u{1F602}'},
-            //{key: "tears_of_joy", value: "face_with_tears_of_joy", code: '\u{1F602}'},
             {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
-            //{key: "3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
             {key: "shushing_face", value: "shushing_face", code: '\u{1F92B}'},
             {key: "smiley_face", value: "smiley_face", code: '\u{1F60A}'},
             {key: "winking_face", value: "winking_face", code: '\u{1F609}'},
