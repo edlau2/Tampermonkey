@@ -170,21 +170,40 @@
         return collection;
     }
     function initEmojiValues() {
-        let values = [
-            {key: "shrug", value: "shrug", code: '\u{1F937}'},
-            {key: "facepalm", value: "facepalm", code: '\u{1F926}'},
-            {key: "rofl", value: "rofl", code: '\u{1F923}'},
-            {key: "thinking", value: "thinking", code: '\u{1F914}'},
-            {key: "grinning", value: "grinning", code: '\u{1F604}'},
-            {key: "zany_face", value: "zany_face", code: '\u{1F92A}'},
-            {key: "kissing_heart", value: "kissing_heart", code: '\u{1F618}'},
-            {key: "heart_eyes", value: "heart_eyes", code: '\u{1F60D}'},
+        let values = [ // Ordered by code
+            // 0x1F44B block
+            {key: "eyes", value: "eyes", code: '\u{1F440}'},
+            {key: "waving_hand", value: "waving_hand", code: '\u{1F44B}'},
+            {key: "OK_hand", value: "OK_hand", code: '\u{1F44C}'},
+            {key: "flexed_biceps", value: "flexed_biceps", code: '\u{1F4AA}'},
+
+            // 0x1F600 block
             {key: "face_with_tears_of_joy", value: "face_with_tears_of_joy", code: '\u{1F602}'},
+            {key: "grinning", value: "grinning", code: '\u{1F604}'},
+            {key: "grinning_squinting_face", value: "grinning_squinting_face", code: '\u{1F606}'},
+            {key: "winking_face", value: "winking_face", code: '\u{1F609}'},
+            {key: "heart_eyes", value: "heart_eyes", code: '\u{1F60D}'},
+            {key: "smiling_face_with_sunglasses", value: "smiling_face_with_sunglasses", code: '\u{1F60E}'},
+            {key: "kissing_face", value: "kissing_face", code: '\u{1F617}'},
+            {key: "kissing_heart", value: "kissing_heart", code: '\u{1F618}'},
+            {key: "smiley_face", value: "smiley_face", code: '\u{1F60A}'},
+            {key: "face_blowing_a_kiss", value: "face_blowing_a_kiss", code: '\u{1F618}'},
+            {key: "winking_face_with_tongue", value: "winking_face_with_tongue", code: '\u{1F61C}'},
+            {key: "squinting_face_with_tongue", value: "squinting_face_with_tongue", code: '\u{1F61D}'},
+            {key: "sleepy_face", value: "sleepy_face", code: '\u{1F62A}'},
+            {key: "sleeping_face", value: "sleeping_face", code: '\u{1F634}'},
+            {key: "see_no_evil_monkey", value: "see_no_evil_monkey", code: '\u{1F648}'},
+            {key: "hear_no_evil_monkey", value: "hear_no_evil_monkey", code: '\u{1F649}'},
+            {key: "speak_no_evil_monkey", value: "speak_no_evil_monkey", code: '\u{1F64A}'},
+
+            // 0x1F900 block
+            {key: "thinking", value: "thinking", code: '\u{1F914}'},
+            {key: "rofl", value: "rofl", code: '\u{1F923}'},
+            {key: "facepalm", value: "facepalm", code: '\u{1F926}'},
+            {key: "zany_face", value: "zany_face", code: '\u{1F92A}'},
+            {key: "shrug", value: "shrug", code: '\u{1F937}'},
             {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
             {key: "shushing_face", value: "shushing_face", code: '\u{1F92B}'},
-            {key: "smiley_face", value: "smiley_face", code: '\u{1F60A}'},
-            {key: "winking_face", value: "winking_face", code: '\u{1F609}'},
-            {key: "grinning_squinting_face", value: "grinning_squinting_face", code: '\u{1F606}'},
         ];
 
         return values;
