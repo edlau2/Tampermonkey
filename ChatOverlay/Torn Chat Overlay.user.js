@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tribute.js
+// @local      file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/tribute.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -67,6 +69,134 @@
     const chatboxTextArea = 'chat-box-textarea_1RrlX';
     var observer = null;
     var config = { attributes: true, childList: true, subtree: true};
+
+    // Auto-complete (see https://github.com/zurb/tribute)
+    function initTributeStyles() {
+        GM_addStyle(`.tribute-container {
+                      position: absolute;
+                      top: 0;
+                      left: 0;
+                      height: auto;
+                      overflow: auto;
+                      display: block;
+                      z-index: 999999;
+                    }
+                    .tribute-container ul {
+                      margin: 0;
+                      margin-top: 2px;
+                      padding: 0;
+                      list-style: none;
+                      background: #efefef;
+                    }
+                    .tribute-container li {
+                      padding: 5px 5px;
+                      cursor: pointer;
+                      color: black;
+                    }
+                    .tribute-container li.highlight {
+                      background: #ddd;
+                    }
+                    .tribute-container li span {
+                      font-weight: bold;
+                    }
+                    .tribute-container li.no-match {
+                      cursor: default;
+                    }
+                    .tribute-container .menu-highlighted {
+                      font-weight: bold;
+                    }
+                    `);
+    }
+    function initTributeCollection() {
+        let collection = {
+          trigger: ':',
+
+          // function called on select that returns the content to insert
+          selectTemplate: function (item) {
+            return ':' + item.original.value + ':';
+          },
+
+          // template for displaying item in menu
+          menuItemTemplate: function (item) {
+            return item.string;
+          },
+
+          noMatchTemplate: function(t){return null;},
+
+          // column to search against in the object (accepts function or string)
+          lookup: 'key',
+
+          // column that contains the content to insert by default
+          fillAttr: 'value',
+
+          // REQUIRED: array of objects to match or a function that returns data (see 'Loading remote data' for an example)
+          values: [],
+
+          // When your values function is async, an optional loading template to show
+          loadingItemTemplate: null,
+
+          // specify whether a space is required before the trigger string
+          requireLeadingSpace: true,
+
+          // specify whether a space is allowed in the middle of mentions
+          allowSpaces: false,
+
+          // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
+          // (defaults to true)
+          positionMenu: true,
+
+          // when the spacebar is hit, select the current match
+          spaceSelectsMatch: false,
+
+          // turn tribute into an autocomplete
+          autocompleteMode: false,
+
+          // Customize the elements used to wrap matched strings within the results list
+          // defaults to <span></span> if undefined
+          searchOpts: {
+            pre: '<span>',
+            post: '</span>',
+            skip: false // true will skip local search, useful if doing server-side search
+          },
+
+          // Limits the number of items in the menu
+          menuItemLimit: 25,
+
+          // specify the minimum number of characters that must be typed before menu appears
+          menuShowMinLength: 0
+        }
+
+        return collection;
+    }
+    function initTributeValues() {
+        let values = [
+            {key: "shrug", value: "shrug"},
+            {key: "facepalm", value: "facepalm"},
+            {key: "rofl", value: "rofl"},
+            {key: "thinking", value: "thinking"},
+            {key: "grin", value: "grin"},
+            {key: "grinning", value: "grinning"},
+            {key: "zany_face", value: "zany_face"},
+            {key: "kissing_heart", value: "kissing_heart"},
+            {key: "kiss_heart", value: "kissing_heart"},
+            {key: "heart_eyes", value: "heart_eyes"},
+            {key: "face_with_tears_of_joy", value: "face_with_tears_of_joy"},
+            {key: "tears_of_joy", value: "face_with_tears_of_joy"},
+            {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts"},
+            {key: "3_hearts", value: "smiling_face_with_3_hearts"},
+            {key: "shushing_face", value: "shushing_face"},
+            {key: "smiley_face", value: "smiley_face"},
+            {key: "winking face", value: "face"},
+            {key: "grinning_squinting_face", value: "grinning_squinting_face"},
+        ];
+
+        return values;
+    }
+
+    initTributeStyles();
+    let collection = initTributeCollection();
+    collection.values = initTributeValues();
+    var tribute = new Tribute({collection: [collection]});
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -201,6 +331,15 @@
                 break;
             case 'shushing_face':
                 outStr = '\u{1F92B}';
+                break;
+            case 'smiley_face': // ☺
+                outStr = '\u{1F60A}';
+                break;
+            case 'winking_face': // 😉
+                outStr = '\u{1F609}';
+                break;
+            case 'grinning_squinting_face': // 😆
+                outStr = '\u{1F606}';
                 break;
             default:
                 debug('Not match for ' + matchTo + ' found');
@@ -354,6 +493,7 @@
     function addChatOverlay(ta) {
         if (!ta) return;
         if (observer) observer.disconnect();
+
         log('[addChatOverlay]');
         let myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
         if (myChat) {
@@ -373,6 +513,10 @@
         addOverlayActive(ta);
         ta.setAttribute('style', (wrappedStyle + 'display: none;'));
         $(myChat).on("keypress", handleChatKeypress);
+
+        // Add auto-complete
+        tribute.attach(myChat);
+
         if (observer) observer.observe(targetNode, config);
     }
 
