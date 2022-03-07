@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -58,9 +58,9 @@
     debugLoggingEnabled = devMode;
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
                             'class="chat-box-textarea_1RrlX" ' +
-                            'style="width: 179.4px; height: 51px;">' +
+                            'style="width: 179.4px; height: 51px;">' + // Will be over-written with target style
                         '</textarea>';
-    const chatOverlayActive = '<i class="icon_chat_active"></i>';
+    const chatOverlayActive = '<i class="icon_chat_active"></i>'; // Only used if "indicatorsOn = true;"
 
     // Globals for an observer
     const targetNode = document.querySelector("#chatRoot");
@@ -80,15 +80,14 @@
     // '**' ==> bold
     // '*' ==> italic
     // '^2, ^3, ^+, ^-' ==> superscript
-    // 'cc' ==> cursive
+    // 'cc' ==> cursive (disabled for now, real ugly)
 
-    // char code -> Unicode mappings
+    // char code -> Unicode mappings: Offsets from 'a' and 'A' into unicode versions
     const ca = 'a'.charCodeAt(0); // == 97
     const cA = 'A'.charCodeAt(0); // == 65
     const LC_SHIFT = function(x) {return x-ca;}
     const UC_SHIFT = function(x) {return x-cA;}
 
-    // Offsets from 'a' and 'A' into unicode versions
     const italic_lcOffset     = LC_SHIFT(0x1D44E); // With serif, except 'h' https://www.w3.org/TR/xml-entity-names/1D4.html
     const italic_ucOffset     = UC_SHIFT(0x1D434);
     const italic_lcOffset_ss  = LC_SHIFT(0x1D622); // sans-serif https://www.w3.org/TR/xml-entity-names/1D6.html (has an 'h')
@@ -157,9 +156,60 @@
         outStr = outStr.replaceAll('^.', '\u00B0');
         return outStr;
     }
+    function strToUnicodeEmoji(inStr) {
+        debug('[strToUnicodeEmoji] inStr: ', inStr);
+        let outStr = inStr;
+        inStr = inStr.replaceAll(':', '');
+        let matchTo = inStr.toLowerCase().trim();
+        debug('Matching to: ' + matchTo);
+        switch (matchTo) {
+            case 'shrug':
+                outStr = '\u{1F937}';
+                break;
+            case 'facepalm':
+                outStr = '\u{1F926}';
+                break;
+            case 'rofl':
+                outStr = '\u{1F923}';
+                break;
+            case 'thinking':
+                outStr = '\u{1F914}';
+                break;
+            case 'grin':
+                outStr = '\u{1F606}';
+                break;
+            case 'grinning':
+                outStr = '\u{1F604}';
+                break;
+            case 'zany_face':
+                outStr = '\u{1F92A}';
+                break;
+            case 'kissing_heart':
+            case 'kiss_heart':
+                outStr = '\u{1F618}';
+                break;
+            case 'heart_eyes':
+                outStr = '\u{1F60D}';
+                break;
+            case 'smiling_face_with_3_hearts':
+            case '3_hearts':
+                outStr = '\u{1F970}';
+                break;
+            case 'face_with_tears_of_joy':
+            case 'tears_of_joy':
+                outStr = '\u{1F602}';
+                break;
+            case 'shushing_face':
+                outStr = '\u{1F92B}';
+                break;
+            default:
+                debug('Not match for ' + matchTo + ' found');
+                break;
+        }
+        return outStr;
+    }
 
-    // Text conversion. Prepend 'GROUP' if for a group, and
-    // perform markup (italics, bold, etc.)
+    // Text conversion main functions, calls appropriate function as dictated markup matches.
     function internalFormatText(messageText) {
         log('[internalFormatText] text input', messageText);
 
@@ -169,8 +219,9 @@
         const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
         const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
         const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
+        const discordEmojiRegex = /(:)[A-z0-9 _/~\.\=\-\+]+(:)/gi; // Matches between ':'
 
-        // Bold and italic, before both bold and italic (***)
+        // ***Bold and italic***, before both bold and italic
         let italicboldMatches = messageText.match(italicboldRegex);
         debug('[internalFormatText] italicbold matches', italicboldMatches);
         if (italicboldMatches) {
@@ -178,7 +229,7 @@
             debug('[internalFormatText] replaced: ', messageText);
         }
 
-        // Bold: must be before italic (**)
+        // **Bold**: must be before italic
         let boldedMatches = messageText.match(boldedRegex);
         debug('[internalFormatText] bold matches', boldedMatches);
         while (boldedMatches) {
@@ -187,7 +238,9 @@
             boldedMatches = messageText.match(boldedRegex);
         }
 
-        // Italic (*)
+        // __*underline italics*__, before italic and underline TBD
+
+        // *Italic*
         let italicMatches = messageText.match(italicRegex);
         debug('[internalFormatText] italic matches', italicMatches);
         while (italicMatches) {
@@ -201,7 +254,7 @@
         // Common Superscripts (^ 2, 3, +. -, .)
         messageText = strToUnicodeSuperscripts(messageText);
 
-        // Strikethrough (~~)
+        // --Strikethrough--
         let strikeoutMatches = messageText.match(strikeoutRegex);
         debug('[internalFormatText] strikeout matches', strikeoutMatches);
         if (strikeoutMatches) {
@@ -217,7 +270,15 @@
             debug('[internalFormatText] replaced: ', messageText);
         }
 
-        // cursive (cc)
+        // Discord-style emojis, such as :shrug: or :facepalm:
+        let emojiMatches = messageText.match(discordEmojiRegex);
+        debug('[internalFormatText] discord emoji matches', emojiMatches);
+        if (emojiMatches) {
+            emojiMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeEmoji(e))));
+            debug('[internalFormatText] replaced: ', messageText);
+        }
+
+        // cursive (cc) - really ugly, removed.
         /*
         let cursiveMatches = messageText.match(cursiveRegex);
         debug('[internalFormatText] cursive matches', cursiveMatches);
@@ -228,7 +289,6 @@
         */
 
         log('[internalFormatText] text output', messageText);
-
         return messageText;
     }
 
@@ -239,20 +299,23 @@
     ////////////////////////////////////////////////////////////////////////
 
     // Send an 'enter' keypress to an element
-    const enterKeyOpts = {code: "Enter", key: "Enter", keyCode: 13, type: "keydpress", which: 13,
-                          altKey:false, bubbles: true, cancelBubble: false, cancelable: true, charCode: 0,
-                          composed: true, ctrlKey: false, currentTarget: null,defaultPrevented: true, detail: 0, eventPhase: 0,
-                          isComposing: false, isTrusted: true, location: 0, metaKey: false, repeat: false, returnValue: false, shiftKey: false
-                          }
+    const enterKeyOpts = {code: "Enter", key: "Enter", keyCode: 13, /*type: "keypress",*/ which: 13, charCode: 0,
+                          altKey:false, bubbles: true, cancelBubble: false, cancelable: true, composed: true,
+                          ctrlKey: false, currentTarget: null, defaultPrevented: true, detail: 0, eventPhase: 0,
+                          isComposing: false, isTrusted: true, location: 0, metaKey: false, repeat: false,
+                          returnValue: false, shiftKey: false
+                          };
 
     const enterKeypressEvent = new KeyboardEvent("keypress", enterKeyOpts);
+    /*
     const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts); // To use, modify opts first...
     const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);  // To use, modify opts first...
+    */
 
     function sendEnter(element) {
         log('[sendEnter]');
         //let useOpts = enterKeyOpts;
-        element.dispatchEvent(new KeyboardEvent("keypress", enterKeyOpts));
+        element.dispatchEvent(enterKeypressEvent);
       }
 
     // Sanitize (format) an entered text message and put in the actual, hidden,
