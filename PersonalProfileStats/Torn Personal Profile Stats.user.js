@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @include      https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -110,10 +111,14 @@
     // estimates and custom estimates: {estimate: estStat, low: lowStat, high: highStat}
     // Detailed data may be displayed as a collapsible field (DIV) on the profile
     function getTornSpyCB(respText, ID) {
-        let data = JSON.parse(respText);
-        log('Spy response: ' + respText);
-        if (!data.status) {
-            log('Error getting spy! Response text: ' + respText);
+        let data = null;
+        try {
+            data = JSON.parse(respText);
+        } catch (e) {
+            log('Error parsing JSON: ', e);
+        }
+        if (!data || !data.status) {
+            log('Error getting spy!', data);
         } else {
             if (data.spy.status) {
                 // If no total, adjust high/low accordingly!!!
@@ -382,16 +387,24 @@
     // Add net worth to the profile
     //////////////////////////////////////////////////////////////////////
 
+    var nwRetries = 0;
     function addNetWorthToProfile(nw) {
-        log('Adding Net Worth to profile.');
-        if (validPointer(document.getElementById('xedx-networth-li'))) {return;}
+        log('Adding Net Worth to profile: $' + numberWithCommas(nw));
+        if (validPointer(document.getElementById('xedx-networth-li'))) {
+            log('Node already present: xedx-networth-li');
+            return;
+        }
 
         let display = '$' + numberWithCommas(nw);
         let profileDiv = $('#profileroot').find('div.user-profile');
         let basicInfo = $(profileDiv).find('div.profile-wrapper > div.basic-information');
         var targetNode = document.getElementById('profileroot');
         let ul = $(basicInfo).find('ul.info-table');
-        if (!ul.length) {return;}
+        if (!ul.length) {
+            log('ul.info-table not found!');
+            if (nwRetries++ < 4) setTimeout(addNetWorthToProfile(nw), 500);
+            return;
+        }
         let li = '<li id="xedx-networth-li"><div class="user-information-section">' +
             '<span class="bold">Net Worth</span></div>' +
             '<div class="user-info-value"><span>' + display + '</span></div></li>';
