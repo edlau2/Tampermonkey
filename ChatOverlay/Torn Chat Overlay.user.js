@@ -28,6 +28,8 @@
 
     // Function so I can use code collapse to see stuff easier.
     function addStyles() {
+        initEmojiStyles(); // CSS for auto-complete dropdown, for emojis.
+
         // Note: change this: background: url(/images/v2/chat/tab_icons.svg) left top;
         // to selct the idle/offline icons - instead of 'left' (0px), -34px, -68px
         GM_addStyle(`.xedx-chat-overlay {background: lightgray; background-color: lightgray;}
@@ -71,6 +73,10 @@
     var config = { attributes: true, childList: true, subtree: true};
 
     // Auto-complete (see https://github.com/zurb/tribute)
+    // Also, supported emojis are defined in the 'values' array created
+    // by initEmojiValues(). 'key' is the typed value to match, 'value'
+    // is the displayed value, to support shorthand. Not really used.
+    // Will likely be removed (the 'value')
     function initEmojiStyles() {
         GM_addStyle(`.tribute-container {
                       position: absolute;
@@ -161,7 +167,7 @@
           },
 
           // Limits the number of items in the menu
-          menuItemLimit: 25,
+          menuItemLimit: 35,
 
           // specify the minimum number of characters that must be typed before menu appears
           menuShowMinLength: 0
@@ -172,9 +178,10 @@
     function initEmojiValues() {
         let values = [ // Ordered by code
             // 0x1F44B block
+            {key: "goat", value: "goat", code: '\u{1F410}'},
             {key: "eyes", value: "eyes", code: '\u{1F440}'},
             {key: "waving_hand", value: "waving_hand", code: '\u{1F44B}'},
-            {key: "OK_hand", value: "OK_hand", code: '\u{1F44C}'},
+            {key: "ok_hand", value: "ok_hand", code: '\u{1F44C}'},
             {key: "flexed_biceps", value: "flexed_biceps", code: '\u{1F4AA}'},
 
             // 0x1F600 block
@@ -210,10 +217,9 @@
     }
 
     const emojiArray = initEmojiValues();
-    initEmojiStyles();
     let collection = initEmojiCollection();
     collection.values = emojiArray;
-    var tribute = new Tribute({collection: [collection]});
+    var autoComplete = new Tribute({collection: [collection]});
 
     ////////////////////////////////////////////////////////////////////////
     //
@@ -231,10 +237,12 @@
 
     const italic_lcOffset     = LC_SHIFT(0x1D44E); // With serif, except 'h' https://www.w3.org/TR/xml-entity-names/1D4.html
     const italic_ucOffset     = UC_SHIFT(0x1D434); // ...
-    const italic_lcOffset_ss  = LC_SHIFT(0x1D622); // sans-serif https://www.w3.org/TR/xml-entity-names/1D6.html (has an 'h')
-    const italic_ucOffset_ss  = UC_SHIFT(0x1D608); // ...
-    const italicbold_lcOffset = LC_SHIFT(0x1D482); // With serif https://www.w3.org/TR/xml-entity-names/1D4.html
+    const italicbold_lcOffset = LC_SHIFT(0x1D482); // ...
     const italicbold_ucOffset = UC_SHIFT(0x1D468); // ...
+    const italic_lcOffset_ss      = LC_SHIFT(0x1D622); // sans-serif https://www.w3.org/TR/xml-entity-names/1D6.html (has an 'h')
+    const italic_ucOffset_ss      = UC_SHIFT(0x1D608); // ...
+    const italicbold_lcOffset_ss  = LC_SHIFT(0x1D656); // ...
+    const italicbold_ucOffset_ss  = UC_SHIFT(0x1D63C); // ...
     const bold_lcOffset       = LC_SHIFT(0x1D41A);
     const bold_ucOffset       = UC_SHIFT(0x1D400);
     const cursive_lcOffset    = LC_SHIFT(0x1D4EA);
@@ -242,13 +250,13 @@
 
     function genericStrToUnicode(inStr, lcOffset, ucOffset) {
         let outStr = '';
-        let isItalic = (lcOffset == italic_lcOffset);
+        let isItalicSerif = (lcOffset == italic_lcOffset);
         for (let i=0; i< inStr.length; i++) {
             let decNum = inStr.charCodeAt(i);
             // Exceptions
-            /* if (inStr.charAt(i) == 'h' && isItalic) { // temporary - map replacements based on name...
-                outStr += '\u1d629';
-            } else */
+            if (inStr.charAt(i) == 'h' && isItalicSerif) {
+                outStr += '\u210E';
+            } else
             if (inStr.charAt(i) <= 'z' && inStr.charAt(i) >= 'a') {
                 let newNum = decNum + lcOffset;
                 outStr += String.fromCodePoint(newNum);
@@ -261,8 +269,11 @@
         }
         return outStr;
     }
-    function strToUnicodeItalics(inStr) {
+    function strToUnicodeItalicsSansSerif(inStr) {
         return genericStrToUnicode(inStr, italic_lcOffset_ss, italic_ucOffset_ss).replaceAll('*', '');
+    }
+    function strToUnicodeItalicsSerif(inStr) {
+        return genericStrToUnicode(inStr, italic_lcOffset, italic_ucOffset).replaceAll('_', '');
     }
     function strToUnicodeBold(inStr) {
         return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset).replaceAll('**', '');
@@ -371,20 +382,30 @@
     function internalFormatText(messageText) {
         log('[internalFormatText] text input', messageText);
 
-        const italicboldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
+        const italicBoldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
-        const italicRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
+        const italicSSRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
+        const italicRegex = /(\_)[A-z0-9 '!@#$%\^\&\(\)\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\_)/gi; // Matches between '_'
         const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
         const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
         const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
         const discordEmojiRegex = /(:)[A-z0-9 _/~\.\=\-\+]+(:)/gi; // Matches between ':'
 
+        // Testing code
+        if (devMode && messageText == 'emojitest') {
+            let outMsg = 'Supported emojis: \r\n';
+            for (let i=0; i < emojiArray.length; i++) {
+                outMsg += (emojiArray[i].code + ' ');
+            }
+            return outMsg;
+        }
+
         // ***Bold and italic***, before both bold and italic
-        let italicboldMatches = messageText.match(italicboldRegex);
+        let italicboldMatches = messageText.match(italicBoldRegex);
         debug('[internalFormatText] italicbold matches', italicboldMatches);
         if (italicboldMatches) {
             italicboldMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBoldItalic(e))));
-            debug('[internalFormatText] replaced: ', messageText);
+            log('[internalFormatText] italicboldMatches replaced: ', messageText);
         }
 
         // **Bold**: must be before italic
@@ -392,19 +413,19 @@
         debug('[internalFormatText] bold matches', boldedMatches);
         while (boldedMatches) {
             messageText = messageText.replace(boldedMatches[0], strToUnicodeBold(boldedMatches[0]));
-            debug('[internalFormatText] replaced: ', messageText);
+            log('[internalFormatText] boldedMatches replaced: ', messageText);
             boldedMatches = messageText.match(boldedRegex);
         }
 
         // __*underline italics*__, before italic and underline TBD
 
-        // *Italic*
-        let italicMatches = messageText.match(italicRegex);
-        debug('[internalFormatText] italic matches', italicMatches);
-        while (italicMatches) {
-            messageText = messageText.replace(italicMatches[0], strToUnicodeItalics(italicMatches[0]));
-            debug('[internalFormatText] replaced: ', messageText);
-            italicMatches = messageText.match(italicRegex);
+        // *Italic* (sans serif)
+        let italicSSMatches = messageText.match(italicSSRegex);
+        debug('[internalFormatText] italic matches', italicSSMatches);
+        while (italicSSMatches) {
+            messageText = messageText.replace(italicSSMatches[0], strToUnicodeItalicsSansSerif(italicSSMatches[0]));
+            log('[internalFormatText] italicSSMatches replaced: ', messageText);
+            italicSSMatches = messageText.match(italicSSRegex);
         }
 
         // Subscript (~) must be before strikethrough (TBD)
@@ -417,15 +438,15 @@
         debug('[internalFormatText] strikeout matches', strikeoutMatches);
         if (strikeoutMatches) {
             strikeoutMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeStrikeout(e))));
-            debug('[internalFormatText] replaced: ', messageText);
+            log('[internalFormatText] strikeoutMatches replaced: ', messageText);
         }
 
-        // Underline (__)
+        // Underline (__) (must be before italic serif)
         let ulMatches = messageText.match(ulRegex);
         debug('[internalFormatText] underline matches', ulMatches);
         if (ulMatches) {
             ulMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeUnderline(e))));
-            debug('[internalFormatText] replaced: ', messageText);
+            log('[internalFormatText] ulMatches replaced: ', messageText);
         }
 
         // Discord-style emojis, such as :shrug: or :facepalm:
@@ -433,7 +454,16 @@
         debug('[internalFormatText] discord emoji matches', emojiMatches);
         if (emojiMatches) {
             emojiMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeEmoji(e))));
-            debug('[internalFormatText] replaced: ', messageText);
+            log('[internalFormatText] emojiMatches replaced: ', messageText);
+        }
+
+        // _Italic_ (serif) MUST BE AFTER EMOJIS!
+        let italicMatches = messageText.match(italicRegex);
+        debug('[internalFormatText] italic matches', italicMatches);
+        while (italicMatches) {
+            messageText = messageText.replace(italicMatches[0], strToUnicodeItalicsSerif(italicMatches[0]));
+            log('[internalFormatText] italicMatches replaced: ', messageText);
+            italicMatches = messageText.match(italicRegex);
         }
 
         // cursive (cc) - really ugly, removed.
@@ -463,20 +493,15 @@
                           isComposing: false, isTrusted: true, location: 0, metaKey: false, repeat: false,
                           returnValue: false, shiftKey: false
                           };
-
     const enterKeypressEvent = new KeyboardEvent("keypress", enterKeyOpts);
-    /*
-    const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts); // To use, modify opts first...
-    const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);  // To use, modify opts first...
-    */
-
+    const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts);
+    const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);
     function sendEnter(element) {
         log('[sendEnter]');
-        //let useOpts = enterKeyOpts;
         element.dispatchEvent(enterKeypressEvent);
       }
 
-    // Sanitize (format) an entered text message and put in the actual, hidden,
+    // Format an entered text message and put in the actual, hidden,
     // wrapped text area and send it.
     function handleOutboundMessage(target) {
         let msg = $(target)[0].value;
@@ -490,7 +515,7 @@
     }
 
     // Handle key presses in the text area wrapper - send to
-    // actual one on 'enter', after sanitizaton
+    // actual one on 'enter', after formatting
     function handleChatKeypress(e) {
         let target = e.target;
         if (e.keyCode == 13) { // If the user has pressed enter
@@ -524,22 +549,16 @@
         let wrappedStyle = ta.getAttribute('style');
         $(ta).after(chatOverlay);
         myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
-        if (devMode) {
-            myChat.setAttribute('style', wrappedStyle + 'background-color: #888888;');
-        } else {
-            myChat.setAttribute('style', wrappedStyle);
-        }
+        myChat.setAttribute('style', wrappedStyle); // Mirror wrapped textarea
         addOverlayActive(ta);
-        ta.setAttribute('style', (wrappedStyle + 'display: none;'));
-        $(myChat).on("keypress", handleChatKeypress);
-
-        // Add auto-complete
-        tribute.attach(myChat);
+        ta.setAttribute('style', (wrappedStyle + 'display: none;')); // and hide real textarea
+        $(myChat).on("keypress", handleChatKeypress); // Trap 'enter'
+        autoComplete.attach(myChat); // Add autocomplete, filters on ':'
 
         if (observer) observer.observe(targetNode, config);
     }
 
-    // Add an 'active' indicatoer to the chatbox
+    // Add an 'active' indicator to the chatbox (optional - decided I didn't like it)
     function addOverlayActive(ta) {
         if (!ta || !indicatorsOn) return;
         let root = ta.parentNode.parentNode.parentNode;
@@ -615,7 +634,6 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    //validateApiKey();
     versionCheck();
     addStyles();
     callOnContentLoaded(handlePageLoad);
