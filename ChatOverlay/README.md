@@ -37,6 +37,11 @@ Superscript only works for the listed characters.<br>
 ``:winking face:`` ==> 😉 <br>
 ``:grinning_squinting_face:`` ==> 😆 <br>
 
-Note: many more are being (and have been) added; using auto-complete will display them all.
+### Samples:
+
+![Overlay Samples.png](https://github.com/edlau2/Tampermonkey/blob/master/ChatOverlay/Overlay%20Samples.png)
+
+Note: many more are being (and have been) added; using auto-complete will display them all.<br>
+Type ':' in the chat box textarea to bring up a complete list.
 
 
