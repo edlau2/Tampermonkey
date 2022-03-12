@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.3';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.4';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -134,6 +134,9 @@ function handleRequest(e) {
           SpreadsheetApp.flush();
           profile();
         }
+
+        // Export the trade to a PDF receipt
+        if (opts.opt_autoReceipts) writeReceiptAsPDF(ss=null);
       }  
     }
     
@@ -574,9 +577,11 @@ function updateRunningAverages(item) {
   profile();
   console.log('updateRunningAverages, rows: ' + rows);
   console.log('updateRunningAverages: item = ' + JSON.stringify(item));
+  let found = false;
   for (let row = 3; row < rows; row++) {
     let name = names[row-3].toString();
     if (item.name.trim() == name.trim()) {
+      found = true;
       // Get a new range for just this item, covering the row.
       let itemRange = avgSheet().getRange(row, 2, 1, 7); 
       // let itemRange = ss.getRange("Running Averages!D" + row + ":G" + row); // alt method
@@ -598,6 +603,16 @@ function updateRunningAverages(item) {
       break;
     }
   }
+
+  // Item not there. Add it dynamically?
+  if (!found && false) {
+    let itemRange = avgSheet().getRange(rows, 2, 1, 7);
+    let newPrice = (Number(item.price) * Number(item.qty)); // Goes into D:<row>, used next time through
+    let newQty = Number(item.qty); // Goes into E:<row>, used next time through
+    let avg = Number(newPrice)/Number(newQty); // Running median average --> goes into F:<row>
+    itemRange.setValues([[avg, timenow(), newPrice, newQty, avg, 0, 'active']]);
+  }
+
   console.log('updateRunningAverages, end.');
   SpreadsheetApp.flush();
   profile();
