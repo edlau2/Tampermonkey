@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.6';
+const UTILITIES_VERSION_INTERNAL = '2.7';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -23,7 +23,7 @@ function onOpen(e) {
   loadScriptOptions(ss);
   syncPriceCalcWithSheet26(ss);
   // checkForUpdates();
-};
+}
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
@@ -136,6 +136,7 @@ function loadScriptOptions(ss) {
   opts.opt_autoSort = optsSheet(ss).getRange("B15").getValue();
   opts.opt_fixup26 = optsSheet(ss).getRange("B16").getValue();
   opts.opt_bulkPricing = optsSheet(ss).getRange("B17").getValue();
+  opts.opt_autoReceipts = optsSheet(ss).getRange("B18").getValue();
 
   // AWH options
   opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
@@ -183,6 +184,7 @@ function important_getSSID() {
     console.log('Error: ' , e + '\nWill retry with default SSID (' + defSSID + ')');
     ss = SpreadsheetApp.openById(defSSID);
     if (ss) {
+      console.log('Success! key = ', ss.getKey());
       SCRIPT_PROP.setProperty("key", ss.getKey());
       console.log('Saved SSID: ', ss.getKey());
     }
