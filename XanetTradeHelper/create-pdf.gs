@@ -4,11 +4,13 @@
  * Creates a receipt, using data from the Last Trade worksheet,
  * in PDF format
  */
+var opts = {};
 function writeReceiptAsPDF(ss=null) {
 
   // This is hard-coded to pull from the worksheet 'Receipt Generation'
   //if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) ss = important_getSSID();
+  loadScriptOptions(ss);
   const rgs = ss.getSheetByName('Receipt Generation');
 
   // Get the data you want to export. For us, A1:E<last row>, no blank rows.
@@ -54,6 +56,7 @@ function writeReceiptAsPDF(ss=null) {
 
   // Gridlines...
   // setBorder(top, left, bottom, right, vertical, horizontal, color, style) 
+  sheet2.getRange('B1:E4').setBorder(true, true, true, true, true, true, "white", null);
   sheet2.getRange('B5:E6').setBorder(true, true, true, true, true, true, "black", null);
   sheet2.getRange('B7:E9').setBorder(null, true, null, true, true, true, "white", null);
   sheet2.getRange('B10:E10').setBorder(true, true, true, true, true, true, "black", null);
@@ -162,6 +165,8 @@ function getLastTrade(ss) {
  * @param file - name of file to open on 'OK'
  */
 function launchOpenDialog(file) {
+  console.log('[launchOpenDialog] ==>');
+  console.log('Options: ', opts);
   if (!opts.opt_allowUI) return;
 
   let url = file.getUrl();
