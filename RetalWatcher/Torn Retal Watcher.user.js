@@ -23,7 +23,7 @@
 
     const DEV_MODE = true; // true for additional logging and test link on top of page.
     const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
-    const RETALS_ONLY = true; // false for debugging - will notify on wins as well as losses.
+    const RETALS_ONLY = false; // false for debugging - will notify on wins as well as losses.
 
     var targetNode = null;
     var observer = null;
@@ -50,7 +50,7 @@
             if (NOTIFY_TIMEOUT_SECS) setTimeout(() => {notification.close()}, NOTIFY_TIMEOUT_SECS * 1000);
             notification.onclick = () => {
                 notification.close();
-                window.open(('www.torn.com' + profileURL), '_blank');
+                window.open(profileURL, '_blank');
             };
             notification.onclose = () => {notification.close()};
         }
