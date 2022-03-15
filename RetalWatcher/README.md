@@ -1,7 +1,9 @@
 ## Torn Retal Watcher
 
 This runs if the chain watching page is open: https://www.torn.com/factions.php?step=your#/war/chain <br>
-It will pop up a notification on an inbound attack that results in a loss.
+It will pop up a notification on an inbound attack that results in a loss.<br>
+
+![Sample Notification](https://github.com/edlau2/Tampermonkey/blob/master/RetalWatcher/notification.png)
 
 1. The notification by default stays there for 10 seconds (configurable), unless you click 'close', or click the notification itself.
 
