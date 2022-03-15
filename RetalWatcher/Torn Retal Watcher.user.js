@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -23,7 +23,7 @@
 
     const DEV_MODE = true; // true for additional logging and test link on top of page.
     const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
-    const RETALS_ONLY = true; // false for debugging - will notify on wins as well as losses.
+    const RETALS_ONLY = false; // false for debugging - will notify on wins as well as losses.
 
     var targetNode = null;
     var observer = null;
@@ -65,7 +65,7 @@
 
         let title = 'Retal! ' + jsonObj.name;
         let body = 'Click to attack!';
-        debug('Notifying!');
+        debug('Notifying: ', param);
         if (param.forced || param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
     }
 
@@ -73,7 +73,7 @@
         log('[processNewNodes] nodeList: ', nodeList);
         let newLi = targetNode.firstChild;
         for (let i=0; i<nodeList.length; i++) {
-            let id = 'unknown';
+            let id = '';
             let href = '', honorBar = '', attack = false;
             let newNode = nodeList[i];
             debug('newLi: ', newLi);
@@ -97,7 +97,10 @@
                 if ($(valNode).hasClass('red')) attack = true;
                 if ($(valNode).hasClass('green')) attack = false;
                 let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack, 'forced': forced};
-                xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
+
+                if (forced || attack || !RETALS_ONLY) {
+                    if (id) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
+                }
             }
         }
     }
