@@ -118,7 +118,7 @@
     function addMiniUI() {
         let target = document.querySelector("#factions > div.content-title.m-bottom10");
         if (!target) return setTimeout(handlePageLoad, 50);
-        if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
+        if (!document.querySelector("#xedx-test-ui")) $(target).after(miniUI);
 
         $('#xedx-btn').click(function() {
           if (targetNode) processNewNodes([targetNode.firstChild], true);
