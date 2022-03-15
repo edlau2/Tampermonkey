@@ -63,7 +63,7 @@
             return;
         }
 
-        let title = 'Retal! ' + jsonObj.name;
+        let title = 'Retal: ' + jsonObj.name;
         let body = 'Click to attack!';
         debug('Notifying: ', param);
         if (param.forced || param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
