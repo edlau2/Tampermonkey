@@ -19,10 +19,8 @@ It will pop up a notification on an inbound attack that results in a loss.<br>
 
     Adds a link that looks like this, just for debugging: <br>
     
-    ![](https://github.com/edlau2/Tampermonkey/blob/master/RetalWatcher/mini-ui.png)
+    ![](https://github.com/edlau2/Tampermonkey/blob/master/RetalWatcher/mini-ui2.png)
 
     Clicking it forces a notification, wether it's a win or a loss (but not stealthed or an assist). The option also controls the logging level, if true, much more verbose.
-
-  - const RETALS_ONLY = true; // false for debugging - will notify on wins as well as losses.
-
-    Setting that to false will notify for wins and losses, in any mode (DEV_MODE or not). DEV_MODE, by itself, does not notify on wins.
+    
+4. The checkbox, Retals Only, defaults to checked, and if unchecked, will notify for wins and losses, in any mode (DEV_MODE or not). DEV_MODE, by itself, does not notify on wins. This is also designed as a debugging aid only.
