@@ -66,12 +66,18 @@
                 let valNode = respNode.parentNode.querySelector('.respect > span');
                 log('valNode: ', valNode, ' Respect: ', valNode.textContent);
 
+                let msg = '';
                 if ($(valNode).hasClass('red')) {
                     log('Is a loss!');
-                    log('Notifying!');
-                    notify('ID: ' + id);
+                    msg = 'LOSS - ID: ';
                 }
-                if ($(valNode).hasClass('green')) log('Is a win!');
+                if ($(valNode).hasClass('green')) {
+                    log('Is a win!');
+                    msg = 'WIN - ID: ';
+                }
+
+                log('Notifying!');
+                notify(msg + id);
             }
         }
     }
