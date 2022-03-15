@@ -31,7 +31,7 @@
 
     debugLoggingEnabled = DEV_MODE;
 
-    GM_addStyle(`.xedx-btn {color: red; font-size: 12px;}`);
+    GM_addStyle(`.xedx-btn {color: red; font-size: 16px;}`);
     const miniUI = '<div id="xedx-test-ui" class="box">' +
                        '<button id="xedx-btn" class="xedx-btn">Retal Watcher</button>' +
                    '</div>';
