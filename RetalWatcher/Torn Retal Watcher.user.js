@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -79,7 +79,7 @@
             debug('newLi: ', newLi);
             debug('newNode: ', newNode);
 
-            let idNode = newLi.getElementsByClassName('userWrap___vmatZ')[1];
+            let idNode = newNode.getElementsByClassName('userWrap___vmatZ')[1];
             if (idNode) {
                 id = idNode.firstChild.getAttribute('id').split('-')[0];
                 href = idNode.firstChild.getAttribute('href');
@@ -89,7 +89,7 @@
                 debug('honorBar: ', honorBar);
             }
 
-            let respNode = newLi.getElementsByClassName('respect')[0];
+            let respNode = newNode.getElementsByClassName('respect')[0];
             if (respNode) { // See if classList has 'green' or 'red' ? Or just respect > 0?
                 let valNode = respNode.parentNode.querySelector('.respect > span');
                 debug('valNode: ', valNode, ' Respect: ', valNode.textContent);
