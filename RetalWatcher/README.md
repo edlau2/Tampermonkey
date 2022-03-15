@@ -1,5 +1,7 @@
 ## Torn Retal Watcher
 
+[installation link](https://github.com/edlau2/Tampermonkey/raw/master/RetalWatcher/Torn%20Retal%20Watcher.user.js)
+
 This runs if the chain watching page is open: https://www.torn.com/factions.php?step=your#/war/chain <br>
 It will pop up a notification on an inbound attack that results in a loss.<br>
 
