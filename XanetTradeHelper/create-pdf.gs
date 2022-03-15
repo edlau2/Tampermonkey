@@ -5,24 +5,27 @@
  * in PDF format
  */
 var opts = {};
+var TEMPLATE_LAST_ROW = 10; // Last row of valid template data
+
 function writeReceiptAsPDF(ss=null) {
+  console.log('[writeReceiptAsPDF] ==>');
 
   // This is hard-coded to pull from the worksheet 'Receipt Generation'
-  //if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) ss = important_getSSID();
   loadScriptOptions(ss);
   const rgs = ss.getSheetByName('Receipt Generation');
 
   // Get the data you want to export. For us, A1:E<last row>, no blank rows.
-  let lastRow = rgs.getLastRow();
-  let rangeStr = 'A1:E' + lastRow;
-  let tidRangeStr = 'C3';
-  let totalRangeStr = 'B3';
+  let lastRow = TEMPLATE_LAST_ROW; //rgs.getLastRow();
+  let rangeStr = 'A1:E' + (lastRow + 1).toString();
   let sourceRange = rgs.getRange(rangeStr);
   let sourceValues = sourceRange.getValues();
 
+  console.log('RGS: last row ', lastRow);
+  console.log('RGS: rangeStr ', rangeStr);
+
   // Get the Drive folder you want to store your PDF to. 
-  // Otherwise use root folder (if you dont mind about this)
+  // Otherwise use root folder (if you don't mind about this)
   let root = DriveApp.getRootFolder();
   let folderID = root.getId();
   let folder = DriveApp.getFolderById(folderID);
@@ -55,7 +58,6 @@ function writeReceiptAsPDF(ss=null) {
   destRange.setWrapStrategies(sourceRange.getWrapStrategies());
 
   // Gridlines...
-  // setBorder(top, left, bottom, right, vertical, horizontal, color, style) 
   sheet2.getRange('B1:E4').setBorder(true, true, true, true, true, true, "white", null);
   sheet2.getRange('B5:E6').setBorder(true, true, true, true, true, true, "black", null);
   sheet2.getRange('B7:E9').setBorder(null, true, null, true, true, true, "white", null);
@@ -65,22 +67,17 @@ function writeReceiptAsPDF(ss=null) {
   for (let i = 1; i <= lastRow; i++) {sheet2.setRowHeight(i, rgs.getRowHeight(i));}
   for (let i = 1; i <= 5; i++) {sheet2.setColumnWidth(i, rgs.getColumnWidth(i));}
 
-  // Individually copy over trade ID and total price, they don't copy for some reason
-  //sheet2.getRange(totalRangeStr).setValue(rgs.getRange(totalRangeStr).getValue());
-  //sheet2.getRange(tidRangeStr).setValue(rgs.getRange(tidRangeStr).getValue());
-  //SpreadsheetApp.flush();
-  sheet2.getRange(tidRangeStr).setNumberFormat("############");
-
   // Remove blank rows
-  removeEmptyLines(sheet2);
+  //removeEmptyLines(sheet2);
 
   // Get the data from the 'Last Trade' sheet - trade ID, total cost & quantity,
-  // and itemized data. Note that since empty lines have been removed, the row
-  // indices have changed.
+  // itemized data and date/timestamps.
   let rowObj = getLastTrade(ss);
   let lastID = rowObj.id;
   let firstTradeRow = rowObj.firstRow;
   let lastTradeRow = rowObj.lastRow;
+  let tradeDate = lastTradeSheet(ss).getRange('A' + firstTradeRow).getValue();
+  let tradeTime = lastTradeSheet(ss).getRange('A' + (firstTradeRow+1).toString()).getValue();
   let tradeData = lastTradeSheet(ss).getRange('C' + firstTradeRow + ':F' + lastTradeRow).getValues();
   let qtyData = lastTradeSheet(ss).getRange('D' + firstTradeRow + ':D' + lastTradeRow).getValues();
   let costData = lastTradeSheet(ss).getRange('F' + firstTradeRow + ':F' + lastTradeRow).getValues();
@@ -96,14 +93,17 @@ function writeReceiptAsPDF(ss=null) {
     totCost += costData[i][0];
   }
   console.log('totQty: ', totQty, ' totCost: ', totCost);
-  sheet2.getRange('B2:C2').setValues([[asCurrency(totCost), totQty]]);
+  sheet2.getRange('B6:E6').setValues([[asCurrency(totCost), totQty, tradeDate, tradeTime]]);
+  rgs.getRange('B6:E6').setValues([[asCurrency(totCost), totQty, tradeDate, tradeTime]]);
 
-  // Copy trade data
-  console.log('Trade Data: ', tradeData);
-  let destFirstRow = sheet2.getDataRange().getLastRow();
-  console.log('destFirstRow: ', destFirstRow);
-  let tradeDataDest = sheet2.getRange(destFirstRow, 2, tradeData.length, 4); // B11:E??
-  tradeDataDest.setValues(tradeData);
+  // Copy trade data. Also copy to template, for a visual representation
+  console.log('Copying trade data');
+  let destFirstRow = TEMPLATE_LAST_ROW + 1;
+  sheet2.getRange(destFirstRow, 2, tradeData.length, 4).setValues(tradeData);
+  rgs.getRange(destFirstRow, 2, tradeData.length, 4).setValues(tradeData);
+
+  // Set number formats (last 2 columns)
+  sheet2.getRange(destFirstRow, 4, tradeData.length, 2).setNumberFormats(rgs.getRange(destFirstRow, 4, tradeData.length, 2).getNumberFormats());
 
   SpreadsheetApp.flush();
   // Hide all the rows and columns that do not have content 
@@ -117,11 +117,13 @@ function writeReceiptAsPDF(ss=null) {
     }
 
   SpreadsheetApp.flush();
+  console.log('Copy complete.');
 
   // Delete the first sheet that is automatically created when you create a new spreadsheet
   destSpreadsheet.deleteSheet(destSpreadsheet.getSheetByName('Sheet1'));
   
   // Export our new spreadsheet to PDF
+  console.log('Writing PDF.');
   let pdfName = 'receipt-' + lastID.toString() + '.pdf';
   let theBlob = destSpreadsheet.getBlob().getAs('application/pdf').setName(pdfName);
   let newFile = folder.createFile(theBlob);
@@ -130,6 +132,7 @@ function writeReceiptAsPDF(ss=null) {
   DriveApp.getFileById(destSpreadsheet.getId()).setTrashed(true);
 
   launchOpenDialog(newFile);
+  console.log('<== [writeReceiptAsPDF]');
 }
 
 /**
@@ -210,7 +213,8 @@ function removeEmptyLines(sheet) {
   let data = range.getValues();
   sheet.deleteRows(lastRowIndex+1, maxRowIndex-lastRowIndex);
 
-  for (let rowIndex = data.length - 1; rowIndex >= 0; rowIndex--){
+  // Change: ignore entire template
+  for (let rowIndex = data.length - 1; rowIndex >= 10; rowIndex--) {
     let row = data[rowIndex];
 
     // Skip rows 7, 8, and 9
