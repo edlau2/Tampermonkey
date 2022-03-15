@@ -66,10 +66,10 @@
         let title = 'Retal! ' + jsonObj.name;
         let body = 'Click to attack!';
         debug('Notifying!');
-        if (param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
+        if (param.forced || param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
     }
 
-    function processNewNodes(nodeList) {
+    function processNewNodes(nodeList, forced=false) {
         log('[processNewNodes] nodeList: ', nodeList);
         let newLi = targetNode.firstChild;
         for (let i=0; i<nodeList.length; i++) {
@@ -96,7 +96,7 @@
 
                 if ($(valNode).hasClass('red')) attack = true;
                 if ($(valNode).hasClass('green')) attack = false;
-                let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack};
+                let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack, 'forced': forced};
                 xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
             }
         }
@@ -117,7 +117,7 @@
         if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
 
         $('#xedx-btn').click(function() {
-          if (targetNode) processNewNodes([targetNode.firstChild]);
+          if (targetNode) processNewNodes([targetNode.firstChild], true);
         });
     }
 
