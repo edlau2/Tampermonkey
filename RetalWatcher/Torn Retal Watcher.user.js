@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -21,23 +21,51 @@
 (function() {
     'use strict';
 
+    const DEV_MODE = true; // true for additional logging and test link on top of page.
+    const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
+
     var targetNode = null;
     var observer = null;
     var config = {attributes: false, childList: true, subtree: false};
 
-    function notify(notifyText) {
+    debugLoggingEnabled = DEV_MODE;
+
+    GM_addStyle(`.xedx-btn {color: red; font-size: 12px;}`);
+    const miniUI = '<div id="xedx-test-ui" class="box">' +
+                       '<button id="xedx-btn" class="xedx-btn">Retal Watcher</button>' +
+                   '</div>';
+
+    function notify(title, notifyText, notifyImage, profileURL) {
         log('[notify]');
         if (Notification.permission !== 'granted') {
             Notification.requestPermission();
         } else {
-            var notification = new Notification('Retal!', {
-            icon: 'https://imgur.com/24j01c0.png',
-            body: notifyText,
+            var notification = new Notification(title, {
+                icon: notifyImage,
+                body: notifyText,
+                requireInteraction: true,
             });
 
-            setTimeout(() => {notification.close()}, 10000);
-            notification.onclick = () => {notification.close()};
+            if (NOTIFY_TIMEOUT_SECS) setTimeout(() => {notification.close()}, NOTIFY_TIMEOUT_SECS * 1000);
+            notification.onclick = () => {
+                notification.close();
+                window.open(('www.torn.com' + profileURL), '_blank');
+            };
+            notification.onclose = () => {notification.close()};
         }
+    }
+
+    function userQueryCB(responseText, ID, param) {
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) {
+            log('Response error: ', jsonObj.error);
+            return;
+        }
+
+        let title = 'Retal! ' + jsonObj.name;
+        let body = 'Click to attack!';
+        debug('Notifying!');
+        /*if (param.attack)*/ notify(title, body, param.honorBar, param.href);
     }
 
     function processNewNodes(nodeList) {
@@ -45,39 +73,30 @@
         let newLi = targetNode.firstChild;
         for (let i=0; i<nodeList.length; i++) {
             let id = 'unknown';
+            let href = '', honorBar = '', attack = false;
             let newNode = nodeList[i];
-            log('newLi: ', newLi);
-            log('newNode: ', newNode);
-            //if (newNode.parentNode != targetNode) continue;
-            log('must be LI!');
+            debug('newLi: ', newLi);
+            debug('newNode: ', newNode);
 
             let idNode = newLi.getElementsByClassName('userWrap___vmatZ')[1];
-            log('idNode: ', idNode);
-
             if (idNode) {
                 id = idNode.firstChild.getAttribute('id').split('-')[0];
-                log('ID = ', id);
+                href = idNode.firstChild.getAttribute('href');
+                honorBar = idNode.querySelector("div > img").getAttribute('src');
+                debug('ID: ', id);
+                debug('href: ', href);
+                debug('honorBar: ', honorBar);
             }
 
             let respNode = newLi.getElementsByClassName('respect')[0];
-            log('respNode: ', respNode);
-
             if (respNode) { // See if classList has 'green' or 'red' ? Or just respect > 0?
                 let valNode = respNode.parentNode.querySelector('.respect > span');
-                log('valNode: ', valNode, ' Respect: ', valNode.textContent);
+                debug('valNode: ', valNode, ' Respect: ', valNode.textContent);
 
-                let msg = '';
-                if ($(valNode).hasClass('red')) {
-                    log('Is a loss!');
-                    msg = 'LOSS - ID: ';
-                }
-                if ($(valNode).hasClass('green')) {
-                    log('Is a win!');
-                    msg = 'WIN - ID: ';
-                }
-
-                log('Notifying!');
-                notify(msg + id);
+                if ($(valNode).hasClass('red')) attack = true;
+                if ($(valNode).hasClass('green')) attack = false;
+                let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack};
+                xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
             }
         }
     }
@@ -91,17 +110,30 @@
         }
     };
 
+    function addMiniUI() {
+        let target = document.querySelector("#factions > div.content-title.m-bottom10");
+        if (!target) return setTimeout(handlePageLoad, 50);
+        if (!document.querySelector("xedx-test-ui")) $(target).after(miniUI);
+
+        $('#xedx-btn').click(function() {
+          if (targetNode) processNewNodes([targetNode.firstChild]);
+        });
+    }
+
     function handlePageLoad() {
-        log('[handlePageLoad] hash: ', location.hash);
+        debug('[handlePageLoad] hash: ', location.hash);
         if (location.hash.indexOf('war/chain') == -1) return;
-        targetNode = document.querySelector("#react-root > div > div > ul > li.descriptions > div > ul.chain-attacks-list");
+        targetNode = document.getElementsByClassName("chain-attacks-list")[0];
         if (!targetNode) return setTimeout(handlePageLoad, 250);
+
+        // Mini-button for testing
+        if (DEV_MODE) addMiniUI();
 
         if (Notification.permission !== 'granted') {
             Notification.requestPermission();
         }
 
-        log('Starting observer, target: ', targetNode);
+        debug('Starting observer, target: ', targetNode);
         if (!observer) observer = new MutationObserver(mutationCallback);
         observer.observe(targetNode, config);
     }
@@ -111,10 +143,9 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    //validateApiKey();
+    validateApiKey();
     versionCheck();
 
-    // your#/war/chain
     window.addEventListener('hashchange', function() {
         log('The hash has changed! new hash: ' + location.hash);
         handlePageLoad();}, false);
