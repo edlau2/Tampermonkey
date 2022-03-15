@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlays
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      2.0
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -177,6 +177,8 @@
     }
     function initEmojiValues() {
         let values = [ // Ordered by code
+            {key: "leaf_fluttering_in_wind", value: "leaf_fluttering_in_wind", code: '\u{1F343}'},
+
             // 0x1F44B block
             {key: "goat", value: "goat", code: '\u{1F410}'},
             {key: "eyes", value: "eyes", code: '\u{1F440}'},
@@ -211,6 +213,13 @@
             {key: "shrug", value: "shrug", code: '\u{1F937}'},
             {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
             {key: "shushing_face", value: "shushing_face", code: '\u{1F92B}'},
+
+            // Flags
+            // hmmm. 1F1FA == 'U', 1F1E6 == 'A', 1F1FB == 'S'
+            // key == 'flag_' + ISO, value same, code == [code(ISO[0]) + code(ISO[1])]
+            // So keep array of the ISO's, build each value dynamically?
+            {key: "flag_ua", value: "flag_ua", code: '\u{1F1FA}\u{1F1E6}'}, // Ukraine
+            {key: "flag_us", value: "flag_us", code: '\u{1F1FA}\u{1F1F8}'}, // USA
         ];
 
         return values;
@@ -319,68 +328,12 @@
         debug('Word: ' + matchTo + ' Match: ' + match + ' Code: ' + (match ? match.code : null));
         if (match) outStr = match.code;
 
-        /*
-        switch (matchTo) {
-            case 'shrug':
-                outStr = '\u{1F937}';
-                break;
-            case 'facepalm':
-                outStr = '\u{1F926}';
-                break;
-            case 'rofl':
-                outStr = '\u{1F923}';
-                break;
-            case 'thinking':
-                outStr = '\u{1F914}';
-                break;
-            case 'grin':
-                outStr = '\u{1F606}';
-                break;
-            case 'grinning':
-                outStr = '\u{1F604}';
-                break;
-            case 'zany_face':
-                outStr = '\u{1F92A}';
-                break;
-            case 'kissing_heart':
-            case 'kiss_heart':
-                outStr = '\u{1F618}';
-                break;
-            case 'heart_eyes':
-                outStr = '\u{1F60D}';
-                break;
-            case 'smiling_face_with_3_hearts':
-            case '3_hearts':
-                outStr = '\u{1F970}';
-                break;
-            case 'face_with_tears_of_joy':
-            case 'tears_of_joy':
-                outStr = '\u{1F602}';
-                break;
-            case 'shushing_face':
-                outStr = '\u{1F92B}';
-                break;
-            case 'smiley_face': // ☺
-                outStr = '\u{1F60A}';
-                break;
-            case 'winking_face': // 😉
-                outStr = '\u{1F609}';
-                break;
-            case 'grinning_squinting_face': // 😆
-                outStr = '\u{1F606}';
-                break;
-            default:
-                debug('Not match for ' + matchTo + ' found');
-                break;
-        }
-        */
-
         return outStr;
     }
 
     // Text conversion main function, calls appropriate functions as specified markup matches.
     function internalFormatText(messageText) {
-        log('[internalFormatText] text input', messageText);
+        debug('[internalFormatText] text input', messageText);
 
         const italicBoldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
@@ -405,7 +358,7 @@
         debug('[internalFormatText] italicbold matches', italicboldMatches);
         if (italicboldMatches) {
             italicboldMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeBoldItalic(e))));
-            log('[internalFormatText] italicboldMatches replaced: ', messageText);
+            debug('[internalFormatText] italicboldMatches replaced: ', messageText);
         }
 
         // **Bold**: must be before italic
@@ -413,7 +366,7 @@
         debug('[internalFormatText] bold matches', boldedMatches);
         while (boldedMatches) {
             messageText = messageText.replace(boldedMatches[0], strToUnicodeBold(boldedMatches[0]));
-            log('[internalFormatText] boldedMatches replaced: ', messageText);
+            debug('[internalFormatText] boldedMatches replaced: ', messageText);
             boldedMatches = messageText.match(boldedRegex);
         }
 
@@ -424,7 +377,7 @@
         debug('[internalFormatText] italic matches', italicSSMatches);
         while (italicSSMatches) {
             messageText = messageText.replace(italicSSMatches[0], strToUnicodeItalicsSansSerif(italicSSMatches[0]));
-            log('[internalFormatText] italicSSMatches replaced: ', messageText);
+            debug('[internalFormatText] italicSSMatches replaced: ', messageText);
             italicSSMatches = messageText.match(italicSSRegex);
         }
 
@@ -438,7 +391,7 @@
         debug('[internalFormatText] strikeout matches', strikeoutMatches);
         if (strikeoutMatches) {
             strikeoutMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeStrikeout(e))));
-            log('[internalFormatText] strikeoutMatches replaced: ', messageText);
+            debug('[internalFormatText] strikeoutMatches replaced: ', messageText);
         }
 
         // Underline (__) (must be before italic serif)
@@ -446,7 +399,7 @@
         debug('[internalFormatText] underline matches', ulMatches);
         if (ulMatches) {
             ulMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeUnderline(e))));
-            log('[internalFormatText] ulMatches replaced: ', messageText);
+            debug('[internalFormatText] ulMatches replaced: ', messageText);
         }
 
         // Discord-style emojis, such as :shrug: or :facepalm:
@@ -454,7 +407,7 @@
         debug('[internalFormatText] discord emoji matches', emojiMatches);
         if (emojiMatches) {
             emojiMatches.forEach(e => (messageText = messageText.replace(e, strToUnicodeEmoji(e))));
-            log('[internalFormatText] emojiMatches replaced: ', messageText);
+            debug('[internalFormatText] emojiMatches replaced: ', messageText);
         }
 
         // _Italic_ (serif) MUST BE AFTER EMOJIS!
@@ -462,7 +415,7 @@
         debug('[internalFormatText] italic matches', italicMatches);
         while (italicMatches) {
             messageText = messageText.replace(italicMatches[0], strToUnicodeItalicsSerif(italicMatches[0]));
-            log('[internalFormatText] italicMatches replaced: ', messageText);
+            debug('[internalFormatText] italicMatches replaced: ', messageText);
             italicMatches = messageText.match(italicRegex);
         }
 
@@ -476,7 +429,7 @@
         }
         */
 
-        log('[internalFormatText] text output', messageText);
+        debug('[internalFormatText] text output', messageText);
         return messageText;
     }
 
@@ -497,7 +450,7 @@
     const enterKeydownEvent = new KeyboardEvent("keydown", enterKeyOpts);
     const enterKeyupEvent = new KeyboardEvent("keyup", enterKeyOpts);
     function sendEnter(element) {
-        log('[sendEnter]');
+        debug('[sendEnter]');
         element.dispatchEvent(enterKeypressEvent);
       }
 
@@ -505,7 +458,7 @@
     // wrapped text area and send it.
     function handleOutboundMessage(target) {
         let msg = $(target)[0].value;
-        log('[handleOutboundMessage] ', msg);
+        debug('[handleOutboundMessage] ', msg);
         let wrappedChat = target.parentNode.querySelectorAll('[name="chatbox2"]')[0];
 
         let messageText = internalFormatText(msg);
@@ -538,10 +491,10 @@
         if (!ta) return;
         if (observer) observer.disconnect();
 
-        log('[addChatOverlay]');
+        debug('[addChatOverlay]');
         let myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
         if (myChat) {
-            log('Overlay already exists');
+            debug('Overlay already exists');
             if (observer) observer.observe(targetNode, config);
             return; // Only do once!
         }
@@ -620,7 +573,7 @@
 
     function handlePageLoad() {
         let chatNodes = targetNode.getElementsByClassName(chatboxTextArea);
-        log('Found ' + chatNodes.length + ' existing open chat boxes');
+        debug('Found ' + chatNodes.length + ' existing open chat boxes');
         for (let i=0; i<chatNodes.length; i++) {
             addChatOverlay(chatNodes[i]);
         }
@@ -639,3 +592,11 @@
     callOnContentLoaded(handlePageLoad);
 
 })();
+
+
+
+
+
+
+
+
