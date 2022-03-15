@@ -23,6 +23,7 @@
 
     const DEV_MODE = true; // true for additional logging and test link on top of page.
     const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
+    const RETALS_ONLY = true; // false for debugging - will notify on wins as well as losses.
 
     var targetNode = null;
     var observer = null;
@@ -65,7 +66,7 @@
         let title = 'Retal! ' + jsonObj.name;
         let body = 'Click to attack!';
         debug('Notifying!');
-        /*if (param.attack)*/ notify(title, body, param.honorBar, param.href);
+        if (param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
     }
 
     function processNewNodes(nodeList) {
