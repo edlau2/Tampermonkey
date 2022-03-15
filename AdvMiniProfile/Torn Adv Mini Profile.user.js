@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/AdvMiniProfile/Torn%20Adv%20Mini%20Profile.user.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @connect      18.119.136.223
@@ -201,11 +200,11 @@
             },
             onerror: function(response) {
                 log('HTTP Error: ', response);
-                addBatStatsToProfile(); // Recover!
+                queryUserProfile(target, ID); // Recover!
             }});
         } catch(e) {
             log('Error: ', e);
-            addBatStatsToProfile(); // Recover!
+            queryUserProfile(target, ID); // Recover!
         }
     }
 
