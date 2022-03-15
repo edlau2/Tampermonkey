@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -23,7 +23,8 @@
 
     const DEV_MODE = true; // true for additional logging and test link on top of page.
     const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
-    const RETALS_ONLY = false; // false for debugging - will notify on wins as well as losses.
+
+    var opt_retalsOnly = true; // false for debugging - will notify on wins as well as losses.
 
     var targetNode = null;
     var observer = null;
@@ -31,9 +32,14 @@
 
     debugLoggingEnabled = DEV_MODE;
 
-    GM_addStyle(`.xedx-btn {color: red; font-size: 16px;}`);
-    const miniUI = '<div id="xedx-test-ui" class="box">' +
+    GM_addStyle(`.xedx-btn {color: red; font-size: 16px;}
+                 .xcbx {margin-left: 12px;}
+    `);
+
+    const miniUI = '<div id="xedx-test-ui">' +
                        '<button id="xedx-btn" class="xedx-btn">Retal Watcher</button>' +
+                       '<input type="checkbox" class="xcbx" id="xedx-retal-only" name="retal" checked>' +
+                       '<label for="retal"><span style="margin-left: 15px;">Retal Only</span></label>' +
                    '</div>';
 
     function notify(title, notifyText, notifyImage, profileURL) {
@@ -57,16 +63,22 @@
     }
 
     function userQueryCB(responseText, ID, param) {
-        let jsonObj = JSON.parse(responseText);
+        log('[userQueryCB] resp: ', responseText);
+        let jsonObj = null;
+        try {
+        jsonObj = JSON.parse(responseText);
         if (jsonObj.error) {
             log('Response error: ', jsonObj.error);
             return;
         }
+        } catch (e) {
+            log('JSON.parse error: ', e);
+        }
 
-        let title = 'Retal: ' + jsonObj.name;
+        let title = 'Retal: ' + jsonObj ? jsonObj.name : ID;
         let body = 'Click to attack!';
         debug('Notifying: ', param);
-        if (param.forced || param.attack || !RETALS_ONLY) notify(title, body, param.honorBar, param.href);
+        if (param.forced || param.attack || !opt_retalsOnly) notify(title, body, param.honorBar, param.href);
     }
 
     function processNewNodes(nodeList, forced=false) {
@@ -99,7 +111,7 @@
                 if ($(valNode).hasClass('green')) attack = false;
                 let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack, 'forced': forced};
 
-                if (forced || attack || !RETALS_ONLY) {
+                if (forced || attack || !opt_retalsOnly) {
                     if (id && !assist) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
                 }
             }
@@ -122,6 +134,13 @@
 
         $('#xedx-btn').click(function() {
           if (targetNode) processNewNodes([targetNode.firstChild], true);
+        });
+
+        $("#xedx-retal-only")[0].checked = GM_getValue("opt_retalsOnly", opt_retalsOnly);
+        $("#xedx-retal-only")[0].addEventListener("click", function() {
+            opt_retalsOnly = this.checked;
+            GM_setValue("opt_retalsOnly", opt_retalsOnly);
+            debug('Retal Only set to: ', opt_retalsOnly);
         });
     }
 
