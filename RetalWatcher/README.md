@@ -19,7 +19,7 @@ It will pop up a notification on an inbound attack that results in a loss.<br>
 
     Adds a link that looks like this, just for debugging: <br>
     
-    ![](https://github.com/edlau2/Tampermonkey/blob/master/RetalWatcher/sample.png)
+    ![](https://github.com/edlau2/Tampermonkey/blob/master/RetalWatcher/mini-ui.png)
 
     Clicking it forces a notification, wether it's a win or a loss (but not stealthed or an assist). The option also controls the logging level, if true, much more verbose.
 
