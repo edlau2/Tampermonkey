@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -86,7 +86,7 @@
         let newLi = targetNode.firstChild;
         for (let i=0; i<nodeList.length; i++) {
             let id = '';
-            let href = '', honorBar = '', attack = false, assist = false;
+            let href = '', honorBar = '', attack = false, assist = false, lost = false;
             let newNode = nodeList[i];
             debug('newLi: ', newLi);
             debug('newNode: ', newNode);
@@ -107,12 +107,13 @@
                 debug('valNode: ', valNode, ' Respect: ', valNode.textContent);
 
                 if (valNode.textContent == 'Assist') assist = true;
+                if (valNode.textContent == 'Lost') lost = true;
                 if ($(valNode).hasClass('red')) attack = true;
                 if ($(valNode).hasClass('green')) attack = false;
                 let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack, 'forced': forced};
 
                 if (forced || attack || !opt_retalsOnly) {
-                    if (id && !assist) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
+                    if (id && !assist && !lost) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
                 }
             }
         }
