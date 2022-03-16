@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -44,6 +44,7 @@
 
     function notify(title, notifyText, notifyImage, profileURL) {
         log('[notify]');
+        let bigNotifyImage = notifyImage.replace('small', 'large');
         if (Notification.permission !== 'granted') {
             Notification.requestPermission();
         } else {
@@ -75,14 +76,14 @@
             log('JSON.parse error: ', e);
         }
 
-        let title = 'Retal: ' + jsonObj ? jsonObj.name : ID;
+        let title = 'Retal: ' + (jsonObj ? jsonObj.name : ID);
         let body = 'Click to attack!';
         debug('Notifying: ', param);
-        if (param.forced || param.attack || !opt_retalsOnly) notify(title, body, param.honorBar, param.href);
+        if (param.forced || param.attack || !opt_retalsOnly) notify(title, body, param.image, param.href);
     }
 
     function processNewNodes(nodeList, forced=false) {
-        log('[processNewNodes] nodeList: ', nodeList);
+        log('[processNewNodes] nodeList: ', forced, nodeList);
         let newLi = targetNode.firstChild;
         for (let i=0; i<nodeList.length; i++) {
             let id = '';
@@ -101,6 +102,13 @@
                 debug('honorBar: ', honorBar);
             }
 
+            let facNode = newNode.getElementsByClassName('factionWrap___O4hN7')[1];
+            let facImage = null;
+            if (facNode) {
+                let imgNode = facNode.querySelector('a > img');
+                if (imgNode) facImage = imgNode.getAttribute('src');
+            }
+
             let respNode = newNode.getElementsByClassName('respect')[0];
             if (respNode) { // See if classList has 'green' or 'red' ? Or just respect > 0?
                 let valNode = respNode.parentNode.querySelector('.respect > span');
@@ -110,7 +118,7 @@
                 if (valNode.textContent == 'Lost') lost = true;
                 if ($(valNode).hasClass('red')) attack = true;
                 if ($(valNode).hasClass('green')) attack = false;
-                let userObj = {'ID': id, 'honorBar': honorBar, 'href': href, 'attack': attack, 'forced': forced};
+                let userObj = {'ID': id, 'image': (facImage ? facImage : honorBar), 'href': href, 'attack': attack, 'forced': forced};
 
                 if (forced || attack || !opt_retalsOnly) {
                     if (id && !assist && !lost) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
@@ -134,7 +142,8 @@
         if (!document.querySelector("#xedx-test-ui")) $(target).after(miniUI);
 
         $('#xedx-btn').click(function() {
-          if (targetNode) processNewNodes([targetNode.firstChild], true);
+            if (targetNode) processNewNodes([targetNode.firstChild], true);
+            //if (targetNode) processNewNodes([targetNode.querySelectorAll('li')[3]], true);
         });
 
         $("#xedx-retal-only")[0].checked = GM_getValue("opt_retalsOnly", opt_retalsOnly);
