@@ -19,6 +19,10 @@ Superscript only works for the listed characters.<br>
 8. ``__***underline bold italics***__`` ==> TBD 
 9. ``3^2, 2^3, A^+, B^-, 78^.`` ==> superscript 3<sup>2</sup>, 2<sup>3</sup>, A<sup>+</sup>, B<sup>-</sup>, 78&deg;
 
+Any text that you wish to remain unchanged, if it contains the formatting characters, can be wrapped with 'codeblock' identifiers: double 'tick' marks, the character beneath the tilde. For example: <br>
+
+In this sentence, ```` ``this will _remain_ *unchanged*`` ```` (the double tick marks will not display)
+
 
 ### Emojis:
 
