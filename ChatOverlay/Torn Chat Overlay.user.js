@@ -1,14 +1,13 @@
 // ==UserScript==
-// @name         Torn Chat Overlays
+// @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tribute.js
-// @local        file://///Users/edlau/Documents/Tampermonkey Scripts/Helpers/tribute.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -23,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = false;
+    const devMode = true;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
@@ -257,6 +256,8 @@
     const cursive_lcOffset    = LC_SHIFT(0x1D4EA);
     const cursive_ucOffset    = UC_SHIFT(0x1D4D0);
 
+    var codeblocks = []; // Temp storage for codeblocks
+
     function genericStrToUnicode(inStr, lcOffset, ucOffset) {
         let outStr = '';
         let isItalicSerif = (lcOffset == italic_lcOffset);
@@ -330,11 +331,17 @@
 
         return outStr;
     }
+    function strToCodeblock(inStr) {
+        let workStr = inStr.replaceAll('`', '');
+        codeblocks.push(workStr);
+        return 'CODEBLOCK';
+    }
 
     // Text conversion main function, calls appropriate functions as specified markup matches.
     function internalFormatText(messageText) {
         debug('[internalFormatText] text input', messageText);
 
+        const codeblockRegex = /(\`\`)([^\`]*)(\`\`)/gi;
         const italicBoldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
         const italicSSRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
@@ -351,6 +358,15 @@
                 outMsg += (emojiArray[i].code + ' ');
             }
             return outMsg;
+        }
+
+        // codeblocks: must be first. This will replace codeblocks with a string to be replaced again, at the end.
+        codeblocks = [];
+        let codeblockMatches = messageText.match(codeblockRegex);
+        debug('[internalFormatText] codeblock matches', codeblockMatches);
+        if (codeblockMatches) {
+            codeblockMatches.forEach(e => (messageText = messageText.replace(e, strToCodeblock(e))));
+            debug('[internalFormatText] codeblockMatches replaced: ', messageText);
         }
 
         // ***Bold and italic***, before both bold and italic
@@ -428,6 +444,17 @@
             debug('[internalFormatText] replaced: ', messageText);
         }
         */
+
+        // Fixup codeblocks
+        if (codeblocks.length) {
+            debug('Codeblock raw: ', messageText);
+            let block = codeblocks.shift();
+            while (block) {
+                messageText = messageText.replace('CODEBLOCK', block);
+                block = codeblocks.shift();
+            }
+            debug('Codeblock replaced: ', messageText);
+        }
 
         debug('[internalFormatText] text output', messageText);
         return messageText;
@@ -526,10 +553,10 @@
         debug('[processAddedNodes]');
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
-            debug('Target node ', target, ' being added!');
+            //debug('Target node ', target, ' being added!');
 
             let ta = target ? target.querySelector('.chat-box-input_1Nsmp > div > textarea') : null;
-            debug('textarea: ', ta);
+            //debug('textarea: ', ta);
             if (ta) addChatOverlay(ta);
             let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
             if (iconNode) {
@@ -544,7 +571,7 @@
         debug('[processRemovedNodes]');
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
-            debug('Target node ', target, ' being removed!');
+            //debug('Target node ', target, ' being removed!');
             let iconNode = target ? target.getElementsByClassName('icon_chat_active')[0] : null;
             if (iconNode) {
                 $(iconNode).removeClass('icon_chat_active');
