@@ -20,11 +20,11 @@
     var universalGet = null;
     var universalPost = null;
 
-    if (apikey != '###PDA-APIKEY###') {
+    if (apikey != '###PDA-APIKEY###') { // Won't work, replaced after called
         universalGet = function(url) {PDA_httpGet(url)}
         universalPost = function(url, headers, body) {PDA_httpPost(url, headers, body)}
     } else {
-        apikey = '4ZMAvIBON4zZLrd9';
+        apikey = '<my key here>';
         universalGet = function(url) {
             return new Promise(function(resolve, reject) {
                 var xhr = new XMLHttpRequest();
