@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Retal Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Monitor for retals avail. on chain page
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -22,13 +22,22 @@
     'use strict';
 
     const DEV_MODE = true; // true for additional logging and test link on top of page.
-    const NOTIFY_TIMEOUT_SECS = 10; // Seconds a notification will stay up, in seconds.
+    const NOTIFY_TIMEOUT_SECS = 5; // Seconds a notification will stay up, in seconds. 0 means forever.
 
-    var opt_retalsOnly = true; // false for debugging - will notify on wins as well as losses.
+    var opts = {'opt_retalsOnly': true, // false for debugging - will notify on wins as well as losses.
+                'opt_soundOn': true};   // true to play beep on retal
 
+    // Mutation observer for attacks list
     var targetNode = null;
     var observer = null;
-    var config = {attributes: false, childList: true, subtree: false};
+    const config = {attributes: false, childList: true, subtree: false};
+
+    const beepType = "sine";   // "sine", "square", "sawtooth", "triangle" (or 'custom', but then need to define a periodic wave function)
+    const beepFrequency = 440; // In hertz, 440 is middle A
+    const volume = .5;         // Volume, 0-1
+    var beeping = false;       // true if currently beeping, false otherwie
+    var beepInt = 0;           // ID of interval timer
+    var muted = false;         // Audio on/off
 
     debugLoggingEnabled = DEV_MODE;
 
@@ -40,6 +49,8 @@
                        '<button id="xedx-btn" class="xedx-btn">Retal Watcher</button>' +
                        '<input type="checkbox" class="xcbx" id="xedx-retal-only" name="retal" checked>' +
                        '<label for="retal"><span style="margin-left: 15px;">Retal Only</span></label>' +
+                       '<input type="checkbox" class="xcbx" id="xedx-sound-on" name="sound" checked>' +
+                       '<label for="sound"><span style="margin-left: 15px;">Volume On</span></label>' +
                    '</div>';
 
     function notify(title, notifyText, notifyImage, profileURL) {
@@ -56,11 +67,39 @@
 
             if (NOTIFY_TIMEOUT_SECS) setTimeout(() => {notification.close()}, NOTIFY_TIMEOUT_SECS * 1000);
             notification.onclick = () => {
+                beepingOff();
                 notification.close();
                 window.open(profileURL, '_blank');
             };
-            notification.onclose = () => {notification.close()};
+            notification.onclose = () => {
+                beepingOff();
+                notification.close()}
+            ;
         }
+
+        if (opts.opt_soundOn) {
+            beepingOn();
+            if (NOTIFY_TIMEOUT_SECS) setTimeout(beepingOff, NOTIFY_TIMEOUT_SECS * 1000);
+        }
+    }
+
+    function doBeep() {
+        beep(null, beepFrequency, volume, beepType);
+    }
+
+    function beepingOn() {
+        if (!muted && !beeping && !beepInt) {
+            log('[beepingOn]');
+            beepInt = setInterval(doBeep, 1000);
+            beeping = true;
+        }
+    }
+
+    function beepingOff() {
+        log('[beepingOff]');
+        if (beepInt) clearInterval(beepInt);
+        beeping = false;
+        beepInt = 0;
     }
 
     function userQueryCB(responseText, ID, param) {
@@ -79,7 +118,7 @@
         let title = 'Retal: ' + (jsonObj ? jsonObj.name : ID);
         let body = 'Click to attack!';
         debug('Notifying: ', param);
-        if (param.forced || param.attack || !opt_retalsOnly) notify(title, body, param.image, param.href);
+        if (param.forced || param.attack || !opts.opt_retalsOnly) notify(title, body, param.image, param.href);
     }
 
     function processNewNodes(nodeList, forced=false) {
@@ -120,7 +159,7 @@
                 if ($(valNode).hasClass('green')) attack = false;
                 let userObj = {'ID': id, 'image': (facImage ? facImage : honorBar), 'href': href, 'attack': attack, 'forced': forced};
 
-                if (forced || attack || !opt_retalsOnly) {
+                if (forced || attack || !opts.opt_retalsOnly) {
                     if (id && !assist && !lost) xedx_TornUserQuery(id, 'basic', userQueryCB, userObj);
                 }
             }
@@ -137,6 +176,7 @@
     };
 
     function addMiniUI() {
+        log('[addMiniUI] ==>');
         let target = document.querySelector("#factions > div.content-title.m-bottom10");
         if (!target) return setTimeout(handlePageLoad, 50);
         if (!document.querySelector("#xedx-test-ui")) $(target).after(miniUI);
@@ -146,12 +186,21 @@
             //if (targetNode) processNewNodes([targetNode.querySelectorAll('li')[3]], true);
         });
 
-        $("#xedx-retal-only")[0].checked = GM_getValue("opt_retalsOnly", opt_retalsOnly);
+        $("#xedx-retal-only")[0].checked = GM_getValue("opt_retalsOnly", opts.opt_retalsOnly);
         $("#xedx-retal-only")[0].addEventListener("click", function() {
-            opt_retalsOnly = this.checked;
-            GM_setValue("opt_retalsOnly", opt_retalsOnly);
-            debug('Retal Only set to: ', opt_retalsOnly);
+            opts.opt_retalsOnly = this.checked;
+            GM_setValue("opt_retalsOnly", opts.opt_retalsOnly);
+            debug('Retal Only set to: ', opts.opt_retalsOnly);
         });
+
+        $("#xedx-sound-on")[0].checked = GM_getValue("opt_soundOn", opts.opt_soundOn);
+        $("#xedx-sound-on")[0].addEventListener("click", function() {
+            opts.opt_soundOn = this.checked;
+            GM_setValue("opt_soundOn", opts.opt_soundOn);
+            debug('Volume On set to: ', opts.opt_soundOn);
+        });
+
+        log('<== [addMiniUI] opts:', opts);
     }
 
     function handlePageLoad() {
