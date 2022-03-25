@@ -42,6 +42,7 @@ queryUserId(callback)<br>
 logScriptStart()<br>
 sleep(ms)<br>
 callOnContentLoaded(callback)<br>
+installHashChangeHandler(callback)<br>
 versionCheck()<br>
 log(...data)<br>
 debug(...data)<br>
