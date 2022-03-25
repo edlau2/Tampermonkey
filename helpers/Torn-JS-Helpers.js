@@ -1,19 +1,21 @@
 // ==UserScript==
 // @exclude     *
 // @namespace   https://github.com/edlau2
+// @grant       GM_getValue
+// @grant       GM_setValue
+// @grant       GM_deleteValue
 
 // ==UserLibrary==
 // @name        Torn-JS-Helpers
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
-// @updateURL   https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect     api.torn.com
 // @connect     www.tornstats.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.26
+// @version     2.27
 // @license     MIT
 // ==/UserLibrary==
 
@@ -80,6 +82,13 @@ function callOnContentLoaded(callback) {
     }
 }
 
+// Install an event listener for hash change notifications
+function installHashChangeHandler(callback) {
+    window.addEventListener('hashchange', function() {
+    log('The hash has changed! new hash: ' + location.hash);
+    callback();}, false);
+}
+
 // Store latest version info and notify if updated.
 var silentUpdates = false;
 function versionCheck() {
@@ -118,7 +127,6 @@ function debug(...data) {
 //   callback to use on end of tone
 var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
 function beep(duration, frequency, volume, type, callback) {
-    log('Beeping speaker!');
     var oscillator = audioCtx.createOscillator();
     var gainNode = audioCtx.createGain();
 
@@ -480,7 +488,12 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
             'Accept': '*/*'
         },
         onload: function(response) {
-            callback(response.responseText, ID, param);
+            // Check status code here: 429
+            console.log('TornStat response: ', response);
+            //if (response.status != 200) {
+            //} else {
+                callback(response.responseText, ID, param);
+            //}
         },
         onerror: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onerror');
