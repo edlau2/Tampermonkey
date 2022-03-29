@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      2.0
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -21,6 +21,8 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+
+// @ignore      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 
 (function() {
     'use strict';
@@ -185,10 +187,9 @@
             let keys = Object.keys(obj);
             for (let i=0; i<keys.length; i++) {
                 let stats = obj[keys[i]].oppStatsLow;
-                log('stats: ', stats);
                 if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
                 log('stats: ', stats);
-                values.push(stats);
+                if (!isNaN(stats) && stats != Infinity) values.push(stats);
             }
         } catch(e) {
             log('[customBatStatEstCB] Error: ', e);
