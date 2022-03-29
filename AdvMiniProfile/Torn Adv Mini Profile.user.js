@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/*
@@ -222,7 +222,7 @@
                 log('stats: ', stats);
                 if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
                 log('stats: ', stats);
-                values.push(stats);
+                if (!isNaN(stats) && stats != Infinity) values.push(stats);
             }
         } catch(e) {
             log('[customBatStatEstCB] Error: ', e);
