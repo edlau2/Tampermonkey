@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/index.php?page=people*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_listValues
@@ -25,9 +26,11 @@
     const displayRank = true;
     const displayHealth = true;
     const displayLastAction = true;
+    const autoRefreshSecs = 30; // If > 0, refresh the page every 'n' seconds.
+    var   autoRefreshId = 0;
 
     const loggingEnabled = true;
-    var requestsPaused = false;
+    var   requestsPaused = false;
 
     // Cache 'lifetime', time to expire
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
@@ -36,15 +39,26 @@
     //const cacheMaxSecs = 180 * 1000; // 3 min in ms
     //const cacheMaxSecs = 60 * 1000; // 1 min in ms
 
+    const ulRootContainerName = 'travel-people';
+    const ulRootClassName = 'users-list';
+    var targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
+    const config = { attributes: true, childList: true, subtree: true };
+    const callback = function(mutationsList, observer) {updateUserLevels('Mutation Observer!');};
+    var observer = null;
+
     const recoverableErrors = [5, // Too many requests
                                8, // IP Block
                                9, // API disabled
                                ];
 
+    GM_addStyle(`.xedx-cached {float: right; margin-left: 10px; font-size: 12px; color:red;}
+                 .xedx-notcached {float: right; margin-left: 10px; font-size: 12px; color:green;}
+    `);
+
     // Global cache of ID->Rank associations
     var rank_cache = [{ID: 0, numeric_rank: 0, access: 0}];
     function newCacheItem(ID, rank, la, curr, max) {
-        return {ID: ID, numeric_rank: rank, la: la, lifec: curr, lifem: max, access: new Date().getTime()};
+        return {ID: ID, numeric_rank: rank, la: la, lifec: curr, lifem: max, access: new Date().getTime(), fromCache: false};
     }
 
     // Queue of rank from ID requests, from the Torn API
@@ -132,8 +146,17 @@
         let ul = li.querySelector("div.center-side-bottom.left > ul");
         let div = li.querySelector("div.center-side-bottom.left");
 
-        if (displayHealth) $(div).append('<span style="float: right; margin-left: 50px; font-size: 12px;"> ' + lifeCurr + '/' + lifeMax + '</span>');
-        if (statusNode && displayLastAction) statusNode.textContent = statusNode.textContent + ' ' + la;
+        if (displayHealth) {
+            if (cacheObj.fromCache) {
+                $(div).append('<span class="xedx-cached"> ' + lifeCurr + '/' + lifeMax + '</span>');
+            } else {
+                $(div).append('<span class="xedx-notcached"> ' + lifeCurr + '/' + lifeMax + '</span>');
+            }
+        }
+        if (statusNode && displayLastAction) {
+            la = la.replace('minutes', 'min');
+            statusNode.textContent = statusNode.textContent + ' ' + la;
+        }
         if (displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
 
         observer.observe(targetNode, config);
@@ -161,6 +184,7 @@
             cacheObj.access = now;
             rank_cache.push(cacheObj);
             log("Returning storage cached rank: " + ID + " ==> " + cacheObj.numeric_rank);
+            cacheObj.fromCache = true;
             updateLiWithRank(li, cacheObj);
             return cacheObj.numeric_rank;
         }
@@ -241,6 +265,27 @@
         }
 
         log('Finished iterating ' + items.length + ' users, ' + rank_cache.length + ' cache entries.');
+
+        // If configured, reload periodically
+        if (autoRefreshSecs) {
+            let interval = autoRefreshSecs*1000;
+            setTimeout(refreshCB, interval);
+        }
+    }
+
+    function refreshCB() {
+        let interval = autoRefreshSecs*1000;
+        log('Auto-refreshing in ' + interval + ' secs');
+        location.reload();
+        setTimeout(refreshCB, interval);
+    }
+
+    function startObserver() {
+        if (targetNode) targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
+        if (!targetNode) return setTimeout(startObserver, 100);
+
+        observer = new MutationObserver(callback);
+        observer.observe(targetNode, config);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -248,45 +293,27 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    if (!abroad()) return;
+
     validateApiKey();
     versionCheck();
 
-    try {
-        if (!abroad()) {
-            log('Not Abroad! Bailing...');
-            return;
-        }
+    // Update on hashchange - doesn't seem to trigger, internal pagination instead.
+    window.addEventListener('hashchange', function() {
+        log('The hash has changed! new hash: ' + location.hash);
+        updateUserLevels('Hash Change Detected!');}, false);
 
-        window.addEventListener('hashchange', function() { // Never gets hit, pages reload when abroad on pagination
-                log('The hash has changed! new hash: ' + location.hash);
-                updateUserLevels('Hash Change Detected!');
-            }, false);
+    // Check for expired cache entries at intervals, half max cache age.
+    setInterval(function() {clearStorageCache();}, (0.5*cacheMaxSecs));
 
-        // setInterval(writeCacheStats, 5000); // Debugging - check on cache.
-        setInterval(function() {
-            log('**** Performing interval driven cache clearing ****');
-            clearStorageCache();},
-                    (0.5*cacheMaxSecs)); // Check for expired cache entries at intervals, half max cache age.
+    // If configured, reload periodically
+    //if (autoRefreshSecs) setInterval(location.reload(), autoRefreshSecs*1000);
 
-        //var contentRootName = "content";
-        var ulRootContainerName = 'travel-people';
-        var ulRootClassName = 'users-list';
-        var targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
-        var config = { attributes: true, childList: true, subtree: true };
-        var callback = function(mutationsList, observer) {
-            updateUserLevels('Mutation Observer!');
-        };
+    // Start a mutation observer
+    startObserver();
 
-        var observer = new MutationObserver(callback);
-        observer.observe(targetNode, config);
-
-        // If *already* loaded, go ahead...
-        if (document.readyState === 'complete') {
-            updateUserLevels('Ready State Complete!');
-        }
-    } catch(e) {
-        log('Error:', e);
-    }
+    // If *already* loaded, go ahead, otherwise triggered by the observer
+    if (document.readyState === 'complete') updateUserLevels('Ready State Complete!');
 
 })();
 
