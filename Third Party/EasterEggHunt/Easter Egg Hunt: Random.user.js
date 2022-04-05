@@ -23,7 +23,7 @@ const linksarray = ["index.php","city.php","jobs.php","gym.php","properties.php"
                     "shops.php?step=jewelry","shops.php?step=nikeh","shops.php?step=pawnshop","shops.php?step=pharmacy","pmarket.php",
                     "shops.php?step=postoffice","shops.php?step=super","shops.php?step=candy","shops.php?step=clothes","imarket.php",
                     "estateagents.php","bazaar.php","calendar.php","token_shop.php","freebies.php","comics.php","joblist.php",
-                    "newspaper_class.php","personals.php","chronicles.php","bounties.php","trade.php","sendcash.php","usersonline.php",
+                    "newspaper_class.php","personals.php","chronicles.php","bounties.php","trade.php","usersonline.php",
                     "profiles.php?XID=","forums.php"];
 
 const travellinksarray = ["index.php","newspaper.php","messages.php","events.php","page.php?sid=stocks","profiles.php?XID=",
