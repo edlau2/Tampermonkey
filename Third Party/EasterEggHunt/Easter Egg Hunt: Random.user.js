@@ -56,6 +56,7 @@ installHashChangeHandler(() => {setTimeout(() => {insertTravel(document.getEleme
 
 var observer = new MutationObserver(function(mutations) {
 
+    log('mutation observer');
     setTimeout(() => {insertTravel(document.getElementById("skip-to-content"), true);}, 500);
 
     if (document.contains(document.getElementById('sidebar'))) {
@@ -82,7 +83,7 @@ var observer = new MutationObserver(function(mutations) {
         }
 });
 
-observer.observe(document, {attributes: false, childList: true, characterData: false, subtree:true});
+observer.observe(document, {attributes: true, childList: true, characterData: false, subtree:true});
 
 if (url.includes("laptop.php") || url.includes("forums.php")) {
     if ($('#body').data('traveling') == true) {
@@ -102,7 +103,10 @@ if (url.includes("laptop.php") || url.includes("forums.php")) {
 var retries = 0;
 function insertTravel(travelHeader, xedxtest = false) {
 
-    if (document.getElementById('easterrandom2')) return;
+    log('insertTravel');
+    if (document.getElementById('easterrandom2')) {
+        return;
+    }
     if (xedxtest) {
         log('href: ', location.href);
         log('Inserting easteregg link: ', travelHeader);
