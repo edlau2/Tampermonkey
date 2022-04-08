@@ -15,7 +15,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.27
+// @version     2.28
 // @license     MIT
 // ==/UserLibrary==
 
@@ -30,12 +30,22 @@
 
 var api_key = GM_getValue('gm_api_key');
 
-function validateApiKey() {
-    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-        api_key = prompt(GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
+async function validateApiKey(type = null) {
+    let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
                          "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.", "");
+                         "Your key is kept private and not shared with anyone.";
+    if (type == 'FULL')
+        text += '\n\nA full access key is required!';
+    else
+        text += '\n\nOnly limited access is required';
+
+    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
+        api_key = prompt(text, "");
         GM_setValue('gm_api_key', api_key);
+    }
+
+    if (type == 'FULL') {
+
     }
 }
 
@@ -565,6 +575,11 @@ function handleError(responseText) {
         if (jsonResp.error.code == 2) {
             errorText += '\n\n It appears that the API key entered or saved for you ' +
                 'is incorrect. Please try refreshing the page, you will be prompted again for your API key.\n';
+            GM_setValue('gm_api_key', '');
+        }
+
+        if (jsonResp.error.code == 16) {
+            errorText += '\n\nPlease try refreshing the page, you will be prompted again for your API key.\n';
             GM_setValue('gm_api_key', '');
         }
 
