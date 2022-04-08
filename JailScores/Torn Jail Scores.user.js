@@ -134,7 +134,7 @@
         addJailScores();
     }
 
-    // Start a mutation observer to run on page changes (unused)
+    // Start a mutation observer to run on page changes
     function installObserver() {
         targetNode = document.getElementById('mainContainer');
         const callback = function(mutationsList, observer) {
@@ -153,6 +153,8 @@
     logScriptStart();
     validateApiKey();
     versionCheck();
+
+    installHashChangeHandler(addJailScores);
 
     // Start by kicking off a few API calls.
     personalStatsQuery();
