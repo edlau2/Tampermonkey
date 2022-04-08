@@ -5,7 +5,8 @@
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file:///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @grant        GM_getValue
@@ -22,7 +23,7 @@
 // The formulas used in here are taken from this forum post:
 // https://www.torn.com/forums.php#/p=threads&f=61&t=16192039&b=0&a=0
 
-(function($) {
+(async function($) {
     'use strict';
 
     debugLoggingEnabled = false;
@@ -36,10 +37,7 @@
     var penalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
 
-    /////////////////////////////////////////////////////////////////////////
     // Helper to parse a time string (33h 14m format), converting to minutes
-    /////////////////////////////////////////////////////////////////////////
-
     function parseJailTimeStr(timeStr) {
         var hour = 0;
         var minute = 0;
@@ -58,15 +56,24 @@
         var minutes = parseInt(hour) * 60 + parseInt(minute);
         return minutes;
     }
-    
-    // Helper to calculate chance of success
-    // a = 266.6 [-] , b = 0.427 [- / minute]
-    const a = 266.6;
-    const b = .427;
-    function successRate(difficulty, skill, penalty) {
-        let rate = a - b * (difficulty/skill) - penalty;
-        log('Success rate: ', rate);
-        return rate;
+
+    // Helper to calculate chance of success a = 266.6 [-] , b = 0.427 [- / minute]
+    const a = 266.6, b = 0.427;
+    function getSuccessRate(difficulty, skill, penalty) {
+        let successRate = a - b * (difficulty/skill) - penalty;
+        debug('Difficulty: ', difficulty, ' Skill: ', skill, ' Penalty: ', penalty);
+        debug('Success rate: ', successRate);
+        return successRate;
+    }
+
+    function getSkill() {
+
+        return 1;
+    }
+
+    function getPenalty() {
+
+        return 1;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -91,20 +98,48 @@
 
             let minutes = parseJailTimeStr(timeStr);
             let score = (minutes + 180) * parseInt(lvlStr);
-            log('Score: ', score); // Log ID also
-            
+            debug('Score: ', score); // Log ID also
+
             // Calc success rate
-            let sr = successRate(score, skill, penalty);
+            let sr = getSuccessRate(score, skill, penalty);
 
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") ";
+            wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") "; //" - " + sr + ") ";
          }
     }
 
+    // https://api.torn.com/user/?selections=log&log=5360,5362&key=6Mz2yBmCG0frJQAf
+
+    //////////////////////////////////////////////////////////////////////
     // Get data used to calc success chance via the Torn API
+    //////////////////////////////////////////////////////////////////////
+
+    // Query the log for past busts
+    function queryPastBusts() {
+        log('[queryPastBusts]');
+        xedx_TornUserQuery(null, 'timestamp,log&log=5360,5362', queryPastBustsCB);
+    }
+
+    // Callback for above
+    function queryPastBustsCB(responseText, ID) {
+        log('[queryPastBustsCB] ');
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {
+            log('Response error! ', jsonResp.error);
+            return handleError(responseText);
+        }
+
+        // Process past busts
+        processPastBusts(jsonResp);
+
+        // Now get personal stats, perks, level
+        personalStatsQuery();
+    }
+
+    // Query personal stats (unused?), perks, basic info (for level)
     function personalStatsQuery() {
-        log('Calling xedx_TornUserQuery');
+        log('[personalStatsQuery]');
         xedx_TornUserQuery(null, 'personalstats,perks,basic', personalStatsQueryCB);
     }
 
@@ -150,7 +185,31 @@
         addJailScores();
     }
 
-    // Start a mutation observer to run on page changes
+    //////////////////////////////////////////////////////////////////////
+    // Parse past busts from the log
+    //////////////////////////////////////////////////////////////////////
+
+    const oldestTimeMinutes = 72 * 60; // 72 hours, in minutes.
+    function processPastBusts(obj) {
+        log('[processPastBusts]');
+        let timeNow = obj.timestamp; // In seconds since epoch
+        let bustLog = obj.log;
+        let keys = Object.keys(bustLog);
+
+        for (let i=0; i<keys.length; i++) {
+            let key = keys[i];
+            let entry = bustLog[key];
+            let ageMinutes = Math.ceil((timeNow - entry.timestamp) / 60); // Minutes
+            if (ageMinutes > oldestTimeMinutes) break; // Older than 72 hours, doesn't matter.
+            log('Entry: ', entry);
+            log('Time: ', ageMinutes + ' minutes ago.');
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Start a mutation observer to run on page changes (unused)
+    //////////////////////////////////////////////////////////////////////
+
     function installObserver() {
         targetNode = document.getElementById('mainContainer');
         const callback = function(mutationsList, observer) {
@@ -167,13 +226,14 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    validateApiKey();
+    validateApiKey('FULL');
     versionCheck();
 
     installHashChangeHandler(addJailScores);
 
     // Start by kicking off a few API calls.
-    personalStatsQuery();
+    queryPastBusts(); // Callback then queries stats, perks, basic. Could do all in one call.
+    //personalStatsQuery();
 
 })();
 
