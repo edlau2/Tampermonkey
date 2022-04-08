@@ -60,7 +60,7 @@
     // Helper to calculate chance of success a = 266.6 [-] , b = 0.427 [- / minute]
     const a = 266.6, b = 0.427;
     function getSuccessRate(difficulty, skill, penalty) {
-        let successRate = a - b * (difficulty/skill) - penalty;
+        let successRate = a - (b * (difficulty/skill)) - penalty;
         debug('Difficulty: ', difficulty, ' Skill: ', skill, ' Penalty: ', penalty);
         debug('Success rate: ', successRate);
         return successRate;
@@ -71,8 +71,11 @@
         return 1;
     }
 
+    // c = 0.1 [-/h]
+    const c = 0.1;
     function getPenalty() {
 
+        let penalty_t = p0 / (1 + c * t);
         return 1;
     }
 
@@ -161,6 +164,7 @@
         debug('personalstats: ', personalstats);
         debug('facPerks: ', facPerks);
         debug('eduPerks: ', eduPerks);
+        debug('jobPerks: ', jobPerks);
         debug('level: ', userLvl);
 
         // From fac perks, see what (if any) 'bust success' increase there is
