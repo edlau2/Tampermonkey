@@ -32,6 +32,8 @@
     var targetNode = null;
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false};
+    var skill = 1; // TBD
+    var penalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
 
     /////////////////////////////////////////////////////////////////////////
@@ -56,6 +58,16 @@
         var minutes = parseInt(hour) * 60 + parseInt(minute);
         return minutes;
     }
+    
+    // Helper to calculate chance of success
+    // a = 266.6 [-] , b = 0.427 [- / minute]
+    const a = 266.6;
+    const b = .427;
+    function successRate(difficulty, skill, penalty) {
+        let rate = a - b * (difficulty/skill) - penalty;
+        log('Success rate: ', rate);
+        return rate;
+    }
 
     //////////////////////////////////////////////////////////////////////
     // This adds the 'score' to the level column in the Jail view
@@ -77,8 +89,12 @@
             var lvlStr = wrapper.children[1].innerText;
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
 
-            var minutes = parseJailTimeStr(timeStr);
-            var score = (minutes + 180) * parseInt(lvlStr);
+            let minutes = parseJailTimeStr(timeStr);
+            let score = (minutes + 180) * parseInt(lvlStr);
+            log('Score: ', score); // Log ID also
+            
+            // Calc success rate
+            let sr = successRate(score, skill, penalty);
 
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
