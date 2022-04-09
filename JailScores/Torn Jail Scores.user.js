@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local      file:///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file:///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @grant        GM_getValue
@@ -67,16 +67,14 @@
     }
 
     function getSkill() {
-
         return 1;
     }
 
     // c = 0.1 [-/h]
     const c = 0.1;
     function getPenalty() {
-
-        let penalty_t = p0 / (1 + c * t);
-        return 1;
+        let penalty_t = p0 / (1 + (c * t));
+        return 0;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -121,7 +119,9 @@
     // Query the log for past busts
     function queryPastBusts() {
         log('[queryPastBusts]');
-        xedx_TornUserQuery(null, 'timestamp,log&log=5360,5362', queryPastBustsCB);
+        //let queryStr = 'timestamp,log&log=5360,5362';
+        let queryStr = 'timestamp,log&log=5360';
+        xedx_TornUserQuery(null, queryStr, queryPastBustsCB);
     }
 
     // Callback for above
