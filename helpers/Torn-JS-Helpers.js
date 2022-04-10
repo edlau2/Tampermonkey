@@ -1,28 +1,22 @@
 // ==UserScript==
-// @exclude     *
-// @namespace   https://github.com/edlau2
-// @grant       GM_getValue
-// @grant       GM_setValue
-// @grant       GM_deleteValue
-
-// ==UserLibrary==
 // @name        Torn-JS-Helpers
+// @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
 // @connect     api.torn.com
 // @connect     www.tornstats.com
+// @exclude     *
 // @grant       GM_xmlhttpRequest
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.28
+// @version     2.29
 // @license     MIT
-// ==/UserLibrary==
-
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
+/*eslint curly: 0*/
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Validate an API key and prompt if misssing
@@ -589,6 +583,7 @@ function handleError(responseText) {
         errorLogged = true;
     }
 }
+
 function handleSysError(response, addlText=null) {
     let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
         response.error;
@@ -600,14 +595,53 @@ function handleSysError(response, addlText=null) {
     console.log(response.error);
 }
 
+// Just a nifty little helper so I cn see the status of the page load.
+function addLoadingLights() {
+    if (document.querySelector("xedx-lights")) return;
+    const targetSel = "#topHeaderBanner > div.header-wrapper-top > div";
+    GM_addStyle(`
+     .topcorner {position:absolute; top: 0px; right: 0px; width: 117px; height: 39px; color: #a7b9ca;}
+     .icon-enabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
+                    background: url(/images/v2/chat/tab_icons.svg) left top;
+                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
+     .icon-disabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
+                    background: url(/images/v2/chat/tab_icons.svg) -68px top;
+                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
+    `);
+    const miniUI = '<div id="xedx-lights" class="topcorner">' +
+                   '<i id="xloading" class="icon-disabled"></i>' +
+                   '<i id="xinteractive" class="icon-disabled"></i>' +
+                   '<i id="xcomplete" class="icon-disabled"></i>' +
+               '</div>';
+    const toggleLightIcon = function (id) {
+        let node = document.getElementById('x' + id);
+        $(node).removeClass('icon-disabled');
+        $(node).addClass('icon-enabled');
+    }
+
+    document.onreadystatechange = function () {toggleLightIcon(document.readyState);}
+    let target = document.querySelector(targetSel);
+    if (!target) return setTimeout(addLoadingLights, 50);
+    if (!document.querySelector("xedx-lights")) $(target).after(miniUI);
+
+    if (document.readyState == 'loading') toggleLightIcon('loading');
+    if (document.readyState == 'interactive') {
+        toggleLightIcon('loading');
+        toggleLightIcon('interactive');
+    }
+    if (document.readyState == 'complete') {
+        toggleLightIcon('loading');
+        toggleLightIcon('interactive');
+        toggleLightIcon('complete');
+    }
+}
+
 /**
  * @auther SM@K<smali.kazmi@hotmail.com>
  * @description website: smak.pk
+ * usage: alert(SmartPhone.isAny());
+ * if (SmartPhone.isAny()) {...}
  */
-
-// usage: alert(SmartPhone.isAny());
-// if (SmartPhone.isAny()) {...}
-
 (function() { // SmartPhone = function(obj) {
     var root = this;
     var SmartPhone = function(obj) {
