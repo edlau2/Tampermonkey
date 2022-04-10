@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.29
+// @version     2.30
 // @license     MIT
 // ==/UserScript==
 
@@ -77,12 +77,22 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Call the callback once page content laoded.
+// Call the callback once page content loaded (readystate is still interactive)
 function callOnContentLoaded(callback) {
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', callback);
     } else {
         callback();
+    }
+}
+
+// Call the callback once page content loading is complete (readystate is complete)
+function callOnContentComplete(callback) {
+    if (document.readyState == 'complete') {
+        callback();
+    } else {
+        document.addEventListener('readystatechange',
+            event => {if (document.readyState == 'complete') callback();});
     }
 }
 
