@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Easter Egg Hunt: Random
 // @namespace    Heasleys.randomeasteregghunt
-// @version      1.6.5
+// @version      1.6.6
 // @description  Creates a link in sidebar to a random page on Torn. Thanks Vulture!
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @author       Heasleys4hemp [1468764]
@@ -16,13 +16,13 @@
 const linksarray = ["index.php","city.php","jobs.php","gym.php","properties.php","education.php",
                     "crimes.php","loader.php?sid=missions","newspaper.php","jailview.php","hospitalview.php",
                     "casino.php","halloffame.php","factions.php","competition.php",
-                    "friendlist.php","blacklist.php","messages.php","events.php","awards.php","points.php","rules.php",
-                    "staff.php","credits.php","citystats.php","committee.php","bank.php","donator.php","page.php?sid=stocks",
+                    "friendlist.php","blacklist.php","messages.php",/*"events.php",*/"awards.php","points.php","rules.php",
+                    "staff.php","credits.php","citystats.php","committee.php","bank.php","donator.php",/*"page.php?sid=stocks",*/
                     "fans.php","museum.php","loader.php?sid=racing","church.php","dump.php","loan.php","travelagency.php",
                     "amarket.php","bigalgunshop.php","shops.php?step=bitsnbobs","shops.php?step=cyberforce","shops.php?step=docks",
                     "shops.php?step=jewelry","shops.php?step=nikeh","shops.php?step=pawnshop","shops.php?step=pharmacy","pmarket.php",
                     "shops.php?step=postoffice","shops.php?step=super","shops.php?step=candy","shops.php?step=clothes","imarket.php",
-                    "estateagents.php","bazaar.php","calendar.php","token_shop.php","freebies.php","comics.php","joblist.php",
+                    "estateagents.php",/*"bazaar.php",*/"calendar.php",/*"token_shop.php",*/"freebies.php","comics.php","joblist.php",
                     "newspaper_class.php","personals.php","chronicles.php","bounties.php","trade.php","usersonline.php",
                     "profiles.php?XID=","forums.php"];
 
@@ -53,6 +53,7 @@ const profilesarray = ["1","148747","323969","1046304","1448555","1637698","1701
 var url = window.location.toString();
 
 installHashChangeHandler(() => {setTimeout(() => {insertTravel(document.getElementById("skip-to-content"), true);}, 500)});
+callOnContentComplete(() => {insertTravel(document.getElementById("skip-to-content"))}); // Complete
 
 var observer = new MutationObserver(function(mutations) {
 
@@ -100,20 +101,26 @@ if (url.includes("laptop.php") || url.includes("forums.php")) {
 }
 
 
-var retries = 0;
+var retries = 0; // Might not need this anymore
 function insertTravel(travelHeader, xedxtest = false) {
 
     log('insertTravel');
     if (document.getElementById('easterrandom2')) {
+        log('Link already inserted');
         return;
     }
     if (xedxtest) {
         log('href: ', location.href);
         log('Inserting easteregg link: ', travelHeader);
-        if (!travelHeader && retries++ < 3) {
+        if (!travelHeader && retries++ < 3) { // Might not need this anymore
+            log('(Retrying)');
             return setTimeout(() => {insertTravel(document.getElementById("skip-to-content"), true);}, 500);
         }
         retries = 0;
+        if (!travelHeader) {
+            log('header not found, bailing.');
+            return;
+        }
     }
 
    let travelspans = `
@@ -129,13 +136,15 @@ function insertTravel(travelHeader, xedxtest = false) {
     travelrandomLink.setAttribute('class', 't-clear h c-pointer m-icon line-h24 right last');
     travelrandomLink.innerHTML = travelspans;
 
-    let link = getRandomLink(xedxtest ? "normal" : "travel");
+    let link = getRandomLink((xedxtest && !abroad()) ? "normal" : "travel");
     travelrandomLink.setAttribute('href', link);
 
     if (travelHeader.id == "top-page-links-list") {
+        log('Appended link, top-page-links-list');
         travelHeader.append(travelrandomLink);
     }
     if (travelHeader.id == "skip-to-content") {
+        log('Inserted link, skip-to-content');
         travelHeader.parentNode.insertBefore(travelrandomLink, travelHeader);
     }
 
