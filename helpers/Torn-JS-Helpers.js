@@ -95,12 +95,12 @@ function installHashChangeHandler(callback) {
 
 // Store latest version info and notify if updated.
 var silentUpdates = false;
-function versionCheck() {
+function versionCheck(silent=false) {
     let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
     if (Number(GM_info.script.version) > Number(curr_ver)) {
         let msg = 'Your version of ' + GM_info.script.name + ' has been updated to version ' + GM_info.script.version +
               ' ! Press OK to continue.';
-        if (!silentUpdates) {alert(msg);}
+        if (!silentUpdates && !silent) {alert(msg);}
         console.log(msg);
     }
     GM_setValue('curr_ver', GM_info.script.version);
