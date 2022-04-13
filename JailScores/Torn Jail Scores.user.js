@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
@@ -26,6 +26,8 @@
 (async function($) {
     'use strict';
 
+    const DEV_MODE = false;
+
     debugLoggingEnabled = false;
     loggingEnabled = true;
 
@@ -33,6 +35,7 @@
     var targetNode = null;
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false};
+    var userLvl = 0;
     var skill = 1; // TBD
     var penalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
@@ -58,11 +61,25 @@
     }
 
     // Helper to calculate chance of success a = 266.6 [-] , b = 0.427 [- / minute]
-    const a = 266.6, b = 0.427;
+    // SR = -.286(diff/lvl) + 271.43
+    //const a = 266.6, b = 0.427;
     function getSuccessRate(difficulty, skill, penalty) {
-        let successRate = a - (b * (difficulty/skill)) - penalty;
+        const a = 266.6, b = 0.427;
+        let successRate = Math.floor(a - (b * (difficulty/skill)) - penalty);
+        if (successRate > 100) successRate = 100;
+        if (successRate < 0) successRate = 0;
         debug('Difficulty: ', difficulty, ' Skill: ', skill, ' Penalty: ', penalty);
         debug('Success rate: ', successRate);
+        return successRate;
+    }
+
+    // Helper to get mac success rate, assuming max perks and over 1,000 bust (max bustXP)
+    function getMaxSuccessRate(difficulty, buster_level) {
+        const a = -0.286, b = 271.43;
+        let successRate = Math.ceil(a * (difficulty/buster_level) + b);
+
+        if (successRate > 100) successRate = 100;
+        if (successRate < 0) successRate = 0;
         return successRate;
     }
 
@@ -103,10 +120,16 @@
 
             // Calc success rate
             let sr = getSuccessRate(score, skill, penalty);
+            let maxSR = getMaxSuccessRate(score, userLvl);
 
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") "; //" - " + sr + ") ";
+
+            if (DEV_MODE) {
+                wrapper.children[1].innerText = lvlStr + " (" + scoreStr + " - " + maxSR + "%) ";
+            } else {
+                wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") ";
+            }
          }
     }
 
@@ -136,7 +159,8 @@
         // Process past busts
         processPastBusts(jsonResp);
 
-        // Now get personal stats, perks, level
+        // Now get personal stats, perks, level. Could do as one call.
+        // Logically easier to do in two, easier to debug also.
         personalStatsQuery();
     }
 
@@ -159,7 +183,7 @@
         let facPerks = jsonResp.faction_perks;
         let eduPerks = jsonResp.education_perks;
         let jobPerks = jsonResp.job_perks;
-        let userLvl = jsonResp.level;
+        userLvl = jsonResp.level;
 
         debug('personalstats: ', personalstats);
         debug('facPerks: ', facPerks);
@@ -237,7 +261,6 @@
 
     // Start by kicking off a few API calls.
     queryPastBusts(); // Callback then queries stats, perks, basic. Could do all in one call.
-    //personalStatsQuery();
 
 })();
 
