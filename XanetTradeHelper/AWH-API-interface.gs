@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_API_INTERFACE_VERSION_INTERNAL = '1.7';
+var XANET_API_INTERFACE_VERSION_INTERNAL = '1.8';
 
 /////////////////////////////////////////////////////////////////////////////
 // Globalsa
@@ -192,16 +192,42 @@ function readPriceList() {
     }
   }
 
+  // In order to match vlookup, 'index' is 1-based (col number)
+// 'range' is an array, use range.getValues.
+//
+//function vlookupscript(search_key, rangeArr, matchIndex, returnIndex) {
+
   // Now add the set prices.
   if (opts.opt_calcSetPointPrices) {
-    retJSON.museum_sets.push({"type": "exotic-flowers", "price": priceSheet().getRange('D7').getValue()});
-    retJSON.museum_sets.push({"type": "plushies", "price": priceSheet().getRange('D7').getValue()});
+    retJSON.museum_sets.push({"type": "exotic-flowers", "price": getSetPointPrice()});
+    retJSON.museum_sets.push({"type": "plushies", "price": getSetPointPrice()});
   } else {
-    retJSON.museum_sets.push({"type": "exotic-flowers", "price": priceSheet().getRange('D33').getValue()});
-    retJSON.museum_sets.push({"type": "plushies", "price": priceSheet().getRange('D21').getValue()});
+    retJSON.museum_sets.push({"type": "exotic-flowers", "price": getFlowerSetPrice()});
+    retJSON.museum_sets.push({"type": "plushies", "price": getPlushieSetPrice()});
   }
 
   return {"JSON": retJSON, "arr": retArray};
+}
+
+function getSetPointPrice() {
+  let range = priceSheet().getRange('A7:B100').getValues();
+  let price = vlookupscript("Set Price (points based)", range, 1, 2);
+  log('Found set point price: ', price);
+  return price;
+}
+
+function getPlushieSetPrice() {
+  let range = priceSheet().getRange('A7:B100').getValues();
+  let price = vlookupscript("Plushie Set (item based)", range, 1, 2);
+  log('Found plushie set price: ', price);
+  return price;
+}
+
+function getFlowerSetPrice() {
+  let range = priceSheet().getRange('A7:B100').getValues();
+  let price = vlookupscript("Flower Set (item based)", range, 1, 2);
+  log('Found flower set price: ', price);
+  return price;
 }
 
 /////////////////////////////////////////////////////////////////////////////
