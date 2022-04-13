@@ -136,7 +136,7 @@ function insertTravel(travelHeader, xedxtest = false) {
     travelrandomLink.setAttribute('class', 't-clear h c-pointer m-icon line-h24 right last');
     travelrandomLink.innerHTML = travelspans;
 
-    let link = getRandomLink((xedxtest && !abroad()) ? "normal" : "travel");
+    let link = getRandomLink(!abroad() ? "normal" : "travel");
     travelrandomLink.setAttribute('href', link);
 
     if (travelHeader.id == "top-page-links-list") {
@@ -170,7 +170,7 @@ function insertNormal() {
     var href = document.createElement('a');
     href.setAttribute('class', 'desktopLink___1p2Dr');
 
-    let link = getRandomLink("normal");
+    let link = getRandomLink(!abroad() ? "normal" : "travel");
     href.setAttribute('href', link);
 
     href.innerHTML = easterspans;
@@ -182,7 +182,7 @@ function insertNormal() {
     randomLink.addEventListener('click', function() {
         let url = window.location.toString();
         if( url.includes(href.getAttribute('href')) ) {
-            let link = getRandomLink("normal");
+            let link = getRandomLink(!abroad() ? "normal" : "travel");
             href.setAttribute('href', link);
         }
 
