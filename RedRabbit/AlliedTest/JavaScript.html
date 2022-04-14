@@ -1,0 +1,25 @@
+<script>
+  /*
+  * This function calls the getData() function in the main .gs file, 
+  * nad passes the retuned data array to the showData() function.
+  */
+  google.script.run.withSuccessHandler(showData).getData();
+ 
+  /*
+   * This builds the returned HTML !!!
+   */ 
+  // This function can fill in index.html, using data from the returned array.
+  // Do whatever I want here; reference via HTML ID's
+  function showData(dataArray) {
+    console.log('[showData]');
+    console.log('dataArray: ', dataArray);
+    $(document).ready(function(){
+      console.log('data ready');
+      console.log('UL node: ', $('lkbx-list'));
+      for (let i=0; i<dataArray.length; i++) {
+        console.log('Appending "' + dataArray[i] + '" to UL');
+        $('#lkbx-list').append('<li>' + dataArray[i] + '</li>');
+      }
+    });
+  }
+</script>
