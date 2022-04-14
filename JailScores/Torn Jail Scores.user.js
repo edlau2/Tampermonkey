@@ -23,7 +23,7 @@
 // The formulas used in here are taken from this forum post:
 // https://www.torn.com/forums.php#/p=threads&f=61&t=16192039&b=0&a=0
 
-(async function($) {
+(async function() {
     'use strict';
 
     const DEV_MODE = false;
@@ -37,7 +37,7 @@
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false};
     var userLvl = 0;
     var skill = 1; // TBD
-    var penalty = 1; // TBD
+    var totalPenalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
 
     // Helper to parse a time string (33h 14m format), converting to minutes
@@ -60,38 +60,49 @@
         return minutes;
     }
 
+    // Determine the penaly score for one bust, given time since (in hours)
+    const c = 0.1;
+    function getPenalty(p0, t) {
+        let penalty_t =  (t >= 72) ? 0 : (p0 / (1 + (c * t)));
+        log('[getPenalty] p0: ', p0, ' t: ', t, ' Oenalty: ', penalty_t);
+        return penalty_t;
+    }
+
+    // Determine p0, based on ... (TBD)
+    function getP0(level=0) {
+        return 17;
+    }
+
+    // Determine skill, based on perks, BS, and level (??? - TBD)
+    function getSkill() {
+        return userLvl;
+    }
+
     // Helper to calculate chance of success a = 266.6 [-] , b = 0.427 [- / minute]
     // SR = -.286(diff/lvl) + 271.43
     //const a = 266.6, b = 0.427;
     function getSuccessRate(difficulty, skill, penalty) {
         const a = 266.6, b = 0.427;
         let successRate = Math.floor(a - (b * (difficulty/skill)) - penalty);
+
         if (successRate > 100) successRate = 100;
         if (successRate < 0) successRate = 0;
+
         debug('Difficulty: ', difficulty, ' Skill: ', skill, ' Penalty: ', penalty);
         debug('Success rate: ', successRate);
+
         return successRate;
     }
 
-    // Helper to get mac success rate, assuming max perks and over 1,000 bust (max bustXP)
-    function getMaxSuccessRate(difficulty, buster_level) {
+    // Helper to get max success rate, assuming max perks and over 1,000 bust (max bustXP)
+    function getMaxSuccessRate(difficulty, buster_level, penalty) {
         const a = -0.286, b = 271.43;
-        let successRate = Math.ceil(a * (difficulty/buster_level) + b);
+        let successRate = Math.ceil((a * (difficulty/buster_level) + b) - penalty);
 
         if (successRate > 100) successRate = 100;
         if (successRate < 0) successRate = 0;
+
         return successRate;
-    }
-
-    function getSkill() {
-        return 1;
-    }
-
-    // c = 0.1 [-/h]
-    const c = 0.1;
-    function getPenalty() {
-        let penalty_t = p0 / (1 + (c * t));
-        return 0;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -109,6 +120,9 @@
             // Get the wrapper around the time and level (and reason)
             let wrapper = items[i].getElementsByClassName("info-wrap")[0];
             if (!validPointer(wrapper)) {continue;}
+            let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
+
+            debug('wrapper: ', wrapper);
 
             var timeStr = wrapper.children[0].innerText;
             var lvlStr = wrapper.children[1].innerText;
@@ -116,11 +130,13 @@
 
             let minutes = parseJailTimeStr(timeStr);
             let score = (minutes + 180) * parseInt(lvlStr);
-            debug('Score: ', score); // Log ID also
 
             // Calc success rate
-            let sr = getSuccessRate(score, skill, penalty);
-            let maxSR = getMaxSuccessRate(score, userLvl);
+            let sr = getSuccessRate(score, getSkill(), totalPenalty);
+            let maxSR = getMaxSuccessRate(score, userLvl, totalPenalty);
+
+            log('name: ', name, ' Time: ', timeStr, ' Level: ', lvlStr, 'Difficulty: ', score);
+            log('SuccessRate: ', sr, '%', ', MaxSuccessRate: ', maxSR, '%');
 
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -223,6 +239,7 @@
         let timeNow = obj.timestamp; // In seconds since epoch
         let bustLog = obj.log;
         let keys = Object.keys(bustLog);
+        totalPenalty = 0;
 
         for (let i=0; i<keys.length; i++) {
             let key = keys[i];
@@ -231,7 +248,10 @@
             if (ageMinutes > oldestTimeMinutes) break; // Older than 72 hours, doesn't matter.
             log('Entry: ', entry);
             log('Time: ', ageMinutes + ' minutes ago.');
+
+            totalPenalty += getPenalty(getP0(), ageMinutes/60);
         }
+        log('Total penalty: ', totalPenalty);
     }
 
     //////////////////////////////////////////////////////////////////////
