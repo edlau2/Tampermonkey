@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <!-- Note: filename (index.html) is determined from req params. -->
+  <!-- based on file, can include custom JS files, to cusomize the -->
+  <!-- getData()/showData() functions, if required. For now, just one -->
+  <head>
+    <base target="_top">
+    <!--Include required JS and CSS style sheets -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+
+    <!-- Include JavaScript.html file, launches on ready. This fills the HTML, below -->
+    <?!= include('JavaScript'); ?>
+
+    <!-- Inline CSS for now, replace with style sheet -->
+    <!--link rel="stylesheet" type="text/css" href="??.min.css"-->
+    <style>
+      .container {display: flex; justify-content: center;}
+    </style>
+
+  </head>
+  <body>
+    <!-- Write the boady here, can fill using the script in JavaScript.html -->
+    <!-- Try to create tables, UL's, etc. to make this easy. -->
+    <div class="container">
+      <h1>Lockbox Services:</h1>      
+      <ul id="lkbx-list">
+
+      </ul>
+      <!-- img src="https://profileimages.torn.com/49da9f72-7463-6c31-2100735.jpg" -->
+    </div>
+  </body>
+</html>
