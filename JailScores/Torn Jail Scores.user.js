@@ -36,9 +36,12 @@
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false};
     var userLvl = 0;
+    var inLawFirm = false;
     var skill = 1; // TBD
     var totalPenalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
+
+    const round2 = function(e) {return Number(e).toFixed(2)}
 
     // Helper to parse a time string (33h 14m format), converting to minutes
     function parseJailTimeStr(timeStr) {
@@ -64,7 +67,7 @@
     const c = 0.1;
     function getPenalty(p0, t) {
         let penalty_t =  (t >= 72) ? 0 : (p0 / (1 + (c * t)));
-        log('[getPenalty] p0: ', p0, ' t: ', t, ' Oenalty: ', penalty_t);
+        debug('[getPenalty] p0: ', p0, ' t: ', t, ' Penalty: ', penalty_t);
         return penalty_t;
     }
 
@@ -82,6 +85,7 @@
     // SR = -.286(diff/lvl) + 271.43
     //const a = 266.6, b = 0.427;
     function getSuccessRate(difficulty, skill, penalty) {
+        debug('[getSuccessRate]');
         const a = 266.6, b = 0.427;
         let successRate = Math.floor(a - (b * (difficulty/skill)) - penalty);
 
@@ -96,11 +100,15 @@
 
     // Helper to get max success rate, assuming max perks and over 1,000 bust (max bustXP)
     function getMaxSuccessRate(difficulty, buster_level, penalty) {
+        debug('[getMaxSuccessRate]');
         const a = -0.286, b = 271.43;
         let successRate = Math.ceil((a * (difficulty/buster_level) + b) - penalty);
 
         if (successRate > 100) successRate = 100;
         if (successRate < 0) successRate = 0;
+
+        debug('Difficulty: ', difficulty, ' buster_level: ', buster_level, ' Penalty: ', penalty);
+        debug('Max Success rate: ', successRate);
 
         return successRate;
     }
@@ -122,7 +130,7 @@
             if (!validPointer(wrapper)) {continue;}
             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
 
-            debug('wrapper: ', wrapper);
+            //debug('wrapper: ', wrapper);
 
             var timeStr = wrapper.children[0].innerText;
             var lvlStr = wrapper.children[1].innerText;
@@ -183,7 +191,7 @@
     // Query personal stats (unused?), perks, basic info (for level)
     function personalStatsQuery() {
         log('[personalStatsQuery]');
-        xedx_TornUserQuery(null, 'personalstats,perks,basic', personalStatsQueryCB);
+        xedx_TornUserQuery(null, 'personalstats,perks,basic,profile', personalStatsQueryCB);
     }
 
     // Callback for above
@@ -199,13 +207,16 @@
         let facPerks = jsonResp.faction_perks;
         let eduPerks = jsonResp.education_perks;
         let jobPerks = jsonResp.job_perks;
+        let jobType = jsonResp.job.company_type;
         userLvl = jsonResp.level;
+        inLawFirm = (jobType == 2);
 
         debug('personalstats: ', personalstats);
         debug('facPerks: ', facPerks);
         debug('eduPerks: ', eduPerks);
         debug('jobPerks: ', jobPerks);
-        debug('level: ', userLvl);
+        log('company_type: ', jobType, ' In Law Firm? ', inLawFirm); // '2' is in Law Firm.
+        log('user level: ', userLvl);
 
         // From fac perks, see what (if any) 'bust success' increase there is
         for (let i=0; i<facPerks.length; i++) {
@@ -235,6 +246,7 @@
 
     const oldestTimeMinutes = 72 * 60; // 72 hours, in minutes.
     function processPastBusts(obj) {
+        let pastBustsStats = [];
         log('[processPastBusts]');
         let timeNow = obj.timestamp; // In seconds since epoch
         let bustLog = obj.log;
@@ -246,12 +258,16 @@
             let entry = bustLog[key];
             let ageMinutes = Math.ceil((timeNow - entry.timestamp) / 60); // Minutes
             if (ageMinutes > oldestTimeMinutes) break; // Older than 72 hours, doesn't matter.
-            log('Entry: ', entry);
-            log('Time: ', ageMinutes + ' minutes ago.');
+            debug('Entry: ', entry);
+            debug('Time: ', ageMinutes + ' minutes ago.');
 
-            totalPenalty += getPenalty(getP0(), ageMinutes/60);
+            let indPenalty = getPenalty(getP0(), ageMinutes/60);
+            totalPenalty += indPenalty;
+
+            pastBustsStats.push({'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
         }
-        log('Total penalty: ', totalPenalty);
+        log('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
+        log('pastBustsStats: ', pastBustsStats);
     }
 
     //////////////////////////////////////////////////////////////////////
