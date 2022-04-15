@@ -28,7 +28,7 @@
 
     const DEV_MODE = true;
 
-    debugLoggingEnabled = false;
+    debugLoggingEnabled = true;
     loggingEnabled = true;
 
     // Global vars
@@ -348,6 +348,9 @@
     installObserver();
 
     // Start by kicking off a few API calls.
+    queryPastBusts();
+
+    // Install the 'save' button
     if (DEV_MODE) callOnContentComplete(installUI);
 
 })();
