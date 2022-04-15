@@ -26,9 +26,9 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = true;
+    const DEV_MODE = false;
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
     loggingEnabled = true;
 
     // Global vars
