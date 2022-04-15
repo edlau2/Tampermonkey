@@ -26,7 +26,7 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = false;
+    const DEV_MODE = true;
 
     debugLoggingEnabled = false;
     loggingEnabled = true;
@@ -312,6 +312,30 @@
         observerOn();
     }
 
+    function handleSaveButton() {
+        // Build data to save here:
+        let saveData = {"perks": perks, 'level': userLvl};
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(saveData, null, 2)], {
+            type: "text/plain"
+          }));
+        a.setAttribute("download", "data.txt");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    const saveBtnDiv = `<div id="xedx-save-btn" class="btn-wrap silver" style="float: right;">
+                            <span class="btn"><input type="submit" class="torn-btn" value="Save Log" style="margin-bottom: 5px;"></span>
+                        </div>`;
+    function installUI() {
+        let parent = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.msg-info-wrap > div > div > div > div");
+        //if (!parent) return setTimeout(installUI, 500);
+        $(parent).append(saveBtnDiv);
+        $("#xedx-save-btn").on('click', handleSaveButton);
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Main entry point. 
     //////////////////////////////////////////////////////////////////////
@@ -324,7 +348,7 @@
     installObserver();
 
     // Start by kicking off a few API calls.
-    queryPastBusts(); // Callback then queries stats, perks, basic. Could do all in one call.
+    if (DEV_MODE) callOnContentComplete(installUI);
 
 })();
 
