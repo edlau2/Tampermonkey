@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
@@ -34,7 +34,7 @@
     // Global vars
     var targetNode = null;
     var observer = null;
-    var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false};
+    var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false, 'totalBusts': 0};
     var userLvl = 0;
     var inLawFirm = false;
     var skill = 1; // TBD
@@ -210,6 +210,7 @@
         let jobType = jsonResp.job.company_type;
         userLvl = jsonResp.level;
         inLawFirm = (jobType == 2);
+        perks.totalBusts = personalstats.peoplebusted;
 
         debug('personalstats: ', personalstats);
         debug('facPerks: ', facPerks);
@@ -271,18 +272,44 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Start a mutation observer to run on page changes (unused)
+    // Start a mutation observer to run on page changes
     //////////////////////////////////////////////////////////////////////
 
+    const observerOn = function () {
+        debug('[observerOn]');
+        if (observer) observer.observe(targetNode, config);
+    }
+
+    const observerOff = function () {
+        debug('[observerOff]');
+        if (observer) observer.disconnect();
+    }
+
     function installObserver() {
-        targetNode = document.getElementById('mainContainer');
+        //targetNode = document.getElementById('mainContainer');
+        targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul")
         const callback = function(mutationsList, observer) {
-            observer.disconnect();
-            addJailScores();
-            observer.observe(targetNode, config);
+            debug('Observer CB');
+            observerOff();
+            for (let mutation of mutationsList) {
+                //log('mutation.type: ', mutation.type);
+                if (mutation.type === 'childList') {
+                    debug('Mutation Detected: A child node has been added or removed.');
+                    for (let i=0; i<mutation.addedNodes.length; i++) {
+                        let node = mutation.addedNodes[i];
+                        debug('Added node: ', node);
+                        if ($(node).hasClass('ajax-action')) {
+                            log('Bust action: ', node.textContent);
+                        }
+                    }
+                }
+            }
+            targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul")
+            observerOn();
         };
         observer = new MutationObserver(callback);
-        observer.observe(targetNode, config);
+        log('Starting mutation observer: ', targetNode);
+        observerOn();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -294,6 +321,7 @@
     versionCheck();
 
     installHashChangeHandler(addJailScores);
+    installObserver();
 
     // Start by kicking off a few API calls.
     queryPastBusts(); // Callback then queries stats, perks, basic. Could do all in one call.
