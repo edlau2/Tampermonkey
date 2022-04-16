@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
@@ -26,7 +26,7 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = false;
+    const DEV_MODE = true;
 
     debugLoggingEnabled = false;
     loggingEnabled = true;
@@ -35,6 +35,7 @@
     var targetNode = null;
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false, 'totalBusts': 0};
+    var pastBustsStats = [];
     var userLvl = 0;
     var inLawFirm = false;
     var skill = 1; // TBD
@@ -124,6 +125,13 @@
         var items = elemList[0].getElementsByTagName("li");
         if (items.length <= 1) {return setTimeout(addJailScores, 250);}
 
+        // Header
+        let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > div.users-list-title.title-black > span.level");
+        log('Title Bar: ', titleBar, ' Score: ', document.querySelector("#score"));
+        if (!document.querySelector("#score")) {
+            $(titleBar).after('<span id="score" class="level">Score</span>');
+        }
+
         for (var i = 0; i < items.length; ++i) {
             // Get the wrapper around the time and level (and reason)
             let wrapper = items[i].getElementsByClassName("info-wrap")[0];
@@ -149,11 +157,20 @@
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
+            // Have 4 modes of display: (TBD)
+            // none (just collects data), difficulty/score only, SR only, both.
+            /*
             if (DEV_MODE) {
                 wrapper.children[1].innerText = lvlStr + " (" + scoreStr + " - " + maxSR + "%) ";
             } else {
                 wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") ";
             }
+            */
+
+            let newLi = '<span class="level"><span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
+            $(wrapper.children[1]).next().css('width', '200px');
+            $(wrapper.children[1]).after(newLi);
+
          }
     }
 
@@ -164,15 +181,15 @@
     //////////////////////////////////////////////////////////////////////
 
     // Query the log for past busts
-    function queryPastBusts() {
+    function queryPastBusts(queryStats=true) {
         log('[queryPastBusts]');
         //let queryStr = 'timestamp,log&log=5360,5362';
         let queryStr = 'timestamp,log&log=5360';
-        xedx_TornUserQuery(null, queryStr, queryPastBustsCB);
+        xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
     }
 
     // Callback for above
-    function queryPastBustsCB(responseText, ID) {
+    function queryPastBustsCB(responseText, ID, param) {
         log('[queryPastBustsCB] ');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
@@ -185,7 +202,7 @@
 
         // Now get personal stats, perks, level. Could do as one call.
         // Logically easier to do in two, easier to debug also.
-        personalStatsQuery();
+        if (param) personalStatsQuery();
     }
 
     // Query personal stats (unused?), perks, basic info (for level)
@@ -247,7 +264,7 @@
 
     const oldestTimeMinutes = 72 * 60; // 72 hours, in minutes.
     function processPastBusts(obj) {
-        let pastBustsStats = [];
+        pastBustsStats.length = 0;
         log('[processPastBusts]');
         let timeNow = obj.timestamp; // In seconds since epoch
         let bustLog = obj.log;
@@ -285,10 +302,7 @@
         if (observer) observer.disconnect();
     }
 
-    function installObserver() {
-        //targetNode = document.getElementById('mainContainer');
-        targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul")
-        const callback = function(mutationsList, observer) {
+    const observerCallback = function(mutationsList, observer) {
             debug('Observer CB');
             observerOff();
             for (let mutation of mutationsList) {
@@ -299,7 +313,23 @@
                         let node = mutation.addedNodes[i];
                         debug('Added node: ', node);
                         if ($(node).hasClass('ajax-action')) {
-                            log('Bust action: ', node.textContent);
+                            let text = node.textContent;
+                            log('Bust action: ', text);
+                            if (text.toLowerCase().indexOf('you busted') > -1) {
+                                // Not long enough... (the 2 second wait)
+                                // Instead, manually add a new bust w/0 time elapsed,
+                                // and recalc penalty. And re-call 'addJailStats'...
+                                /*
+                                let indPenalty = getPenalty(getP0(), ageMinutes/60);
+                                totalPenalty += indPenalty;
+                                // Maybe .load() and refill just this?
+                                // var elemList = document.getElementsByClassName('user-info-list-wrap icons users-list bottom-round');
+                                // Add an ID to that? See the Hi/Lo script...
+                                //setTimeout(function() {queryPastBusts(false)}, 2000);
+                                */
+
+                                // TBD //
+                            }
                         }
                     }
                 }
@@ -307,7 +337,11 @@
             targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul")
             observerOn();
         };
-        observer = new MutationObserver(callback);
+
+    function installObserver() {
+        //targetNode = document.getElementById('mainContainer');
+        targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul");
+        observer = new MutationObserver(observerCallback);
         log('Starting mutation observer: ', targetNode);
         observerOn();
     }
@@ -330,6 +364,7 @@
                             <span class="btn"><input type="submit" class="torn-btn" value="Save Log" style="margin-bottom: 5px;"></span>
                         </div>`;
     function installUI() {
+        log('[installUI]');
         let parent = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.msg-info-wrap > div > div > div > div");
         //if (!parent) return setTimeout(installUI, 500);
         $(parent).append(saveBtnDiv);
