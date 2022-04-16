@@ -43,11 +43,29 @@
     function handleSearchKeypress(e) {
         debug('[handleSearchKeypress] ==> ', e.key);
         let target = e.target;
+        let facCtrls = document.querySelector("#faction-controls");
+
+        if (e.type == 'keydown' && e.key != 'Backspace') return;
+        if (e.type == 'keydown' && e.key == 'Backspace') {
+            log('Backspace: last: ', lastSearch, ' curr: ', currSearch);
+            lastElems.forEach(el => {$(el).removeClass('xedx-green');});
+            lastElems.length = 0;
+            facCtrls.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                $(el).removeClass('xedx-green');
+            });
+            facCtrls.querySelectorAll('[title^="' + lastSearch + '"]').forEach((el) => {
+                $(el).addClass('xedx-green');
+                lastElems.push(el);
+            });
+            //lastSearch = ???
+            currSearch = lastSearch;
+            return;
+        }
+
         lastSearch = $(target)[0].value;
         currSearch = $(target)[0].value + e.key;
         debug('Searching: ', currSearch);
 
-        let facCtrls = document.querySelector("#faction-controls");
         lastElems.forEach(el => {$(el).removeClass('xedx-green');});
         lastElems.length = 0;
 
@@ -69,6 +87,7 @@
         $(targetNode).append(searchDiv);
 
         $("#search").on("keypress", handleSearchKeypress);
+        $("#search").on("keydown", handleSearchKeypress);
     }
 
     //////////////////////////////////////////////////////////////////////
