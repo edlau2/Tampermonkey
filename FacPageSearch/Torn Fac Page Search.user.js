@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Page Search
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Add custom search bar to fac pages
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php?step=your*
@@ -21,7 +21,7 @@
 (function() {
     'use strict';
 
-    const searchDiv = `<div>
+    const searchDiv = `<div id="xedx-search">
         <hr class="delimiter-999 m-top10">
         <div>
             <label for="search">Search:</label>
@@ -31,8 +31,7 @@
 
     function addStyles() {
         GM_addStyle(`
-            .xedx-search-span {margin-top: 10px;}
-            .xedx-bdr {border: solid 2px red;}
+            .xedx-bdr {border: solid 1px red;}
             .xedx-green {background: lime;}
         `);
     }
@@ -43,51 +42,71 @@
     function handleSearchKeypress(e) {
         debug('[handleSearchKeypress] ==> ', e.key);
         let target = e.target;
-        let facCtrls = document.querySelector("#faction-controls");
+        let searchNode = document.querySelector("#faction-controls");
 
-        if (e.type == 'keydown' && e.key != 'Backspace') return;
-        if (e.type == 'keydown' && e.key == 'Backspace') {
-            log('Backspace: last: ', lastSearch, ' curr: ', currSearch);
-            lastElems.forEach(el => {$(el).removeClass('xedx-green');});
-            lastElems.length = 0;
-            facCtrls.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
-                $(el).removeClass('xedx-green');
-            });
-            facCtrls.querySelectorAll('[title^="' + lastSearch + '"]').forEach((el) => {
-                $(el).addClass('xedx-green');
-                lastElems.push(el);
-            });
-            //lastSearch = ???
-            currSearch = lastSearch;
+        // Special case, handled on keydown and backspace.
+        if (e.type == 'keydown') {
+            if (e.key == 'Backspace') {
+                log('Backspace: last: ', lastSearch, ' curr: ', currSearch);
+                lastElems.forEach(el => {$(el).removeClass('xedx-green');});
+                searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                    $(el).removeClass('xedx-green');
+                });
+                searchNode.querySelectorAll('[title^="' + lastSearch + '"]').forEach((el) => {
+                    $(el).addClass('xedx-green');
+                    lastElems.push(el);
+                });
+                let temp = lastSearch.slice(0, -1);
+                currSearch = lastSearch;
+                lastSearch = temp;
+            }
             return;
         }
 
         lastSearch = $(target)[0].value;
         currSearch = $(target)[0].value + e.key;
-        debug('Searching: ', currSearch);
 
+        // Remove previous highlights
         lastElems.forEach(el => {$(el).removeClass('xedx-green');});
         lastElems.length = 0;
 
-        facCtrls.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+        // Add new ones
+        searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
             $(el).addClass('xedx-green');
             lastElems.push(el);
         });
-
-        if (e.keyCode == 13) { // If the user has pressed enter
-            return false;
-        }
-        return true;
     }
 
+    function installUI() {
+        log('[installUI]');
+        $("#xedx-search").remove();
+        let targetNode = document.querySelector("#factions > ul");
+
+        if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
+            log('[installUI] inserting search div');
+            $(targetNode).append(searchDiv);
+
+            $("#search").on("keypress", handleSearchKeypress);
+            $("#search").on("keydown", handleSearchKeypress); // For backspace only
+        } else {
+            //setTimeout(installUI, 500);
+        }
+    }
+
+    // Called when the URL hash changes
+    function handleHashChange() {
+        $("#xedx-search").remove();
+        if (location.hash.indexOf('give-to-user') > -1 ||
+            location.hash.indexOf('pay-day') > -1) {
+            installUI()
+        }
+    }
+
+    // Called on document load complete
     function handlePageLoad() {
-        // https://www.torn.com/factions.php?step=your#/tab=controls
         let targetNode = document.querySelector("#factions > ul");
         if (!targetNode) return setTimeout(handlePageLoad, 50);
-        $(targetNode).append(searchDiv);
-
-        $("#search").on("keypress", handleSearchKeypress);
-        $("#search").on("keydown", handleSearchKeypress);
+        installUI();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -99,7 +118,7 @@
 
     addStyles();
 
-    // installHashChangeHandler(...)
-    callOnContentLoaded(handlePageLoad);
+    installHashChangeHandler(handleHashChange);
+    callOnContentComplete(handlePageLoad);
 
 })();
