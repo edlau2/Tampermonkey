@@ -33,6 +33,9 @@
     loggingEnabled = true;
 
     // Global vars
+    var autosort = false; // Unused
+    var selID = 'scorebtn'; // What to sort by (unused)
+    var savedSortOrder = '';
     var targetNode = null;
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false, 'totalBusts': 0};
@@ -84,7 +87,6 @@
     }
 
     // Helper to calculate chance of success a = 266.6 [-] , b = 0.427 [- / minute]
-    // SR = -.286(diff/lvl) + 271.43
     //const a = 266.6, b = 0.427;
     function getSuccessRate(difficulty, skill, penalty) {
         debug('[getSuccessRate]');
@@ -101,6 +103,7 @@
     }
 
     // Helper to get max success rate, assuming max perks and over 1,000 bust (max bustXP)
+    // SR = -.286(diff/lvl) + 271.43 - my calcs from his graph
     function getMaxSuccessRate(difficulty, buster_level, penalty) {
         debug('[getMaxSuccessRate]');
         const a = -0.286, b = 271.43;
@@ -147,8 +150,6 @@
             if (!validPointer(wrapper)) {continue;}
             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
 
-            //debug('wrapper: ', wrapper);
-
             var timeStr = wrapper.children[0].innerText;
             var lvlStr = wrapper.children[1].innerText;
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
@@ -167,16 +168,6 @@
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-            // Have 4 modes of display: (TBD)
-            // none (just collects data), difficulty/score only, SR only, both.
-            /*
-            if (DEV_MODE) {
-                wrapper.children[1].innerText = lvlStr + " (" + scoreStr + " - " + maxSR + "%) ";
-            } else {
-                wrapper.children[1].innerText = lvlStr + " (" + scoreStr + ") ";
-            }
-            */
-
             let newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
             $(wrapper.children[1]).next().css('width', '200px');
@@ -184,16 +175,19 @@
 
          }
 
-        //sortPage("span > span:nth-child(3)", "score");
+        savedSortOrder = GM_getValue('savedSortOrder', savedSortOrder);
+        if (savedSortOrder) handleTitleClick({target: {'id': savedSortOrder}});
     }
 
     // Handle clicking Time, Level or Score on the title bar
     // Sort, descending or ascending
     var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     function handleTitleClick(ev) {
-        let ID = ev.target.id;
         log('[handleTitleClick] ev: ', ev);
         log('[handleTitleClick] target ID: ', ev.target.id);
+
+        let ID = ev.target.id;
+        GM_setValue('savedSortOrder', ID);
 
         if (ID == 'level') {
             lLvlOrder = (lLvlOrder == 'asc') ? 'desc' : 'asc';
@@ -227,7 +221,6 @@
     // Query the log for past busts
     function queryPastBusts(queryStats=true) {
         log('[queryPastBusts]');
-        //let queryStr = 'timestamp,log&log=5360,5362';
         let queryStr = 'timestamp,log&log=5360';
         xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
     }
@@ -383,7 +376,6 @@
         };
 
     function installObserver() {
-        //targetNode = document.getElementById('mainContainer');
         targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul");
         observer = new MutationObserver(observerCallback);
         log('Starting mutation observer: ', targetNode);
@@ -404,27 +396,33 @@
         document.body.removeChild(a);
     }
 
-    const saveBtnDiv = `<div id="xedx-save-btn" class="btn-wrap silver" style="float: right;">
-                            <span class="btn"><input type="submit" class="torn-btn" value="Save Log" style="margin-bottom: 5px;"></span>
+    const saveBtnDiv = `<div class="btn-wrap silver xedx-box">
+                            <div id="xedx-save-btn"><span class="btn"><input type="submit" class="torn-btn xedx-span" value="Save Log"></span></div>
                         </div>`;
     function installUI() {
         log('[installUI]');
         let parent = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.msg-info-wrap > div > div > div > div");
-        //if (!parent) return setTimeout(installUI, 500);
         $(parent).append(saveBtnDiv);
         $("#xedx-save-btn").on('click', handleSaveButton);
+    }
 
-        GM_addStyle(`.score {width: 57px;}`);
+    function addStyles() {
+        GM_addStyle(`
+            .xedx-box {float: right; display: flex;}
+            .score {width: 57px;}
+            .xedx-span {margin-bottom: 5px; margin-left: 20px;}
+        `);
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Main entry point. 
+    // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
     validateApiKey('FULL');
     versionCheck();
 
+    addStyles();
     installHashChangeHandler(addJailScores);
     installObserver();
 
