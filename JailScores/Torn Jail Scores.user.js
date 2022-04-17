@@ -7,6 +7,7 @@
 // @include      https://www.torn.com/jailview.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @local      file:///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @grant        GM_getValue
@@ -126,10 +127,18 @@
         if (items.length <= 1) {return setTimeout(addJailScores, 250);}
 
         // Header
-        let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > div.users-list-title.title-black > span.level");
-        log('Title Bar: ', titleBar, ' Score: ', document.querySelector("#score"));
+        let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > div.users-list-title.title-black");
+        let levelNode = titleBar.querySelector("span.level");
+        debug('Title Bar: ', titleBar, ' Score: ', document.querySelector("#score"));
         if (!document.querySelector("#score")) {
-            $(titleBar).after('<span id="score" class="level">Score</span>');
+            $(levelNode).after('<span id="score" class="level">Score</span>');
+
+            titleBar.querySelector("span.time").setAttribute('id', 'time');
+            titleBar.querySelector("span.level").setAttribute('id', 'level');
+
+            $('#score').on('click', handleTitleClick);
+            $('#level').on('click', handleTitleClick);
+            $('#time').on('click', handleTitleClick);
         }
 
         for (var i = 0; i < items.length; ++i) {
@@ -145,6 +154,7 @@
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
 
             let minutes = parseJailTimeStr(timeStr);
+            wrapper.children[0].setAttribute('time', minutes); // For sorting
             let score = (minutes + 180) * parseInt(lvlStr);
 
             // Calc success rate
@@ -167,14 +177,48 @@
             }
             */
 
-            let newLi = '<span class="level"><span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
+            let newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+                        '<span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
             $(wrapper.children[1]).next().css('width', '200px');
             $(wrapper.children[1]).after(newLi);
 
          }
+
+        //sortPage("span > span:nth-child(3)", "score");
     }
 
-    // https://api.torn.com/user/?selections=log&log=5360,5362&key=6Mz2yBmCG0frJQAf
+    // Handle clicking Time, Level or Score on the title bar
+    // Sort, descending or ascending
+    var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
+    function handleTitleClick(ev) {
+        let ID = ev.target.id;
+        log('[handleTitleClick] ev: ', ev);
+        log('[handleTitleClick] target ID: ', ev.target.id);
+
+        if (ID == 'level') {
+            lLvlOrder = (lLvlOrder == 'asc') ? 'desc' : 'asc';
+            log('Sorting page by level, ', lLvlOrder);
+            sortPage("span > span:nth-child(2)", null, lLvlOrder);
+        }
+        if (ID == 'time') {
+            lTimeOrder = (lTimeOrder == 'asc') ? 'desc' : 'asc';
+            log('Sorting page by time, ', lTimeOrder);
+            sortPage("span > span:nth-child(1)", "time", lTimeOrder);
+        }
+        if (ID == 'score') {
+            lScoreOrder = (lScoreOrder == 'asc') ? 'desc' : 'asc';
+            log('Sorting page by score, ', lScoreOrder);
+            sortPage("span > span:nth-child(3)", "score", lScoreOrder);
+        }
+    }
+
+    // Sort jail list, by 'sel' (time, level, or score) and attr
+    function sortPage(sel, attr, ord) {
+        log('[sortPage]');
+        let jailList = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul");
+        let matches = $(jailList).children("li");
+        tinysort(matches, {selector: sel, attr: attr, order: ord});
+    }
 
     //////////////////////////////////////////////////////////////////////
     // Get data used to calc success chance via the Torn API
@@ -369,6 +413,8 @@
         //if (!parent) return setTimeout(installUI, 500);
         $(parent).append(saveBtnDiv);
         $("#xedx-save-btn").on('click', handleSaveButton);
+
+        GM_addStyle(`.score {width: 57px;}`);
     }
 
     //////////////////////////////////////////////////////////////////////
