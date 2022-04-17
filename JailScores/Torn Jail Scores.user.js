@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
@@ -33,9 +33,8 @@
     loggingEnabled = true;
 
     // Global vars
-    var autosort = false; // Unused
-    var selID = 'scorebtn'; // What to sort by (unused)
-    var savedSortOrder = '';
+    var savedSortId = '';
+    var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     var targetNode = null;
     var observer = null;
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false, 'totalBusts': 0};
@@ -175,19 +174,27 @@
 
          }
 
-        savedSortOrder = GM_getValue('savedSortOrder', savedSortOrder);
-        if (savedSortOrder) handleTitleClick({target: {'id': savedSortOrder}});
+        savedSortId = GM_getValue('savedSortId', savedSortId);
+        if (savedSortId) {
+            lLvlOrder = GM_getValue('lLvlOrder', lLvlOrder);
+            lTimeOrder = GM_getValue('lTimeOrder', lTimeOrder);
+            lScoreOrder = GM_getValue('lScoreOrder', lScoreOrder);
+            handleTitleClick({target: {'id': savedSortId}});
+        }
     }
 
     // Handle clicking Time, Level or Score on the title bar
     // Sort, descending or ascending
-    var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
+    //var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     function handleTitleClick(ev) {
         log('[handleTitleClick] ev: ', ev);
         log('[handleTitleClick] target ID: ', ev.target.id);
 
         let ID = ev.target.id;
-        GM_setValue('savedSortOrder', ID);
+        GM_setValue('savedSortId', ID);
+        GM_setValue('lLvlOrder', lLvlOrder);
+        GM_setValue('lTimeOrder', lTimeOrder);
+        GM_setValue('lScoreOrder', lScoreOrder);
 
         if (ID == 'level') {
             lLvlOrder = (lLvlOrder == 'asc') ? 'desc' : 'asc';
