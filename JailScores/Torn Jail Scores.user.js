@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @include      https://www.torn.com/jailview.php*
@@ -44,8 +44,26 @@
     var skill = 1; // TBD
     var totalPenalty = 1; // TBD
     const config = { attributes: false, childList: true, subtree: true };
-
     const round2 = function(e) {return Number(e).toFixed(2)}
+
+    // Logging helpers
+    var logEntries = {};
+    var logQueue = [];
+
+    setInterval(function() {_addLogEntry(logQueue.pop())}, 250); // Process log queue
+
+    function addLogEntry(obj, type) {
+        logQueue.push({'obj': obj, 'type': type});
+    }
+
+    function _addLogEntry(data) {
+        if (!data) return;
+        let obj = data.obj, type = data.type;
+        const timenow = Date.now();
+        const tornTimenow = Math.floor(timenow / 1000);
+        let entry = {'torntime': tornTimenow, 'type': type, 'data': obj};
+        logEntries[timenow] = entry;
+    }
 
     // Helper to parse a time string (33h 14m format), converting to minutes
     function parseJailTimeStr(timeStr) {
@@ -171,6 +189,9 @@
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
             $(wrapper.children[1]).next().css('width', '200px');
             $(wrapper.children[1]).after(newLi);
+
+            let saveData = {'name': name, 'time': timeStr, 'min': minutes, 'level':lvlStr, 'diff': score, 'sr': sr, 'msr': maxSR};
+            addLogEntry(saveData, 'SCORE');
 
          }
 
@@ -298,6 +319,9 @@
 
         log('Perks: ', perks);
 
+        let saveData = {"perks": perks, 'level': userLvl, 'ID': ID};
+        addLogEntry(saveData, 'PERKS');
+
         // Add jail scores to the page, and install an observer to monitor for page changes.
         addJailScores();
     }
@@ -326,10 +350,15 @@
             let indPenalty = getPenalty(getP0(), ageMinutes/60);
             totalPenalty += indPenalty;
 
-            pastBustsStats.push({'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
+            pastBustsStats.push({'timestamp': entry.timestamp, 'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
         }
         log('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
         log('pastBustsStats: ', pastBustsStats);
+
+        addLogEntry(pastBustsStats, 'OLDBUST');
+
+        let pData = {'p0': getP0(), 'totalP': round2(totalPenalty)};
+        addLogEntry(pData, 'PENALTY');
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -346,6 +375,7 @@
         if (observer) observer.disconnect();
     }
 
+    var intervalId = null;
     const observerCallback = function(mutationsList, observer) {
             debug('Observer CB');
             observerOff();
@@ -359,6 +389,18 @@
                         if ($(node).hasClass('ajax-action')) {
                             let text = node.textContent;
                             log('Bust action: ', text);
+
+                            // Need to get info from parent node - level, anme, time, etc...
+                            let li = node.parentNode.parentNode;
+                            let wrapper = li.getElementsByClassName("info-wrap")[0]; // 'li' is items[i]
+                            let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
+                            var timeStr = wrapper.children[0].innerText;
+                            var lvlStr = wrapper.children[1].innerText;
+                            let minutes = parseJailTimeStr(timeStr);
+
+                            let busteeData = {'name': name, 'time': timeStr, 'min': minutes, 'level':lvlStr};
+                            addLogEntry(busteeData, 'BUSTEE');
+
                             if (text.toLowerCase().indexOf('you busted') > -1) {
                                 // Not long enough... (the 2 second wait)
                                 // Instead, manually add a new bust w/0 time elapsed,
@@ -373,6 +415,10 @@
                                 */
 
                                 // TBD //
+                                if (!intervalId) intervalId = setInterval(() => {queryPastBusts(false)}, 5000);
+                                addLogEntry(text, 'OUT');
+                            } else {
+                                addLogEntry(text, 'CHECK');
                             }
                         }
                     }
@@ -391,10 +437,10 @@
 
     function handleSaveButton() {
         // Build data to save here:
-        let saveData = {"perks": perks, 'level': userLvl};
+        //let saveData = {"perks": perks, 'level': userLvl};
 
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(saveData, null, 2)], {
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(logEntries, null, 2)], {
             type: "text/plain"
           }));
         a.setAttribute("download", "data.txt");
