@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.30
+// @version     2.31
 // @license     MIT
 // ==/UserScript==
 
@@ -140,7 +140,7 @@ function debug(...data) {
 //   type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
 //   callback to use on end of tone
 var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
-function beep(duration, frequency, volume, type, callback) {
+function beep(duration=500, frequency=440, volume=1, type='sine', callback) {
     var oscillator = audioCtx.createOscillator();
     var gainNode = audioCtx.createGain();
 
@@ -605,7 +605,21 @@ function handleSysError(response, addlText=null) {
     console.log(response.error);
 }
 
-// Just a nifty little helper so I cn see the status of the page load.
+//--- Simulate a natural mouse-click sequence.
+function simulateMouseClick(targetNode) {
+    triggerMouseEvent (targetNode, "mouseover");
+    triggerMouseEvent (targetNode, "mousedown");
+    triggerMouseEvent (targetNode, "mouseup");
+    triggerMouseEvent (targetNode, "click");
+}
+
+function triggerMouseEvent (node, eventType) {
+    var clickEvent = document.createEvent ('MouseEvents');
+    clickEvent.initEvent (eventType, true, true);
+    node.dispatchEvent (clickEvent);
+}
+
+// Just a nifty little helper so I can see the status of the page load.
 function addLoadingLights() {
     if (document.querySelector("xedx-lights")) return;
     const targetSel = "#topHeaderBanner > div.header-wrapper-top > div";
