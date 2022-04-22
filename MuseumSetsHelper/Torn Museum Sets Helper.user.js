@@ -1,15 +1,13 @@
 // ==UserScript==
 // @name         Torn Museum Sets Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Helps determine when museum sets are complete in Item pages
 // @author       xedx [2100735]
 // @include      https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
-// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/tinysort.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
-// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
