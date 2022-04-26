@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.7';
+const UTILITIES_VERSION_INTERNAL = '2.8';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -40,7 +40,7 @@ function onEdit(e) {
   let sheetName = sheet.getName();
   if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
 
-  console.log('==> onEdit sheet: "', sheetName , '" range: ', e.range,  ' Old value: ', e.oldValue);
+  console.log('==> onEdit sheet: "', sheetName , '" range: ', e.range.columStart, ':', e.range.rowStart,  ' Old value: ', e.oldValue);
 
   if (sheetName == 'Sort Order') {
     if (opts.opt_autoSort) sortPriceCalc(ss);
@@ -55,7 +55,8 @@ function onEdit(e) {
       console.log('Detected change in names range or ID range! Verifying ID`s...');
 
       // Migrate changes to Sheet26...
-      if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+      // Only if name (col 1) and not miscellany (top 6 rows)
+      if (isRangeSingleCell(e.range) && e.range.columnStart == 1 && e.range.rowStart > 6) {
         if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
       }
       syncPriceCalcWithSheet26(ss);
@@ -303,8 +304,8 @@ function deepCopy(copyArray) {
 }
 
 // Helper to optionally log.
-function log(data) {
-  if (opts.opt_consoleLogging) console.log(data);
+function log(...data) {
+  if (opts.opt_consoleLogging) console.log(...data);
 }
 
 // Helpers to get various sheets by name
@@ -472,17 +473,26 @@ function isRangeSingleCell(range) {
 }
 
 function fixSheet26(range, oldValue, ss=null) {
-  log('Fixing up Sheet 26 ==>');
-  if (!isRangeSingleCell(range)) {
-    console.log('==> fixSheet26: unable to fix up, not a single cell: ', range);
-    return;
-  }
-
+  log('[fixSheet26]] ==>');
   let sheetRange = sheet26(ss).getDataRange();
   let dataRange = sheet26(ss).getRange(1, 1, sheetRange.getLastRow(), 1);
   let valArray = dataRange.getValues(); // All values in Col A, Sheet 26
   let emptyCellRange = null;
   let emptyRow = 0;
+
+  // First set all empty cells to '1' on Sheet26
+  log('valArray: ', valArray);
+  for (let i=0; i<valArray.length; i++) {
+    if (!valArray[i][0] || valArray[i][0] == '') {
+      valArray[i][0] = '1';
+    }
+  }
+  dataRange.setValues(valArray);
+
+  if (!isRangeSingleCell(range)) {
+    console.log('==> fixSheet26: unable to fix up, not a single cell: ', range);
+    return;
+  }
 
   // 'range' seems to have the range, but isn't an actual range! Make a new range to get the value.
   // We know we are only called here if 'Price Calc' is edited, so get range (and value) from
@@ -543,13 +553,11 @@ function fixSheet26(range, oldValue, ss=null) {
   }
 
   SpreadsheetApp.flush();
-  log('<== Finished fixing up Sheet26');
+  log('<== [fixSheet26]');
 
   if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
   emptyCellRange.setValue(newValue);
   return (emptyRow ? console.log('New value successfully inserted at row ' + emptyRow + ' on Sheet26.') :
           console.log('Unable to find empty row on Sheet26!'));
 }
-
-
 
