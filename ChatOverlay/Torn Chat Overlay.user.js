@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  try to take over the world!
 // @author       xedx [2100735]
-// @include      https://www.torn.com/*
+// @match        https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tribute.js
@@ -22,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = true;
+    const devMode = false;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
@@ -183,6 +183,7 @@
             {key: "eyes", value: "eyes", code: '\u{1F440}'},
             {key: "waving_hand", value: "waving_hand", code: '\u{1F44B}'},
             {key: "ok_hand", value: "ok_hand", code: '\u{1F44C}'},
+            {key: "thumbs_up", value: "thumbs_up", code: '\u{1F44D}'},
             {key: "flexed_biceps", value: "flexed_biceps", code: '\u{1F4AA}'},
 
             // 0x1F600 block
@@ -282,8 +283,9 @@
     function strToUnicodeItalicsSansSerif(inStr) {
         return genericStrToUnicode(inStr, italic_lcOffset_ss, italic_ucOffset_ss).replaceAll('*', '');
     }
-    function strToUnicodeItalicsSerif(inStr) {
-        return genericStrToUnicode(inStr, italic_lcOffset, italic_ucOffset).replaceAll('_', '');
+    function strToUnicodeItalicsSerif(inStr) { // No! Just strip first and last char!
+        //return genericStrToUnicode(inStr, italic_lcOffset, italic_ucOffset).replaceAll('_', '');
+        return genericStrToUnicode(inStr, italic_lcOffset, italic_ucOffset).trim().slice(1, -1);
     }
     function strToUnicodeBold(inStr) {
         return genericStrToUnicode(inStr, bold_lcOffset, bold_ucOffset).replaceAll('**', '');
@@ -339,13 +341,14 @@
 
     // Text conversion main function, calls appropriate functions as specified markup matches.
     function internalFormatText(messageText) {
+        messageText = ' ' + messageText + ' ';
         debug('[internalFormatText] text input', messageText);
 
         const codeblockRegex = /(\`\`)([^\`]*)(\`\`)/gi;
         const italicBoldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
         const boldedRegex = /(\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*)/gi; // Matches between '**'
         const italicSSRegex = /(\*)[A-z0-9 '!@#$%\^\&\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*)/gi; // Matches between '*'
-        const italicRegex = /(\_)[A-z0-9 '!@#$%\^\&\(\)\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\_)/gi; // Matches between '_'
+        const italicRegex = /(\ _)[A-z0-9 '!@#$%\^\&\(\)\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\_ )/gi; // Matches between '_'
         const strikeoutRegex = /(~~)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(~~)/gi; // Matches between '~~'
         const cursiveRegex = /(cc)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(cc)/gi; // Matches between 'cc'
         const ulRegex = /(__)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(__)/gi; // Matches between '__'
@@ -457,6 +460,7 @@
         }
 
         debug('[internalFormatText] text output', messageText);
+        messageText = messageText.trim();
         return messageText;
     }
 
