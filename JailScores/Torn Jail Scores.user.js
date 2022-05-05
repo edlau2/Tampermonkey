@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.0
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
-// @include      https://www.torn.com/jailview.php*
+// @match        https://www.torn.com/jailview.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local      file:///Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -47,8 +46,17 @@
     const round2 = function(e) {return Number(e).toFixed(2)}
 
     // Logging helpers
-    var logEntries = {};
+    var logEntries = {}; // TBD: add header?
     var logQueue = [];
+
+    // Add header to log entries
+    /*
+    function addLogHeader() {
+        // Do I need to bother?
+        addLogEntry(...);
+    }
+    addLogheader();
+    */
 
     setInterval(function() {_addLogEntry(logQueue.pop())}, 250); // Process log queue
 
@@ -61,8 +69,14 @@
         let obj = data.obj, type = data.type;
         const timenow = Date.now();
         const tornTimenow = Math.floor(timenow / 1000);
-        let entry = {'torntime': tornTimenow, 'type': type, 'data': obj};
+        const timestamp = getTimeWithMilliseconds(new Date(timenow));
+        let entry = {'timestamp': timestamp, 'torntime': tornTimenow, 'type': type, 'data': obj};
         logEntries[timenow] = entry;
+    }
+
+    // Helper to format a Date() object as time with milliseconds, to 3 digits
+    const getTimeWithMilliseconds = date => {
+        return `${date.toLocaleTimeString('it-US')}.${date.getMilliseconds()}`;
     }
 
     // Helper to parse a time string (33h 14m format), converting to minutes
