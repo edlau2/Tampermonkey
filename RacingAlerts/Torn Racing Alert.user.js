@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -32,14 +32,21 @@
           animation: highlight-active 1s linear 0s infinite normal;
         }`);
     }
+
+    function hasStockRaceIcons() {
+        return (document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar"));
+    }
+
     function handlePageLoad() {
         let existingRaceIcon = document.getElementById("xedx-race-icon");
 
-        if (abroad()) { // Remove if flying
+        if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
             if (existingRaceIcon) $(existingRaceIcon).remove();
             return;
         }
+
         if (existingRaceIcon) { // Style sometimes gets removed...not sure why.
+            debug('Class: ', $("#xedx-race-icon").attr('class'));
             if (!$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
             return;
         }
@@ -49,16 +56,11 @@
         // TBD: possibly add sidebar link.
         let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
 
-        // If a race icon is already there, don't bother adding a new one.
-        if (document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar")) {
-            debug('Race icon already there!');
-            return;
-        }
-
         // Add our icon
         $(iconArea).append(raceIconRed);
         log('Race icon appended!');
         debug('Class: ', $("#xedx-race-icon").attr('class'));
+        setTimeout(handlePageLoad, 5000); // Style sometimes gets removed...not sure why. This will re-add it.
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -69,7 +71,7 @@
     versionCheck();
     addStyles();
 
-    setInterval(handlePageLoad, 30000);
+    setInterval(handlePageLoad, 15000);
     callOnContentLoaded(handlePageLoad);
 
 })();
