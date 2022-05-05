@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -23,8 +23,8 @@
     debugLoggingEnabled = false;
 
     const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
-    const raceIconGreen =  `<li class="icon17___eeF6s"><a id="icon17-sidebar" href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
-    const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ highlight-active"><a id="icon18-sidebar" href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+    const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+    const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ highlight-active"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
     function addStyles() {
         GM_addStyle(`.highlight-active {
@@ -34,11 +34,14 @@
     }
 
     function hasStockRaceIcons() {
-        return (document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar"));
+        let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
+        debug('[hasStockRaceIcons] result: ', result);
+        return result;
     }
 
     function handlePageLoad() {
         let existingRaceIcon = document.getElementById("xedx-race-icon");
+        debug('[handlePageLoad] existingRaceIcon: ', existingRaceIcon);
 
         if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
             if (existingRaceIcon) $(existingRaceIcon).remove();
