@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Stock Profits
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Displays current stock profits for owned shares
 // @author       xedx [2100735]
-// @include      https://www.torn.com/page.php?sid=stocks*
+// @match        https://www.torn.com/page.php?sid=stocks*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -13,6 +13,11 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
 
@@ -22,6 +27,13 @@
     var tornStocksJSON = null;
     const showProfit = true;
     const showLoss = true;
+
+    function addStyles() {
+        GM_addStyle(`.highlight-active {
+          -webkit-animation: highlight-active 1s linear 0s infinite normal;
+          animation: highlight-active 1s linear 0s infinite normal;
+        }`);
+    }
 
     // Callbacks for our Torn API calls.
     function userStocksCB(responseText, ID, param) {
@@ -35,6 +47,19 @@
         tornStocksJSON = JSON.parse(responseText);
         if (tornStocksJSON.error) {return handleError(responseText);}
 
+    }
+
+    function highlightReadyStocks() {
+        log('[highlightReadyStocks]');
+        var objects = $(".Ready___Y6Stk");
+        log('objects: ', objects);
+        for (let i=0; i<objects.length; i++) {
+            let obj = objects[i];
+            if (obj.textContent == 'Ready for collection') {
+                log('Stock is ready!!');
+                if (!$(obj).hasClass('highlight-active')) $(obj).addClass('highlight-active');
+            }
+        }
     }
 
     // Get stock name/price from ID
@@ -51,9 +76,6 @@
 
         var stocksList = mainStocksUL.getElementsByTagName('ul');
         if (stocksList.length < 2) return setTimeout(handlePageLoaded, 1000); // Check should not be needed
-
-        //console.log('userStocksJSON: ', userStocksJSON);
-        //console.log('tornStocksJSON: ', tornStocksJSON);
         if (!userStocksJSON || !tornStocksJSON) return setTimeout(handlePageLoaded, 1000);
 
         // -- Now we're all good to go. --
@@ -85,6 +107,8 @@
             }
         }
 
+        highlightReadyStocks();
+
         // Now set up an observer, as the prices update now and again.
         if (!observer) observer = new MutationObserver(reload);
         observer.observe(mainStocksUL, {attributes: true, characterData: true});
@@ -106,19 +130,12 @@
     logScriptStart();
     validateApiKey();
     versionCheck();
+    addStyles();
 
     // Kick off our API calls - two of them
     xedx_TornUserQuery(null, 'stocks', userStocksCB);
     xedx_TornTornQuery(null, 'stocks', tornStocksCB);
 
-    // If *already* loaded, go ahead...
-    if (document.readyState === 'complete') {
-        handlePageLoaded();
-    }
-
-    // Otherwise, set up a listener to fire on page load complete
-    window.addEventListener("load", function(){
-        handlePageLoaded();
-    });
+    callOnContentComplete(handlePageLoaded);
 
 })();
