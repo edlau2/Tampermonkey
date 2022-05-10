@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -20,11 +20,12 @@
 (function() {
     'use strict'
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = true; // TRUE to log 'debug()' calls
+    const animatedIcons = true; // TRUE to flash the red icon
 
     const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
     const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
-    const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ highlight-active"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+    const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
     function addStyles() {
         GM_addStyle(`.highlight-active {
@@ -44,7 +45,7 @@
         debug('[handlePageLoad] existingRaceIcon: ', existingRaceIcon);
 
         let redIcon = document.getElementById("icon18-sidebar");
-        if (redIcon && !$(redIcon.parentNode).hasClass('highlight-active')) $(redIcon.parentNode).addClass('highlight-active');
+        if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) $(redIcon.parentNode).addClass('highlight-active');
 
         if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
             if (existingRaceIcon) $(existingRaceIcon).remove();
@@ -53,7 +54,7 @@
 
         if (existingRaceIcon) { // Style sometimes gets removed...not sure why. Test: used to have dup ID's!
             debug('Class: ', $("#xedx-race-icon").attr('class'));
-            if (!$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
+            if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
             return;
         }
 
@@ -64,6 +65,8 @@
 
         // Add our icon
         $(iconArea).append(raceIconRed);
+        existingRaceIcon = document.getElementById("xedx-race-icon");
+        if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
         log('Race icon appended!');
         debug('Class: ', $("#xedx-race-icon").attr('class'));
         setTimeout(handlePageLoad, 5000); // Style sometimes gets removed...not sure why. This will re-add it.
