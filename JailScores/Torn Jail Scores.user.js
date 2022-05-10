@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -393,8 +393,9 @@
     const observerCallback = function(mutationsList, observer) {
             debug('Observer CB');
             observerOff();
+            if (!document.getElementById("xedx-save-btn")) installUI();
             for (let mutation of mutationsList) {
-                //log('mutation.type: ', mutation.type);
+                //debug('mutation.type: ', mutation.type);
                 if (mutation.type === 'childList') {
                     debug('Mutation Detected: A child node has been added or removed.');
                     for (let i=0; i<mutation.addedNodes.length; i++) {
@@ -468,6 +469,9 @@
                         </div>`;
     function installUI() {
         log('[installUI]');
+        let btn = document.getElementById("xedx-save-btn");
+        if (btn) return;
+
         let parent = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.msg-info-wrap > div > div > div > div");
         $(parent).append(saveBtnDiv);
         $("#xedx-save-btn").on('click', handleSaveButton);
@@ -490,14 +494,15 @@
     versionCheck();
 
     addStyles();
+
+    // Install the 'save' button
+    if (DEV_MODE) callOnContentComplete(installUI);
+
     installHashChangeHandler(addJailScores);
     installObserver();
 
     // Start by kicking off a few API calls.
     queryPastBusts();
-
-    // Install the 'save' button
-    if (DEV_MODE) callOnContentComplete(installUI);
 
 })();
 
