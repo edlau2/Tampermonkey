@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
-// @include      https://www.torn.com/gym.php
+// @match      https://www.torn.com/gym.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -23,7 +22,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = false;
+    debugLoggingEnabled = true;
 
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
@@ -266,10 +265,12 @@
 
         const ul = document.getElementById('gym-gains-list');
         resetGains(ul);
-        const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks', 'book_perks'];
+        const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks', 'book_perks', 'job_perks'];
         const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks'];
         for (let i=0; i<category.length; i++) { // Iterate object's arrays
             let arr = jsonResp[category[i]];
+            debug('[populateGymGainsDiv] category: ', category[i], ' array: ', arr);
+            if (!arr) continue;
             for (let j=0; j<arr.length; j++) { // Iterate category array
                 // If is a gym gain, create the value span and add to the UL
                 let gymGains = arr[j].toLowerCase().indexOf('gym gains');
