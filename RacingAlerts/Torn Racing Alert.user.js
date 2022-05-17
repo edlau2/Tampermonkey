@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -37,6 +37,8 @@
     function hasStockRaceIcons() {
         let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
         debug('[hasStockRaceIcons] result: ', result);
+        debug('Icon 17: ', document.getElementById("icon17-sidebar"));
+        debug('Icon 18: ', document.getElementById("icon18-sidebar"));
         return result;
     }
 
@@ -45,32 +47,48 @@
         debug('[handlePageLoad] existingRaceIcon: ', existingRaceIcon);
 
         let redIcon = document.getElementById("icon18-sidebar");
-        if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) $(redIcon.parentNode).addClass('highlight-active');
+        if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
+            debug('Adding the "highlight-active" class to existing icon"');
+            $(redIcon.parentNode).addClass('highlight-active');
+        }
 
         if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
-            if (existingRaceIcon) $(existingRaceIcon).remove();
+            if (debugLoggingEnabled) {
+                debug('Either abroad, or has stock race icons - removing race alert icon');
+                debug('Abroad: ', abroad());
+                debug('Stock icons: ', hasStockRaceIcons());
+            }
+            if (existingRaceIcon) {
+                debug('Removing icon!');
+                $(existingRaceIcon).remove();
+            }
             return;
         }
 
         if (existingRaceIcon) { // Style sometimes gets removed...not sure why. Test: used to have dup ID's!
             debug('Class: ', $("#xedx-race-icon").attr('class'));
             if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
+            if (debugLoggingEnabled) {
+                debug('Icon exists, returning');
+                debug('existing icon: ', document.getElementById("xedx-race-icon"));
+            }
             return;
         }
 
         let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
 
         // TBD: possibly add sidebar link.
-        let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
+        // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
 
         // Add our icon
         $(iconArea).append(raceIconRed);
         existingRaceIcon = document.getElementById("xedx-race-icon");
         if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
         log('Race icon appended!');
+        debug('Icon: ', existingRaceIcon);
         debug('Class: ', $("#xedx-race-icon").attr('class'));
         setTimeout(handlePageLoad, 5000); // Style sometimes gets removed...not sure why. This will re-add it.
-                                          //  Test: used to have dup ID's!
+                                          //  Test: used to have dup ID's! May  not need anymore....
     }
 
     //////////////////////////////////////////////////////////////////////
