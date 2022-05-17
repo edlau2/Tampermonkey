@@ -26,13 +26,25 @@
             log('Not on vault page');
             return;
         }
+
+        /*
+        let parentNode = document.querySelector("#properties-page-wrap > div.property-option > div.vault-opt.owner > div.vault-wrap.cont-gray " +
+                                                " > form.vault-cont.right.deposit-box > div.cont.torn-divider > div");
         let inputNode = document.querySelector("#properties-page-wrap > div.property-option > div.vault-opt.owner > div.vault-wrap.cont-gray " +
                                                " > form.vault-cont.right.deposit-box > div.cont.torn-divider > div > input:nth-child(3)");
         if (!inputNode) return setTimeout(handlePageLoad, 500);
 
         let newValue = 123456;
-        inputNode.setAttribute('value', newValue);
+        inputNode.value = newValue;
+        $(parentNode).addClass('success');
         log('Set value to ', newValue);
+        */
+
+        // 'unlock' the 'Withdraw' button
+        let withdrawBtn = document.querySelector("#properties-page-wrap > div.property-option > div.vault-opt.owner > div.vault-wrap.cont-gray " +
+                                                 "> form.vault-cont.left > div.cont.torn-divider > span > span > input");
+        $(withdrawBtn).removeClass('disabled');
+        withdrawBtn.removeAttribute('disabled');
     }
 
     //////////////////////////////////////////////////////////////////////
