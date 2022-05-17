@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -20,7 +20,9 @@
 (function() {
     'use strict'
 
-    debugLoggingEnabled = true; // TRUE to log 'debug()' calls
+    const devMode = true;
+
+    debugLoggingEnabled = devMode; // TRUE to log 'debug()' calls (toggles with devMode)
     const animatedIcons = true; // TRUE to flash the red icon
 
     const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
@@ -75,7 +77,12 @@
             return;
         }
 
-        let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
+        //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
+        let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
+        debug('iconArea: ', iconArea);
+        if (!iconArea && devMode) {
+            alert('Can`t find icon area!');
+        }
 
         // TBD: possibly add sidebar link.
         // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
