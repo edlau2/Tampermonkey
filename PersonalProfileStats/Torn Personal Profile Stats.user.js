@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.2
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @include      https://www.torn.com/profiles.php*
+// @match        https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @connect      localhost
@@ -21,8 +21,7 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
-
-// @ignore      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+/*eslint curly: 0*/
 
 (function() {
     'use strict';
@@ -93,6 +92,9 @@
         let userLvl = jsonResp.level;
         let userRank = numericRankFromFullRank(jsonResp.rank);
 
+        // Highlight life as appropriate
+        doLifeHighlighting();
+
         // Add NW to the profile
         addNetWorthToProfile(userNW);
 
@@ -105,6 +107,21 @@
 
         // Display the numeric rank next to textual rank (sync)
         addNumericRank(userRank);
+    }
+
+    // Function to highlight life: green if full, red otherwise
+    function doLifeHighlighting() {
+        let liSpan = document.querySelector(/*"#profileroot > div > div > div > div:nth-child(5) >"*/
+                                        "div.basic-information.profile-left-wrapper.left > " +
+                                        " div > div.cont.bottom-round > div > ul > li:nth-child(5) > div.user-info-value > span");
+        let life = liSpan.textContent;
+        let parts = life.split('/');
+        log('Life: ', life, ' parts: ', parts);
+        if (parts[0].trim() == parts[1].trim())
+            liSpan.setAttribute('style', 'color: limegreen;');
+        else
+            liSpan.setAttribute('style', 'color: red;');
+
     }
 
     // If a spy exists, parse it into a JSON jsonSpy object,
@@ -478,11 +495,6 @@
     validateApiKey();
     versionCheck();
 
-    // Delay until DOM content load (not full page) complete
-    if (document.readyState == 'loading') {
-        document.addEventListener('DOMContentLoaded', handlePageLoaded);
-    } else {
-        handlePageLoad();
-    }
+    callOnContentLoaded(handlePageLoad);
 
 })();
