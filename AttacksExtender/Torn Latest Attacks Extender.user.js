@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Latest Attacks Extender
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Extends the 'Latest Attack' display to include the last 100 with detailed stats
 // @author       xedx [2100735]
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @include      https://www.torn.com/index.php
+// @match        https://www.torn.com/index.php
 // @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -14,6 +13,10 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 const latest_attacks_div =
       '<div class="sortable-box t-blue-cont h" id="xedx-attacks-ext">' +
@@ -222,7 +225,7 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
     function extendLatestAttacks() {
         // Find first column
         let mainDiv = document.getElementById('column1');
-        if (!validPointer(mainDiv)) {return;}
+        if (!validPointer(mainDiv)) {return setTimeout(extendLatestAttacks ,100);}
         $(mainDiv).append(latest_attacks_div);
 
         // Hook up button handler(s)
@@ -238,6 +241,8 @@ var config = {'user_id' : GM_getValue('gm_user_id'),
 
     validateApiKey();
     logScriptStart();
+    versionCheck();
+
     let currentPage = window.location.href;
     if (currentPage.indexOf('torn.com/index.php') !== -1) {
         if (config.max_values === 'undefined') {
