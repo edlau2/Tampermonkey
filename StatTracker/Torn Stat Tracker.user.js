@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  Add misc stats to your home page
+// @version      0.2
+// @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
 // @connect      api.torn.com
@@ -23,7 +23,16 @@
 
     const options = {debugLogging: true,
                      killstreak: true,
-                     defendswon: true
+                     defendswon: true,
+
+                     // Finishing hits
+                     smghits: false, // Sub machine gun
+                     chahits: true, // Mechanical weapons
+                     heahits: true, // Heavy Artillery
+                     pishits: true, // Pistols
+                     machits: true, // Machine GUns
+                     grehits: true, // Temps (grenades)
+                     h2hhits: true  // Hand-to-hand
                     };
 
     debugLoggingEnabled = options.debugLogging;
@@ -41,6 +50,9 @@
                   '<ul class="info-cont-wrap" id="stats-list">' +
                   '</ul>' +
               '</div>' +
+          '</div>' +
+          '<div class="title-black bottom-round" style="text-align: center">' +
+              '<button id="config-btn">Configure</button>' +
           '</div>' +
       '</div>';
 
@@ -67,6 +79,18 @@
         handlePageLoad();
     }
 
+    // Create a config options dialog (was going to be a new div, try a new page, instead)
+    function createConfigDiv() {
+        let csp = "frame-src 'self'";
+        let html = '<html><head>' +
+            '<meta http-equiv=“Content-Security-Policy” content=”' + csp + '”>' +
+            '</head><body>Options:</body></html>';
+
+        let x = window.open();
+        x.name = "Torn Stat Tracker Options";
+        x.document.write(html);
+    }
+
     function addStat(name, desc) {
         log('[addStat] ', name + ': ', desc);
         let newLi = award_li;
@@ -79,11 +103,22 @@
     function handlePageLoad() {
         let targetDiv = document.querySelector("#item10961671");
         if (!targetDiv) return setTimeout(handlePageLoad, 500);
-        if (!document.querySelector("#xedx-stats")) $(targetDiv).after(stats_div);
+        if (!document.querySelector("#xedx-stats")) {
+            $(targetDiv).after(stats_div);
+            $('#config-btn').click(createConfigDiv);
+        }
 
         // Add stats here
         if (options.killstreak) addStat('Kill Streak', numberWithCommas(stats.killstreak));
         if (options.defendswon) addStat('Defends Won', numberWithCommas(stats.defendswon));
+
+        if (options.smghits) addStat('Sub Machine Guns', numberWithCommas(stats.smghits));
+        if (options.heahits) addStat('Heavy Artillery', numberWithCommas(stats.heahits));
+        if (options.chahits) addStat('Mechanical Weapons', numberWithCommas(stats.chahits));
+        if (options.pishits) addStat('Pistols', numberWithCommas(stats.pishits));
+        if (options.machits) addStat('Machine Guns', numberWithCommas(stats.machits));
+        if (options.grehits) addStat('Temporaries', numberWithCommas(stats.grehits));
+        if (options.h2hhits) addStat('Hand to Hand', numberWithCommas(stats.h2hhits));
     }
 
     //////////////////////////////////////////////////////////////////////
