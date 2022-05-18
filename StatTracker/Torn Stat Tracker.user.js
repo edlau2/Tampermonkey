@@ -35,11 +35,16 @@
                      h2hhits: true  // Hand-to-hand
                     };
 
+    const optionsHtml = loadOptionsPage();
+    const stats_div = loadStatsDiv();
+    const award_li = loadAwardLi();
+
     debugLoggingEnabled = options.debugLogging;
     var stats = null; // personalstats JSON object
 
-    const stats_div =
-      '<div class="sortable-box t-blue-cont h" id="xedx-stats">' +
+    // For code collapse, easier to read. Loaded into const's, above.
+    function loadStatsDiv() {
+        return '<div class="sortable-box t-blue-cont h" id="xedx-stats">' +
           '<div id="header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
               '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
               '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
@@ -55,14 +60,38 @@
               '<button id="config-btn">Configure</button>' +
           '</div>' +
       '</div>';
-
-    const award_li =
-        '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
+    }
+    function loadAwardLi() {
+        return '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
             '<span class="divider">' +
                 '<span>STAT_NAME</span>' +
             '</span>' +
             '<span class="desc">STAT_DESC</span>' +
         '</li>';
+    }
+    function loadOptionsPage() {
+        let csp = "frame-src 'self'";
+        let html =
+            `<html>
+                <head>
+                    <title>Torn Stat Tracker Options</title>
+                    <meta charset="UTF-8">
+                    <meta http-equiv=“Content-Security-Policy” content=”' + csp + '”>
+                </head>
+                <style>
+                    body {background-color: lightgray;}
+                    h1   {color: blach;}
+                    .outer {text-align: center;}
+                </style>
+                <body>
+                    <div class="outer">
+                        <h1>Options:</h1>
+                    </div>
+                </body>
+            </html>`;
+
+        return html;
+    }
 
     // Get data used to calc award progress via the Torn API
     function personalStatsQuery() {
@@ -81,14 +110,8 @@
 
     // Create a config options dialog (was going to be a new div, try a new page, instead)
     function createConfigDiv() {
-        let csp = "frame-src 'self'";
-        let html = '<html><head>' +
-            '<meta http-equiv=“Content-Security-Policy” content=”' + csp + '”>' +
-            '</head><body>Options:</body></html>';
-
         let x = window.open();
-        x.name = "Torn Stat Tracker Options";
-        x.document.write(html);
+        x.document.write(optionsHtml);
     }
 
     function addStat(name, desc) {
