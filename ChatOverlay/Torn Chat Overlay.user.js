@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -22,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = false;
+    const devMode = true;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
@@ -59,15 +59,17 @@
 
     // General globals
     debugLoggingEnabled = devMode;
+
+    // Globals for an observer
+    const targetNode = document.querySelector("#chatRoot");
+    //const chatboxTextArea = 'chat-box-textarea_1RrlX';
+    const chatboxTextArea = '_chat-box-textarea_14cwy_816';
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
-                            'class="chat-box-textarea_1RrlX" ' +
+                            'class="' + chatboxTextArea + '" ' +
                             'style="width: 179.4px; height: 51px;">' + // Will be over-written with target style
                         '</textarea>';
     const chatOverlayActive = '<i class="icon_chat_active"></i>'; // Only used if "indicatorsOn = true;"
 
-    // Globals for an observer
-    const targetNode = document.querySelector("#chatRoot");
-    const chatboxTextArea = 'chat-box-textarea_1RrlX';
     var observer = null;
     var config = { attributes: true, childList: true, subtree: true};
 
@@ -342,7 +344,7 @@
     // Text conversion main function, calls appropriate functions as specified markup matches.
     function internalFormatText(messageText) {
         messageText = ' ' + messageText + ' ';
-        debug('[internalFormatText] text input', messageText);
+        debug('[internalFormatText] text input: ', messageText);
 
         const codeblockRegex = /(\`\`)([^\`]*)(\`\`)/gi;
         const italicBoldRegex = /(\*\*\*)[A-z0-9 '!@#$%\^\&\*\(\)_\+{}\\|:;"<>,\?/~`\.\=\-\+]+(\*\*\*)/gi; // Matches between '***'
@@ -355,8 +357,9 @@
         const discordEmojiRegex = /(:)[A-z0-9 _/~\.\=\-\+]+(:)/gi; // Matches between ':'
 
         // Testing code
-        if (devMode && messageText == 'emojitest') {
+        if (devMode && messageText.indexOf('emojitest') > -1) {
             let outMsg = 'Supported emojis: \r\n';
+            log('emojitest: ', emojiArray);
             for (let i=0; i < emojiArray.length; i++) {
                 outMsg += (emojiArray[i].code + ' ');
             }
