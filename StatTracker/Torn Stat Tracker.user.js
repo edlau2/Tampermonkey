@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -82,10 +82,22 @@
                     body {background-color: lightgray;}
                     h1   {color: blach;}
                     .outer {text-align: center;}
+                    td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
+                    td:nth-child(1) {text-align: left; padding-left: 20px; width: 50%}
+                    table {border: 2px solid; width: 100%;}
                 </style>
                 <body>
                     <div class="outer">
                         <h1>Options:</h1>
+                        <table><tbody>
+                            <tr><th>Stat</th><th>Name</th><th>Selected</th><tr>
+                            <tr><td>Finishing Hits: Heavy Artillery</td><td>heahits</td><td><input type="checkbox" name="heahits" value="checked"/></td></tr>
+                            <tr><td>Finishing Hits: Sub Machine Guns</td><td>smghits</td><td><input type="checkbox" name="smghits" value="checked"/></td></tr>
+                            <tr><td>Finishing Hits: Machine Guns</td><td>machits</td><td><input type="checkbox" name="machits" value="checked"/></td></tr>
+                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
+                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
+                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
+                        </table></tbody>
                     </div>
                 </body>
             </html>`;
