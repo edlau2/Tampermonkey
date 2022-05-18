@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.3
-// @description  try to take over the world!
+// @version      0.4
+// @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
 // @connect      api.torn.com
@@ -21,18 +21,17 @@
 (function() {
     'use strict';
 
-    const options = {debugLogging: true,
-                     killstreak: true,
-                     defendswon: true,
-
-                     // Finishing hits
-                     smghits: false, // Sub machine gun
-                     chahits: true, // Mechanical weapons
-                     heahits: true, // Heavy Artillery
-                     pishits: true, // Pistols
-                     machits: true, // Machine GUns
-                     grehits: true, // Temps (grenades)
-                     h2hhits: true  // Hand-to-hand
+    const options = {debugLogging: true};
+    const optStats = {
+                     killstreak: {enabled: true, name: "Kill Streak"},
+                     defendswon: {enabled: true, name: "Defends Won"},
+                     smghits: {enabled: false, name: "Finishing Hits: SMG"}, // Sub machine gun
+                     chahits: {enabled: true, name: "Finishing Hits: Mechanical"}, // Mechanical weapons
+                     heahits: {enabled: true, name: "Finishing Hits: Heavy Artillery"}, // Heavy Artillery
+                     pishits: {enabled: true, name: "Finishing Hits: Pistols"}, // Pistols
+                     machits: {enabled: true, name: "Finishing Hits: Machine Guns"}, // Machine GUns
+                     grehits: {enabled: true, name: "Finishing Hits: Temps"}, // Temps (grenades)
+                     h2hhits: {enabled: true, name: "Finishing Hits: Hand to Hand"}  // Hand-to-hand
                     };
 
     const optionsHtml = loadOptionsPage();
@@ -43,6 +42,8 @@
     var stats = null; // personalstats JSON object
 
     // For code collapse, easier to read. Loaded into const's, above.
+    // overflow: hidden (outer div)
+    // overflow-y: scroll in the inner div
     function loadStatsDiv() {
         return '<div class="sortable-box t-blue-cont h" id="xedx-stats">' +
           '<div id="header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
@@ -51,8 +52,8 @@
               'Stat Tracker' +
           '</div>' +
           '<div class="bottom-round">' +
-          '    <div class="cont-gray bottom-round" style="width: 386px; height: auto; overflow: auto">' +
-                  '<ul class="info-cont-wrap" id="stats-list">' +
+          '    <div class="cont-gray bottom-round" style="width: 386px; height: auto; overflow: auto;">' +
+                  '<ul class="info-cont-wrap" id="stats-list" style="overflow-y: scroll; width: auto; max-height: 125px;">' +
                   '</ul>' +
               '</div>' +
           '</div>' +
@@ -63,44 +64,53 @@
     }
     function loadAwardLi() {
         return '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
-            '<span class="divider">' +
+            '<span class="divider"  style="width: 180px;">' +
                 '<span>STAT_NAME</span>' +
             '</span>' +
-            '<span class="desc">STAT_DESC</span>' +
+            '<span class="desc" style="width: 100px;">STAT_DESC</span>' +
         '</li>';
     }
     function loadOptionsPage() {
-        let csp = "frame-src 'self'";
+        //let csp = "frame-src 'self'";
+        //let csp = "script-src 'unsafe-inline';";
+        // <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+        let CSP = `<meta http-equiv=“Content-Security-Policy” content="script-src 'self' 'unsafe-inline' 'unsafe-eval'">`;
         let html =
             `<html>
                 <head>
                     <title>Torn Stat Tracker Options</title>
-                    <meta charset="UTF-8">
-                    <meta http-equiv=“Content-Security-Policy” content=”' + csp + '”>
-                </head>
+                    <meta charset="UTF-8">`
+                    + CSP +
+                `</head>
                 <style>
                     body {background-color: lightgray;}
-                    h1   {color: blach;}
+                    h2   {color: black;}
                     .outer {text-align: center;}
                     td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
-                    td:nth-child(1) {text-align: left; padding-left: 20px; width: 50%}
-                    table {border: 2px solid; width: 100%;}
+                    table {border: 2px solid; width: 50%; margin: auto;}
                 </style>
+                <script>
+                    const handleClick = function(ev) {console.log('[handleClick] ev: ', ev);};
+                </script>
                 <body>
                     <div class="outer">
-                        <h1>Options:</h1>
-                        <table><tbody>
-                            <tr><th>Stat</th><th>Name</th><th>Selected</th><tr>
-                            <tr><td>Finishing Hits: Heavy Artillery</td><td>heahits</td><td><input type="checkbox" name="heahits" value="checked"/></td></tr>
-                            <tr><td>Finishing Hits: Sub Machine Guns</td><td>smghits</td><td><input type="checkbox" name="smghits" value="checked"/></td></tr>
-                            <tr><td>Finishing Hits: Machine Guns</td><td>machits</td><td><input type="checkbox" name="machits" value="checked"/></td></tr>
-                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
-                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
-                            <tr><td>Finishing Hits: etc</td><td>etchits</td><td><input type="checkbox" name="etc" value="checked"/></td></tr>
-                        </table></tbody>
-                    </div>
-                </body>
-            </html>`;
+                        <h2>Personal Stats to Display on the Home Page:</h2>
+                        <table><tbody>`;
+
+        // td:nth-child(1) {padding-left: 20px; width: 5%}
+                            //<tr><th>Stat</th><th>Selected</th><tr>`;
+
+        // Insert table rows
+        let keys = Object.keys(optStats);
+        for (let i=0; i < keys.length; i++) {
+            let statName = keys[i]; // eg, 'heahits' - name in the personalstats obj
+            html += '<tr><td><input type="checkbox" name="' +
+                statName + '" value="' + (optStats[statName].enabled? 'checked' : 'unchecked') + '" ' +
+                (optStats[statName].enabled? 'checked': '') + '/></td><td>' + optStats[statName].name +
+                ' onclick="handleClick"</td></tr>';
+        }
+
+        html += `</table></tbody></div></body></html>`;
 
         return html;
     }
@@ -130,7 +140,7 @@
         log('[addStat] ', name + ': ', desc);
         let newLi = award_li;
         newLi = newLi.replaceAll('STAT_NAME', name);
-        newLi = newLi.replaceAll('STAT_DESC', desc);
+        newLi = newLi.replaceAll('STAT_DESC', numberWithCommas(Number(desc)));
         debug('Stats LI: ', newLi);
         $('#stats-list').append(newLi);
     }
@@ -144,16 +154,13 @@
         }
 
         // Add stats here
-        if (options.killstreak) addStat('Kill Streak', numberWithCommas(stats.killstreak));
-        if (options.defendswon) addStat('Defends Won', numberWithCommas(stats.defendswon));
-
-        if (options.smghits) addStat('Sub Machine Guns', numberWithCommas(stats.smghits));
-        if (options.heahits) addStat('Heavy Artillery', numberWithCommas(stats.heahits));
-        if (options.chahits) addStat('Mechanical Weapons', numberWithCommas(stats.chahits));
-        if (options.pishits) addStat('Pistols', numberWithCommas(stats.pishits));
-        if (options.machits) addStat('Machine Guns', numberWithCommas(stats.machits));
-        if (options.grehits) addStat('Temporaries', numberWithCommas(stats.grehits));
-        if (options.h2hhits) addStat('Hand to Hand', numberWithCommas(stats.h2hhits));
+        let keys = Object.keys(optStats);
+        for (let i=0; i < keys.length; i++) {
+            let statName = keys[i];
+            if (optStats[statName].enabled) {
+                addStat(optStats[statName].name, stats[statName]);
+            }
+        }
     }
 
     //////////////////////////////////////////////////////////////////////
