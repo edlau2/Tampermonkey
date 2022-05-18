@@ -22,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = true;
+    const devMode = false;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
