@@ -20,7 +20,7 @@
 (function() {
     'use strict'
 
-    const devMode = true;
+    const devMode = false;
 
     debugLoggingEnabled = devMode; // TRUE to log 'debug()' calls (toggles with devMode)
     const animatedIcons = true; // TRUE to flash the red icon
@@ -80,8 +80,9 @@
         //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
         let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
         debug('iconArea: ', iconArea);
-        if (!iconArea && devMode) {
-            alert('Can`t find icon area!');
+        if (!iconArea /*&& devMode*/) {
+            //alert('Can`t find icon area!');
+            log('Can`t find icon area!');
         }
 
         // TBD: possibly add sidebar link.
