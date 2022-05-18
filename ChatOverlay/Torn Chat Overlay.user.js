@@ -22,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = false;
+    const devMode = true;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
@@ -62,8 +62,12 @@
 
     // Globals for an observer
     const targetNode = document.querySelector("#chatRoot");
+
     //const chatboxTextArea = 'chat-box-textarea_1RrlX';
+    //const chatboxInputArea = 'chat-box-input_1Nsmp';
     const chatboxTextArea = '_chat-box-textarea_14cwy_816';
+    const chatboxInputArea = '_chat-box-input_14cwy_789';
+
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
                             'class="' + chatboxTextArea + '" ' +
                             'style="width: 179.4px; height: 51px;">' + // Will be over-written with target style
@@ -547,10 +551,20 @@
 
     // Add an 'active' indicator to the chatbox (optional - decided I didn't like it)
     function addOverlayActive(ta) {
+        const chatTitle = "._chat-box-head_14cwy_133 > ._chat-box-title_14cwy_148";
+        const chatIcon = "._icon_14cwy_222";
         if (!ta || !indicatorsOn) return;
+        debug('[addOverlayActive]');
         let root = ta.parentNode.parentNode.parentNode;
-        let indicator = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active') : null;
-        let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
+        //let indicator = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_chat_active') : null;
+        //let name = root ? root.querySelector('.chat-box-head_6LaFd > .chat-box-title_1-IuG > .icon_3RPUi') : null;
+
+        let indicator = root ? root.querySelector(chatTitle + ' > .icon_chat_active') : null;
+        let name = root ? root.querySelector(chatTitle + ' > ' + chatIcon) : null;
+
+        debug('[addOverlayActive] root: ', root);
+        debug('[addOverlayActive] indicator: ', indicator);
+        debug('[addOverlayActive] name: ', name);
         if (indicator) $(indicator).remove();
         if (name) $(name).after(chatOverlayActive);
     }
@@ -562,7 +576,7 @@
         for (let i=0; i < nodeList.length; i++) {
             //debug('Target node ', target, ' being added!');
 
-            let ta = target ? target.querySelector('.chat-box-input_1Nsmp > div > textarea') : null;
+            let ta = target ? target.querySelector('.' + chatboxInputArea + ' > div > textarea') : null;
             //debug('textarea: ', ta);
             if (ta) addChatOverlay(ta);
             let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
