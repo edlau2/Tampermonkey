@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
+// @match        http://18.119.136.223:8080/testing/test.html
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -23,18 +24,18 @@
 
     const options = {debugLogging: true};
     const optStats = {
-                     killstreak: {enabled: true, name: "Kill Streak"},
-                     defendswon: {enabled: true, name: "Defends Won"},
-                     smghits: {enabled: false, name: "Finishing Hits: SMG"}, // Sub machine gun
-                     chahits: {enabled: true, name: "Finishing Hits: Mechanical"}, // Mechanical weapons
-                     heahits: {enabled: true, name: "Finishing Hits: Heavy Artillery"}, // Heavy Artillery
-                     pishits: {enabled: true, name: "Finishing Hits: Pistols"}, // Pistols
-                     machits: {enabled: true, name: "Finishing Hits: Machine Guns"}, // Machine GUns
-                     grehits: {enabled: true, name: "Finishing Hits: Temps"}, // Temps (grenades)
-                     h2hhits: {enabled: true, name: "Finishing Hits: Hand to Hand"}  // Hand-to-hand
+                     killstreak: {enabled: GM_getValue('killstreak', true), name: "Kill Streak"},
+                     defendswon: {enabled: GM_getValue('defendswon', true), name: "Defends Won"},
+                     smghits: {enabled: GM_getValue('smghits', false), name: "Finishing Hits: SMG"}, // Sub machine gun
+                     chahits: {enabled: GM_getValue('chahits', false), name: "Finishing Hits: Mechanical"}, // Mechanical weapons
+                     heahits: {enabled: GM_getValue('heahits', false), name: "Finishing Hits: Heavy Artillery"}, // Heavy Artillery
+                     pishits: {enabled: GM_getValue('pishits', false), name: "Finishing Hits: Pistols"}, // Pistols
+                     machits: {enabled: GM_getValue('machits', false), name: "Finishing Hits: Machine Guns"}, // Machine GUns
+                     grehits: {enabled: GM_getValue('grehits', false), name: "Finishing Hits: Temps"}, // Temps (grenades)
+                     h2hhits: {enabled: GM_getValue('h2hhits', false), name: "Finishing Hits: Hand to Hand"}  // Hand-to-hand
                     };
 
-    const optionsHtml = loadOptionsPage();
+    //const optionsHtml = loadOptionsPage();
     const stats_div = loadStatsDiv();
     const award_li = loadAwardLi();
 
@@ -42,8 +43,6 @@
     var stats = null; // personalstats JSON object
 
     // For code collapse, easier to read. Loaded into const's, above.
-    // overflow: hidden (outer div)
-    // overflow-y: scroll in the inner div
     function loadStatsDiv() {
         return '<div class="sortable-box t-blue-cont h" id="xedx-stats">' +
           '<div id="header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
@@ -70,11 +69,11 @@
             '<span class="desc" style="width: 100px;">STAT_DESC</span>' +
         '</li>';
     }
+
+    /*
     function loadOptionsPage() {
-        //let csp = "frame-src 'self'";
-        //let csp = "script-src 'unsafe-inline';";
-        // <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
-        let CSP = `<meta http-equiv=“Content-Security-Policy” content="script-src 'self' 'unsafe-inline' 'unsafe-eval'">`;
+        let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'self' 'unsafe-inline';">`;
+        //let CSP = '';
         let html =
             `<html>
                 <head>
@@ -88,17 +87,16 @@
                     .outer {text-align: center;}
                     td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
                     table {border: 2px solid; width: 50%; margin: auto;}
-                </style>
-                <script>
-                    const handleClick = function(ev) {console.log('[handleClick] ev: ', ev);};
-                </script>
-                <body>
+                </style>` +
+                //`<script type="text/javascript"
+                //    src="https://raw.githubusercontent.com/edlau2/Tampermonkey/master/StatTracker/StatTrackerHelper.js">
+                //</script>` +
+                //`<script>const handleClick = function(ev) {console.log('[handleClick] ev: ', ev)}</script>` +
+                //`<script> </script>` +
+                `<body>
                     <div class="outer">
                         <h2>Personal Stats to Display on the Home Page:</h2>
                         <table><tbody>`;
-
-        // td:nth-child(1) {padding-left: 20px; width: 5%}
-                            //<tr><th>Stat</th><th>Selected</th><tr>`;
 
         // Insert table rows
         let keys = Object.keys(optStats);
@@ -106,14 +104,85 @@
             let statName = keys[i]; // eg, 'heahits' - name in the personalstats obj
             html += '<tr><td><input type="checkbox" name="' +
                 statName + '" value="' + (optStats[statName].enabled? 'checked' : 'unchecked') + '" ' +
-                (optStats[statName].enabled? 'checked': '') + '/></td><td>' + optStats[statName].name +
-                ' onclick="handleClick"</td></tr>';
+                (optStats[statName].enabled? 'checked': '') + ' onclick="handleClick"/></td><td>' + optStats[statName].name +
+                '</td></tr>';
         }
 
         html += `</table></tbody></div></body></html>`;
 
         return html;
     }
+    */
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Portion of script run when on config page
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    // Note: not loaded with JQuery active!
+    function handleConfigPage() {
+        log('[handleConfigPage]');
+        // Insert table rows
+        let html = '';
+        let keys = Object.keys(optStats);
+        for (let i=0; i < keys.length; i++) {
+            let statName = keys[i]; // eg, 'heahits' - name in the personalstats obj
+            addTableRow(statName);
+        }
+
+        let checkboxes = document.getElementsByClassName('clickable');
+        for (let i=0; i<checkboxes.length; i++) {
+            checkboxes[i].addEventListener('click', clickHandler);
+        }
+    }
+
+    function addTableRow(statName) {
+        let table = document.getElementById('xedx-table');
+        let row = table.insertRow();
+        var cell1 = row.insertCell(0);
+        var cell2 = row.insertCell(1);
+
+        cell1.innerHTML = '<input type="checkbox" class="clickable"' +
+            (optStats[statName].enabled? 'checked ': '') + ' />';
+        cell2.innerHTML = optStats[statName].name;
+
+        cell1.firstChild.setAttribute('name', statName);
+    }
+
+    function clickHandler(ev) {
+        let target = ev.target;
+        let srcElem = ev.srcElement;
+
+        log('Checkbox clicked! stat: ', target.name, ' value: ', target.value, ' checked: ', target.checked);
+        debug('[clickHandler] target: ', target);
+
+        GM_setValue(target.name, target.checked);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // End portion of script run when on config page
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    /*
+    const myImageURL = "https://seeklogo.com/images/S/skull-and-crossbones-logo-BE817FD55F-seeklogo.com.png";
+    function loadSimpleOptionsPage() {
+        let nonce = '2726c7f26c';
+        //let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'nonce-2726c7f26c' 'self' 'unsafe-inline';">`;
+        let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'nonce-` + nonce + `';">`;
+        let html =
+            `<html>` +
+                `<head>`+ CSP + `</head>` +
+                //`<script language="JavaScript" type="text/javascript">var i=0;</script>` +
+                `<body><img src="` + myImageURL + `" id="img1" />` +
+                `<script nonce="` + nonce + `">` +
+                     `document.getElementById ("img1").addEventListener ('click', function (e) { console.log('hello') }, false);` +
+                `</script>` +
+                `</body>` +
+            `</html>`;
+
+        return html;
+    }
+    const optionsHtml = loadSimpleOptionsPage(); //loadOptionsPage();
+    */
 
     // Get data used to calc award progress via the Torn API
     function personalStatsQuery() {
@@ -132,8 +201,15 @@
 
     // Create a config options dialog (was going to be a new div, try a new page, instead)
     function createConfigDiv() {
-        let x = window.open();
-        x.document.write(optionsHtml);
+        log('[createConfigDiv]');
+        let x = window.open("http://18.119.136.223:8080/testing/test.html");
+
+        /*
+        let tableBody = x.document.getElementById('xedx-table');
+        log('Table body: ', tableBody);
+        $(tableBody).append('<tr><td><input type="checkbox" name="box2" class="clickable"/></td><td>');
+        x.document.close();
+        */
     }
 
     function addStat(name, desc) {
@@ -171,7 +247,10 @@
     validateApiKey();
     versionCheck();
 
-    personalStatsQuery();
-    //callOnContentLoaded(handlePageLoad);
+    if (location.href.indexOf('test.html') > -1) {
+        handleConfigPage();
+    } else {
+        personalStatsQuery();
+    }
 
 })();
