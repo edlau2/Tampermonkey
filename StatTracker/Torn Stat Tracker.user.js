@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -24,6 +24,11 @@
 
     const options = {debugLogging: true};
 
+    // This is not working, cross-domain?
+    const bcChannelName = "xedx-channel"; // = GM_info.script.name;
+    //var bcChannel = new BroadcastChannel(bcChannelName);
+    var intervalTimer = null;
+
     function initOptStats() {
         addOptStat('killstreak', "Kill Streak");
         addOptStat('defendswon', "Defends Won");
@@ -37,8 +42,17 @@
     }
 
     const optStats = {};
+
     function addOptStat(name, desc) {
         optStats[name] = {enabled: GM_getValue(name, false), name: desc};
+    }
+
+    function reloadOptStats() {
+        let keys = Object.keys(optStats);
+        for (let i=0; i<keys.length; i++) {
+            let name = keys[i];
+            optStats[name].enabled = GM_getValue(name);
+        }
     }
 
     const stats_div = loadStatsDiv();
@@ -94,6 +108,9 @@
         for (let i=0; i<checkboxes.length; i++) {
             checkboxes[i].addEventListener('click', clickHandler);
         }
+
+        let saveButton = document.querySelector('#xedx-button');
+        saveButton.addEventListener('click', handleSaveButton);
     }
 
     function addTableRow(statName) {
@@ -119,6 +136,21 @@
         GM_setValue(target.name, target.checked);
     }
 
+    function sendSaveBroadcast() {
+        let bcChannel = new BroadcastChannel(bcChannelName);
+        bcChannel.postMessage('save');
+        log('Sent message on channel: ', bcChannel);
+    }
+
+    function handleSaveButton(ev) {
+        log('[handleSaveButton]');
+
+        // This is not working, cross-domain?
+        //sendSaveBroadcast();
+
+        GM_setValue(bcChannelName, 'saved');
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////
     // End portion of script run when on config page
     ///////////////////////////////////////////////////////////////////////////////////
@@ -138,10 +170,33 @@
         handlePageLoad();
     }
 
+    // Handle inter-window broadcasts
+    function handleBroadcasts(ev) {
+        log('[handleBroadcasts] data: ', ev.data);
+    }
+
+    function checkSaveButton() {
+        let data = GM_getValue(bcChannelName);
+        if (data == 'saved') {
+            log('Save button has been pressed!');
+
+            clearInterval(intervalTimer);
+            intervalTimer = null;
+            GM_setValue(bcChannelName, '');
+            reloadOptStats();
+            $("#stats-list").empty();
+            handlePageLoad();
+            intervalTimer = setInterval(checkSaveButton, 2000);
+        }
+    }
+
     // Create a config options dialog (was going to be a new div, try a new page, instead)
     function createConfigDiv() {
         log('[createConfigDiv]');
         let x = window.open("http://18.119.136.223:8080/testing/test.html");
+
+        // Since broadcasts won't work, and storage notifications won't work, poll.
+        if (!intervalTimer) intervalTimer = setInterval(checkSaveButton, 2000);
     }
 
     function addStat(name, desc) {
@@ -181,6 +236,15 @@
         }
     }
 
+    function installBroadcastChannel() {
+        let bcChannel = new BroadcastChannel(bcChannelName);
+        bcChannel.addEventListener('message', handleBroadcasts);
+        bcChannel.onmessage = (messageEvent) => {
+            log('[handleBroadcasts] data: ', messageEvent.data);
+        }
+        log('Listening on channel: ', bcChannel);
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Main.
     //////////////////////////////////////////////////////////////////////
@@ -190,10 +254,14 @@
     versionCheck();
 
     initOptStats();
+    GM_setValue(bcChannelName, '');
 
     if (location.href.indexOf('test.html') > -1) {
         handleConfigPage();
     } else {
+        // This is not working, cross-domain?
+        // installBroadcastChannel();
+
         personalStatsQuery();
     }
 
