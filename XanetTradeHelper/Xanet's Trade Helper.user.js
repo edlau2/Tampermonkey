@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      3.8
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
-// @include      https://www.torn.com/trade.php*
+// @match        https://www.torn.com/trade.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @updateURL    https://github.com/edlau2/Tampermonkey/raw/master/XanetTradeHelper/Xanet's%20Trade%20Helper.user.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -14,96 +13,45 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
 
+    logScriptStart();
+
     // DIV inserted at top of trade  page, to enter Sheets URL if not already saved.
-    // Eventually, separate into separate file to make this neater. The <div> will go into this file:
-    // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/XanetTradeHelper/Xanet-Trade-Helper-Div.js
-    // Leaving here for now to make it easier to edit, in the Tampermonkey editor.
-    const xedx_main_div =
-          '<div class="t-blue-cont h" id="xedx-main-div">' +
+    // This is done as a function - at the bottom of this page - so it can be code collapsed.
+    const xedx_main_div = createMainDiv();
 
-              // Header and title.
-              '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
-                  "<span>Xanet's Trade Helper</span>" +
+    //////////////////////////////////////////////////////////////////////
+    // These can be modified as you see fit.
+    //////////////////////////////////////////////////////////////////////
 
-                  // This displays the active/inactive status - active when data array is populated.
-                  '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px;">' +
-                      '<span>Active</span>' +
-                  '</div>' +
+    loggingEnabled = true;           // Declared in Torn-JS-helpers, true to log to console, false otherwise
+    debugLoggingEnabled = true;      // Declared in Torn-JS-helpers, turn of to disable debug() output
 
-                  // This displays the [hide] | [show] link
-                  '<div class="right" style="margin-right: 10px">' +
-                      '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
-                  '</div>' +
-              '</div>' +
+    var autoUpload = true;           // true to auto-upload when we have data - for pricing info.
+    var dispItemInfo = false;        // true to display alert on missing items or 0 price, also on success.
+    var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
+    var testData = false;            // true to emulate using test data
 
-              '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
-                  '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
-                  '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
-                  '<span>Total Sets:</span><span id="xedx-total-sets" style="color: green; margin-left: 10px;">0</span>' +
-                  '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
-              '</div>' +
+    //////////////////////////////////////////////////////////////////////
+    // Development tools/variables
+    //////////////////////////////////////////////////////////////////////
 
-          // This is the content that we want to hide when '[hide] | [show]' is clicked.
-          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: block";>' +
+    //
+    // xedxDevMode currently does the following:
+    // Allows the UI to display when travelling (for testing while I'm not in Torn)
+    // Suppresses the 'Accept' button from being propogated. (commented out)
+    //
+    var xedxDevMode = false;
 
-              // Google Sheets published URL, can be edited
-              '<div style="text-align: center; vertical-align: middle;">' +
-                  '<br>' +
-                  '<span id="input-span" style="margin-top: 30px;">Google Sheets URL: ' +
-                  '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
-                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 450px;">' +
-                      '<button id="xedx-save-btn" class="enabled-btn">Save URL</button>' +
-                  '</span>' +
-              '</div>' +
-
-              // Links for testing (development) - Submit, View, ...
-              '<div id="devtools-div" style="margin-left: 200px; vertical-align: middle; display: block;">' +
-                  '<span id="button-span">Development Tools: ' +
-                      '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
-                      '<button id="xedx-view-btn" class="enabled-btn">View</button>' +
-                      '<button id="xedx-prices-btn" class="enabled-btn">Prices</button>' +
-                      //'<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
-                      //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
-                      '<p>(This also allows the UI to display on the travel page, for testing.)</p>' +
-
-                  '</span>' +
-              '</div>' +
-              '<p style="text-align: left; margin-left: 82px;">Options:</p>' +
-              '<div>' +
-                  '<input type="checkbox" id="xedx-devmode-opt" name="devmode" style="margin-left: 200px; margin-top: 10px;">' +
-                  '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
-              '</div>' +
-              '<div>' +
-                  '<input type="checkbox" id="xedx-logging-opt" name="loggingEnabled" style="margin-left: 200px;">' +
-                  '<label for="loggingEnabled"><span style="margin-left: 15px;">Logging Enabled</span></label>' +
-              '</div>' +
-              '<div>' +
-                  '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px;">' +
-                  '<label for="autoUpload"><span style="margin-left: 15px;">Auto-Upload</span></label>' +
-              '</div>' +
-              '<div>' +
-                  '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px;">' +
-                  '<label for="itemInfo"><span style="margin-left: 15px;">Display Item Info</span></label>' +
-              '</div>' +
-              '<div>' +
-                  '<input type="checkbox" id="xedx-baditeminfo-opt" name="baditemInfo" style="margin-left: 200px;">' +
-                  '<label for="baditemInfo"><span style="margin-left: 15px;">Only missing items/prices</span></label>' +
-              '</div>' +
-              '<div id="xedx-testdata-div" style="display: block;">' +
-                  '<input type="checkbox" id="xedx-testdata-opt" name="testData" style="margin-left: 200px; margin-bottom: 10px;">' +
-                  '<label for="testData"><span style="margin-left: 15px;">Use test data</span></label>' +
-              '</div>' +
-
-          '</div>'; // End xedx-content-div
-
-    // Globals - the googleURL from comes from the script - Publish->Deploy as Web App. This allows us to POST
-    // to the sheet's script.
-    var googleURL = null;
-
-    // Array to push up for testing.
+    //
+    // Test data to upload when there is no active trade
+    //
     const testArray = [{"id":"6424407","name":"Blood Bag : BP","qty":"1","price":"0","total":"0"}, // Script changes 'B+' to 'BP'...
                        {"id":"6424407","name":"Blood Bag : A-","qty":"1","price":"0","total":"0"},
                        {"id":"786444001","name":"African Violet ","qty":"2","price":"0","total":"0"},
@@ -120,6 +68,10 @@
                        {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
+    // Globals - the googleURL from comes from the script - Publish->Deploy as Web App. This allows us to POST
+    // to the sheet's script.
+    var googleURL = null;
+
     var hash = location.hash; // ex., '#step=view&ID=6372852'
     var tradeID = getTradeIDFromHash();
     var totalPrice = 0;
@@ -128,26 +80,13 @@
     var activeFlag = false;
     var observer = null; // Mutation observer
 
-    // These can be modified as you see fit.
-    // xedxDevMode currently does the following:
-    //   Allows the UI to display when travelling.
-    //   Suppresses the 'Accept' button from being propogated. (commented out)
-    var xedxDevMode = false; // true to enable any special dev mode code.
-    loggingEnabled = true; // Declared in Torn-JS-helpers, true to log to console, false otherwise
-    debugLoggingEnabled = true; // Declared in Torn-JS-helpers, turn of to disable debug() output
-    var autoUpload = true; // true to auto-upload when we have data - for pricing info.
-    var dispItemInfo = false; // true to display alert on missing items or 0 price, also on success.
-    var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
-    var testData = false; // TRUE to emulate using test data
+    ////////////////////////////////////////////////////////////////////////////////
+    // Process each item in the trade. This is where we do stuff - build the aray
+    // array we will be uploading. Uploading is done by calling 'uploadDataArray()'
+    // This is called from getGridData() for each item. This mostly handles
+    // sanitizing the data, one item at a time.
+    ///////////////////////////////////////////////////////////////////////////////
 
-    /**************************************************************************
-    * Process each item in the trade. This is where we do stuff - build the aray
-    * array we will be uploading. Uploading is done by calling 'uploadDataArray()'
-    * This is called from getGridData() for each item. This mostly handles
-    * sanitizing the data, one item at a time.
-    /*************************************************************************/
-
-    // Parse "red fox x2\n"
     function processItem(item) {
         // Compensate for TornTools, it may add pricing to the grid. So,
         // 'title' may be something like 'Dahlia x2    $9,930.00'. Scrap
@@ -227,6 +166,7 @@
 
     // Upload data to the sheet
     function uploadDataArray(cmd='data') {
+        log('[uploadDataArray]');
         let url = document.getElementById('xedx-google-key').value;
         if (url == '') {
             url = GM_getValue('xedx-google-key');
@@ -244,19 +184,19 @@
         if (!useArray.length) {
             hideStatus();
             let msg = 'No ' + (testData ? 'test' : 'live') + ' data in trade, unable to upload!';
-            log(msg);
+            log('[uploadDataArray] ' + msg);
             devAlert(msg);
             return;
         }
 
         // Validate the trade ID
         if (!validateTradeIDs(useArray)) {
-            log('Invalid trade ID!');
-            log('tradeID = ' + tradeID);
+            log('[uploadDataArray] Invalid trade ID!');
+            log('[uploadDataArray] tradeID = ' + tradeID);
             if (!isNaN(tradeID)) {
-                log(tradeID + ' looks valid to me, ignoring.');
+                log('[uploadDataArray] ' + tradeID + ' looks valid to me, ignoring.');
             } else {
-                log('Ignoring for now!!!');
+                log('[uploadDataArray] Ignoring for now!!!');
             }
             //return;
         }
@@ -310,7 +250,7 @@
 
     // Called when upload completes
     function uploadFunctionCB(responseText) {
-        log('Upload Response:\n' + responseText);
+        log('[uploadFunctionCB]\n' + responseText);
         if (responseText.indexOf('<!DOCTYPE html>') != -1) {
             var newWindow = window.open();
             newWindow.document.body.innerHTML = responseText;
@@ -331,18 +271,15 @@
 
     // Handle the response on success
     function processResponse(resp) {
-        log('processResponse: ' + resp);
+        log('[processResponse] ' + resp);
 
         // TBD...
         if (true) {
             let output = 'Success! Response:\n\n' + resp;
             // Parse the response into a sensible output.
-            // What we like to see is either complete success,
-            // 'All x items logged and Running Averages updated!'
-            // or
-            // 'The following items are not in the price sheet, or
-            // do not have pricing information:'
-            // <nice list>
+            // What we like to see is either complete success, 'All x items logged and Running Averages updated!'
+            //  - or -
+            // 'The following items are not in the price sheet, or do not have pricing information: <nice list>'
             //
             let newOutput = parseResponse(resp);
             if (newOutput != "") {
@@ -355,10 +292,10 @@
     // Parse the response into legible text
     function parseResponse(resp) {
         let obj = JSON.parse(resp);
-        console.log('parseResponse obj', obj);
-        console.log('resp: ', resp);
+        log('[parseResponse] obj', obj);
+        log('[parseResponse] resp: ', resp);
         if (obj.exception) {
-            console.log('Exception: ', obj.exception);
+            log('[parseResponse] Exception: ', obj.exception);
             return "An exception occured during processing. Please see the console log for details";
         }
         let len = obj.length;
@@ -374,7 +311,7 @@
             totalPrice = total;
             dispPrice = total;
         }
-        log('Setting total sets to ' + totalSets);
+        log('[parseResponse] Setting total sets to ' + totalSets);
         processDataSets(dataArray);
 
         if (Number(tradeID) == 0) {tradeID = dataArray[0].id;}
@@ -383,11 +320,11 @@
         $('#xedx-total-price')[0].innerText = asCurrency(dispPrice).replace('$', '');
         $('#xedx-trade-id')[0].innerText = tradeID;
 
-        log('parseResponse: Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
-        log('parseResponse: Command: ' + cmd);
-        log('parseResponse: Total Trade: ' + total);
-        log('parseResponse: dataArray = ' + dataArray + ' Length: ' + dataArray.length);
-        debug('parseResponse: array data: ' + JSON.stringify(dataArray));
+        log('[parseResponse]  Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
+        log('[parseResponse]  Command: ' + cmd);
+        log('[parseResponse]  Total Trade: ' + total);
+        log('[parseResponse]  dataArray = ' + dataArray + ' Length: ' + dataArray.length);
+        debug('[parseResponse]  array data: ' + JSON.stringify(dataArray));
 
         let missingPriceWarning = "";
         let dataReceived = 'Result data:\n';
@@ -400,12 +337,12 @@
             // Text for missing items.
             let noPrice = countPricesAt(dataArray, 0);
             let notInData = countPricesAt(dataArray, -1);
-            log('Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
+            log('[parseResponse] Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
             if ((noPrice > 0 || notInData > 0)) {
                 missingPriceWarning += 'Warning: the following items are not in the list or missing prices.\n';
                 for (let i = 0; i < dataArray.length; i++) {
                     let item = dataArray[i];
-                    debug('Processing item: ' + JSON.stringify(item));
+                    debug('[parseResponse] Processing item: ' + JSON.stringify(item));
                     if (item.price > 0) {continue;}
                     missingPriceWarning += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
                 }
@@ -445,17 +382,17 @@
         let badHash = false;
         let valid = true;
 
-        log('validateTradeIDs: tradeID = "' + tradeID + '" array length: ' + useArray.length);
+        log('[validateTradeIDs] tradeID = "' + tradeID + '" array length: ' + useArray.length);
 
         tradeID = Number(tradeID);
         if (isNaN(tradeID)) {
             valid = false;
-            log('Invalid trade ID: ' + tradeID + ' Getting from URL.');
+            log('[validateTradeIDs] Invalid trade ID: ' + tradeID + ' Getting from URL.');
             getTradeIDFromHash();
             if (!isNaN(tradeID)) {valid = true;}
         }
 
-        return true; // valid; // TEMPORAY - for debugging
+        return true; // valid; // TEMPORARY - for debugging
     }
 
     // Helper: Perform an array deep copy
@@ -463,20 +400,20 @@
         return JSON.parse(JSON.stringify(copyArray));
     }
 
-    // Helper to clear globals
+    // Helper to clear some globals, and log this event.
     function clearTradeID() {
-        log('Clearing TradeID and total price: TID = ' + tradeID + ' Price = ' + totalPrice);
+        log('[clearTradeID] TID = ' + tradeID + ' Price = ' + totalPrice);
         //tradeID = '0';
         totalPrice = '0';
-        log('Cleared  total price, left TID alone: TID = ' + tradeID + ' Price = ' + totalPrice);
+        log('Cleared total price, left TID alone: TID = ' + tradeID + ' Price = ' + totalPrice);
     }
 
     // Helper to get TradeID from hash
     function getTradeIDFromHash() {
-        log('getTradeIDFromHash');
+        log('[getTradeIDFromHash]');
         hash = location.hash;
-        debug('hash = ' + hash);
-        debug('hash split, stringified: ' + JSON.stringify(hash.split(/=|#|&/)));
+        debug('[getTradeIDFromHash] hash = ' + hash);
+        debug('[getTradeIDFromHash] hash split, stringified: ' + JSON.stringify(hash.split(/=|#|&/)));
         let tempArray = hash.split(/=|#|&/); //[4];
         let temp = '0'
         for (let i = 0; i < tempArray.length; i++) {
@@ -485,9 +422,9 @@
                 break;
             }
         }
-        log('getTradeIDFromHash: ID = "' + temp + '"');
+        log('[getTradeIDFromHash] ID = "' + temp + '"');
         if (validPointer(temp)) {
-            log('Setting tradeID to "' + temp + '"');
+            log('[getTradeIDFromHash] Setting tradeID to "' + temp + '"');
             tradeID = temp;
         }
         return tradeID;
@@ -501,20 +438,6 @@
         }
         return counter;
     }
-
-    // Format a number as currency. Move to my helper lib?
-    function asCurrency(num) {
-        var formatter = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-
-            // These options are needed to round to whole numbers if that's what you want.
-            //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-            maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-        });
-
-      return formatter.format(num);
-      }
 
     // Helper: Reverse a string
     function reverseString(str) {
@@ -540,7 +463,7 @@
         alert(GM_info.script.name + ': URL saved!');
     }
 
-    // Helper: Handle clicking the 'Accept' button (ev is the event)
+    // Helper: Handle clicking the 'Accept' button
     function handleAccept(ev) {
         getSavedOptions();
         log('Accept button handler: ' + ev);
@@ -564,7 +487,7 @@
         }
     }
 
-    // Helper: Handle clicking the 'Cancel' button (ev is the event)
+    // Helper: Handle clicking the 'Cancel' button
     function handleCancel(ev) {
         getSavedOptions();
         log('Cancel button handler: ' + ev);
@@ -641,13 +564,12 @@
                 break;
             default:
                 log('Checkbox ID not found!');
-
         }
     }
 
     // Helper: Check checkboxes to default.
     function setDefaultCheckboxes() {
-        log('Setting default state of checkboxes.');
+         debug('[setDefaultCheckboxes');
         $("#xedx-logging-opt")[0].checked = GM_getValue("loggingEnabled", loggingEnabled);
         $("#xedx-autoupload-opt")[0].checked = GM_getValue("autoUpload", autoUpload);
         $("#xedx-devmode-opt")[0].checked = GM_getValue("xedxDevMode", xedxDevMode);
@@ -658,7 +580,7 @@
 
     // Helper: Read saved options values
     function getSavedOptions() {
-        log('Getting saved options.');
+        debug('[getSavedOptions]');
         loggingEnabled = GM_getValue("loggingEnabled", loggingEnabled);
         autoUpload = GM_getValue("autoUpload", autoUpload);
         xedxDevMode = GM_getValue("xedxDevMode", xedxDevMode);
@@ -668,7 +590,7 @@
     }
 
     function logSavedOptions() {
-        log('Saved options:');
+        log('[logSavedOptions]');
         log('loggingEnabled: ' + GM_getValue("loggingEnabled", loggingEnabled));
         log('autoUpload: ' + GM_getValue("autoUpload", autoUpload));
         log('xedxDevMode: ' + GM_getValue("xedxDevMode", xedxDevMode));
@@ -679,7 +601,7 @@
 
     // Helper: Write saved options values
     function setSavedOptions() {
-        log('Setting saved options.');
+        log('[setSavedOptions]');
         GM_setValue("loggingEnabled", loggingEnabled);
         GM_setValue("autoUpload", autoUpload);
         GM_setValue("xedxDevMode", xedxDevMode);
@@ -689,7 +611,7 @@
 
     // Helper: Show/hide opts page
     function hideOpts(hide=true) {
-        log((hide ? "hiding " : "showing ") + "options page.");
+        log('[hideOpts] ' + (hide ? "hiding " : "showing ") + "options page.");
         $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
         document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'block';
     }
@@ -750,7 +672,7 @@
     function trapAcceptButton() {
         let link =
             document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div.btn-wrap.green > span > a");
-        log('Trapping "Accept", link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
+        log('[trapAcceptButton] link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
         if (validPointer(link)) {
             if (typeof window.addEventListener != "undefined") {
                 link.addEventListener("click",handleAccept,false);
@@ -764,7 +686,7 @@
     function trapCancelButton() {
         let link =
             document.querySelector("#trade-container > div.trade-cancel > div.cancel > div.cancel-btn-wrap > div > div > button");
-        log('Trapping "Cancel", Link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
+        log('[trapCancelButton] Link = ' + link + ' Text = "' + (validPointer(link) ? link.innerText : 'N/A'));
         if (validPointer(link)) {
             if (typeof window.addEventListener != "undefined") {
                 link.addEventListener("click",handleCancel,false);
@@ -776,42 +698,42 @@
 
     // Helper: Toggle active/inactive status
     function indicateActive(active) {
-        log('Toggling active status: ' + (testData ? 'Using Test Data' : active ? 'active' :  'inactive'));
+        log('[indicateActive] ' + (testData ? 'Using Test Data' : active ? 'active' :  'inactive'));
         if (validPointer($('#xedx-active-light')[0])) {
             var str = `[${testData ? 'Using Test Data' : active ? 'Active' : 'Inactive'}]`;
             $('#xedx-active-light').text(str);
             $('#xedx-active-light')[0].style.color = active ? "green" : "red";
             activeFlag = active;
         } else {
-            log('Active indicator not found!');
+            log('[indicateActive] Active indicator not found!');
         }
     }
 
     // Helper: Show/hide status line
     function hideStatus(hide=true) {
-        log('Hiding status line: ' + (hide? 'true' : 'false'));
+        log('[hideStatus] ' + (hide? 'true' : 'false'));
         $('#xedx-status-line')[0].style.display = hide ? 'none' : 'block';
     }
 
     // Helper: Show/hide the Dev Tools links
     function hideDevLinks(hide) {
-        log('Hiding dev tools: ' + (hide? 'true' : 'false'));
+        log('[hideDevLinks] ' + (hide? 'true' : 'false'));
         $('#devtools-div')[0].style.display = hide ? 'none' : 'block';
         $('#xedx-testdata-div')[0].display = hide ? 'none' : 'block';
         if (hide) {testData = false;}
     }
 
-    /**************************************************************************
-    / Fill the money field with current price. This happens when yo click
-    / in the field, and uses the price sent back from the spreadsheet.
-    /**************************************************************************/
+    //////////////////////////////////////////////////////////////////////
+    // Fill the money field with current price. This happens when yo click
+    // in the field, and uses the price sent back from the spreadsheet.
+    //////////////////////////////////////////////////////////////////////
 
     // Helper to handle the page asking for how much $$ to add to the trade.
     // This basically adds a listener.
     function handleAddMoneyPage() {
         let hash = location.hash;
         let step = hash.split(/=|#|&/)[2];
-        log('handleAddMoneyPage: step = ' + step);
+        log('[handleAddMoneyPage] step = ' + step);
         if (step == 'addmoney') {
             let moneySel = document.querySelector("#trade-container > div.init-trade.add-money > div.cont-gray.bottom-round > " +
                                                   "form > ul > li > div.input-money-group > input:nth-child(2)");
@@ -821,7 +743,6 @@
 
             // Add a handler for when the money field is clicked
             moneySel.addEventListener('click',function () {
-                //addMoney(moneySel);
                 addMoney(moneySel, moneyInput);
             });
         }
@@ -829,10 +750,10 @@
 
     // Helper for above, actually fills the field.
     function addMoney(target1, target2) {
-        log('addMoney');
+        log('[addMoney]');
         let value = target2.getAttribute('value');
         if (value == '' || value == null || value == undefined) {
-            log('Setting value to "' + totalPrice);
+            log('[addMoney] Setting value to "' + totalPrice);
             target1.setAttribute('value', totalPrice);
             target2.setAttribute('value', totalPrice);
 
@@ -850,7 +771,9 @@
     /**************************************************************************
     * Build our UI
     **************************************************************************/
+
     function buildUI() {
+        log('[buildUI]');
         getSavedOptions();
         if (validPointer(document.getElementById('xedx-main-div'))) {
             log('UI already installed!');
@@ -861,9 +784,10 @@
 
         // For testing, if travelling, display anyways.
         if (xedxDevMode && awayFromHome() && !validPointer(parentDiv)) {
-            log('Away from home, forcing UI for dev mode.');
+            log('[buildUI] Away from home, forcing UI for dev mode.');
             parentDiv = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
         }
+
         if (validPointer(parentDiv)) {
             $(xedx_main_div).insertAfter(parentDiv);
             $(separator).insertAfter(parentDiv);
@@ -876,9 +800,9 @@
 
             installHandlers();
             setDefaultCheckboxes();
-            log('UI installed.');
+            log('[buildUI] UI installed.');
         } else {
-            log('Unable to find parent div!');
+            log('[buildUI] Unable to find parent div!');
         }
 
         // Display the options page and status as needed.
@@ -892,10 +816,10 @@
         }
 
         let prevSib = validPointer(mainDiv) ? mainDiv.previousSibling : null;
-        log('Prev Sib: ' + prevSib + ' Type: ' + (validPointer(prevSib) ? prevSib.nodeType : 'undefined'));
+        debug('[buildUI] Prev Sib: ' + prevSib + ' Type: ' + (validPointer(prevSib) ? prevSib.nodeType : 'undefined'));
         if (validPointer(prevSib)) {
             if (prevSib.nodeType == Node.ELEMENT_NODE) {
-                log('Removing node.');
+                log('[buildUI] Removing node: ', prevSib);
                 prevSib.remove();
             }
         }
@@ -906,12 +830,10 @@
     /*************************************************************************/
 
     function handlePageLoad() {
-
+        log('[handlePageLoad]');
         window.addEventListener('hashchange', function() {
             log('The hash has changed! Trade ID: ' + tradeID + ' Total Price: ' + totalPrice);
             log('new hash: ' + location.hash);
-            //buildUI();
-            //getGridData();
             getTradeIDFromHash(); // New!
             addObserver();
         }, false);
@@ -927,7 +849,7 @@
     /*************************************************************************/
 
     function processDataSets(useArray) {
-        log('processDataSets');
+        log('[processDataSets]');
         try {
         totalSets = 0;
         for (let i = 0; i < useArray.length; i++) {
@@ -941,11 +863,11 @@
         }
         $('#xedx-total-sets')[0].innerText = Number(totalSets).toString();
         } catch(e) {
-            log('Exception: ' + e.stack);
-            log('useArray: ' + useArray);
+            log('[processDataSets] Exception: ' + e.stack);
+            log('[processDataSets] useArray: ' + useArray);
         }
 
-        log('processDataSets: total sets: ' + totalSets);
+        log('[processDataSets] total sets: ' + totalSets);
     }
 
     /**************************************************************************
@@ -953,6 +875,7 @@
     * This buids the dataArray that will be uloaded later, for either
     * pricing info, or insertion into the spreadsheet, or both.
     **************************************************************************/
+
     var pageRetries = 0;
     function getGridData() {
         var names = null;
@@ -966,11 +889,11 @@
             dataArray.length = 0;
 
             names = ulRoot.querySelectorAll("div.name.left");
-            log('Processing trade items. There are ' + names.length + ' elements');
+            log('[getGridData] Processing trade items. There are ' + names.length + ' elements');
             names.forEach(element => processItem(element));
 
             // Data array is all set - process any sets that may or may not be in it.
-            log('Preparing to processDataSets. dataArray = ' + dataArray + ' length: ' + dataArray.length);
+            log('[getGridData] Preparing to processDataSets. dataArray = ' + dataArray + ' length: ' + dataArray.length);
             processDataSets(dataArray);
 
             // Indicate that we are 'active' - data saved
@@ -979,20 +902,20 @@
             // Here, just upload for pricing info.
             // Actually stored remotely when the param is 'data' (the default)
             if (autoUpload) {
-                log('Preparing to upload for "price" data.');
+                log('[getGridData] Preparing to upload for "price" data.');
                 uploadDataArray('price');
             } else {
-                log('Not auto uploading for price check, not enabled!');
+                log('[getGridData] Not auto uploading for price check, not enabled!');
             }
         }
         // No items in trade, or not on an active trade page TBD - dev mode, maybe display UI anyways?
         // Or the page hasn't fully loaded. Dammit. Adding an observer here seems overkill.
         else {
             indicateActive(false);
-            log('Not on a trade page, or no items in trade!'); // Also hit when I initiate a trade.
-            log('ulRoot: ' + ulRoot);
-            log('div.user.right: ' + document.querySelector("#trade-container > div.trade-cont > div.user.right"));
-            log('div.trade-cont: ' + document.querySelector("#trade-container > div.trade-cont"));
+            log('[getGridData] Not on a trade page, or no items in trade!'); // Also hit when I initiate a trade.
+            debug('[getGridData] ulRoot: ' + ulRoot);
+            debug('[getGridData] div.user.right: ' + document.querySelector("#trade-container > div.trade-cont > div.user.right"));
+            debug('[getGridData] div.trade-cont: ' + document.querySelector("#trade-container > div.trade-cont"));
             if (ulRoot == null && pageRetries <= 3) {
                 pageRetries++;
                 setTimeout(getGridData, 500);
@@ -1000,22 +923,23 @@
             }
         }
         } catch(e) {
-            log('Exception detected! names = ' + names + ' Call stack: ' + e.stack);
+            log('[getGridData] Exception detected! names = ' + names + ' Call stack: ' + e.stack);
         }
 
         pageRetries = 0;
         if (!isNaN(totalPrice) && !isNaN(tradeID)) {
-            log('Setting total price to ' + asCurrency(totalPrice).replace('$', ''));
+            log('[getGridData] Setting total price to ' + asCurrency(totalPrice).replace('$', ''));
             $('#xedx-total-price')[0].innerText = asCurrency(totalPrice).replace('$', '');
             $('#xedx-trade-id')[0].innerText = tradeID;
             $('#xedx-total-sets')[0].innerText = totalSets;
         } else {
-            log('Failed to set price: total = "' + totalPrice + '" tradeID = "' + tradeID + '"');
+            log('[getGridData] Failed to set price: total = "' + totalPrice + '" tradeID = "' + tradeID + '"');
         }
     }
 
     // Add a mutation observer
     function addObserver() {
+        log('[addObserver]');
         var targetNode = document.querySelector("#trade-container");
         var config = { attributes: false, childList: true, subtree: true };
         var callback = function(mutationsList, observer) {
@@ -1030,13 +954,6 @@
         observer.observe(targetNode, config);
     }
 
-    // Simple logging helper
-    function log(data) {
-        if (loggingEnabled) {
-            console.log(GM_info.script.name + ': ' + data);
-        }
-    }
-
     // Simple helper to display an alert - but only in dev mode
     function devAlert(msg) {
         if (xedxDevMode) {alert(msg);}
@@ -1046,14 +963,99 @@
     // Main entry point.
     //////////////////////////////////////////////////////////////////////
 
-    // Full URL we trigger on https://www.torn.com/trade.php*
-    logScriptStart();
     validateApiKey();
 
     logSavedOptions(); // For debugging
 
-    // Need to wait for full page load.
-    window.onload = function(e){handlePageLoad();}
+    callOnContentComplete(handlePageLoad);
 
+    //////////////////////////////////////////////////////////////////////
+    //
+    // Some 'hidden' functions, stuck here to be code-collapsed to
+    // make the code easier to read.
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    function createMainDiv() {
+        let retDiv =
+          '<div class="t-blue-cont h" id="xedx-main-div">' +
+
+              // Header and title.
+              '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
+                  "<span>Xanet's Trade Helper</span>" +
+
+                  // This displays the active/inactive status - active when data array is populated.
+                  '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px;">' +
+                      '<span>Active</span>' +
+                  '</div>' +
+
+                  // This displays the [hide] | [show] link
+                  '<div class="right" style="margin-right: 10px">' +
+                      '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
+                  '</div>' +
+              '</div>' +
+
+              '<div id="xedx-2nd-header-div" class="title main-title title-black top-round bottom-round active" role="table" aria-level="5">' +
+                  '<span>Total Cost:</span><span id="xedx-total-price" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
+                  '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
+                  '<span>Total Sets:</span><span id="xedx-total-sets" style="color: green; margin-left: 10px;">0</span>' +
+                  '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
+              '</div>' +
+
+          // This is the content that we want to hide when '[hide] | [show]' is clicked.
+          '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: block";>' +
+
+              // Google Sheets published URL, can be edited
+              '<div style="text-align: center; vertical-align: middle;">' +
+                  '<br>' +
+                  '<span id="input-span" style="margin-top: 30px;">Google Sheets URL: ' +
+                  '<input id="xedx-google-key" type="text" style="font-size: 14px;' + // height: 24px;' +
+                  'border-radius: 5px; margin: 0px 10px 10px 10px; border: 1px solid black; width: 450px;">' +
+                      '<button id="xedx-save-btn" class="enabled-btn">Save URL</button>' +
+                  '</span>' +
+              '</div>' +
+
+              // Links for testing (development) - Submit, View, ...
+              '<div id="devtools-div" style="margin-left: 200px; vertical-align: middle; display: block;">' +
+                  '<span id="button-span">Development Tools: ' +
+                      '<button id="xedx-submit-btn" class="enabled-btn">Submit</button>' +
+                      '<button id="xedx-view-btn" class="enabled-btn">View</button>' +
+                      '<button id="xedx-prices-btn" class="enabled-btn">Prices</button>' +
+                      //'<button id="xedx-test-btn" class="enabled-btn">Prices (test)</button>' +
+                      //'<button id="xedx-clear-btn" class="enabled-btn">Clear</button>' +
+                      '<p>(This also allows the UI to display on the travel page, for testing.)</p>' +
+
+                  '</span>' +
+              '</div>' +
+              '<p style="text-align: left; margin-left: 82px;">Options:</p>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-devmode-opt" name="devmode" style="margin-left: 200px; margin-top: 10px;">' +
+                  '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-logging-opt" name="loggingEnabled" style="margin-left: 200px;">' +
+                  '<label for="loggingEnabled"><span style="margin-left: 15px;">Logging Enabled</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-autoupload-opt" name="autoUpload" style="margin-left: 200px;">' +
+                  '<label for="autoUpload"><span style="margin-left: 15px;">Auto-Upload</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-iteminfo-opt" name="itemInfo" style="margin-left: 200px;">' +
+                  '<label for="itemInfo"><span style="margin-left: 15px;">Display Item Info</span></label>' +
+              '</div>' +
+              '<div>' +
+                  '<input type="checkbox" id="xedx-baditeminfo-opt" name="baditemInfo" style="margin-left: 200px;">' +
+                  '<label for="baditemInfo"><span style="margin-left: 15px;">Only missing items/prices</span></label>' +
+              '</div>' +
+              '<div id="xedx-testdata-div" style="display: block;">' +
+                  '<input type="checkbox" id="xedx-testdata-opt" name="testData" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="testData"><span style="margin-left: 15px;">Use test data</span></label>' +
+              '</div>' +
+
+          '</div>';
+
+        return retDiv;
+    }
 
 })();
