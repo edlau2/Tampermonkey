@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Hospital Filter
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add filters to the hospital page
 // @author       xedx [2100735]
-// @include      https://www.torn.com/hospitalview.php*
+// @match        https://www.torn.com/hospitalview.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -12,6 +12,9 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
 
 (function() {
     'use strict';
