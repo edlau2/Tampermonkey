@@ -154,7 +154,17 @@
     }
 
     function handlePageLoad() {
-        let targetDiv = document.querySelector("#item10961671");
+        //let targetDiv = document.querySelector("#item10961671"); // Not unique, random....
+
+        let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable");
+
+        let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
+        let targetDiv = divList[3];
+
+        log('targetDivRoot: ', targetDivRoot);
+        log('divList: ', divList);
+        log('targetDiv: ', targetDiv);
+
         if (!targetDiv) return setTimeout(handlePageLoad, 500);
         if (!document.querySelector("#xedx-stats")) {
             $(targetDiv).after(stats_div);
