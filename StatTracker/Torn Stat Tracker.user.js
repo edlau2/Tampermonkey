@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -23,19 +23,24 @@
     'use strict';
 
     const options = {debugLogging: true};
-    const optStats = {
-                     killstreak: {enabled: GM_getValue('killstreak', true), name: "Kill Streak"},
-                     defendswon: {enabled: GM_getValue('defendswon', true), name: "Defends Won"},
-                     smghits: {enabled: GM_getValue('smghits', false), name: "Finishing Hits: SMG"}, // Sub machine gun
-                     chahits: {enabled: GM_getValue('chahits', false), name: "Finishing Hits: Mechanical"}, // Mechanical weapons
-                     heahits: {enabled: GM_getValue('heahits', false), name: "Finishing Hits: Heavy Artillery"}, // Heavy Artillery
-                     pishits: {enabled: GM_getValue('pishits', false), name: "Finishing Hits: Pistols"}, // Pistols
-                     machits: {enabled: GM_getValue('machits', false), name: "Finishing Hits: Machine Guns"}, // Machine GUns
-                     grehits: {enabled: GM_getValue('grehits', false), name: "Finishing Hits: Temps"}, // Temps (grenades)
-                     h2hhits: {enabled: GM_getValue('h2hhits', false), name: "Finishing Hits: Hand to Hand"}  // Hand-to-hand
-                    };
 
-    //const optionsHtml = loadOptionsPage();
+    function initOptStats() {
+        addOptStat('killstreak', "Kill Streak");
+        addOptStat('defendswon', "Defends Won");
+        addOptStat('smghits', "Finishing Hits: SMG");
+        addOptStat('chahits', "Finishing Hits: Mechanical");
+        addOptStat('heahits', "Finishing Hits: Heavy Artillery");
+        addOptStat('pishits', "Finishing Hits: Pistols");
+        addOptStat('machits', "Finishing Hits: Machine Guns");
+        addOptStat('grehits', "Finishing Hits: Temps");
+        addOptStat('h2hhits', "Finishing Hits: Hand to Hand");
+    }
+
+    const optStats = {};
+    function addOptStat(name, desc) {
+        optStats[name] = {enabled: GM_getValue(name, false), name: desc};
+    }
+
     const stats_div = loadStatsDiv();
     const award_li = loadAwardLi();
 
@@ -69,50 +74,6 @@
             '<span class="desc" style="width: 100px;">STAT_DESC</span>' +
         '</li>';
     }
-
-    /*
-    function loadOptionsPage() {
-        let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'self' 'unsafe-inline';">`;
-        //let CSP = '';
-        let html =
-            `<html>
-                <head>
-                    <title>Torn Stat Tracker Options</title>
-                    <meta charset="UTF-8">`
-                    + CSP +
-                `</head>
-                <style>
-                    body {background-color: lightgray;}
-                    h2   {color: black;}
-                    .outer {text-align: center;}
-                    td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
-                    table {border: 2px solid; width: 50%; margin: auto;}
-                </style>` +
-                //`<script type="text/javascript"
-                //    src="https://raw.githubusercontent.com/edlau2/Tampermonkey/master/StatTracker/StatTrackerHelper.js">
-                //</script>` +
-                //`<script>const handleClick = function(ev) {console.log('[handleClick] ev: ', ev)}</script>` +
-                //`<script> </script>` +
-                `<body>
-                    <div class="outer">
-                        <h2>Personal Stats to Display on the Home Page:</h2>
-                        <table><tbody>`;
-
-        // Insert table rows
-        let keys = Object.keys(optStats);
-        for (let i=0; i < keys.length; i++) {
-            let statName = keys[i]; // eg, 'heahits' - name in the personalstats obj
-            html += '<tr><td><input type="checkbox" name="' +
-                statName + '" value="' + (optStats[statName].enabled? 'checked' : 'unchecked') + '" ' +
-                (optStats[statName].enabled? 'checked': '') + ' onclick="handleClick"/></td><td>' + optStats[statName].name +
-                '</td></tr>';
-        }
-
-        html += `</table></tbody></div></body></html>`;
-
-        return html;
-    }
-    */
 
     ///////////////////////////////////////////////////////////////////////////////////
     // Portion of script run when on config page
@@ -162,28 +123,6 @@
     // End portion of script run when on config page
     ///////////////////////////////////////////////////////////////////////////////////
 
-    /*
-    const myImageURL = "https://seeklogo.com/images/S/skull-and-crossbones-logo-BE817FD55F-seeklogo.com.png";
-    function loadSimpleOptionsPage() {
-        let nonce = '2726c7f26c';
-        //let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'nonce-2726c7f26c' 'self' 'unsafe-inline';">`;
-        let CSP = `<meta http-equiv=Content-Security-Policy content="script-src 'nonce-` + nonce + `';">`;
-        let html =
-            `<html>` +
-                `<head>`+ CSP + `</head>` +
-                //`<script language="JavaScript" type="text/javascript">var i=0;</script>` +
-                `<body><img src="` + myImageURL + `" id="img1" />` +
-                `<script nonce="` + nonce + `">` +
-                     `document.getElementById ("img1").addEventListener ('click', function (e) { console.log('hello') }, false);` +
-                `</script>` +
-                `</body>` +
-            `</html>`;
-
-        return html;
-    }
-    const optionsHtml = loadSimpleOptionsPage(); //loadOptionsPage();
-    */
-
     // Get data used to calc award progress via the Torn API
     function personalStatsQuery() {
         log('Calling xedx_TornUserQuery');
@@ -203,13 +142,6 @@
     function createConfigDiv() {
         log('[createConfigDiv]');
         let x = window.open("http://18.119.136.223:8080/testing/test.html");
-
-        /*
-        let tableBody = x.document.getElementById('xedx-table');
-        log('Table body: ', tableBody);
-        $(tableBody).append('<tr><td><input type="checkbox" name="box2" class="clickable"/></td><td>');
-        x.document.close();
-        */
     }
 
     function addStat(name, desc) {
@@ -246,6 +178,8 @@
     logScriptStart();
     validateApiKey();
     versionCheck();
+
+    initOptStats();
 
     if (location.href.indexOf('test.html') > -1) {
         handleConfigPage();
