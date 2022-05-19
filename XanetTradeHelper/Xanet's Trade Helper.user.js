@@ -772,11 +772,12 @@
     * Build our UI
     **************************************************************************/
 
-    function buildUI() {
+    function buildUI(fromInit=false) {
         log('[buildUI]');
         getSavedOptions();
         if (validPointer(document.getElementById('xedx-main-div'))) {
             log('UI already installed!');
+            if (fromInit) buildUiComplete();
             return;
         }
 
@@ -823,6 +824,8 @@
                 prevSib.remove();
             }
         }
+
+        if (fromInit) buildUiComplete();
     }
 
     /**************************************************************************
@@ -838,7 +841,11 @@
             addObserver();
         }, false);
 
-        buildUI();
+        setTimeout(function () {buildUI(true)}, 2000);
+    }
+
+    function buildUiComplete() {
+        log('[buildUiComplete]');
         pageRetries = 0;
         getGridData();
         handleAddMoneyPage();
