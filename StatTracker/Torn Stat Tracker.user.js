@@ -32,52 +32,91 @@
     // TBD: add somthing to force a 'divider' to be inserted?
     // Or to color-code rows based on 'category'?
     function initOptStats() {
-        addOptStat('killstreak', "Kill Streak");
-        addOptStat('defendswon', "Defends Won");
+        addOptStat('killstreak', "Kill Streak", "attacks");
+        addOptStat('defendswon', "Defends Won", "attacks");
+        addOptStat('attackdamage', "Total Damage", "attacks");
+        addOptStat('attackswon', "Attacks Won", "attacks");
+        addOptStat('attackslost', "Attacks Lost", "attacks");
+        addOptStat('attackcriticalhits', "Total Crit Hits", "attacks");
+        addOptStat('onehitkills', "One Hit Kills", "attacks");
+        addOptStat('attacksdraw', 'Stalemates', "attacks");
+        addOptStat('bestdamage', "Best Damage", "attacks");
+        addOptStat('attackdamage', "Total Damage", "attacks");
+        addOptStat('bountiescollected', 'Bounties Collected', "attacks");
+        addOptStat('unarmoredwon', "Unarmored Fights Won", "attacks");
+        addOptStat('attackhits', "Total Attack Hits", "attacks");
+        addOptStat('attacksassisted', "Total Assists", "attacks");
 
-        addOptStat("cantaken", "Cannibus Taken");
-        addOptStat("exttaken", "Ecstacy Taken");
-        addOptStat("kettaken", "Ketamine Taken");
-        addOptStat("lsdtaken", "LSD Taken");
-        addOptStat("opitaken", "Opium Taken");
-        addOptStat("shrtaken", "Shrooms Taken");
-        addOptStat("spetaken", "Speed Taken");
-        addOptStat("pcptaken", "PCP Taken");
-        addOptStat("xantaken", "Xanax Taken");
-        addOptStat("victaken", "Vicodin Taken");
+        addOptStat("cantaken", "Cannibus Taken", "drugs");
+        addOptStat("exttaken", "Ecstacy Taken", "drugs");
+        addOptStat("kettaken", "Ketamine Taken", "drugs");
+        addOptStat("lsdtaken", "LSD Taken", "drugs");
+        addOptStat("opitaken", "Opium Taken", "drugs");
+        addOptStat("shrtaken", "Shrooms Taken", "drugs");
+        addOptStat("spetaken", "Speed Taken", "drugs");
+        addOptStat("pcptaken", "PCP Taken", "drugs");
+        addOptStat("xantaken", "Xanax Taken", "drugs");
+        addOptStat("victaken", "Vicodin Taken", "drugs");
 
-        addOptStat("argtravel", "Flights to Argentina");
-        addOptStat("mextravel", "Flights to Mexico");
-        addOptStat("dubtravel", "Flights to UAE");
-        addOptStat("hawtravel", "Flights to Hawaii");
-        addOptStat("japtravel", "Flights to Japan");
-        addOptStat("lontravel", "Flights to UK");
-        addOptStat("soutravel", "Flights to South Africa");
-        addOptStat("switravel", "Flights to Switzerlns");
-        addOptStat("chitravel", "Flights to China");
-        addOptStat("cantravel", "Flights to Canada");
-        addOptStat("caytravel", "Flights to Caymans");
+        addOptStat("argtravel", "Flights to Argentina", "travel");
+        addOptStat("mextravel", "Flights to Mexico", "travel");
+        addOptStat("dubtravel", "Flights to UAE", "travel");
+        addOptStat("hawtravel", "Flights to Hawaii", "travel");
+        addOptStat("japtravel", "Flights to Japan", "travel");
+        addOptStat("lontravel", "Flights to UK", "travel");
+        addOptStat("soutravel", "Flights to South Africa", "travel");
+        addOptStat("switravel", "Flights to Switzerlns", "travel");
+        addOptStat("chitravel", "Flights to China", "travel");
+        addOptStat("cantravel", "Flights to Canada", "travel");
+        addOptStat("caytravel", "Flights to Caymans", "travel");
 
-        addOptStat('smghits', "Finishing Hits: SMG");
-        addOptStat('chahits', "Finishing Hits: Mechanical");
-        addOptStat('heahits', "Finishing Hits: Heavy Artillery");
-        addOptStat('pishits', "Finishing Hits: Pistols");
-        addOptStat('machits', "Finishing Hits: Machine Guns");
-        addOptStat('grehits', "Finishing Hits: Temps");
-        addOptStat('h2hhits', "Finishing Hits: Hand to Hand");
+        addOptStat('smghits', "Finishing Hits: SMG", "weapons");
+        addOptStat('chahits', "Finishing Hits: Mechanical", "weapons");
+        addOptStat('heahits', "Finishing Hits: Heavy Artillery", "weapons");
+        addOptStat('pishits', "Finishing Hits: Pistols", "weapons");
+        addOptStat('machits', "Finishing Hits: Machine Guns", "weapons");
+        addOptStat('grehits', "Finishing Hits: Temps", "weapons");
+        addOptStat('h2hhits', "Finishing Hits: Hand to Hand", "weapons");
+        addOptStat('roundsfired', "Rounds Fired", "weapons");
+        addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
+        addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
+        addOptStat('tracerammoused', "Tracer Ammo Used", "weapons");
+        addOptStat('piercingammoused', "Piecing Ammo Used", "weapons");
+        addOptStat('incendiaryammoused', "IncendiaryAmmo Used", "weapons");
 
-        addOptStat('medicalitemsused', "Medical Items Used");
+        addOptStat('medicalitemsused', "Medical Items Used", "medical");
+        addOptStat('bloodwithdrawn', "Blood Bags Filled", "medical");
+        addOptStat('revives', "People Revived", "medical");
+        addOptStat('hospital', "Times Hospitalized", "medical");
 
-        addOptStat("racingskill", "Racing Skill");
-        addOptStat("raceswon", "Races Won");
-        addOptStat("racesentered", "Races Entered");
-        addOptStat("racingpointsearned", "Racing Points Earned");
+        addOptStat("racingskill", "Racing Skill", "racing");
+        addOptStat("raceswon", "Races Won", "racing");
+        addOptStat("racesentered", "Races Entered", "racing");
+        addOptStat("racingpointsearned", "Racing Points Earned", "racing");
+
+        addOptStat("yourunaway", "You ran away", "foes");
+        addOptStat("theyrunaway", "Foes ran away", "foes");
+        addOptStat("peoplebusted", "Busts Succeeded", "jail");
+        addOptStat("failedbusts", "Busts Failed", "jail");
+        addOptStat("peoplebought", "People Bailed Out", "jail");
+        addOptStat("jailed", "Times Jailed", "jail");
     }
+
+    const categoryColors = {"drugs":   '#FF69B4',  // Hot Pink
+                            "travel":  '#6495ED',  // Cornflower Blue
+                            "attacks": '#DC143C',  // Crimson
+                            "weapons": '#FFD700',  // Gold
+                            "medical": '#7FFF00',  // Chartreuse
+                            "racing":  '#228B22',  // Forest Green
+                            "foes":    '#FF8C00',  // DarkOrange
+                            "jail":    '#CD5C5C',  // Indian Red
+                           };
+
 
     const optStats = {};
 
-    function addOptStat(name, desc) {
-        optStats[name] = {enabled: GM_getValue(name, false), name: desc};
+    function addOptStat(name, desc, category) {
+        optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category};
     }
 
     function reloadOptStats() {
@@ -151,6 +190,8 @@
     }
 
     function addTableRow(statName) {
+        let cat = optStats[statName].cat;
+        let color = cat ?  categoryColors[cat] : null;
         let table = document.getElementById('xedx-table');
         let row = table.insertRow();
         var cell1 = row.insertCell(0);
@@ -159,6 +200,7 @@
         cell1.innerHTML = '<input type="checkbox" class="clickable"' +
             (optStats[statName].enabled? 'checked ': '') + ' />';
         cell2.innerHTML = optStats[statName].name;
+        if (color) cell2.setAttribute('bgcolor', color);
 
         cell1.firstChild.setAttribute('name', statName);
     }
