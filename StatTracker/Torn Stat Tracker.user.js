@@ -39,6 +39,11 @@
         addOptStat('machits', "Finishing Hits: Machine Guns");
         addOptStat('grehits', "Finishing Hits: Temps");
         addOptStat('h2hhits', "Finishing Hits: Hand to Hand");
+
+        addOptStat("racingskill", "Racing Skill");
+        addOptStat("raceswon", "Races Won");
+        addOptStat("racesentered", "Races Entered");
+        addOptStat("racingpointsearned", "Racing Points Earned");
     }
 
     const optStats = {};
