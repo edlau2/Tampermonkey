@@ -111,6 +111,7 @@
 
     // Function to highlight life: green if full, red otherwise
     function doLifeHighlighting() {
+        log('[doLifeHighlighting]');
         let liSpan = document.querySelector(/*"#profileroot > div > div > div > div:nth-child(5) >"*/
                                         "div.basic-information.profile-left-wrapper.left > " +
                                         " div > div.cont.bottom-round > div > ul > li:nth-child(5) > div.user-info-value > span");
@@ -118,9 +119,9 @@
         let parts = life.split('/');
         log('Life: ', life, ' parts: ', parts);
         if (parts[0].trim() == parts[1].trim())
-            liSpan.setAttribute('style', 'color: limegreen;');
+            liSpan.setAttribute('style', 'color: #00a500;');
         else
-            liSpan.setAttribute('style', 'color: red;');
+            liSpan.setAttribute('style', 'color: #d83500;');
 
     }
 
