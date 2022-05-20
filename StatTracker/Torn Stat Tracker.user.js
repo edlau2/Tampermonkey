@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -29,9 +29,35 @@
     //var bcChannel = new BroadcastChannel(bcChannelName);
     var intervalTimer = null;
 
+    // TBD: add somthing to force a 'divider' to be inserted?
+    // Or to color-code rows based on 'category'?
     function initOptStats() {
         addOptStat('killstreak', "Kill Streak");
         addOptStat('defendswon', "Defends Won");
+
+        addOptStat("cantaken", "Cannibus Taken");
+        addOptStat("exttaken", "Ecstacy Taken");
+        addOptStat("kettaken", "Ketamine Taken");
+        addOptStat("lsdtaken", "LSD Taken");
+        addOptStat("opitaken", "Opium Taken");
+        addOptStat("shrtaken", "Shrooms Taken");
+        addOptStat("spetaken", "Speed Taken");
+        addOptStat("pcptaken", "PCP Taken");
+        addOptStat("xantaken", "Xanax Taken");
+        addOptStat("victaken", "Vicodin Taken");
+
+        addOptStat("argtravel", "Flights to Argentina");
+        addOptStat("mextravel", "Flights to Mexico");
+        addOptStat("dubtravel", "Flights to UAE");
+        addOptStat("hawtravel", "Flights to Hawaii");
+        addOptStat("japtravel", "Flights to Japan");
+        addOptStat("lontravel", "Flights to UK");
+        addOptStat("soutravel", "Flights to South Africa");
+        addOptStat("switravel", "Flights to Switzerlns");
+        addOptStat("chitravel", "Flights to China");
+        addOptStat("cantravel", "Flights to Canada");
+        addOptStat("caytravel", "Flights to Caymans");
+
         addOptStat('smghits', "Finishing Hits: SMG");
         addOptStat('chahits', "Finishing Hits: Mechanical");
         addOptStat('heahits', "Finishing Hits: Heavy Artillery");
@@ -39,6 +65,8 @@
         addOptStat('machits', "Finishing Hits: Machine Guns");
         addOptStat('grehits', "Finishing Hits: Temps");
         addOptStat('h2hhits', "Finishing Hits: Hand to Hand");
+
+        addOptStat('medicalitemsused', "Medical Items Used");
 
         addOptStat("racingskill", "Racing Skill");
         addOptStat("raceswon", "Races Won");
