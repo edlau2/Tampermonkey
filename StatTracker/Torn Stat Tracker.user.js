@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -80,6 +80,7 @@
           '</div>' +
       '</div>';
     }
+
     function loadAwardLi() {
         return '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
             '<span class="divider"  style="width: 180px;">' +
@@ -94,8 +95,10 @@
     ///////////////////////////////////////////////////////////////////////////////////
 
     // Note: not loaded with JQuery active!
+    // I'm not loading it myself as I don't want a conflicornt's version.
     function handleConfigPage() {
         log('[handleConfigPage]');
+
         // Insert table rows
         let html = '';
         let keys = Object.keys(optStats);
@@ -104,6 +107,7 @@
             addTableRow(statName);
         }
 
+        // Install handlers
         let checkboxes = document.getElementsByClassName('clickable');
         for (let i=0; i<checkboxes.length; i++) {
             checkboxes[i].addEventListener('click', clickHandler);
@@ -130,25 +134,38 @@
         let target = ev.target;
         let srcElem = ev.srcElement;
 
-        log('Checkbox clicked! stat: ', target.name, ' value: ', target.value, ' checked: ', target.checked);
-        debug('[clickHandler] target: ', target);
+        debug('[clickHandler]Checkbox clicked! stat: ', target.name, ' value: ', target.value, ' checked: ', target.checked);
 
         GM_setValue(target.name, target.checked);
     }
 
+    // Doesn't work cross-domain?
     function sendSaveBroadcast() {
         let bcChannel = new BroadcastChannel(bcChannelName);
         bcChannel.postMessage('save');
-        log('Sent message on channel: ', bcChannel);
+        debug('Sent message on channel: ', bcChannel);
     }
 
     function handleSaveButton(ev) {
         log('[handleSaveButton]');
 
-        // This is not working, cross-domain?
-        //sendSaveBroadcast();
-
         GM_setValue(bcChannelName, 'saved');
+
+        // Notify the user - this ould be way easier with JQuery :-)
+        const newP = document.createElement('p');
+        const newSpan = document.createElement('span');
+        newP.append(newSpan);
+        newP.id = "x1";
+        newSpan.textContent = "Data Saved!";
+        newSpan.className = "notification";
+
+        let myTable = document.getElementById('xedx-table');
+        myTable.parentNode.insertBefore(newP, myTable.nextSibling);
+        setTimeout(clearResult, 3000);
+    }
+
+    function clearResult() {
+        document.getElementById('x1').remove();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
