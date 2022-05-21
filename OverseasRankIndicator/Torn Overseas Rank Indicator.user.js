@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
-// @include      https://www.torn.com/index.php?page=people*
+// @match        https://www.torn.com/index.php?page=people*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_xmlhttpRequest
@@ -26,15 +26,17 @@
     const displayRank = true;
     const displayHealth = true;
     const displayLastAction = true;
-    const autoRefreshSecs = 30; // If > 0, refresh the page every 'n' seconds.
+    const autoRefreshSecs = 45; // If > 0, refresh the page every 'n' seconds.
     var   autoRefreshId = 0;
 
     const loggingEnabled = true;
     var   requestsPaused = false;
 
     // Cache 'lifetime', time to expire
+    const cacheMaxHours = 6;
+    const cacheMaxSecs = cacheMaxHours * 3600 * 1000  //cacheMaxHours in ms
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
-    const cacheMaxSecs = 1800 * 1000; // 30 min in ms
+    //const cacheMaxSecs = 1800 * 1000; // 30 min in ms
     //const cacheMaxSecs = 600 * 1000; // 10 min in ms
     //const cacheMaxSecs = 180 * 1000; // 3 min in ms
     //const cacheMaxSecs = 60 * 1000; // 1 min in ms
@@ -53,6 +55,7 @@
 
     GM_addStyle(`.xedx-cached {float: right; margin-left: 10px; font-size: 12px; color:red;}
                  .xedx-notcached {float: right; margin-left: 10px; font-size: 12px; color:green;}
+                 .xedx-bg {background-color: green}
     `);
 
     // Global cache of ID->Rank associations
@@ -155,6 +158,9 @@
         }
         if (statusNode && displayLastAction) {
             la = la.replace('minutes', 'min');
+            la = la.replace('minute', 'min');
+            la = la.replace('hours', 'hrs');
+            statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
             statusNode.textContent = statusNode.textContent + ' ' + la;
         }
         if (displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
@@ -228,12 +234,14 @@
 
     function updateUserLevels(optMsg=null) {
         if (optMsg != null) {log('updateUserLevels: ' + optMsg);}
-        log('document.readyState: ' + document.readyState);
-        log('Entering updateUserLevels, cache depth = ' + rank_cache.length);
+        debug('document.readyState: ' + document.readyState);
+        debug('Entering updateUserLevels, cache depth = ' + rank_cache.length);
         let items = $('ul.' + ulRootClassName +  ' > li');
         if (!validPointer(items)) {return;}
 
-        log('Detected ' + items.length + ' user entries');
+        highlightMyself();
+
+        debug('Detected ' + items.length + ' user entries');
         for (let i = 0; i < items.length; i++) {
             let li = items[i];
             if (window.getComputedStyle(li).display === "none") {continue;}
@@ -273,6 +281,20 @@
         }
     }
 
+    function highlightMyself() {
+        let uid = $('script[secret]').attr("uid");
+        let name = $('script[secret]').attr("name");
+        let fullName = name + ' [' + uid + ']';
+
+        // getPlayerFullName();
+        let li = $( "a[data-placeholder='" + fullName + "']");
+        let parent = (li && li[0]) ? li[0].parentNode : null;
+        if (parent) {
+            let root = parent.parentNode.parentNode;
+            $(root).addClass('xedx-bg');
+        }
+    }
+
     function refreshCB() {
         let interval = autoRefreshSecs*1000;
         log('Auto-refreshing in ' + interval + ' secs');
@@ -305,9 +327,6 @@
 
     // Check for expired cache entries at intervals, half max cache age.
     setInterval(function() {clearStorageCache();}, (0.5*cacheMaxSecs));
-
-    // If configured, reload periodically
-    //if (autoRefreshSecs) setInterval(location.reload(), autoRefreshSecs*1000);
 
     // Start a mutation observer
     startObserver();
