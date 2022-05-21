@@ -47,7 +47,7 @@
         addOptStat('attackhits', "Total Attack Hits", "attacks");
         addOptStat('attacksassisted', "Total Assists", "attacks");
 
-        addOptStat("cantaken", "Cannibus Taken", "drugs");
+        addOptStat("cantaken", "Cannabis Taken", "drugs");
         addOptStat("exttaken", "Ecstacy Taken", "drugs");
         addOptStat("kettaken", "Ketamine Taken", "drugs");
         addOptStat("lsdtaken", "LSD Taken", "drugs");
@@ -65,7 +65,7 @@
         addOptStat("japtravel", "Flights to Japan", "travel");
         addOptStat("lontravel", "Flights to UK", "travel");
         addOptStat("soutravel", "Flights to South Africa", "travel");
-        addOptStat("switravel", "Flights to Switzerlns", "travel");
+        addOptStat("switravel", "Flights to Switzerland", "travel");
         addOptStat("chitravel", "Flights to China", "travel");
         addOptStat("cantravel", "Flights to Canada", "travel");
         addOptStat("caytravel", "Flights to Caymans", "travel");
@@ -81,7 +81,7 @@
         addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
         addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
         addOptStat('tracerammoused', "Tracer Ammo Used", "weapons");
-        addOptStat('piercingammoused', "Piecing Ammo Used", "weapons");
+        addOptStat('piercingammoused', "Piercing Ammo Used", "weapons");
         addOptStat('incendiaryammoused', "IncendiaryAmmo Used", "weapons");
 
         addOptStat('medicalitemsused', "Medical Items Used", "medical");
@@ -94,8 +94,8 @@
         addOptStat("racesentered", "Races Entered", "racing");
         addOptStat("racingpointsearned", "Racing Points Earned", "racing");
 
-        addOptStat("yourunaway", "You ran away", "foes");
-        addOptStat("theyrunaway", "Foes ran away", "foes");
+        addOptStat("yourunaway", "Times you Escaped", "foes");
+        addOptStat("theyrunaway", "Foes Escaped", "foes");
         addOptStat("peoplebusted", "Busts Succeeded", "jail");
         addOptStat("failedbusts", "Busts Failed", "jail");
         addOptStat("peoplebought", "People Bailed Out", "jail");
