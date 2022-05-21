@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
-// @match        http://18.119.136.223:8080/testing/test.html
+// @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
@@ -34,12 +34,15 @@
 // Torn Sidebar Colors - Just for fun, colors the sidebar icons.
 // Torn Hide-Show Chat Icons - Allows you to easily hide and show the chat icons.
 // Torn Fac Respect Earned - Shows respect earned for your fac, with tool tips for merit progress.
+// Torn Collapsible Sidebar - Makes custom links on the sidebar collapsible, whether added by me, TT, altercoes...
+// Torn Jail Stats - Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
 // Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar. (TBD: will add later)
 
 // Notes to self:
 //
 // Can I individualize "debugLoggingEnabled" and "loggingEnabled" somehow? Per function....
+// Add hashchange handling.
 //
 
 (function() {
@@ -52,16 +55,9 @@
     debugLoggingEnabled = false;
     loggingEnabled = true;
 
-    const opts_enabledScripts = {
-        "latestAttacks": true,     // profile, attacks
-        "statTracker": true,       // personalstats
-        "drugStats": true,         // personalstats
-        "crimeToolTips": true,     // None, complete
-        "sidebarColors": true,     // None, loaded
-        "hideShowChat": true,      // None, loaded
-        "facRespect": true,        // personalstats,honors
-        "ttFilter": true,          // None, complete, hashchange
-    };
+    // Configuration page URL's
+    const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
+    const tornTotalSolutionCfgURL = "http://18.119.136.223:8080/TornTotalSolution/TTS-Opts.html";
 
     var jsonResp = null;
     var personalStats = null;
@@ -301,9 +297,6 @@
         });
     }
 
-    // Must be the same as the 'match' statement in the header.
-    const tornStatTrackerCfgURL = "http://18.119.136.223:8080/testing/test.html";
-
     const optStats = {};
     const categoryColors = {"drugs":   '#FF69B4',  // Hot Pink
                             "travel":  '#6495ED',  // Cornflower Blue
@@ -514,7 +507,7 @@
     //
     // NOTE: Now I do load JQuery, use instead? Can simplify!
     function handleStatsConfigPage() {
-        log('[handleConfigPage]');
+        log('[handleStatsConfigPage]');
 
         initOptStats();
 
@@ -560,7 +553,7 @@
     }
 
     function handleStatsSaveButton(ev) {
-        log('[handleSaveButton]');
+        log('[handleStatsSaveButton]');
 
         GM_setValue("stats-config", 'saved');
 
@@ -630,10 +623,10 @@
             }
         });
 
-        addToolTips();
+        addDrugToolTips();
     }
 
-    function addToolTips() {
+    function addDrugToolTips() {
         addToolTipStyle();
 
         buildUseString('cantaken');
@@ -740,6 +733,178 @@
         text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
             CRLF + 'Chance of OD: ' + odChance;
         displayToolTip(useDiv.parentNode, text);
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Jail Stats" (called at API call complete)
+    //////////////////////////////////////////////////////////////////////
+
+    function tornJailStats() {
+        log('[tornJailStats]');
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornJailStats] not at home!');
+            if (document.querySelector(jailExtDivId)) {resolve('tornJailStats complete!');} // Only do this once
+
+            let mainDiv = document.getElementById('column0');
+            if (!validPointer(mainDiv)) {return reject('[tornJailStats] mainDiv nor found! Try calling later.');}
+            $(mainDiv).append(getJailStatsDiv());
+            populateJailDiv();
+
+            resolve('tornJailStats complete!');
+        });
+    }
+
+    const jailExtDivId = 'xedx-jailstats-ext-div';
+
+    function getJailStatsDiv() {
+        let result = '<div class="sortable-box t-blue-cont h" id="' + jailExtDivId + '">' +
+              '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
+                  '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
+                  '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
+                  'Jail and Bounty Stats' +
+              '</div>' +
+              '<div class="bottom-round">' +
+                  '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
+                      '<ul class="info-cont-wrap">' +
+                          '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
+                          '<li id="xedx-bails" title="original"><span class="divider" id="xedx-div-span-peoplebought"><span>People Bailed</span></span><span id="xedx-val-span-peoplebought" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
+                          '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
+                          '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
+                      '</ul>' +
+                  '</div>' +
+              '</div>' +
+          '</div>';
+
+        return result;
+    }
+
+    function populateJailDiv() {
+        let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
+        for (let i=0; i<jailStatArray.length; i++) {
+            let name = jailStatArray[i];
+            let searchName = 'xedx-val-span-' + name;
+            let valSpan = document.getElementById(searchName);
+            let stats = jsonResp.personalstats;
+            if (!validPointer(valSpan)) {
+                log('[populateJailDiv] Unable to find proper span: ' + searchName + ' at ' + document.URL);
+                continue;
+            }
+            if (!validPointer(stats[name])) {continue;}
+            if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
+                valSpan.innerText = '$' + numberWithCommas(stats[name]);
+            } else {
+                valSpan.innerText = stats[name];
+            }
+        }
+
+        addJailToolTips();
+    }
+
+    function addJailToolTips() {
+        addToolTipStyle();
+
+        var bustsLi = document.getElementById('xedx-busts');
+        var bailsLi = document.getElementById('xedx-bails');
+        var bountiesLi = document.getElementById('xedx-bounties');
+        var feesLi = document.getElementById('xedx-fees');
+
+        if (validPointer(bustsLi) && validPointer(bailsLi) &&
+            validPointer(bountiesLi) && validPointer(feesLi)) {
+            buildBustsToolTip('People Busted');
+            buildBailsToolTip('People Bailed');
+            buildBountiesToolTip('Bounties Collected');
+            buildFeesToolTip('Bounty Rewards');
+        }
+    }
+
+    function buildFeesToolTip(title) {
+        var feesLi = document.getElementById('xedx-fees');
+        var feesText = document.getElementById('xedx-val-span-totalbountyreward').innerText;
+        var tmp = feesText.replace('$', '');
+        tmp = tmp.replace(/,/g, '');
+        var pctText = tmp/10000000 * 100;
+        if (Number(pctText) >= 100) {
+            pctText = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
+        }
+
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B> ' + pctText;
+        displayToolTip(feesLi, text);
+    }
+
+    function buildBountiesToolTip(title) {
+        var bountiesLi = document.getElementById('xedx-bounties');
+        var bountiesText = document.getElementById('xedx-val-span-bountiescollected').innerText;
+        var pctText = bountiesText/250 * 100;
+        if (Number(pctText) >= 100) {
+            pctText = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
+        }
+
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 250: <B>\"Bounty Hunter\"</B> ' + pctText;
+        var text2 = 'Medals at: <B>' +
+        ((bountiesText > 25) ? '<font color=green>25, </font>' : '<font color=red>25, </font>') +
+            ((bountiesText > 100) ? '<font color=green>100, </font>' : '<font color=red>100, </font>') +
+            ((bountiesText > 500) ? '<font color=green>500</font></B>' : '<font color=red>500</font></B>');
+
+        displayToolTip(bountiesLi, text + CRLF + text2);
+    }
+
+    function buildBustsToolTip(title) {
+        var bustsLi = document.getElementById('xedx-busts');
+        var bustsText = document.getElementById('xedx-val-span-peoplebusted').innerText;
+        var pctText = bustsText/1000 * 100;
+        if (Number(pctText) >= 100) {
+            pctText = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
+        }
+        var pctText2 = bustsText/2500 * 100;
+        if (Number(pctText2) >= 100) {
+            pctText2 = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText2 = '<B><font color=\'red\'>' + Math.round(pctText2) + '%</font></B>';
+        }
+        var pctText3 = bustsText/10000 * 100;
+        if (Number(pctText3) >= 100) {
+            pctText3 = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText3 = '<B><font color=\'red\'>' + Math.round(pctText3) + '%</font></B>';
+        }
+
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 1,000: <B>\"Bar Breaker\"</B> ' + pctText;
+        var text2 = 'Honor Bar at 2,500: <B>\"Aiding and Abetting\"</B> ' + pctText2;
+        var text3 = 'Honor Bar at 10,000: <B>\"Don\'t Drop It\"</B> ' + pctText3;
+        var text4 = 'Medals at: <B>' +
+            ((bustsText > 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
+            ((bustsText > 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
+            ((bustsText > 1000) ? '<font color=green>1K, </font>' : '<font color=red>1K, </font>') +
+            ((bustsText > 2000) ? '<font color=green>2K, </font>' : '<font color=red>2K, </font>') +
+            ((bustsText > 4000) ? '<font color=green>4K, </font>' : '<font color=red>4K, </font>') +
+            ((bustsText > 6000) ? '<font color=green>6K</font>' : '<font color=red>6K</font>') + ' and ' +
+            ((bustsText > 8000) ? '<font color=green>8K</font></B>' : '<font color=red>8K</font></B>');
+
+        displayToolTip(bustsLi, text + CRLF + text2 + CRLF + text3 + CRLF + text4);
+    }
+
+    function buildBailsToolTip(title) {
+        var bailsLi = document.getElementById('xedx-bails');
+        var bailsText = document.getElementById('xedx-val-span-peoplebought').innerText;
+        var pctText = bailsText/500 * 100;
+        if (Number(pctText) >= 100) {
+            pctText = '<B><font color=\'green\'>100%</font></B>';
+        } else {
+            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
+        }
+
+        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B> ' + pctText;
+        displayToolTip(bailsLi, text);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -969,6 +1134,32 @@
                 GM_setValue('xedxHideChat', hide);
                 hideChat(hide);
             });
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn TT Filter" (called at content complete)
+    //////////////////////////////////////////////////////////////////////
+
+    function tornTTFilter() {
+        // Note: this requires a periodic callback, so that'll require a non-promise fn.
+        log('[tornTTFilter]');
+
+        return new Promise((resolve, reject) => {
+            reject("tornTTFilter not yet implememnted!");
+        });
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Collapsible Sidebar" (called at content complete)
+    ////////////////////////////////////////////////////////////////////////
+
+    function tornCollapsibleSidebar() {
+        // Note: this requires a periodic callback, so that'll require a non-promise fn.
+        log('[tornCollapsibleSidebar]');
+
+        return new Promise((resolve, reject) => {
+            reject("tornCollapsibleSidebar not yet implememnted!");
+        });
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1202,6 +1393,160 @@
     }
 
     //////////////////////////////////////////////////////////////////////
+    // Install configuration menu for this script
+    //////////////////////////////////////////////////////////////////////
+
+    const opts_enabledScripts = {};
+    var general_intervalTimer = null;
+    var general_configWindow = null;
+
+    function installConfigMenu() {
+        if ($('#xedx-opts')[0]) return;
+        GM_addStyle(`
+            .xedx-tts-span {line-height: 12px; margin-left: 10px;}
+            .powered-by {color: var(--default-blue-color); text-decoration: none;}
+            `);
+        let cfgSpan = '<div class="xedx-tts-span"><span> Powered By: </span><a class="powered-by" id="xedx-opts">XedX</a></div>';
+        let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
+        if (!serverDiv) return setTimeout(installConfigMenu, 100);
+
+        $(serverDiv).append(cfgSpan);
+        $("#xedx-opts").click(handleTtsOptionsClick);
+    }
+
+    function handleTtsOptionsClick() {
+        log('[handleTtsOptionsClick]');
+        general_configWindow = window.open(tornTotalSolutionCfgURL);
+
+        // Since broadcasts won't work, and storage notifications won't work, poll.
+        if (!general_intervalTimer) {
+            debug('[handleTtsOptionsClick] starting interval timer.');
+            general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
+        }
+    }
+
+    function checkGeneralSaveButton() {
+        let data = GM_getValue("general-config");
+        debug('[checkGeneralSaveButton] data: ', data);
+
+        if (data == 'saved') {
+            log('Save button has been pressed!');
+
+            clearInterval(general_intervalTimer);
+            general_intervalTimer = null;
+            GM_setValue("general-config", '');
+            updateGeneralCfg();
+            if (general_configWindow && !general_configWindow.closed) general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
+        }
+
+        debug('Check config win: ', general_configWindow, (general_configWindow ? general_configWindow.closed : 'no window'));
+        if (general_configWindow && general_configWindow.closed) {
+            general_configWindow = null;
+            clearInterval(general_intervalTimer);
+        }
+    }
+
+    function setGeneralCfgOpt(name, desc) {
+        debug('[setGeneralCfgOpt] name: ', name);
+        debug('[setGeneralCfgOpt] saved: ', GM_getValue(name));
+
+        opts_enabledScripts[name] = {enabled: GM_getValue(name, true), name: desc};
+    }
+
+    function updateGeneralCfg() {
+        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender");
+        setGeneralCfgOpt("statTracker", "Torn Stat Tracker");
+        setGeneralCfgOpt("drugStats", "Torn Drug Stats");
+        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips");
+        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors");
+        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons");
+        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned");
+        setGeneralCfgOpt("jailStats", "Torn Jail Stats");
+        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar (TBD)");
+        setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)");
+        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar (TBD)");
+
+        debug('[updateGeneralCfg] opts_enabledScripts: ', opts_enabledScripts);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Portion of script run when on General config page
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    // Note: not loaded with JQuery active!
+    // I'm not loading it myself as I don't want a conflict with Torn's version.
+    //
+    // NOTE: Now I do load JQuery, use instead? Can simplify!
+    function handleGeneralConfigPage() {
+        log('[handleGeneralConfigPage]');
+
+        // Insert table rows
+        let html = '';
+        let keys = Object.keys(opts_enabledScripts);
+        for (let i=0; i < keys.length; i++) {
+            let scriptName = keys[i]; // eg, 'heahits' - name in the personalstats obj
+            addGenOptsTableRow(scriptName);
+        }
+
+        // Install handlers
+        let checkboxes = document.getElementsByClassName('clickable');
+        for (let i=0; i<checkboxes.length; i++) {
+            checkboxes[i].addEventListener('click', genOptsClickHandler);
+        }
+
+        let saveButton = document.querySelector('#xedx-button');
+        saveButton.addEventListener('click', handleGenOptsSaveButton);
+    }
+
+    function addGenOptsTableRow(scriptName) {
+        let table = document.getElementById('xedx-table');
+        let row = table.insertRow();
+        var cell1 = row.insertCell(0);
+        var cell2 = row.insertCell(1);
+
+        cell1.innerHTML = '<input type="checkbox" class="clickable"' +
+            (opts_enabledScripts[scriptName].enabled? 'checked ': '') + ' />';
+        cell2.innerHTML = opts_enabledScripts[scriptName].name;
+
+        cell1.firstChild.setAttribute('name', scriptName);
+    }
+
+    function genOptsClickHandler(ev) {
+        let target = ev.target;
+        let srcElem = ev.srcElement;
+
+        debug('[genOptsClickHandler] setValue: ', target.name, target.checked);
+
+        GM_setValue(target.name, target.checked);
+    }
+
+    function handleGenOptsSaveButton(ev) {
+        log('[handleGenOptsSaveButton]');
+
+        GM_setValue("general-config", 'saved');
+
+        // Notify the user - this ould be way easier with JQuery :-)
+        const newP = document.createElement('p');
+        const newSpan = document.createElement('span');
+        newP.append(newSpan);
+        newP.id = "x1";
+        newSpan.textContent = "Data Saved!";
+        newSpan.className = "notification";
+
+        let myTable = document.getElementById('xedx-table');
+        myTable.parentNode.insertBefore(newP, myTable.nextSibling);
+        setTimeout(clearGenoptsResult, 3000);
+    }
+
+    function clearGenoptsResult() {
+        document.getElementById('x1').remove();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // End portion of "Torn Stat Tracker" script run when on config page
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////
     // Handlers for various states of page loading
     //////////////////////////////////////////////////////////////////////
 
@@ -1209,7 +1554,7 @@
     function handlePageLoad() {
         log('[handlePageLoad]');
 
-        if (opts_enabledScripts.sidebarColors) {
+        if (opts_enabledScripts["sidebarColors"].enabled) {
             tornSidebarColors().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1219,7 +1564,7 @@
             });
         }
 
-        if (opts_enabledScripts.hideShowChat) {
+        if (opts_enabledScripts["hideShowChat"].enabled) {
             tornHideShowChat().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1234,7 +1579,9 @@
     function handlePageComplete() {
         log('[handlePageComplete]');
 
-        if (opts_enabledScripts.crimeToolTips) {
+        installConfigMenu();
+
+        if (opts_enabledScripts["crimeToolTips"].enabled) {
             tornCrimeTooltips().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1243,13 +1590,34 @@
                 log('[ERROR] ' + error);
             });
         }
+
+        if (opts_enabledScripts["ttFilter"].enabled) {
+            tornTTFilter().then(
+            result => {
+                log('[SUCCESS] ' + result);
+            },
+            error => {
+                log('[ERROR] ' + error);
+            });
+        }
+
+        if (opts_enabledScripts["collapsibleSidebar"].enabled) {
+            tornCollapsibleSidebar().then(
+            result => {
+                log('[SUCCESS] ' + result);
+            },
+            error => {
+                log('[ERROR] ' + error);
+            });
+        }
+
     }
 
     // And others after data from the API has been received.
     function onApiComplete() {
         log('[onApiComplete]');
 
-        if (opts_enabledScripts.latestAttacks) {
+        if (opts_enabledScripts["latestAttacks"].enabled) {
             tornLatestAttacksExtender().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1259,7 +1627,7 @@
             });
         }
 
-        if (opts_enabledScripts.statTracker) {
+        if (opts_enabledScripts["statTracker"].enabled) {
             if (location.href.indexOf('test.html') > -1) {
                 handleStatsConfigPage();
             } else {
@@ -1273,7 +1641,7 @@
             }
         }
 
-        if (opts_enabledScripts.drugStats) {
+        if (opts_enabledScripts["drugStats"].enabled) {
             tornDrugStats().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1283,7 +1651,7 @@
             });
         }
 
-        if (opts_enabledScripts.facRespect) {
+        if (opts_enabledScripts["facRespect"].enabled) {
             tornFacRespect().then(
             result => {
                 log('[SUCCESS] ' + result);
@@ -1292,6 +1660,17 @@
                 log('[ERROR] ' + error);
             });
         }
+
+        if (opts_enabledScripts["jailStats"].enabled) {
+            tornJailStats().then(
+            result => {
+                log('[SUCCESS] ' + result);
+            },
+            error => {
+                log('[ERROR] ' + error);
+            });
+        }
+
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1302,9 +1681,14 @@
     validateApiKey();
     versionCheck();
 
+    updateGeneralCfg(); // Load options
+
     if (location.href == tornStatTrackerCfgURL) {
         // Separate URL just for the 'Stats Tracker' script config page.
         handleStatsConfigPage();
+    } else if (location.href == tornTotalSolutionCfgURL) {
+        // Separate URL just for the General script config page.
+        handleGeneralConfigPage()
     } else {
         // Start of by collecting stats we need. This will kick off some scripts that depend on stats.
         // Callback triggers onApiCoomplete()
