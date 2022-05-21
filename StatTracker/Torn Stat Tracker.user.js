@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Stat Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.0
 // @description  Put useful stats on your home page, good for merit chasing.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
-// @match        http://18.119.136.223:8080/testing/test.html
+// @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -24,13 +24,12 @@
 
     const options = {debugLogging: true};
 
-    // This is not working, cross-domain?
-    const bcChannelName = "xedx-channel"; // = GM_info.script.name;
-    //var bcChannel = new BroadcastChannel(bcChannelName);
-    var intervalTimer = null;
+    // Must be the same as the 'match' statement in the header.
+    const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
 
-    // TBD: add somthing to force a 'divider' to be inserted?
-    // Or to color-code rows based on 'category'?
+    var intervalTimer = null;
+    var configWindow = null;
+
     function initOptStats() {
         addOptStat('killstreak', "Kill Streak", "attacks");
         addOptStat('defendswon', "Defends Won", "attacks");
@@ -84,7 +83,7 @@
         addOptStat('shohits', "Finishing Hits: Shotgun", "weapons");
         addOptStat('piehits', "Finishing Hits: Piercing", "weapons");
         addOptStat('slahits', "Finishing Hits: Slashing", "weapons");
-        
+
         addOptStat('roundsfired', "Rounds Fired", "weapons");
         addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
         addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
@@ -117,7 +116,6 @@
                             "foes":    '#FF8C00',  // DarkOrange
                             "jail":    '#CD5C5C',  // Indian Red
                            };
-
 
     const optStats = {};
 
@@ -173,7 +171,7 @@
     ///////////////////////////////////////////////////////////////////////////////////
 
     // Note: not loaded with JQuery active!
-    // I'm not loading it myself as I don't want a conflicornt's version.
+    // I'm not loading it myself as I don't want a conflict with Torn's version.
     function handleConfigPage() {
         log('[handleConfigPage]');
 
@@ -220,17 +218,10 @@
         GM_setValue(target.name, target.checked);
     }
 
-    // Doesn't work cross-domain?
-    function sendSaveBroadcast() {
-        let bcChannel = new BroadcastChannel(bcChannelName);
-        bcChannel.postMessage('save');
-        debug('Sent message on channel: ', bcChannel);
-    }
-
     function handleSaveButton(ev) {
         log('[handleSaveButton]');
 
-        GM_setValue(bcChannelName, 'saved');
+        GM_setValue("config", 'saved');
 
         // Notify the user - this ould be way easier with JQuery :-)
         const newP = document.createElement('p');
@@ -268,35 +259,37 @@
         handlePageLoad();
     }
 
-    // Handle inter-window broadcasts
-    function handleBroadcasts(ev) {
-        log('[handleBroadcasts] data: ', ev.data);
-    }
-
     function checkSaveButton() {
-        let data = GM_getValue(bcChannelName);
+        let data = GM_getValue("config");
         if (data == 'saved') {
             log('Save button has been pressed!');
 
             clearInterval(intervalTimer);
             intervalTimer = null;
-            GM_setValue(bcChannelName, '');
+            GM_setValue("config", '');
             reloadOptStats();
             $("#stats-list").empty();
             handlePageLoad();
-            intervalTimer = setInterval(checkSaveButton, 2000);
+            if (configWindow && !configWindow.closed) intervalTimer = setInterval(checkSaveButton, 2000);
+        }
+
+        log('Check config win: ', configWindow, (configWindow ? configWindow.closed : 'no window'));
+        if (configWindow && configWindow.closed) {
+            configWindow = null;
+            clearInterval(intervalTimer);
         }
     }
 
     // Create a config options dialog (was going to be a new div, try a new page, instead)
     function createConfigDiv() {
         log('[createConfigDiv]');
-        let x = window.open("http://18.119.136.223:8080/testing/test.html");
+        configWindow = window.open(tornStatTrackerCfgURL);
 
         // Since broadcasts won't work, and storage notifications won't work, poll.
         if (!intervalTimer) intervalTimer = setInterval(checkSaveButton, 2000);
     }
 
+    // Add stats to the DIV on the home page
     function addStat(name, desc) {
         log('[addStat] ', name + ': ', desc);
         let newLi = award_li;
@@ -308,6 +301,7 @@
 
     function handlePageLoad() {
         //let targetDiv = document.querySelector("#item10961671"); // Not unique, random....
+        if (abroad()) return;
 
         let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable");
 
@@ -334,15 +328,6 @@
         }
     }
 
-    function installBroadcastChannel() {
-        let bcChannel = new BroadcastChannel(bcChannelName);
-        bcChannel.addEventListener('message', handleBroadcasts);
-        bcChannel.onmessage = (messageEvent) => {
-            log('[handleBroadcasts] data: ', messageEvent.data);
-        }
-        log('Listening on channel: ', bcChannel);
-    }
-
     //////////////////////////////////////////////////////////////////////
     // Main.
     //////////////////////////////////////////////////////////////////////
@@ -352,14 +337,11 @@
     versionCheck();
 
     initOptStats();
-    GM_setValue(bcChannelName, '');
+    GM_setValue("config", '');
 
     if (location.href.indexOf('test.html') > -1) {
         handleConfigPage();
     } else {
-        // This is not working, cross-domain?
-        // installBroadcastChannel();
-
         personalStatsQuery();
     }
 
