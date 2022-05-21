@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  A compendium of all my individual scripts
+// @version      0.2
+// @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/testing/test.html
@@ -603,7 +603,7 @@
 
             installDrugStats(personalStats);
 
-            resolve('[tornDrugStats] success!');
+            resolve('tornDrugStats complete!');
         });
     }
 
@@ -1252,7 +1252,7 @@
         if (opts_enabledScripts.latestAttacks) {
             tornLatestAttacksExtender().then(
             result => {
-                log(result);
+                log('[SUCCESS] ' + result);
             },
             error => {
                 log('[ERROR] ' + error);
@@ -1286,7 +1286,7 @@
         if (opts_enabledScripts.facRespect) {
             tornFacRespect().then(
             result => {
-                log(result);
+                log('[SUCCESS] ' + result);
             },
             error => {
                 log('[ERROR] ' + error);
@@ -1303,6 +1303,7 @@
     versionCheck();
 
     if (location.href == tornStatTrackerCfgURL) {
+        // Separate URL just for the 'Stats Tracker' script config page.
         handleStatsConfigPage();
     } else {
         // Start of by collecting stats we need. This will kick off some scripts that depend on stats.
