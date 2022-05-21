@@ -46,6 +46,8 @@
         addOptStat('unarmoredwon', "Unarmored Fights Won", "attacks");
         addOptStat('attackhits', "Total Attack Hits", "attacks");
         addOptStat('attacksassisted', "Total Assists", "attacks");
+        addOptStat("yourunaway", "Times you Escaped", "attacks");
+        addOptStat("theyrunaway", "Foes Escaped", "attacks");
 
         addOptStat("cantaken", "Cannabis Taken", "drugs");
         addOptStat("exttaken", "Ecstacy Taken", "drugs");
@@ -77,6 +79,12 @@
         addOptStat('machits', "Finishing Hits: Machine Guns", "weapons");
         addOptStat('grehits', "Finishing Hits: Temps", "weapons");
         addOptStat('h2hhits', "Finishing Hits: Hand to Hand", "weapons");
+        addOptStat('axehits', "Finishing Hits: Clubbing", "weapons");
+        addOptStat('rifhits', "Finishing Hits: Rifle", "weapons");
+        addOptStat('shohits', "Finishing Hits: Shotgun", "weapons");
+        addOptStat('piehits', "Finishing Hits: Piercing", "weapons");
+        addOptStat('slahits', "Finishing Hits: Slashing", "weapons");
+        
         addOptStat('roundsfired', "Rounds Fired", "weapons");
         addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
         addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
@@ -94,8 +102,6 @@
         addOptStat("racesentered", "Races Entered", "racing");
         addOptStat("racingpointsearned", "Racing Points Earned", "racing");
 
-        addOptStat("yourunaway", "Times you Escaped", "foes");
-        addOptStat("theyrunaway", "Foes Escaped", "foes");
         addOptStat("peoplebusted", "Busts Succeeded", "jail");
         addOptStat("failedbusts", "Busts Failed", "jail");
         addOptStat("peoplebought", "People Bailed Out", "jail");
