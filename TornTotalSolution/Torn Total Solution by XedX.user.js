@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -502,10 +502,6 @@
     // Portion of "Torn Stat Tracker" script run when on config page
     ///////////////////////////////////////////////////////////////////////////////////
 
-    // Note: not loaded with JQuery active!
-    // I'm not loading it myself as I don't want a conflict with Torn's version.
-    //
-    // NOTE: Now I do load JQuery, use instead? Can simplify!
     function handleStatsConfigPage() {
         log('[handleStatsConfigPage]');
 
@@ -554,19 +550,10 @@
 
     function handleStatsSaveButton(ev) {
         log('[handleStatsSaveButton]');
-
         GM_setValue("stats-config", 'saved');
-
-        // Notify the user - this ould be way easier with JQuery :-)
-        const newP = document.createElement('p');
-        const newSpan = document.createElement('span');
-        newP.append(newSpan);
-        newP.id = "x1";
-        newSpan.textContent = "Data Saved!";
-        newSpan.className = "notification";
-
+        const newP = '<p id="x1"><span class="notification">Data Saved!</span></p>';
         let myTable = document.getElementById('xedx-table');
-        myTable.parentNode.insertBefore(newP, myTable.nextSibling);
+        myTable.parentNode.insertBefore($(newP)[0], myTable.nextSibling);
         setTimeout(clearStatsResult, 3000);
     }
 
@@ -1083,6 +1070,19 @@
     }
 
     //////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Customizable Sidebar" (called at content loaded)
+    //////////////////////////////////////////////////////////////////////
+
+    function tornCustomizableSidebar() {
+        log('[tornCustomizableSidebar]');
+
+        return new Promise((resolve, reject) => {
+
+            reject("tornCustomizableSidebar not yet implemented!");
+        });
+    }
+
+    //////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Hide-Show Chat Icons" (called at content loaded)
     //////////////////////////////////////////////////////////////////////
 
@@ -1393,7 +1393,7 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Install configuration menu for this script
+    // Install general configuration menu for this script
     //////////////////////////////////////////////////////////////////////
 
     const opts_enabledScripts = {};
@@ -1406,7 +1406,7 @@
             .xedx-tts-span {line-height: 12px; margin-left: 10px;}
             .powered-by {color: var(--default-blue-color); text-decoration: none;}
             `);
-        let cfgSpan = '<div class="xedx-tts-span"><span> Powered By: </span><a class="powered-by" id="xedx-opts">XedX</a></div>';
+        let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
         let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
         if (!serverDiv) return setTimeout(installConfigMenu, 100);
 
@@ -1473,12 +1473,12 @@
     // Portion of script run when on General config page
     ///////////////////////////////////////////////////////////////////////////////////
 
-    // Note: not loaded with JQuery active!
-    // I'm not loading it myself as I don't want a conflict with Torn's version.
-    //
-    // NOTE: Now I do load JQuery, use instead? Can simplify!
     function handleGeneralConfigPage() {
         log('[handleGeneralConfigPage]');
+        if (opts_enabledScripts.customizableSidebar.enabled) {
+            log('Enabling sidebar links');
+            $("#xedx-addl-links-div").attr("style", "");
+        }
 
         // Insert table rows
         let html = '';
@@ -1494,30 +1494,26 @@
             checkboxes[i].addEventListener('click', genOptsClickHandler);
         }
 
-        let saveButton = document.querySelector('#xedx-button');
-        saveButton.addEventListener('click', handleGenOptsSaveButton);
+        $('#xedx-button').click(handleGenOptsSaveButton);
+        $("#new-link-add-row").click(handleGenCfgAddRow);
+    }
+
+    function handleGenCfgAddRow() {
+        log('[handleGenCfgAddRow]');
+        const rowHtml = `<tr><td><input type="checkbox" class="clickable"/></td>
+            <td><input type="string"></td><td><input type="string"></td><td><input type="string"></td></tr>`;
+        $("#xedx-links-table-body").append(rowHtml);
     }
 
     function addGenOptsTableRow(scriptName) {
-        let table = document.getElementById('xedx-table');
-        let row = table.insertRow();
-        var cell1 = row.insertCell(0);
-        var cell2 = row.insertCell(1);
-
-        cell1.innerHTML = '<input type="checkbox" class="clickable"' +
-            (opts_enabledScripts[scriptName].enabled? 'checked ': '') + ' />';
-        cell2.innerHTML = opts_enabledScripts[scriptName].name;
-
-        cell1.firstChild.setAttribute('name', scriptName);
+        let newRow = '<tr><td><input type="checkbox" class="clickable" name="' + scriptName + '"' +
+            (opts_enabledScripts[scriptName].enabled? ' checked ': '') + ' /></td><td>' +
+            opts_enabledScripts[scriptName].name + '</td></tr>';
+        $('#xedx-table').append(newRow);
     }
 
     function genOptsClickHandler(ev) {
-        let target = ev.target;
-        let srcElem = ev.srcElement;
-
-        debug('[genOptsClickHandler] setValue: ', target.name, target.checked);
-
-        GM_setValue(target.name, target.checked);
+        GM_setValue(ev.target.name, ev.target.checked);
     }
 
     function handleGenOptsSaveButton(ev) {
@@ -1525,17 +1521,17 @@
 
         GM_setValue("general-config", 'saved');
 
-        // Notify the user - this ould be way easier with JQuery :-)
-        const newP = document.createElement('p');
-        const newSpan = document.createElement('span');
-        newP.append(newSpan);
-        newP.id = "x1";
-        newSpan.textContent = "Data Saved!";
-        newSpan.className = "notification";
-
+        const newP = '<p id="x1"><span class="notification">Data Saved!</span></p>';
         let myTable = document.getElementById('xedx-table');
-        myTable.parentNode.insertBefore(newP, myTable.nextSibling);
+        myTable.parentNode.insertBefore($(newP)[0], myTable.nextSibling);
+
         setTimeout(clearGenoptsResult, 3000);
+
+        if (GM_getValue("customizableSidebar") == true) {
+            $("#xedx-addl-links-div").attr("style", "");
+        } else {
+            $("#xedx-addl-links-div").attr("style", "display: none;");
+        }
     }
 
     function clearGenoptsResult() {
@@ -1553,6 +1549,16 @@
     // Some scripts can run as soon as the page has loaded.
     function handlePageLoad() {
         log('[handlePageLoad]');
+
+        if (opts_enabledScripts["customizableSidebar"].enabled) {
+            tornCustomizableSidebar().then(
+            result => {
+                log('[SUCCESS] ' + result);
+            },
+            error => {
+                log('[ERROR] ' + error);
+            });
+        }
 
         if (opts_enabledScripts["sidebarColors"].enabled) {
             tornSidebarColors().then(
