@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
-// @match      https://www.torn.com/gym.php
+// @match        https://www.torn.com/gym.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -22,7 +22,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
 
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
