@@ -212,12 +212,13 @@
         let extendedDiv = document.getElementById('xedx-attacks-ext');
         if (!validPointer(extendedDiv)) {return;}
         $(extendedDiv).append(latest_attacks_config_div);
+        $("#la-status-hdr").css("display", "none");
 
-        $('#la-maxinput').val(GM_getValue('latest_attacks_max_values'));
-        $('#la-dateformat').val(GM_getValue('latest_attacks_date_format'));
+        $('#la-maxinput').val(GM_getValue('latest_attacks_max_values', "100"));
+        $('#la-dateformat').val(GM_getValue('latest_attacks_date_format', "YYYY-MM-DD HH:MM:SS")); // Index 2 (dateFormat.selectedIndex)
 
-        $('#la-cancel-btn').click(function () {$('#la-config-div').parentNode.removeChild(element)});
-        $('#la-save-btn').click(function () {saveLaConfig();});
+        $('#la-cancel-btn').click(function () {$('#la-config-div').remove()});
+        $('#la-save-btn').click(function () {saveLaConfig()});
     }
 
      // Handler for 'Config' screen, 'Save' button
@@ -228,17 +229,23 @@
         if (maxInput.value > 100 || !isaNumber(maxInput.value) || maxInput.value < 0) {
             maxInput.value = 100;
         }
+
         GM_setValue('latest_attacks_max_values', maxInput.value);
         GM_setValue('latest_attacks_date_format', dateFormat.options[dateFormat.selectedIndex].text);
 
-        latestAttacksconfig.max_values = GM_getValue('latest_attacks_max_values');
-        latestAttacksconfig.date_format = GM_getValue('latest_attacks_date_format');
+        latestAttacksconfig.max_values = GM_getValue('latest_attacks_max_values', "100");
+        latestAttacksconfig.date_format = GM_getValue('latest_attacks_date_format', "YYYY-MM-DD HH:MM:SS");
 
         let headerDiv = document.getElementById('la_header_div');
         headerDiv.removeChild(headerDiv.lastChild);
         headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('latest_attacks_max_values') + ')'));
 
-        $('#la-config-div').parentNode.removeChild(element);
+        //$('#la-config-div').parentNode.removeChild(element);
+        $("#la-status").text("Saved!");
+        $("#la-status-hdr").css("display", "block");
+        $("#la-cancel-btn").remove();
+        $("#la-save-btn").remove();
+        setTimeout(function() {$('#la-config-div').remove();}, 3000);
     }
 
     // Functions to hide DIV's using code collapse
@@ -253,7 +260,10 @@
                   '<option value="YYYY-MM-DD HH:MM:SS">YYYY-MM-DD HH:MM:SS</option>' +
                   '<option value="DAY MONTH DD YYYY HH:MM:SS">DAY MONTH DD YYYY HH:MM:SS</option>' +
                   '<option value="FULL (DAY MONTH DD YYYY HH:MM:SS TZ)">FULL (DAY MONTH DD YYYY HH:MM:SS TZ)</option>' +
-              '</select><br><br>' +
+              '</select>' + //<br><br>' +
+              '<div id="la-status-hdr" style="margin: 10px; width: 100%; height: 24px;">' +
+                  '<span id="la-status" style="color: red; text-align: center;"></span>' +
+              '</div>' +
               '<button id="la-cancel-btn" style="margin: 0px 10px 10px 0px;">Cancel</button>' +
               '<button id="la-save-btn" style="margin: 0px 10px 10px 0px;">Save</button>' +
           '</div>';
