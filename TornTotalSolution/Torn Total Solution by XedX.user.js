@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -115,6 +115,8 @@
                 return resolve("tornLatestAttacksExtender complete!");
         });
     }
+
+    function removeLatestAttacksExtender() {$("#xedx-attacks-ext").remove()}
 
     const latestAttacksconfig = {
         'max_values': GM_getValue('latest_attacks_max_values', 100),
@@ -299,6 +301,8 @@
                 return resolve("tornStatTracker complete!");
         });
     }
+
+    function removeTornStatTracker() {$("#xedx-stats").remove()}
 
     const optStats = {};
     const categoryColors = {"drugs":   '#FF69B4',  // Hot Pink
@@ -590,6 +594,8 @@
         });
     }
 
+    function removeDrugStats() {$("#xedx-drugstats-ext-div").remove()}
+
     function installDrugStats(stats) {
         let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
                           'opitaken', 'opitaken', 'shrtaken', 'spetaken',
@@ -744,6 +750,8 @@
             resolve('tornJailStats complete!');
         });
     }
+
+    function removeJailStats() {$("#xedx-jailstats-ext-div").remove();}
 
     const jailExtDivId = 'xedx-jailstats-ext-div';
 
@@ -933,7 +941,7 @@
         debug('buildPersonalRespectLi ul = ', ul);
         if (!ul) return '[tornFacRespect] Unable to find correct ul!';
 
-        let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned"><div id="xedx-respect">' +
+        let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned" id="xedx-respect-li"><div id="xedx-respect">' +
                      '<span class="divider"><span>Personal Respect Earned</span></span>' +
                      '<span class="desc">' + respect.toLocaleString("en") + '</span>' +
                  '</div></li>';
@@ -991,6 +999,11 @@
         }
 
         return pctText;
+    }
+
+    // Disable/remove fn.
+    function removeTornFacRespect() {
+        $("#xedx-respect-li").remove();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1072,9 +1085,9 @@
         }
     }
 
-    //////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Customizable Sidebar" (called at content loaded)
-    //////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
 
     // custLinksOpts[key] = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
     var custLinksOpts = {};
@@ -1103,6 +1116,8 @@
             reject("tornCustomizableSidebar complete!");
         });
     }
+
+    function removeCustomizableSidebar() {$("[id^=custlink-]").remove()}
 
     function initCustLinkClassNames() {
         if($('#nav-items').length){
@@ -1191,12 +1206,12 @@
             document.querySelector("#chatRoot > div").style.display = hide ? 'none' : 'block';
     }
 
-    const hideChatHdr = '<hr id="xedx-hr-delim" class="delimiter___neME6">';
+    //const hideChatHdr = '<hr id="xedx-hr-delim" class="delimiter___neME6">';
 
-    const hideChatDiv = '<div><hr id="xedx-hr-delim" class="delimiter___neME6">' +
-        '<div id="xedxShowHideChat" style="padding-bottom: 5px; padding-top: 5px;">' +
+    const hideChatDiv = '<div id="xedxShowHideChat"><hr id="xedx-hr-delim" class="delimiter___neME6">' +
+        '<div style="padding-bottom: 5px; padding-top: 5px;">' +
         '<span style="font-weight: 700;">Chat Icons</span>' +
-        '<a id="showHideChat" class="t-blue show-hide">[hide]</a></div>';
+        '<a id="showHideChat" class="t-blue show-hide">[hide]</a></div></div>';
 
     function disableTornToolsChatHide() {
         if (validPointer($('#tt-hide_chat')[0])) {
@@ -1210,6 +1225,8 @@
         $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
         installHideShowClickHandler();
     }
+
+    function removeHideShowChat() {$("#xedxShowHideChat").remove()}
 
     function installHideShowClickHandler() {
         $('#showHideChat').on('click', function () {
@@ -1264,6 +1281,8 @@
                 resolve('[tornCollapsibleSidebar] complete!');
         });
     }
+
+    function removeCollapsibleSidebar() {$("#xedx-collapse").remove()}
 
     // Returns null on success, error otherwise.
     function installCollapsibleCaret() {
@@ -1321,6 +1340,16 @@
             addCriminalRecordToolTips();
             resolve("tornCrimeTooltips complete!");
         });
+    }
+
+    function removeCrimeTooltips() {
+        let rootDiv = document.getElementsByClassName('cont-gray bottom-round criminal-record')[0];
+        if (!validPointer(rootDiv)) {return;}
+        let ul = rootDiv.getElementsByClassName("info-cont-wrap")[0];
+        let items = ul.getElementsByTagName("li");
+        for (let i = 0; i < items.length; ++i) {
+            items[i].removeAttribute('title');
+        }
     }
 
     function addCriminalRecordToolTips() {
@@ -1542,7 +1571,10 @@
     // Install general configuration menu for this script
     //////////////////////////////////////////////////////////////////////
 
-    const opts_enabledScripts = {};
+    const knownScripts = ["latestAttacks", "statTracker", "drugStats", "crimeToolTips",
+                          "sidebarColors", "hideShowChat", "facRespect", "jailStats",
+                          "collapsibleSidebar", "customizableSidebar", "ttFilter"];
+    const opts_enabledScripts = {}; // Additional data read from storage
     var general_intervalTimer = null;
     var general_configWindow = null;
 
@@ -1582,6 +1614,12 @@
             general_intervalTimer = null;
             GM_setValue("general-config", '');
 
+            try {
+                liveScriptUpdateHandler(); // Update live, what we can (only supported by certain scripts)
+            } catch(e) {
+                log('ERROR in [liveScriptUpdateHandler]: ', e);
+            }
+
             updateGeneralCfg();      // General opts (which scripts to run)
             updateSidebarLinksCfg(); // Custom for "Customizable Sidebar Links"
 
@@ -1595,24 +1633,54 @@
         }
     }
 
-    function setGeneralCfgOpt(name, desc) {
+    function liveScriptUpdateHandler() {
+        log('[liveScriptUpdateHandler]');
+
+        for (let i=0; i<knownScripts.length; i++) {
+            let script = knownScripts[i];
+            let enabled = GM_getValue(script);
+            if (opts_enabledScripts[script].enabled != enabled) {
+                let enableFn = opts_enabledScripts[script].enableFn;
+                let disableFn = opts_enabledScripts[script].disableFn;
+                debug('[liveScriptUpdateHandler] script ', script, ' enabled: ', GM_getValue(script));
+                debug('[liveScriptUpdateHandler] enableFn: ', enableFn);
+                debug('[liveScriptUpdateHandler] disableFn: ', disableFn);
+                if (enabled && enableFn) {
+                    debug('[liveScriptUpdateHandler] enabling ' + script);
+                    enableFn(); /*.then(
+                    result => {
+                        log('[SUCCESS] ' + result);
+                    },
+                    error => {
+                        log('[ERROR] ' + error);
+                    }); */
+                };
+                if (!enabled && disableFn) {
+                    debug('[liveScriptUpdateHandler] disabling ' + script);
+                    disableFn();
+                }
+            }
+        }
+    }
+
+    function setGeneralCfgOpt(name, desc, enableFn=null, disableFn=null) {
         debug('[setGeneralCfgOpt] name: ', name);
         debug('[setGeneralCfgOpt] saved: ', GM_getValue(name));
 
-        opts_enabledScripts[name] = {enabled: GM_getValue(name, true), name: desc};
+        opts_enabledScripts[name] = {enabled: GM_getValue(name, true), name: desc, enableFn: enableFn, disableFn: disableFn};
     }
 
     function updateGeneralCfg() {
-        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender");
-        setGeneralCfgOpt("statTracker", "Torn Stat Tracker");
-        setGeneralCfgOpt("drugStats", "Torn Drug Stats");
-        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips");
+        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender", tornLatestAttacksExtender, removeLatestAttacksExtender);
+        setGeneralCfgOpt("statTracker", "Torn Stat Tracker", tornStatTracker, removeTornStatTracker);
+        setGeneralCfgOpt("drugStats", "Torn Drug Stats", tornDrugStats, removeDrugStats);
+        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips", tornCrimeTooltips, removeCrimeTooltips);
         setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors");
-        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons");
-        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned");
-        setGeneralCfgOpt("jailStats", "Torn Jail Stats");
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar");
-        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar");
+        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat);
+        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned", tornFacRespect, removeTornFacRespect);
+        setGeneralCfgOpt("jailStats", "Torn Jail Stats", tornJailStats, removeJailStats);
+        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar", tornCollapsibleSidebar, removeCollapsibleSidebar);
+        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar", tornCustomizableSidebar, removeCustomizableSidebar);
         setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)");
 
         debug('[updateGeneralCfg] opts_enabledScripts: ', opts_enabledScripts);
@@ -1697,14 +1765,17 @@
 
     // Build and add a Gen opts script row
     function addGenOptsTableRow(scriptName) {
+        let rowTextColor = (typeof(opts_enabledScripts[scriptName].enableFn) == "function") ? 'black;' : 'red;';
+        //log('[addGenOptsTableRow] rowTextColor: ', rowTextColor);
         let newRow = '<tr><td><input type="checkbox" class="gen-clickable" name="' + scriptName + '"' +
-            (opts_enabledScripts[scriptName].enabled? ' checked ': '') + ' /></td><td>' +
-            opts_enabledScripts[scriptName].name + '</td></tr>';
+            (opts_enabledScripts[scriptName].enabled ? ' checked ': '') + ' /></td>' +
+            '<td style="color: ' + rowTextColor + '">' + opts_enabledScripts[scriptName].name + '</td></tr>';
         $('#xedx-table').append(newRow);
     }
 
     // Gen opts script selected handler, save to storage
     function genOptsClickHandler(ev) {
+        log('[genOptsClickHandler] taget: ', ev.target.name, ' enabled: ', ev.target.checked);
         GM_setValue(ev.target.name, ev.target.checked);
     }
 
@@ -1956,7 +2027,7 @@
     ///////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////////////////////////////////////
-    // End portion of "Torn Stat Tracker" script run when on config page
+    // End portion of script run when on General config page
     ///////////////////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////
