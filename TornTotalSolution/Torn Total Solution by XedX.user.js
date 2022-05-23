@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -39,8 +39,8 @@
 // Torn Fac Respect Earned - Shows respect earned for your fac, with tool tips for merit progress.
 // Torn Collapsible Sidebar - Makes custom links on the sidebar collapsible, whether added by me, TT, altercoes...
 // Torn Jail Stats - Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
-// Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
 // Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar.
+// Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
 
 // Notes to self:
 //
@@ -1002,86 +1002,72 @@
     }
 
     // Disable/remove fn.
-    function removeTornFacRespect() {
-        $("#xedx-respect-li").remove();
-    }
+    function removeTornFacRespect() {$("#xedx-respect-li").remove();}
 
     //////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Sidebar Colors" (called at content loaded)
     //////////////////////////////////////////////////////////////////////
 
+    const sc_svrRoot = " > div > a > span.svgIconWrap___YUyAq > svg";
+    const opt_scIcons = {}; // key = {svgLink: "", color: '', strokeWidth: ""}
+
     function tornSidebarColors() {
         log('[tornSidebarColors]');
 
         return new Promise((resolve, reject) => {
-            let homeIcon = document.querySelector("#nav-home > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(homeIcon, 'red');
+            init_opt_scIcons();
 
-            let itemsIcon = document.querySelector("#nav-items > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(itemsIcon, 'blue');
-
-            let cityIcon = document.querySelector("#nav-city > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(cityIcon, 'yellow');
-
-            let jobIcon = document.querySelector("#nav-job > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(jobIcon, '#9EBF7C', 4);
-
-            let gymIcon = document.querySelector("#nav-gym > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(gymIcon, '#719EA3');
-
-            let propIcon = document.querySelector("#nav-properties > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(propIcon, 'yellow');
-
-            let eduIcon = document.querySelector("#nav-education > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(eduIcon, 'black');
-
-            let crimesIcon = document.querySelector("#nav-crimes > div > a > span.svgIconWrap___YUyAq > svg");
-            //colorIcon(crimesIcon, 'red');
-
-            let missionIcon = document.querySelector("#nav-missions > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(missionIcon, '#C32A1F');
-
-            let newsIcon = document.querySelector("#nav-newspaper > div > a > span.svgIconWrap___YUyAq > svg");
-            //colorIcon(newsIcon, '#686B6C');
-
-            let jailIcon = document.querySelector("#nav-jail > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(jailIcon, 'black');
-
-            let hospIcon = document.querySelector("#nav-hospital > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(hospIcon, 'red');
-
-            let casinoIcon = document.querySelector("#nav-casino > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(casinoIcon, '#4D8719');
-
-            let forumIcon = document.querySelector("#nav-forums > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(forumIcon, 'white');
-
-            let hofIcon = document.querySelector("#nav-hall_of_fame > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(hofIcon, '#FFD701');
-
-            let facIcon = document.querySelector("#nav-my_faction > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(facIcon, '#DFAF2A');
-
-            let recIcon = document.querySelector("#nav-recruit_citizens > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(recIcon, 'red');
-
-            let calendarIcon = document.querySelector("#nav-calendar > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(calendarIcon, 'orange');
-
-            let travelIcon = document.querySelector("#nav-traveling > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(travelIcon, '#6AB6F3'); // '#6CB0E5');
-
-            let peopleIcon = document.querySelector("#nav-people > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(peopleIcon, '#F7BDA4');
+            let keys = Object.keys(opt_scIcons);
+            for (let i=0; i<keys.length; i++) {
+                let data = opt_scIcons[keys[i]];
+                colorIcon(data);
+            }
 
             resolve("tornSidebarColors complete!");
         });
     }
 
-    function colorIcon(icon, color, pw=1) {
+    function removeSidebarColors() {
+        log('[removeSidebarColors]');
+
+        let keys = Object.keys(opt_scIcons);
+        for (let i=0; i<keys.length; i++) {
+            let data = opt_scIcons[keys[i]];
+            data.color = 'transparent';
+            data.strokeWidth = '0';
+            colorIcon(data);
+        }
+    }
+
+    const defStrokeWidth = '1';
+    function init_opt_scIcons() {
+        opt_scIcons.homeIcon = {svgLink: "#nav-home", color: 'red', strokeWidth: defStrokeWidth};
+        opt_scIcons.itemsIcon = {svgLink: "#nav-items", color: 'blue', strokeWidth: defStrokeWidth};
+        opt_scIcons.cityIcon = {svgLink: "#nav-city", color: 'yellow', strokeWidth: defStrokeWidth};
+        opt_scIcons.jobIcon = {svgLink: "#nav-job", color: '#9EBF7C', strokeWidth: '4'};
+        opt_scIcons.gymIcon = {svgLink: "#nav-gym", color: '#719EA3', strokeWidth: defStrokeWidth};
+        opt_scIcons.propIcon = {svgLink: "#nav-properties", color: 'yellow', strokeWidth: defStrokeWidth};
+        opt_scIcons.eduIcon = {svgLink: "#nav-education", color: 'black', strokeWidth: defStrokeWidth};
+        opt_scIcons.crimesIcon = {svgLink: "#nav-crimes", color: 'transparent', strokeWidth: defStrokeWidth};
+        opt_scIcons.missionIcon = {svgLink: "#nav-missions", color: '#C32A1F', strokeWidth: defStrokeWidth};
+        opt_scIcons.newsIcon = {svgLink: "#nav-newspaper", color: 'transparent', strokeWidth: '0'};
+        opt_scIcons.jailIcon = {svgLink: "#nav-jail", color: 'black', strokeWidth: defStrokeWidth};
+        opt_scIcons.hospIcon = {svgLink: "#nav-hospital", color: 'red', strokeWidth: defStrokeWidth};
+        opt_scIcons.casinoIcon = {svgLink: "#nav-casino", color: '#4D8719', strokeWidth: defStrokeWidth};
+        opt_scIcons.forumIcon = {svgLink: "#nav-forums", color: 'white', strokeWidth: defStrokeWidth};
+        opt_scIcons.hofIcon = {svgLink: "#nav-hall_of_fame", color: '#FFD701', strokeWidth: defStrokeWidth};
+        opt_scIcons.facIcon = {svgLink: "#nav-my_faction", color: '#DFAF2A', strokeWidth: defStrokeWidth};
+        opt_scIcons.recIcon = {svgLink: "#nav-recruit_citizens", color: 'red', strokeWidth: defStrokeWidth};
+        opt_scIcons.calendarIcon = {svgLink: "#nav-calendar", color: 'orange', strokeWidth: defStrokeWidth};
+        opt_scIcons.travelIcon = {svgLink: "#nav-traveling", color: '#6AB6F3', strokeWidth: defStrokeWidth};
+        opt_scIcons.peopleIcon = {svgLink: "#nav-people", color: '#F7BDA4', strokeWidth: defStrokeWidth};
+    }
+
+    function colorIcon(data) {
+        let icon = document.querySelector(data.svgLink + sc_svrRoot);
         if (icon) {
-            icon.setAttribute('stroke', color);
-            icon.setAttribute('stroke-width', pw.toString());
+            icon.setAttribute('stroke', data.color);
+            icon.setAttribute('stroke-width', data.strokeWidth);
         }
     }
 
@@ -1128,7 +1114,7 @@
             custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
             custLinkClassNames.link_name_class = $('#nav-items a span').eq(1).attr('class');
         }
-        log('[initCustLinkClassNames] custLinkClassNames: ', custLinkClassNames);
+        debug('[initCustLinkClassNames] custLinkClassNames: ', custLinkClassNames);
     }
 
     function custLinkGetRoot(key) {
@@ -1582,8 +1568,11 @@
         if ($('#xedx-opts')[0]) return;
         GM_addStyle(`
             .xedx-tts-span {line-height: 12px; margin-left: 10px;}
-            .powered-by {color: var(--default-blue-color); text-decoration: none;}
+            .powered-by {color: var(--default-blue-color); text-decoration: none; cursor: pointer;}
             `);
+
+        // Set "cursor: pointer;" for table headers as well!
+
         let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
         let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
         if (!serverDiv) return setTimeout(installConfigMenu, 100);
@@ -1675,7 +1664,7 @@
         setGeneralCfgOpt("statTracker", "Torn Stat Tracker", tornStatTracker, removeTornStatTracker);
         setGeneralCfgOpt("drugStats", "Torn Drug Stats", tornDrugStats, removeDrugStats);
         setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips", tornCrimeTooltips, removeCrimeTooltips);
-        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors");
+        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors", tornSidebarColors, removeSidebarColors);
         setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat);
         setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned", tornFacRespect, removeTornFacRespect);
         setGeneralCfgOpt("jailStats", "Torn Jail Stats", tornJailStats, removeJailStats);
@@ -1701,7 +1690,7 @@
         let html = '';
         let keys = Object.keys(opts_enabledScripts);
         for (let i=0; i < keys.length; i++) {
-            let scriptName = keys[i]; // eg, 'heahits' - name in the personalstats obj
+            let scriptName = keys[i]; // eg, 'drugstats'
             addGenOptsTableRow(scriptName);
         }
 
@@ -1743,7 +1732,7 @@
         log('[genOptshdrClick] genOptsDataRowsHidden: ', genOptsDataRowsHidden);
         let tBody = $('#xedx-table-body');
         let tRows = tBody[0].getElementsByTagName('tr');
-        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandGenOptsHdr"><th colspan=4;>...click to expand</th></tr>`;
+        const expHdr = `<tr style="background-color: #A9A9A9; cursor: pointer;" id="expandGenOptsHdr"><th colspan=4;>...click to expand</th></tr>`;
         Array.from(tRows).forEach(function(rowNode) {
             if (!rowNode.id) {
                 if (genOptsDataRowsHidden) {
@@ -1830,16 +1819,24 @@
     function initCustLinksObject() {
         log('[initCustLinksObject]');
 
+        // Add 'dump' 'racetrack' - see altercoes for others
+
+        let link0 = JSON.parse(GM_getValue('custlink-bounties', JSON.stringify({enabled: true, cust: false, desc: "Bounties", link: "https://www.torn.com/bounties.php#!p=main", cat: "City"})));
         let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House", link: "amarket.php", cat: "City"})));
         let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs", link: "shops.php?step=bitsnbobs", cat: "City"})));
         let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building", link: "points.php", cat: "City"})));
         let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market", link: "imarket.php", cat: "City"})));
-        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "apage.php?sid=log", cat: "City"})));
+        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "apage.php?sid=log", cat: "Home"})));
         let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots", link: "loader.php?sid=slots", cat: "Casino"})));
         let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel", link: "loader.php?sid=spinTheWheel", cat: "Casino"})));
         let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker", link: "loader.php?sid=holdem", cat: "Casino"})));
         let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette", link: "page.php?sid=russianRoulette", cat: "Casino"})));
 
+        // Force an adjustment - move 'Log' to under 'Home'
+        // Make editable?
+        link5.cat = "Home";
+
+        GM_setValue('custlink-bounties', JSON.stringify(link0));
         GM_setValue('custlink-auctionhouse', JSON.stringify(link1));
         GM_setValue('custlink-bitsnbobs', JSON.stringify(link2));
         GM_setValue("custlink-pointsbuilding", JSON.stringify(link3));
@@ -1859,7 +1856,7 @@
         log('[custLinksHdrClick] linkDataRowsHidden: ', linkDataRowsHidden);
         let tBody = $('#xedx-links-table-body');
         let tRows = tBody[0].getElementsByTagName('tr');
-        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandLinksHdr"><th colspan=4;>...click to expand</th></tr>`;
+        const expHdr = `<tr style="background-color: #A9A9A9; cursor: pointer;" id="expandLinksHdr"><th colspan=4;>...click to expand</th></tr>`;
         Array.from(tRows).forEach(function(rowNode) {
             if (!rowNode.id) {
                 if (linkDataRowsHidden) {
@@ -1885,7 +1882,7 @@
         log('[fillCustLinksTable]');
 
         // Table header
-        const tblHdr = `<tr style="background-color: #778899;" id="custLinksHdr"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
+        const tblHdr = `<tr style="background-color: #778899; cursor: pointer;" id="custLinksHdr"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
         let tBody = $('#xedx-links-table-body');
 
         // Clear table and re-create.
