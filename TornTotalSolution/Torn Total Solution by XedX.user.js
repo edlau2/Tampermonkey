@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -15,12 +15,15 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_listValues
+// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint curly: 0*/
 
 // This script combines several scripts that are available individually, all that customize your
 // Home Page for various things.
@@ -37,7 +40,7 @@
 // Torn Collapsible Sidebar - Makes custom links on the sidebar collapsible, whether added by me, TT, altercoes...
 // Torn Jail Stats - Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
-// Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar. (TBD: will add later)
+// Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar.
 
 // Notes to self:
 //
@@ -516,7 +519,7 @@
         }
 
         // Install handlers
-        let checkboxes = document.getElementsByClassName('clickable');
+        let checkboxes = document.getElementsByClassName('stat-clickable');
         for (let i=0; i<checkboxes.length; i++) {
             checkboxes[i].addEventListener('click', statsClickHandler);
         }
@@ -533,7 +536,7 @@
         var cell1 = row.insertCell(0);
         var cell2 = row.insertCell(1);
 
-        cell1.innerHTML = '<input type="checkbox" class="clickable"' +
+        cell1.innerHTML = '<input type="checkbox" class="stat-clickable"' +
             (optStats[statName].enabled? 'checked ': '') + ' />';
         cell2.innerHTML = optStats[statName].name;
         if (color) cell2.setAttribute('bgcolor', color);
@@ -1073,13 +1076,93 @@
     // Handlers for "Torn Customizable Sidebar" (called at content loaded)
     //////////////////////////////////////////////////////////////////////
 
+    // custLinksOpts[key] = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
+    var custLinksOpts = {};
+    var custLinkClassNames = {};
+
     function tornCustomizableSidebar() {
         log('[tornCustomizableSidebar]');
 
         return new Promise((resolve, reject) => {
+            initCustLinksObject();
+            initCustLinkClassNames();
+            let keys = Object.keys(custLinksOpts);
+            for (let i=0; i<keys.length; i++) {
+                let key = keys[i];
+                if (custLinksOpts[key].enabled) {
+                    log('[tornCustomizableSidebar] Adding: ' + key);
+                    let node = buildCustLink(key, custLinksOpts[key]);
+                    let root = custLinkGetRoot(key);
+                    custLinkInsert(root, node, key);
+                } else {
+                    log('[tornCustomizableSidebar] Removing: ' + key);
+                    custLinkNodeRemove(key);
+                }
+            }
 
-            reject("tornCustomizableSidebar not yet implemented!");
+            reject("tornCustomizableSidebar complete!");
         });
+    }
+
+    function initCustLinkClassNames() {
+        if($('#nav-items').length){
+            custLinkClassNames.link_class = $('#nav-items').attr('class').split(" ")[0];
+            custLinkClassNames.row_class  = $('#nav-items > div:first').attr('class');
+            custLinkClassNames.a_class    = $('#nav-items a').attr('class');
+            custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
+            custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
+            custLinkClassNames.link_name_class = $('#nav-items a span').eq(1).attr('class');
+        }
+        log('[initCustLinkClassNames] custLinkClassNames: ', custLinkClassNames);
+    }
+
+    function custLinkGetRoot(key) {
+        let cat = custLinksOpts[key].cat;
+        let node = null;
+        switch (cat.toLowerCase()) {
+            case 'home':
+                node = document.getElementById('nav-home');
+                break;
+            case 'casino':
+                node = document.getElementById('nav-casino');
+                break;
+            case 'city':
+            default:
+                node = document.getElementById('nav-city');
+                break;
+        }
+
+        return node;
+    }
+
+    function custLinkInsert(root, node, key=null) {
+        debug('[custLinkInsert] root: ', root);
+        debug('[custLinkInsert] node: ', node);
+        debug('[custLinkInsert] key: ', key);
+        $(node).insertAfter(root);
+    }
+
+    function custLinkNodeRemove(key) {
+        $('#' + key).remove();
+    }
+
+    function buildCustLink(key) {
+        // Span1: (icons - if I want to add them)
+        // <i class="cql-raceway"></i>
+        // <i class="cql-stock-market"></i>
+        // <i class="cql-travel-agency"></i>
+
+        let data = custLinksOpts[key];
+        let fullLink = (data.link.indexOf('www.torn.com') > -1) ? data.link : "https://www.torn.com/" + data.link;
+
+        let outerDiv = '<div class="' + custLinkClassNames.link_class + '" style="display: block" id="' + key + '"><div class="' +
+            custLinkClassNames.row_class  + '">';
+        //let span1 = '<span class="svgIconWrap___YUyAq "><i class="cql-travel-agency"></i></span>';
+        let aData = '<a href="' + fullLink + '" class="' + custLinkClassNames.a_class + '">'; // '" i-data="i_0_1120_172_23">' +
+        let span2 = '<span class="' + custLinkClassNames.link_name_class + '">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;' + data.desc + '</span>';
+        let endDiv = '</a></div></div>';
+
+        return outerDiv + aData + /* span1 + */ span2 + endDiv;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1153,13 +1236,76 @@
     // Handlers for "Torn Collapsible Sidebar" (called at content complete)
     ////////////////////////////////////////////////////////////////////////
 
+    var cs_caretState = 'fa-caret-down';
+    const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
+
     function tornCollapsibleSidebar() {
         // Note: this requires a periodic callback, so that'll require a non-promise fn.
         log('[tornCollapsibleSidebar]');
 
         return new Promise((resolve, reject) => {
-            reject("tornCollapsibleSidebar not yet implememnted!");
+            GM_addStyle(".xedx-caret {" +
+                "padding-top:5px;" +
+                "padding-bottom:5px;" +
+                "padding-left:20px;" +
+                "padding-right:10px;" +
+                "}");
+
+            let result = installCollapsibleCaret();
+
+            $(window).on('[tornCollapsibleSidebar] hashchange', function() {
+                debug('handle hash change.');
+                installCollapsibleCaret();
+            });
+
+            if (result)
+                reject(result);
+            else
+                resolve('[tornCollapsibleSidebar] complete!');
         });
+    }
+
+    // Returns null on success, error otherwise.
+    function installCollapsibleCaret() {
+        cs_caretState = GM_getValue('cs_lastState', cs_caretState);
+        if (!document.querySelector("#sidebarroot")) return "'#sidebarroot' not found, try again later!";
+        if (document.getElementById('xedx-collapse')) document.getElementById('xedx-collapse').remove();
+        if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
+
+        // Set parents to 'flex', allow divs to be side-by-side
+        document.querySelector("#nav-city").setAttribute('style', 'display:flex;');
+        document.querySelector("#nav-city > div > a").setAttribute('style', 'width:70%;float:left;');
+
+        // Add the caret and handler.
+        let target = document.querySelector("#nav-city > div");
+        if (!target) return "'#nav-city > div' not found, try again later!";
+        $(target).append(caretNode);
+        document.getElementById("xedx-collapse").addEventListener('click', function (event) {
+            cs_handleClick(event)}, { passive: false });
+
+        // Little trick here - set current state to opposite of the saved state.
+        // So calling the handler tricks it to set the *other* way, which is how
+        // we want it to start up.
+        cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+        cs_handleClick();
+    }
+
+    function cs_handleClick(e) {
+        debug('[cs_handleClick] state = ' + cs_caretState);
+        let targetNode = document.querySelector("#xedx-collapse"); // e.target
+        let elemState = 'block;';
+        if (cs_caretState == 'fa-caret-down') {
+            targetNode.classList.remove("fa-caret-down");
+            targetNode.classList.add("fa-caret-right");
+            cs_caretState = 'fa-caret-right';
+            elemState = 'none;';
+        } else {
+            targetNode.classList.remove("fa-caret-right");
+            targetNode.classList.add("fa-caret-down");
+            cs_caretState = 'fa-caret-down';
+        }
+        GM_setValue('cs_lastState', cs_caretState);
+        $("[id^=custlink-]").attr("style", "display: " + elemState);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1435,7 +1581,10 @@
             clearInterval(general_intervalTimer);
             general_intervalTimer = null;
             GM_setValue("general-config", '');
-            updateGeneralCfg();
+
+            updateGeneralCfg();      // General opts (which scripts to run)
+            updateSidebarLinksCfg(); // Custom for "Customizable Sidebar Links"
+
             if (general_configWindow && !general_configWindow.closed) general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
         }
 
@@ -1462,11 +1611,15 @@
         setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons");
         setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned");
         setGeneralCfgOpt("jailStats", "Torn Jail Stats");
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar (TBD)");
+        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar");
+        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar");
         setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)");
-        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar (TBD)");
 
         debug('[updateGeneralCfg] opts_enabledScripts: ', opts_enabledScripts);
+    }
+
+    function updateSidebarLinksCfg() {
+        // Save 'link-clickable' ("Customizable Sidebar") opts also...
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
@@ -1475,12 +1628,8 @@
 
     function handleGeneralConfigPage() {
         log('[handleGeneralConfigPage]');
-        if (opts_enabledScripts.customizableSidebar.enabled) {
-            log('Enabling sidebar links');
-            $("#xedx-addl-links-div").attr("style", "");
-        }
 
-        // Insert table rows
+        // Insert table rows (general opts, which scripts are supported)
         let html = '';
         let keys = Object.keys(opts_enabledScripts);
         for (let i=0; i < keys.length; i++) {
@@ -1488,34 +1637,82 @@
             addGenOptsTableRow(scriptName);
         }
 
-        // Install handlers
-        let checkboxes = document.getElementsByClassName('clickable');
+        // Install handlers ... general opts (which scripts to support)
+        let checkboxes = document.getElementsByClassName('gen-clickable');
         for (let i=0; i<checkboxes.length; i++) {
+            // Saves state into storage
             checkboxes[i].addEventListener('click', genOptsClickHandler);
         }
 
-        $('#xedx-button').click(handleGenOptsSaveButton);
-        $("#new-link-add-row").click(handleGenCfgAddRow);
+        $('#genOptsHdr').on('click', genOptsHdrClick);
+
+        $('#xedx-button').click(handleGenOptsSaveButton); // General 'Save' button
+
+        /**** Customizable Sidebar Links config stuff ****/
+
+        // If "Customizable Sidebar Links" is enabled, show it. Also fill the table, regardless.
+        if (opts_enabledScripts.customizableSidebar.enabled) {
+            initCustLinksObject(); // Fills object from storage
+            log('Enabling sidebar links');
+            $("#xedx-addl-links-div").attr("style", "");
+        }
+        fillCustLinksTable();
+
+        // And install Customizable Sidebar Links handlers
+        checkboxes = document.getElementsByClassName('link-clickable');
+        for (let i=0; i<checkboxes.length; i++) {
+            // Writes the row to storage
+            checkboxes[i].addEventListener('click', genLinksClickHandler);
+        }
+        $("#new-link-add-row").click(handleGenCfgAddLinkRow); // Custom sidebar links, 'Add Row' button
+
+        /**** End Customizable Sidebar Links config stuff ****/
     }
 
-    function handleGenCfgAddRow() {
-        log('[handleGenCfgAddRow]');
-        const rowHtml = `<tr><td><input type="checkbox" class="clickable"/></td>
-            <td><input type="string"></td><td><input type="string"></td><td><input type="string"></td></tr>`;
-        $("#xedx-links-table-body").append(rowHtml);
+    // Called on header click - collapse table.
+    var genOptsDataRowsHidden = false;
+    function genOptsHdrClick() {
+        log('[genOptshdrClick] genOptsDataRowsHidden: ', genOptsDataRowsHidden);
+        let tBody = $('#xedx-table-body');
+        let tRows = tBody[0].getElementsByTagName('tr');
+        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandGenOptsHdr"><th colspan=4;>...click to expand</th></tr>`;
+        Array.from(tRows).forEach(function(rowNode) {
+            if (!rowNode.id) {
+                if (genOptsDataRowsHidden) {
+                    $(rowNode).attr('style', '');
+                } else {
+                    if (rowNode.firstChild.id != "genOptsHdr") $(rowNode).attr('style', 'display: none;');
+                }
+            }
+        });
+
+        if (genOptsDataRowsHidden) {
+            $('#expandGenOptsHdr').remove();
+        } else {
+            $(tBody).append(expHdr);
+            $('#expandGenOptsHdr').on('click', genOptsHdrClick);
+        }
+        genOptsDataRowsHidden = !genOptsDataRowsHidden;
     }
 
+    // Build and add a Gen opts script row
     function addGenOptsTableRow(scriptName) {
-        let newRow = '<tr><td><input type="checkbox" class="clickable" name="' + scriptName + '"' +
+        let newRow = '<tr><td><input type="checkbox" class="gen-clickable" name="' + scriptName + '"' +
             (opts_enabledScripts[scriptName].enabled? ' checked ': '') + ' /></td><td>' +
             opts_enabledScripts[scriptName].name + '</td></tr>';
         $('#xedx-table').append(newRow);
     }
 
+    // Gen opts script selected handler, save to storage
     function genOptsClickHandler(ev) {
         GM_setValue(ev.target.name, ev.target.checked);
     }
 
+    // Fired when 'Save' is clicked - notifies the page script to re-read data
+    // and change page as appropriate. Ideally, means the page won't need a refresh.
+    // For simplicity, may force a refresh for some script opts - such as the
+    // Customizabe Sidebar Links script, for now. Also creates the "Data Saved!"
+    // indicator.
     function handleGenOptsSaveButton(ev) {
         log('[handleGenOptsSaveButton]');
 
@@ -1527,16 +1724,236 @@
 
         setTimeout(clearGenoptsResult, 3000);
 
+        // Hide/show the "Customizable Sidebar" options as appropriate
+        // If visible, save the table data to storage
         if (GM_getValue("customizableSidebar") == true) {
             $("#xedx-addl-links-div").attr("style", "");
+            saveLinksTableToStorage();
         } else {
             $("#xedx-addl-links-div").attr("style", "display: none;");
         }
     }
 
+    // Clears the "Data Saved!" indicator.
     function clearGenoptsResult() {
         document.getElementById('x1').remove();
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Handlers/functions for the "Customizable Sidebar Links" script
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    var linkDataRowsHidden = false;
+
+    // *** Custom sidebar links, 'Add Row' button
+    function handleGenCfgAddLinkRow() { // Handler for the 'add row' button
+        log('[handleGenCfgAddLinkRow]');
+        const rowHtml = `<tr data-type="cust"><td><input type="checkbox" class="link-clickable" onclick="genLinksClickHandler"/></td>
+            <td data-type='desc'><input type="string"></td>
+            <td data-type='link'><input type="string"></td>
+            <td data-type='cat'><input type="string"></td></tr>`;
+        $("#xedx-links-table-body").append(rowHtml);
+    }
+
+    // *** Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
+    function initCustLinksObject() {
+        log('[initCustLinksObject]');
+
+        let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House", link: "amarket.php", cat: "City"})));
+        let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs", link: "shops.php?step=bitsnbobs", cat: "City"})));
+        let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building", link: "points.php", cat: "City"})));
+        let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market", link: "imarket.php", cat: "City"})));
+        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "apage.php?sid=log", cat: "City"})));
+        let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots", link: "loader.php?sid=slots", cat: "Casino"})));
+        let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel", link: "loader.php?sid=spinTheWheel", cat: "Casino"})));
+        let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker", link: "loader.php?sid=holdem", cat: "Casino"})));
+        let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette", link: "page.php?sid=russianRoulette", cat: "Casino"})));
+
+        GM_setValue('custlink-auctionhouse', JSON.stringify(link1));
+        GM_setValue('custlink-bitsnbobs', JSON.stringify(link2));
+        GM_setValue("custlink-pointsbuilding", JSON.stringify(link3));
+        GM_setValue("custlink-itemmarket", JSON.stringify(link4));
+        GM_setValue("custlink-log", JSON.stringify(link5));
+        GM_setValue("custlink-slots", JSON.stringify(link6));
+        GM_setValue("custlink-spinthewheel", JSON.stringify(link7));
+        GM_setValue("custlink-poker", JSON.stringify(link8));
+        GM_setValue("custlink-russianroulette", JSON.stringify(link9));
+
+        // Then fill the 'custLinksOpts' object
+        updateCustLinksRows();
+    }
+
+    // *** Handle header clicks, show/hide table
+    function custLinksHdrClick() {
+        log('[custLinksHdrClick] linkDataRowsHidden: ', linkDataRowsHidden);
+        let tBody = $('#xedx-links-table-body');
+        let tRows = tBody[0].getElementsByTagName('tr');
+        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandLinksHdr"><th colspan=4;>...click to expand</th></tr>`;
+        Array.from(tRows).forEach(function(rowNode) {
+            if (!rowNode.id) {
+                if (linkDataRowsHidden) {
+                    $(rowNode).attr('style', '');
+                } else {
+                    $(rowNode).attr('style', 'display: none;');
+                }
+            }
+        });
+
+        if (linkDataRowsHidden) {
+            $('#expandLinksHdr').remove();
+        } else {
+            $(tBody).append(expHdr);
+            $('#expandLinksHdr').on('click', custLinksHdrClick);
+        }
+        linkDataRowsHidden = !linkDataRowsHidden;
+    }
+
+    // *** Fill the custom links table, from the 'custLinksOpts' object, which is populated by 'updateCustLinksRows()'
+    // Make a damn iterator for this!
+    function fillCustLinksTable() {
+        log('[fillCustLinksTable]');
+
+        // Table header
+        const tblHdr = `<tr style="background-color: #778899;" id="custLinksHdr"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
+        let tBody = $('#xedx-links-table-body');
+
+        // Clear table and re-create.
+        //$("#xedx-addl-links-table").empty();
+        let tRows = tBody[0].getElementsByTagName('tr');
+        Array.from(tRows).forEach(function(element) {$(element).remove()});
+        $(tBody).append(tblHdr);
+        $('#custLinksHdr').on('click', custLinksHdrClick);
+
+        let allKeys = GM_listValues();
+        for (let i=0; i<allKeys.length; i++) {
+            let key = allKeys[i];
+            if (key.indexOf('custlink-') == -1) continue;
+            let data = JSON.parse(GM_getValue(key));
+            debug('[fillCustLinksTable] build row: ', data);
+
+            let custom = data.cust
+            let newRow = '';
+            // If 'custom', TD's need to be editable inputs...with values rather than inner HTML.
+            // Also will need to modify where we just read inner HTML
+            if (custom) {
+                newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') + '><td><input type="checkbox" class="link-clickable"' +
+                    (data.enabled ? ' checked ' : '')  + '/></td>' +
+                    '<td data-type="desc"><input type="string" value="' + data.desc + '"></td>' +
+                    '<td data-type="link"><input type="string" value="' + data.link + '"></td>' +
+                    '<td data-type="cat"><input type="string" value="' + data.cat + '"></td></tr>';
+            } else {
+                newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') + '><td><input type="checkbox" class="link-clickable"' +
+                    (data.enabled ? ' checked ' : '')  + '/></td>' +
+                    '<td data-type="desc">' + data.desc + '</td><td data-type="link">' + data.link +
+                    '</td><td data-type="cat">' + data.cat + '</td></tr>';
+            }
+            $(newRow).appendTo(tBody);
+        }
+    }
+
+    // *** Custom, read all 'custlink-' storage entries into 'custLinksOpts' obj
+    function updateCustLinksRows() {
+        log('[updateCustLinksRows]');
+        // Find all keys saved as cust. links - 'custlink-'<key>
+        let allKeys = GM_listValues();
+        for (let i=0; i<allKeys.length; i++) {
+            let key = allKeys[i];
+            if (key.indexOf('custlink-') == -1) continue;
+            let keyData = JSON.parse(GM_getValue(key));
+            debug('[updateCustLinksRows] read data for ' + key + ' data: ', keyData);
+            custLinksOpts[key] = keyData;
+        }
+        debug('[updateCustLinksRows] data: ', custLinksOpts);
+    }
+
+    // *** Custom, for "Customizable Sidebar Links". Save cust. links data to storage
+    // Called when the 'enabled' checkbox is clicked
+    function genLinksClickHandler(ev) {
+        log('[genLinksClickHandler]');
+
+        let descNode = null, desc = null, keyName = '', linkNode = null, link = '', catNode = null, cat = '', linkValue = {};
+        let parentNode = ev.target.parentNode;
+        let rowNode = parentNode.parentNode;
+        let custom = $(rowNode).prop('data-type') == 'cust';
+        let enabled = ev.target.checked;
+
+        if (custom) {
+            descNode = $(rowNode).find(`[data-type='desc']`);
+            desc = descNode[0].firstChild.value;
+            keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
+            linkNode = $(rowNode).find(`[data-type='link']`);
+            link = linkNode[0].firstChild.value;
+            catNode = $(rowNode).find(`[data-type='cat']`);
+            cat = catNode[0].firstChild.value;
+            linkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
+        } else {
+            descNode = $(rowNode).find(`[data-type='desc']`);
+            desc = descNode[0].innerText;
+            keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
+            linkNode = $(rowNode).find(`[data-type='link']`);
+            link = linkNode[0].innerText;
+            catNode = $(rowNode).find(`[data-type='cat']`);
+            cat = catNode[0].innerText;
+            inkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
+        }
+        if (custom && (!link || !desc)) {
+            debug('[genLinksClickHandler] deleting value: ', linkValue);
+            GM_deleteValue(keyName);
+        } else {
+            debug('[genLinksClickHandler] setting value: ', linkValue);
+            GM_setValue(keyName, JSON.stringify(linkValue));
+        }
+    }
+
+    // *** Custom - on 'save', save entire custom links table to storage
+    // Note that clearing a row's name or link deletes it.
+    function saveLinksTableToStorage() {
+        log('[saveLinksTableToStorage]');
+
+        let tBody = $('#xedx-links-table-body');
+        let tRows = tBody[0].getElementsByTagName('tr');
+        Array.from(tRows).forEach(function(rowNode) {
+            let rowDataType = $(rowNode).attr('data-type');
+            let custom = (rowDataType == 'cust');
+
+            let descNode = $(rowNode).find(`[data-type='desc']`);
+            if (descNode[0]) {
+                let input = $(rowNode).find("input")[0];
+                let enabled = $(input).prop( "checked" );
+                let desc = null, keyName = '', linkNode = null, link = '', catNode = null, cat = '';
+               if (custom) {
+                    desc = descNode[0].firstChild.value;
+                    keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
+                    linkNode = $(rowNode).find(`[data-type='link']`);
+                    link = linkNode[0].firstChild.value;
+                    catNode = $(rowNode).find(`[data-type='cat']`);
+                    cat = catNode[0].firstChild.value;
+               } else {
+                    desc = descNode[0].innerText;
+                    keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
+                    linkNode = $(rowNode).find(`[data-type='link']`);
+                    link = linkNode[0].innerText;
+                    catNode = $(rowNode).find(`[data-type='cat']`);
+                    cat = catNode[0].innerText;
+               }
+
+                let linkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
+                if (custom && (!link || !desc)) {
+                    debug('[saveLinksTableToStorage] deleting value: ', linkValue);
+                    GM_deleteValue(keyName);
+                    $(rowNode).remove();
+                } else {
+                    debug('[saveLinksTableToStorage] setting value: ', linkValue);
+                    GM_setValue(keyName, JSON.stringify(linkValue));
+                }
+            }
+        });
+        updateCustLinksRows();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // End Handlers/functions for the "Customizable Sidebar Links" script
+    ///////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////////////////////////////////////
     // End portion of "Torn Stat Tracker" script run when on config page
