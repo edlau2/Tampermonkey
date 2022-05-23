@@ -1,2125 +1,521 @@
 // ==UserScript==
-// @name         Torn Total Solution by XedX
+// @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      0.5
-// @description  A compendium of all my individual scripts for the Home page
+// @version      2.2
+// @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
-// @match        https://www.torn.com/*
-// @match        http://18.119.136.223:8080/TornTotalSolution/*
-// @connect      api.torn.com
+// @match        https://www.torn.com/gym.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
-// @require      http://code.jquery.com/jquery-3.4.1.min.js
-// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+// @connect      api.torn.com
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_listValues
-// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
-/*eslint curly: 0*/
-
-// This script combines several scripts that are available individually, all that customize your
-// Home Page for various things.
-//
-// All are configurable, and can be enabled/disbaled individually.
-//
-// Torn Latest Attacks Extender - shows up to the last 100 attacks you've been in, with more detail.
-// Torn Stat Tracker - Allows you to easily track statistics of interest right on the home page.
-// Torn Drug Stats - Shows stats about drug usage, with tool tips describing drug effect.
-// Torn Crime Tooltips - Shows data about your progress in crime merits.
-// Torn Sidebar Colors - Just for fun, colors the sidebar icons.
-// Torn Hide-Show Chat Icons - Allows you to easily hide and show the chat icons.
-// Torn Fac Respect Earned - Shows respect earned for your fac, with tool tips for merit progress.
-// Torn Collapsible Sidebar - Makes custom links on the sidebar collapsible, whether added by me, TT, altercoes...
-// Torn Jail Stats - Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
-// Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
-// Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar.
-
-// Notes to self:
-//
-// Can I individualize "debugLoggingEnabled" and "loggingEnabled" somehow? Per function....
-// Add hashchange handling.
-//
+/*eslint no-sequences: 0*/
 
 (function() {
     'use strict';
 
-    //////////////////////////////////////////////////////////////////////
-    // Options and global variables
-    //////////////////////////////////////////////////////////////////////
-
     debugLoggingEnabled = false;
-    loggingEnabled = true;
-
-    // Configuration page URL's
-    const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
-    const tornTotalSolutionCfgURL = "http://18.119.136.223:8080/TornTotalSolution/TTS-Opts.html";
-
-    var jsonResp = null;
-    var personalStats = null;
-    var honorsAwarded = null;
-    var attacks = null;
-
-    var userId = null;
-    var userName = null;
 
     //////////////////////////////////////////////////////////////////////
-    // API calls (profile, attacks, personalstats, honors)
+    // Build the Gym Gains div, append above the 'gymroot' div
     //////////////////////////////////////////////////////////////////////
 
-    // Get data used for most of the handlers in here, in one call.
-    function personalStatsQuery() {
-        log('[personalStatsQuery]');
-        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors', personalStatsQueryCB);
+    function buildGymGainsDiv() {
+        let testDiv = document.getElementById('xedx-gym-gains-wrap');
+        if (validPointer(testDiv)) {return;} // Only do this once
+
+        let refDiv = document.getElementById('gymroot');
+        if (!validPointer(refDiv)) {return;}
+
+        $(torn_gym_gains_div).insertBefore(refDiv);
+
+        doUserQuery();
+        addOnClickHandlers();
     }
 
-    // Callback for above
-    function personalStatsQueryCB(responseText, ID) {
-        log('[personalStatsQueryCB]');
-        let _jsonResp = JSON.parse(responseText);
-        if (_jsonResp.error) {return handleError(responseText);}
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Function to add onClick() handlers
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-        jsonResp = _jsonResp;
-        personalStats = jsonResp.personalstats;
-        honorsAwarded = jsonResp.honors_awarded;
-        attacks = jsonResp.attacks;
+    function addOnClickHandlers() {
+        let gymDiv = document.getElementById('gymroot');
+        let rootDiv = document.querySelector(".gym___iaU92");
+        let buttonDivs = rootDiv.querySelectorAll('button[class*="gymButton"]');
 
-        userId = jsonResp.player_id;
-        userName = jsonResp.name;
-
-        // Call scripts that depend on stats being available
-        onApiComplete();
-    }
-
-    //////////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Latest Attacks Extender" (called at API call complete)
-    //////////////////////////////////////////////////////////////////////////////
-
-    function tornLatestAttacksExtender() {
-        log('[tornLatestAttacksExtender]');
-
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornLatestAttacksExtender] not at home!');
-
-            let result = extendLatestAttacks();
-            if (result)
-                return reject(result);
-            else
-                return resolve("tornLatestAttacksExtender complete!");
-        });
-    }
-
-    const latestAttacksconfig = {
-        'max_values': GM_getValue('latest_attacks_max_values', 100),
-        'date_format': GM_getValue('latest_attacks_date_format', "YYYY-MM-DD HH:MM:SS")
-     };
-
-    const latest_attacks_config_div = getLatestAttacksCfgDiv();
-    const latest_attacks_div = getLatestAttacksDiv();
-
-    function extendLatestAttacks() {
-        // Find first column
-        let mainDiv = document.getElementById('column1');
-        if (!validPointer(mainDiv)) {return '[extendLatestAttacks] main div not found! Consider launching later.';}
-        $(mainDiv).append(latest_attacks_div);
-
-        // Hook up button handler(s)
-        $('#la-config-btn').click(function () {createConfigDiv();});
-
-        populateLatestAttacksList();
-        return null;
-    }
-
-    function populateLatestAttacksList() {
-        let counter = 0;
-        let ul = document.getElementById('latest-attacks-list');
-
-        let keys = Object.keys(attacks).reverse(); // Why reverse? Latest first...
-        for (let i = 0; i < keys.length; i++) {
-            let obj = attacks[keys[i]];
-            let span = document.createElement('span');
-            let li = createLaLi(span);
-
-            // Link to the attack log: data-location="loader.php?sid=attackLog&ID=
-            let code = 'loader.php?sid=attackLog\u0026ID=' + obj.code;
-            li.setAttribute('data-location', code);
-
-            // List element title: date of attack
-            let d = new Date(0);
-            d.setUTCSeconds(obj.timestamp_ended);
-            li.setAttribute("title", dateConverter(d, latestAttacksconfig.date_format));
-
-            // Attacker name, either myself or opponent
-            let offense = (obj.attacker_id == userId);
-            let a2 = document.createElement('a');
-            a2.setAttribute('href', 'profiles.php?XID=' + obj.attacker_id);
-            a2.innerHTML = obj.attacker_name ? obj.attacker_name : 'someone';
-            if (!offense && obj.attacker_name && obj.attacker_factionname != null) {
-                a2.innerHTML += ' [' + obj.attacker_id + ']';
-                a2.innerHTML += ' (' + obj.attacker_factionname + ')';
-            }
-            if (offense && obj.stealthed) {
-                a2.innerHTML += ' (stealth)';
-            }
-            span.appendChild(a2);
-
-            // Format the Action (make fn, w/case stmt)
-            let result = obj.result;
-            if (result === 'Lost') {result = 'Attacked and lost to';}
-            if (result === 'Stalemate') {result = 'Stalemated with';}
-            if (result === 'Escape') {result = 'Escaped from';}
-            if (result === 'Assist') {result = 'Assisted in attacking';}
-            span.appendChild(document.createTextNode(' ' + result + ' '));
-
-            // Defender name, either myself or opponent
-            let a3 = document.createElement('a');
-            a3.setAttribute('href', 'profiles.php?XID=' + obj.defender_id);
-            a3.innerHTML = obj.defender_name;
-            if (offense) {a3.innerHTML += ' (' + obj.defender_factionname + ')';}
-            span.appendChild(a3);
-
-            // Respect gain
-            if (obj.respect_gain > 0) {span.appendChild(document.createTextNode(' (Respect: ' + obj.respect_gain + ')'));}
-
-            li.appendChild(span);
-            ul.appendChild(li);
-
-            if (counter++ > latestAttacksconfig.max_values) {return;}
-        }
-    }
-
-    function createLaLi(span) {
-        var li = document.createElement("li");
-        var a1 = document.createElement('a')
-        a1.className = 't-blue';
-        a1.setAttribute('href', 'profiles.php?XID=');
-        span.appendChild(a1);
-        return li;
-    }
-
-    function createConfigDiv() {
-        if (document.getElementById('config-div')) return;
-
-        let extendedDiv = document.getElementById('xedx-attacks-ext');
-        if (!validPointer(extendedDiv)) {return;}
-        $(extendedDiv).append(latest_attacks_config_div);
-
-        $('#la-maxinput').val(GM_getValue('latest_attacks_max_values'));
-        $('#la-dateformat').val(GM_getValue('latest_attacks_date_format'));
-
-        $('#la-cancel-btn').click(function () {$('#la-config-div').parentNode.removeChild(element)});
-        $('#la-save-btn').click(function () {saveLaConfig();});
-    }
-
-     // Handler for 'Config' screen, 'Save' button
-    function saveLaConfig() {
-        let maxInput = document.getElementById('la-maxinput');
-        let dateFormat = document.getElementById('la-dateformat');
-
-        if (maxInput.value > 100 || !isaNumber(maxInput.value) || maxInput.value < 0) {
-            maxInput.value = 100;
-        }
-        GM_setValue('latest_attacks_max_values', maxInput.value);
-        GM_setValue('latest_attacks_date_format', dateFormat.options[dateFormat.selectedIndex].text);
-
-        latestAttacksconfig.max_values = GM_getValue('latest_attacks_max_values');
-        latestAttacksconfig.date_format = GM_getValue('latest_attacks_date_format');
-
-        let headerDiv = document.getElementById('la_header_div');
-        headerDiv.removeChild(headerDiv.lastChild);
-        headerDiv.appendChild(document.createTextNode('Latest Attacks (Previous ' + GM_getValue('latest_attacks_max_values') + ')'));
-
-        $('#la-config-div').parentNode.removeChild(element);
-    }
-
-    // Functions to hide DIV's using code collapse
-    function getLatestAttacksCfgDiv() {
-        const result =
-          '<div id="la-config-div" class="cont-gray bottom-round" style="text-align: center">' +
-              '<br>Max Entries (0-100): <input type="text" id="la-maxinput"><br>' +
-              '<br>Date format: ' +
-              '<select id="la-dateformat">' +
-                  '<option value="YYYY-MM-DD">YYYY-MM-DD</option>' +
-                  '<option value="YYYY-MONTH-DD DDD">YYYY-MONTH-DD DDD</option>' +
-                  '<option value="YYYY-MM-DD HH:MM:SS">YYYY-MM-DD HH:MM:SS</option>' +
-                  '<option value="DAY MONTH DD YYYY HH:MM:SS">DAY MONTH DD YYYY HH:MM:SS</option>' +
-                  '<option value="FULL (DAY MONTH DD YYYY HH:MM:SS TZ)">FULL (DAY MONTH DD YYYY HH:MM:SS TZ)</option>' +
-              '</select><br><br>' +
-              '<button id="la-cancel-btn" style="margin: 0px 10px 10px 0px;">Cancel</button>' +
-              '<button id="la-save-btn" style="margin: 0px 10px 10px 0px;">Save</button>' +
-          '</div>';
-
-        return result;
-    }
-
-    function getLatestAttacksDiv() {
-        const result =
-          '<div class="sortable-box t-blue-cont h" id="xedx-attacks-ext">' +
-              '<div id="la_header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
-                  '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
-                  '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
-                  'Latest Attacks (Previous 100)' +
-              '</div>' +
-              '<div class="bottom-round">' +
-              '    <div class="cont-gray bottom-round" style="width: 386px; height: 179px; overflow: auto">' +
-                      '<ul class="list-cont" id="latest-attacks-list">' +
-                      '</ul>' +
-                  '</div>' +
-              '</div>' +
-              '<div class="title-black bottom-round" style="text-align: center">' +
-                  '<button id="la-config-btn">Configure</button>' +
-              '</div>' +
-          '</div>';
-        return result;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Stat Tracker" (called at API call complete)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornStatTracker() {
-        log('[tornStatTracker]');
-
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornFacRespect] not at home!');
-
-            initOptStats();
-
-            let result = buildStatsUI();
-            if (result)
-                return reject(result);
-            else
-                return resolve("tornStatTracker complete!");
-        });
-    }
-
-    const optStats = {};
-    const categoryColors = {"drugs":   '#FF69B4',  // Hot Pink
-                            "travel":  '#6495ED',  // Cornflower Blue
-                            "attacks": '#DC143C',  // Crimson
-                            "weapons": '#FFD700',  // Gold
-                            "medical": '#7FFF00',  // Chartreuse
-                            "racing":  '#228B22',  // Forest Green
-                            "foes":    '#FF8C00',  // DarkOrange
-                            "jail":    '#CD5C5C',  // Indian Red
-                           };
-
-    var stats_intervalTimer = null;
-    var stats_configWindow = null;
-
-    function buildStatsUI() {
-        let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 >" +
-                                                       " div.content.m-top10 > div.sortable-list.left.ui-sortable");
-        let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
-        let targetDiv = divList[3];
-        debug('targetDivRoot: ', targetDivRoot, ' divList: ', divList, ' targetDiv: ', targetDiv);
-        if (!targetDiv) return '[tornStatTracker] targetDiv not found! Consider starting later.';
-
-        if (!document.querySelector("#xedx-stats")) {
-            $(targetDiv).after(stats_div);
-            $('#config-btn').click(createStatsConfigDiv);
+        for (let i=0; i < buttonDivs.length; i++) {
+            buttonDivs[i].addEventListener("click", onGymClick, false);
         }
 
-        // Populate the UL of enabled stats
-        let keys = Object.keys(optStats);
-        for (let i=0; i < keys.length; i++) {
-            let statName = keys[i];
-            if (optStats[statName].enabled) {
-                addStat(optStats[statName].name, personalStats[statName]);
-            }
-        }
-
-        return null; // Success!
-    }
-
-    function addOptStat(name, desc, category) {
-        optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category};
-    }
-
-    function reloadOptStats() {
-        let keys = Object.keys(optStats);
-        for (let i=0; i<keys.length; i++) {
-            let name = keys[i];
-            optStats[name].enabled = GM_getValue(name);
-        }
-    }
-
-    const stats_div = loadStatsDiv();
-    const award_li = loadAwardLi();
-
-    // For code collapse, easier to read. Loaded into const's, above.
-    function loadStatsDiv() {
-        return '<div class="sortable-box t-blue-cont h" id="xedx-stats">' +
-          '<div id="header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
-              '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
-              '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
-              'Stat Tracker' +
-          '</div>' +
-          '<div class="bottom-round">' +
-          '    <div class="cont-gray bottom-round" style="width: 386px; height: auto; overflow: auto;">' +
-                  '<ul class="info-cont-wrap" id="stats-list" style="overflow-y: scroll; width: auto; max-height: 125px;">' +
-                  '</ul>' +
-              '</div>' +
-          '</div>' +
-          '<div class="title-black bottom-round" style="text-align: center">' +
-              '<button id="config-btn">Configure</button>' +
-          '</div>' +
-      '</div>';
-    }
-
-    function loadAwardLi() {
-        return '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
-            '<span class="divider"  style="width: 180px;">' +
-                '<span>STAT_NAME</span>' +
-            '</span>' +
-            '<span class="desc" style="width: 100px;">STAT_DESC</span>' +
-        '</li>';
-    }
-
-    function initOptStats() {
-        addOptStat('killstreak', "Kill Streak", "attacks");
-        addOptStat('defendswon', "Defends Won", "attacks");
-        addOptStat('attackdamage', "Total Damage", "attacks");
-        addOptStat('attackswon', "Attacks Won", "attacks");
-        addOptStat('attackslost', "Attacks Lost", "attacks");
-        addOptStat('attackcriticalhits', "Total Crit Hits", "attacks");
-        addOptStat('onehitkills', "One Hit Kills", "attacks");
-        addOptStat('attacksdraw', 'Stalemates', "attacks");
-        addOptStat('bestdamage', "Best Damage", "attacks");
-        addOptStat('attackdamage', "Total Damage", "attacks");
-        addOptStat('bountiescollected', 'Bounties Collected', "attacks");
-        addOptStat('unarmoredwon', "Unarmored Fights Won", "attacks");
-        addOptStat('attackhits', "Total Attack Hits", "attacks");
-        addOptStat('attacksassisted', "Total Assists", "attacks");
-        addOptStat("yourunaway", "Times you Escaped", "attacks");
-        addOptStat("theyrunaway", "Foes Escaped", "attacks");
-
-        addOptStat("cantaken", "Cannabis Taken", "drugs");
-        addOptStat("exttaken", "Ecstacy Taken", "drugs");
-        addOptStat("kettaken", "Ketamine Taken", "drugs");
-        addOptStat("lsdtaken", "LSD Taken", "drugs");
-        addOptStat("opitaken", "Opium Taken", "drugs");
-        addOptStat("shrtaken", "Shrooms Taken", "drugs");
-        addOptStat("spetaken", "Speed Taken", "drugs");
-        addOptStat("pcptaken", "PCP Taken", "drugs");
-        addOptStat("xantaken", "Xanax Taken", "drugs");
-        addOptStat("victaken", "Vicodin Taken", "drugs");
-
-        addOptStat("argtravel", "Flights to Argentina", "travel");
-        addOptStat("mextravel", "Flights to Mexico", "travel");
-        addOptStat("dubtravel", "Flights to UAE", "travel");
-        addOptStat("hawtravel", "Flights to Hawaii", "travel");
-        addOptStat("japtravel", "Flights to Japan", "travel");
-        addOptStat("lontravel", "Flights to UK", "travel");
-        addOptStat("soutravel", "Flights to South Africa", "travel");
-        addOptStat("switravel", "Flights to Switzerland", "travel");
-        addOptStat("chitravel", "Flights to China", "travel");
-        addOptStat("cantravel", "Flights to Canada", "travel");
-        addOptStat("caytravel", "Flights to Caymans", "travel");
-
-        addOptStat('smghits', "Finishing Hits: SMG", "weapons");
-        addOptStat('chahits', "Finishing Hits: Mechanical", "weapons");
-        addOptStat('heahits', "Finishing Hits: Heavy Artillery", "weapons");
-        addOptStat('pishits', "Finishing Hits: Pistols", "weapons");
-        addOptStat('machits', "Finishing Hits: Machine Guns", "weapons");
-        addOptStat('grehits', "Finishing Hits: Temps", "weapons");
-        addOptStat('h2hhits', "Finishing Hits: Hand to Hand", "weapons");
-        addOptStat('axehits', "Finishing Hits: Clubbing", "weapons");
-        addOptStat('rifhits', "Finishing Hits: Rifle", "weapons");
-        addOptStat('shohits', "Finishing Hits: Shotgun", "weapons");
-        addOptStat('piehits', "Finishing Hits: Piercing", "weapons");
-        addOptStat('slahits', "Finishing Hits: Slashing", "weapons");
-
-        addOptStat('roundsfired', "Rounds Fired", "weapons");
-        addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
-        addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
-        addOptStat('tracerammoused', "Tracer Ammo Used", "weapons");
-        addOptStat('piercingammoused', "Piercing Ammo Used", "weapons");
-        addOptStat('incendiaryammoused', "IncendiaryAmmo Used", "weapons");
-
-        addOptStat('medicalitemsused', "Medical Items Used", "medical");
-        addOptStat('bloodwithdrawn', "Blood Bags Filled", "medical");
-        addOptStat('revives', "People Revived", "medical");
-        addOptStat('hospital', "Times Hospitalized", "medical");
-
-        addOptStat("racingskill", "Racing Skill", "racing");
-        addOptStat("raceswon", "Races Won", "racing");
-        addOptStat("racesentered", "Races Entered", "racing");
-        addOptStat("racingpointsearned", "Racing Points Earned", "racing");
-
-        addOptStat("peoplebusted", "Busts Succeeded", "jail");
-        addOptStat("failedbusts", "Busts Failed", "jail");
-        addOptStat("peoplebought", "People Bailed Out", "jail");
-        addOptStat("jailed", "Times Jailed", "jail");
-    }
-
-    function checkStatsSaveButton() {
-        let data = GM_getValue("stats-config");
-
-        if (data == 'saved') {
-            log('Save button has been pressed!');
-
-            clearInterval(stats_intervalTimer);
-            stats_intervalTimer = null;
-            GM_setValue("stats-config", '');
-            reloadOptStats();
-            $("#stats-list").empty();
-            buildStatsUI();
-            if (stats_configWindow && !stats_configWindow.closed) stats_intervalTimer = setInterval(checkSaveButton, 2000);
-        }
-
-        debug('Check config win: ', stats_configWindow, (stats_configWindow ? stats_configWindow.closed : 'no window'));
-        if (stats_configWindow && stats_configWindow.closed) {
-            stats_configWindow = null;
-            clearInterval(stats_intervalTimer);
-        }
-    }
-
-    // Create a stats config options page in a new tab
-    function createStatsConfigDiv() {
-        log('[createStatsConfigDiv]');
-        stats_configWindow = window.open(tornStatTrackerCfgURL);
-
-        // Since broadcasts won't work, and storage notifications won't work, poll.
-        if (!stats_intervalTimer) stats_intervalTimer = setInterval(checkStatsSaveButton, 2000);
-    }
-
-    // Add stats to the DIV on the home page
-    function addStat(name, desc) {
-        log('[addStat] ', name + ': ', desc);
-        let newLi = award_li;
-        newLi = newLi.replaceAll('STAT_NAME', name);
-        newLi = newLi.replaceAll('STAT_DESC', numberWithCommas(Number(desc)));
-        debug('Stats LI: ', newLi);
-        $('#stats-list').append(newLi);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Portion of "Torn Stat Tracker" script run when on config page
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    function handleStatsConfigPage() {
-        log('[handleStatsConfigPage]');
-
-        initOptStats();
-
-        // Insert table rows
-        let html = '';
-        let keys = Object.keys(optStats);
-        for (let i=0; i < keys.length; i++) {
-            let statName = keys[i]; // eg, 'heahits' - name in the personalstats obj
-            addStatsTableRow(statName);
-        }
-
-        // Install handlers
-        let checkboxes = document.getElementsByClassName('stat-clickable');
-        for (let i=0; i<checkboxes.length; i++) {
-            checkboxes[i].addEventListener('click', statsClickHandler);
-        }
-
-        let saveButton = document.querySelector('#xedx-button');
-        saveButton.addEventListener('click', handleStatsSaveButton);
-    }
-
-    function addStatsTableRow(statName) {
-        let cat = optStats[statName].cat;
-        let color = cat ?  categoryColors[cat] : null;
-        let table = document.getElementById('xedx-table');
-        let row = table.insertRow();
-        var cell1 = row.insertCell(0);
-        var cell2 = row.insertCell(1);
-
-        cell1.innerHTML = '<input type="checkbox" class="stat-clickable"' +
-            (optStats[statName].enabled? 'checked ': '') + ' />';
-        cell2.innerHTML = optStats[statName].name;
-        if (color) cell2.setAttribute('bgcolor', color);
-
-        cell1.firstChild.setAttribute('name', statName);
-    }
-
-    function statsClickHandler(ev) {
-        let target = ev.target;
-        let srcElem = ev.srcElement;
-
-        GM_setValue(target.name, target.checked);
-    }
-
-    function handleStatsSaveButton(ev) {
-        log('[handleStatsSaveButton]');
-        GM_setValue("stats-config", 'saved');
-        const newP = '<p id="x1"><span class="notification">Data Saved!</span></p>';
-        let myTable = document.getElementById('xedx-table');
-        myTable.parentNode.insertBefore($(newP)[0], myTable.nextSibling);
-        setTimeout(clearStatsResult, 3000);
-    }
-
-    function clearStatsResult() {
-        document.getElementById('x1').remove();
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // End portion of "Torn Stat Tracker" script run when on config page
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Drug Stats" (called at API call complete)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornDrugStats() {
-        log('[tornDrugStats]');
-
-        let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
-        let extDivId = 'xedx-drugstats-ext-div';
-        let mainDiv = document.getElementById('column0');
-
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornDrugStats] not at home!');
-            if (!validPointer(mainDiv)) return reject('[tornDrugStats] unable to locate main DIV! Consider launching later.');
-            $(mainDiv).append(extDiv); // could be $('#column0') ???
-
-            installDrugStats(personalStats);
-
-            resolve('tornDrugStats complete!');
-        });
-    }
-
-    function installDrugStats(stats) {
-        let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
-                          'opitaken', 'opitaken', 'shrtaken', 'spetaken',
-                          'pcptaken', 'xantaken', 'victaken', 'drugsused',
-                          'overdosed', 'rehabs', 'rehabcost'];
-
-        knownSpans.forEach((name) => {
-            let id = 'xedx-val-span-' + name;
-            let valSpan = document.getElementById(id);
-            let value = stats[name];
-            if (typeof value === 'undefined' || value === null) {value = 0;} // Drug not taken yet
-
-            // Format properly and insert.
-            if (!name.localeCompare('rehabcost')) {
-                valSpan.innerText = '$' + numberWithCommas(value);
-            } else if (!name.localeCompare('overdosed')) {
-                var pct = (Number(value) / Number(stats['drugsused'])*100).toFixed(2);
-                valSpan.innerText = value + ' (' + pct + '%)';
-            } else {
-                valSpan.innerText = value;
-            }
-        });
-
-        addDrugToolTips();
-    }
-
-    function addDrugToolTips() {
-        addToolTipStyle();
-
-        buildUseString('cantaken');
-        buildUseString('exttaken');
-        buildUseString('kettaken');
-        buildUseString('lsdtaken');
-        buildUseString('opitaken');
-        buildUseString('shrtaken');
-        buildUseString('spetaken');
-        buildUseString('pcptaken');
-        buildUseString('xantaken');
-        buildUseString('victaken');
-    }
-
-    function buildUseString(item) {
-        let useDiv = document.getElementById('xedx-val-span-' + item);
-        let useText = useDiv.innerText.replace(/,/g, "");
-        let pctText = useText/50 * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
-        }
-
-        let divSpan = document.getElementById('xedx-div-span-' + item);
-        let text = '<B>' + divSpan.innerText + ': </B>Honor Bar Available' + CRLF;
-        let effectText, cdText, sideEffectText, odChance;
-
-        switch (item) {
-            case 'cantaken':
-                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannabis): ' + pctText + CRLF +
-                    TAB + '<B>Spaced Out</B> (Overdose on Cannabis)' + CRLF;
-                effectText = 'Increases nerve by 2-3.';
-                cdText = 'Cooldown: 1 to 1 1/2 hr.';
-                sideEffectText = '-35% speed, -25% def, -20% strength';
-                odChance = '.04% (1/2,500), 5x chance on 4/20';
-                break;
-            case 'exttaken':
-                text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
-                effectText = 'Doubles happiness.';
-                cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 40 min';
-                sideEffectText = 'none.';
-                odChance = '~4%-5%';
-                break;
-            case 'kettaken':
-                text = text + TAB + '<B>Horse Tranquilizer</B> (50 Ketamine): ' + pctText + CRLF;
-                effectText = 'Temporarily increases Defense by 50%.';
-                cdText = 'Cooldown: 50 min - 1 hr 30 min';
-                sideEffectText = '-20% speed, -20% strength';
-                odChance = 'high';
-                break;
-            case 'lsdtaken':
-                text = text + TAB + '<B>Acid Dream</B> (50 LSD): ' + pctText + CRLF;
-                effectText = 'Increases energy by 50, nerve by 5, and happiness by 200-500. Also +50% def, +30% str';
-                cdText = 'Cooldown: 6 hrs 40 min - 7 hrs 30 min';
-                sideEffectText = '-30% dex';
-                odChance = '~5%-6%';
-                break;
-            case 'opitaken':
-                text = text + TAB + '<B>The Fields of Opium</B> (50 Opium): ' + pctText + CRLF;
-                effectText = 'Removes all hospital time and replenishes life by 66.6%. Increases happiness by 50-100.';
-                cdText = 'Cooldown: 3 hrs 20 min - 4 hrs 10 min';
-                sideEffectText = 'none';
-                odChance = 'none';
-                break;
-            case 'shrtaken':
-                text = text + TAB + '<B>I Think I See Dead People</B> (50 Shrooms): ' + pctText + CRLF;
-                effectText = 'Increases happiness by 500 and reduces energy by 25.';
-                cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 54 min';
-                sideEffectText = '-20% on all bat stats, -25e';
-                odChance = 'unknown';
-                break;
-            case 'spetaken':
-                text = text + TAB + '<B>Crank it Up</B> (50 Speed): ' + pctText + CRLF;
-                effectText = 'Temporarily increases Speed by 20%. Increases happiness by 50.';
-                cdText = 'Cooldown: 3 hrs 28 min';
-                sideEffectText = '-20% dex';
-                odChance = 'unknown';
-                break;
-            case 'pcptaken':
-                text = text + TAB + '<B>Angel Dust</B> (50 PCP): ' + pctText + CRLF;
-                effectText = 'Temporarily increases Strength and Dexterity by 20%. Increases happiness by 250.';
-                cdText = 'Cooldown: 5 hrs 40 min - 6 hrs 40 min';
-                sideEffectText = 'none.';
-                odChance = 'unknown';
-                break;
-            case 'xantaken':
-                text = text + TAB + '<B>Free Energy</B> (50 Xanax): ' + pctText + CRLF;
-                effectText = 'Increases energy by 250 and happiness by 75.';
-                cdText = 'Cooldown: 6 - 8 hrs.';
-                sideEffectText = '-35% all bat stats';
-                odChance = '3.0%';
-                break;
-            case 'victaken':
-                text = text + TAB + '<B>Painkiller</B> (50 Vicodin): ' + pctText + '</B>';
-                effectText = 'Temporarily increases all battle stats by 25%. Increases happiness by 75.';
-                cdText = 'Cooldown: 5 hrs - 5 hrs 50 min';
-                sideEffectText = 'none.';
-                odChance = 'unknown';
-                break;
-            default:
-                return;
-        }
-        text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
-            CRLF + 'Chance of OD: ' + odChance;
-        displayToolTip(useDiv.parentNode, text);
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Jail Stats" (called at API call complete)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornJailStats() {
-        log('[tornJailStats]');
-
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornJailStats] not at home!');
-            if (document.querySelector(jailExtDivId)) {resolve('tornJailStats complete!');} // Only do this once
-
-            let mainDiv = document.getElementById('column0');
-            if (!validPointer(mainDiv)) {return reject('[tornJailStats] mainDiv nor found! Try calling later.');}
-            $(mainDiv).append(getJailStatsDiv());
-            populateJailDiv();
-
-            resolve('tornJailStats complete!');
-        });
-    }
-
-    const jailExtDivId = 'xedx-jailstats-ext-div';
-
-    function getJailStatsDiv() {
-        let result = '<div class="sortable-box t-blue-cont h" id="' + jailExtDivId + '">' +
-              '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
-                  '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
-                  '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
-                  'Jail and Bounty Stats' +
-              '</div>' +
-              '<div class="bottom-round">' +
-                  '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
-                      '<ul class="info-cont-wrap">' +
-                          '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
-                          '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
-                          '<li id="xedx-bails" title="original"><span class="divider" id="xedx-div-span-peoplebought"><span>People Bailed</span></span><span id="xedx-val-span-peoplebought" class="desc">0</span></li>' +
-                          '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
-                          '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
-                          '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
-                          '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
-                      '</ul>' +
-                  '</div>' +
-              '</div>' +
-          '</div>';
-
-        return result;
-    }
-
-    function populateJailDiv() {
-        let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
-        for (let i=0; i<jailStatArray.length; i++) {
-            let name = jailStatArray[i];
-            let searchName = 'xedx-val-span-' + name;
-            let valSpan = document.getElementById(searchName);
-            let stats = jsonResp.personalstats;
-            if (!validPointer(valSpan)) {
-                log('[populateJailDiv] Unable to find proper span: ' + searchName + ' at ' + document.URL);
-                continue;
-            }
-            if (!validPointer(stats[name])) {continue;}
-            if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
-                valSpan.innerText = '$' + numberWithCommas(stats[name]);
-            } else {
-                valSpan.innerText = stats[name];
-            }
-        }
-
-        addJailToolTips();
-    }
-
-    function addJailToolTips() {
-        addToolTipStyle();
-
-        var bustsLi = document.getElementById('xedx-busts');
-        var bailsLi = document.getElementById('xedx-bails');
-        var bountiesLi = document.getElementById('xedx-bounties');
-        var feesLi = document.getElementById('xedx-fees');
-
-        if (validPointer(bustsLi) && validPointer(bailsLi) &&
-            validPointer(bountiesLi) && validPointer(feesLi)) {
-            buildBustsToolTip('People Busted');
-            buildBailsToolTip('People Bailed');
-            buildBountiesToolTip('Bounties Collected');
-            buildFeesToolTip('Bounty Rewards');
-        }
-    }
-
-    function buildFeesToolTip(title) {
-        var feesLi = document.getElementById('xedx-fees');
-        var feesText = document.getElementById('xedx-val-span-totalbountyreward').innerText;
-        var tmp = feesText.replace('$', '');
-        tmp = tmp.replace(/,/g, '');
-        var pctText = tmp/10000000 * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-
-        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at $10,000,000: <B>\"Dead or Alive\"</B> ' + pctText;
-        displayToolTip(feesLi, text);
-    }
-
-    function buildBountiesToolTip(title) {
-        var bountiesLi = document.getElementById('xedx-bounties');
-        var bountiesText = document.getElementById('xedx-val-span-bountiescollected').innerText;
-        var pctText = bountiesText/250 * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-
-        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 250: <B>\"Bounty Hunter\"</B> ' + pctText;
-        var text2 = 'Medals at: <B>' +
-        ((bountiesText > 25) ? '<font color=green>25, </font>' : '<font color=red>25, </font>') +
-            ((bountiesText > 100) ? '<font color=green>100, </font>' : '<font color=red>100, </font>') +
-            ((bountiesText > 500) ? '<font color=green>500</font></B>' : '<font color=red>500</font></B>');
-
-        displayToolTip(bountiesLi, text + CRLF + text2);
-    }
-
-    function buildBustsToolTip(title) {
-        var bustsLi = document.getElementById('xedx-busts');
-        var bustsText = document.getElementById('xedx-val-span-peoplebusted').innerText;
-        var pctText = bustsText/1000 * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-        var pctText2 = bustsText/2500 * 100;
-        if (Number(pctText2) >= 100) {
-            pctText2 = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText2 = '<B><font color=\'red\'>' + Math.round(pctText2) + '%</font></B>';
-        }
-        var pctText3 = bustsText/10000 * 100;
-        if (Number(pctText3) >= 100) {
-            pctText3 = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText3 = '<B><font color=\'red\'>' + Math.round(pctText3) + '%</font></B>';
-        }
-
-        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 1,000: <B>\"Bar Breaker\"</B> ' + pctText;
-        var text2 = 'Honor Bar at 2,500: <B>\"Aiding and Abetting\"</B> ' + pctText2;
-        var text3 = 'Honor Bar at 10,000: <B>\"Don\'t Drop It\"</B> ' + pctText3;
-        var text4 = 'Medals at: <B>' +
-            ((bustsText > 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
-            ((bustsText > 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
-            ((bustsText > 1000) ? '<font color=green>1K, </font>' : '<font color=red>1K, </font>') +
-            ((bustsText > 2000) ? '<font color=green>2K, </font>' : '<font color=red>2K, </font>') +
-            ((bustsText > 4000) ? '<font color=green>4K, </font>' : '<font color=red>4K, </font>') +
-            ((bustsText > 6000) ? '<font color=green>6K</font>' : '<font color=red>6K</font>') + ' and ' +
-            ((bustsText > 8000) ? '<font color=green>8K</font></B>' : '<font color=red>8K</font></B>');
-
-        displayToolTip(bustsLi, text + CRLF + text2 + CRLF + text3 + CRLF + text4);
-    }
-
-    function buildBailsToolTip(title) {
-        var bailsLi = document.getElementById('xedx-bails');
-        var bailsText = document.getElementById('xedx-val-span-peoplebought').innerText;
-        var pctText = bailsText/500 * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-
-        var text = '<B>' + title + CRLF + CRLF + '</B>Honor Bar at 500: <B>\"Freedom isn\'t Free\"</B> ' + pctText;
-        displayToolTip(bailsLi, text);
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Fac Respect" (called at API call complete)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornFacRespect() {
-        log('[tornFacRespect]');
-
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornFacRespect] not at home!');
-            if ($('#skip-to-content').html().indexOf('Home') < 0) return reject('[tornFacRespect] unable to find content header.');
-            let error = buildPersonalRespectLi();
-            if (error)
-                reject(error);
-            else
-                resolve("tornFacRespect complete!");
-        });
-    }
-
-    // Returns null on success, string error otherwise...
-    function buildPersonalRespectLi() {
-        let respect = personalStats.respectforfaction;
-        let children = document.querySelector("#column0").children;
-        let useSel = null;
-        let ul = null;
-        for (let i=0; i<children.length; i++) {
-            let title = children[i].querySelector("div.title.main-title.title-black.active.top-round > h5");
-            if (!title) continue;
-            if (title.innerText == 'Faction Information') {
-                useSel = children[i];
-                break;
-            }
-        };
-        if (useSel) ul = $(useSel).find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-        debug('buildPersonalRespectLi ul = ', ul);
-        if (!ul) return '[tornFacRespect] Unable to find correct ul!';
-
-        let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned"><div id="xedx-respect">' +
-                     '<span class="divider"><span>Personal Respect Earned</span></span>' +
-                     '<span class="desc">' + respect.toLocaleString("en") + '</span>' +
-                 '</div></li>';
-        $(ul).append(li);
-        addFacToolTip(li);
-        return null;
-    }
-
-    function addFacToolTip(li) {
-        addToolTipStyle();
-
-        let respect = personalStats.respectforfaction;
-        let title = '<B>Respect Earned for Faction</B>';
-        let honors = '<B>Honors - Respect in a Single Hit:</B>' + CRLF +
-            TAB + '<B>Carnage (10): </B>' + hasHonor(256) + CRLF +
-            TAB + '<B>Massacre (100): </B>' + hasHonor(477) + CRLF +
-            TAB + '<B>Genocide (1,000): </B>' + hasHonor(478);
-        let medals = '<B>Medals:</B>' + CRLF +
-            buildMedalText('Recruit', respect, 100) +
-            buildMedalText('Associate', respect, 500) +
-            buildMedalText('Picciotto', respect, 1000) +
-            buildMedalText('Soldier', respect, 2500) +
-            buildMedalText('Capo', respect, 5000) +
-            buildMedalText('Contabile', respect, 10000) +
-            buildMedalText('Consigliere', respect, 25000) +
-            buildMedalText('Underboss', respect, 50000) +
-            buildMedalText('Boss', respect, 75000) +
-            buildMedalText('Boss Of All Bosses', respect, 100000);
-        let toolTipText = title + CRLF + CRLF + honors + CRLF + CRLF + medals;
-
-        if (li) displayToolTip($('#xedx-respect')[0], toolTipText);
-        return toolTipText;
-    }
-
-    // Miscellaneous utility functions
-    function hasHonor(id) {
-        return jsonResp.honors_awarded.includes(id) ?
-            '<font color=green>Completed</font>' :
-            '<font color=red>Not yet...</font>';
-    }
-
-    function buildMedalText(name, respect, needed) {
-        let text = TAB + ((respect > needed) ? '<font color=green>' + name.toLocaleString() + ': ' + needed.toLocaleString() + ' (' + asHtmlPct(respect, needed) + ')' +
-                    ', </font>' : '<font color=red>' + name.toLocaleString() + ': ' + needed.toLocaleString() + ' (' + asHtmlPct(respect, needed) + ')' +
-                    ', </font>') + CRLF;
-        return text;
-    }
-
-    function asHtmlPct(value, limit) {
-        let pctText = value/limit * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-
-        return pctText;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Sidebar Colors" (called at content loaded)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornSidebarColors() {
-        log('[tornSidebarColors]');
-
-        return new Promise((resolve, reject) => {
-            let homeIcon = document.querySelector("#nav-home > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(homeIcon, 'red');
-
-            let itemsIcon = document.querySelector("#nav-items > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(itemsIcon, 'blue');
-
-            let cityIcon = document.querySelector("#nav-city > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(cityIcon, 'yellow');
-
-            let jobIcon = document.querySelector("#nav-job > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(jobIcon, '#9EBF7C', 4);
-
-            let gymIcon = document.querySelector("#nav-gym > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(gymIcon, '#719EA3');
-
-            let propIcon = document.querySelector("#nav-properties > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(propIcon, 'yellow');
-
-            let eduIcon = document.querySelector("#nav-education > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(eduIcon, 'black');
-
-            let crimesIcon = document.querySelector("#nav-crimes > div > a > span.svgIconWrap___YUyAq > svg");
-            //colorIcon(crimesIcon, 'red');
-
-            let missionIcon = document.querySelector("#nav-missions > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(missionIcon, '#C32A1F');
-
-            let newsIcon = document.querySelector("#nav-newspaper > div > a > span.svgIconWrap___YUyAq > svg");
-            //colorIcon(newsIcon, '#686B6C');
-
-            let jailIcon = document.querySelector("#nav-jail > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(jailIcon, 'black');
-
-            let hospIcon = document.querySelector("#nav-hospital > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(hospIcon, 'red');
-
-            let casinoIcon = document.querySelector("#nav-casino > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(casinoIcon, '#4D8719');
-
-            let forumIcon = document.querySelector("#nav-forums > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(forumIcon, 'white');
-
-            let hofIcon = document.querySelector("#nav-hall_of_fame > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(hofIcon, '#FFD701');
-
-            let facIcon = document.querySelector("#nav-my_faction > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(facIcon, '#DFAF2A');
-
-            let recIcon = document.querySelector("#nav-recruit_citizens > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(recIcon, 'red');
-
-            let calendarIcon = document.querySelector("#nav-calendar > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(calendarIcon, 'orange');
-
-            let travelIcon = document.querySelector("#nav-traveling > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(travelIcon, '#6AB6F3'); // '#6CB0E5');
-
-            let peopleIcon = document.querySelector("#nav-people > div > a > span.svgIconWrap___YUyAq > svg");
-            colorIcon(peopleIcon, '#F7BDA4');
-
-            resolve("tornSidebarColors complete!");
-        });
-    }
-
-    function colorIcon(icon, color, pw=1) {
-        if (icon) {
-            icon.setAttribute('stroke', color);
-            icon.setAttribute('stroke-width', pw.toString());
-        }
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Customizable Sidebar" (called at content loaded)
-    //////////////////////////////////////////////////////////////////////
-
-    // custLinksOpts[key] = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
-    var custLinksOpts = {};
-    var custLinkClassNames = {};
-
-    function tornCustomizableSidebar() {
-        log('[tornCustomizableSidebar]');
-
-        return new Promise((resolve, reject) => {
-            initCustLinksObject();
-            initCustLinkClassNames();
-            let keys = Object.keys(custLinksOpts);
-            for (let i=0; i<keys.length; i++) {
-                let key = keys[i];
-                if (custLinksOpts[key].enabled) {
-                    log('[tornCustomizableSidebar] Adding: ' + key);
-                    let node = buildCustLink(key, custLinksOpts[key]);
-                    let root = custLinkGetRoot(key);
-                    custLinkInsert(root, node, key);
+        let idArray = [{'bodyId': 'xedx-gym-gains-body', 'hdrId': 'xedx-gym-gains-hdr-div'},
+                       {'bodyId': 'xedx-bat-stats-body', 'hdrId': 'xedx-bat-stats-hdr-div'}];
+        for (let i=0; i < idArray.length; i++) {
+            const bodyDiv = document.getElementById(idArray[i].bodyId);
+            const headerDiv = document.getElementById(idArray[i].hdrId);
+            const arrowDiv = headerDiv.parentElement;
+
+            arrowDiv.addEventListener("click", function(e) {
+                debug('Click: ', e);
+                if (bodyDiv.style.display === "block") {
+                    bodyDiv.style.display = "none";
+                    headerDiv.className = 'title main-title title-black border-round';
                 } else {
-                    log('[tornCustomizableSidebar] Removing: ' + key);
-                    custLinkNodeRemove(key);
+                    bodyDiv.style.display = "block";
+                    headerDiv.className = 'title main-title title-black top-round active';
+                    if (headerDiv.id == 'xedx-bat-stats-hdr-div') {
+                        doUserQuery();
+                    }
                 }
-            }
-
-            reject("tornCustomizableSidebar complete!");
-        });
-    }
-
-    function initCustLinkClassNames() {
-        if($('#nav-items').length){
-            custLinkClassNames.link_class = $('#nav-items').attr('class').split(" ")[0];
-            custLinkClassNames.row_class  = $('#nav-items > div:first').attr('class');
-            custLinkClassNames.a_class    = $('#nav-items a').attr('class');
-            custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
-            custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
-            custLinkClassNames.link_name_class = $('#nav-items a span').eq(1).attr('class');
-        }
-        log('[initCustLinkClassNames] custLinkClassNames: ', custLinkClassNames);
-    }
-
-    function custLinkGetRoot(key) {
-        let cat = custLinksOpts[key].cat;
-        let node = null;
-        switch (cat.toLowerCase()) {
-            case 'home':
-                node = document.getElementById('nav-home');
-                break;
-            case 'casino':
-                node = document.getElementById('nav-casino');
-                break;
-            case 'city':
-            default:
-                node = document.getElementById('nav-city');
-                break;
-        }
-
-        return node;
-    }
-
-    function custLinkInsert(root, node, key=null) {
-        debug('[custLinkInsert] root: ', root);
-        debug('[custLinkInsert] node: ', node);
-        debug('[custLinkInsert] key: ', key);
-        $(node).insertAfter(root);
-    }
-
-    function custLinkNodeRemove(key) {
-        $('#' + key).remove();
-    }
-
-    function buildCustLink(key) {
-        // Span1: (icons - if I want to add them)
-        // <i class="cql-raceway"></i>
-        // <i class="cql-stock-market"></i>
-        // <i class="cql-travel-agency"></i>
-
-        let data = custLinksOpts[key];
-        let fullLink = (data.link.indexOf('www.torn.com') > -1) ? data.link : "https://www.torn.com/" + data.link;
-
-        let outerDiv = '<div class="' + custLinkClassNames.link_class + '" style="display: block" id="' + key + '"><div class="' +
-            custLinkClassNames.row_class  + '">';
-        //let span1 = '<span class="svgIconWrap___YUyAq "><i class="cql-travel-agency"></i></span>';
-        let aData = '<a href="' + fullLink + '" class="' + custLinkClassNames.a_class + '">'; // '" i-data="i_0_1120_172_23">' +
-        let span2 = '<span class="' + custLinkClassNames.link_name_class + '">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;' + data.desc + '</span>';
-        let endDiv = '</a></div></div>';
-
-        return outerDiv + aData + /* span1 + */ span2 + endDiv;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Hide-Show Chat Icons" (called at content loaded)
-    //////////////////////////////////////////////////////////////////////
-
-    function tornHideShowChat() {
-        log('[tornHideShowChat]');
-
-        return new Promise((resolve, reject) => {
-            if (!validPointer($("#chatRoot > div"))) { // Should never happen...
-            }
-
-            appendHideShowChatDiv();
-            hideChat(GM_getValue('xedxHideChat', false));
-            disableTornToolsChatHide();
-
-            resolve("tornHideShowChat complete!");
-        });
-    }
-
-    function hideChat(hide) {
-        log('[hideChat] ' + (hide ? "hiding " : "showing " + "chat icons."));
-        $('#showHideChat').text(`[${hide ? 'show' : 'hide'}]`);
-        if (document.querySelector("#chatRoot > div"))
-            document.querySelector("#chatRoot > div").style.display = hide ? 'none' : 'block';
-    }
-
-    const hideChatHdr = '<hr id="xedx-hr-delim" class="delimiter___neME6">';
-
-    const hideChatDiv = '<div><hr id="xedx-hr-delim" class="delimiter___neME6">' +
-        '<div id="xedxShowHideChat" style="padding-bottom: 5px; padding-top: 5px;">' +
-        '<span style="font-weight: 700;">Chat Icons</span>' +
-        '<a id="showHideChat" class="t-blue show-hide">[hide]</a></div>';
-
-    function disableTornToolsChatHide() {
-        if (validPointer($('#tt-hide_chat')[0])) {
-            log("Disabling TornTools 'Hide Chat' icon");
-            $('#tt-hide_chat')[0].style.display = 'none';
-        }
-    }
-
-    function appendHideShowChatDiv() {
-        //$('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatHdr);
-        $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
-        installHideShowClickHandler();
-    }
-
-    function installHideShowClickHandler() {
-        $('#showHideChat').on('click', function () {
-                const hide = $('#showHideChat').text() == '[hide]';
-                GM_setValue('xedxHideChat', hide);
-                hideChat(hide);
             });
+        }
+    }
+
+    function onGymClick() {
+        var id = this.id;
+        var at = id.indexOf('-');
+        var index = id.slice(++at);
+        queryGymDetails(null, index);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    // Torn API call and filling the list
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function doUserQuery() {
+        xedx_TornUserQuery(null, 'perks,battlestats,gym', userQueryCB);
+    }
+
+    function userQueryCB(responseText, ID, param) {
+        populateGymGainsDiv(responseText);
+        fillBatStatsDiv(responseText);
+        queryGymDetails(responseText);
+    }
+
+    // Parse result of above, to enter individual gym into new query.
+    function queryGymDetails(responseText=null, index=0) {
+        if (responseText != null) {
+            var jsonResp = JSON.parse(responseText);
+            if (jsonResp.error) {return handleError(responseText);}
+        }
+
+        var useGym = index ? index : jsonResp.active_gym;
+        xedx_TornTornQuery(null, 'gyms', fillGymDetailsDiv, useGym);
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn TT Filter" (called at content complete)
+    // Callback to populate the bat stats table
     //////////////////////////////////////////////////////////////////////
 
-    function tornTTFilter() {
-        // Note: this requires a periodic callback, so that'll require a non-promise fn.
-        log('[tornTTFilter]');
+    function fillBatStatsDiv(responseText, ID=null, unused=null) {
+        var jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleError(responseText);}
 
-        return new Promise((resolve, reject) => {
-            reject("tornTTFilter not yet implememnted!");
-        });
+        let totalBase = fillBaseBatStats(jsonResp);
+        let totalPass = fillBaseWithPassives(jsonResp);
+        let totalEff = fillCurrentEffectiveBatStats(jsonResp);
+        let totalVico = fillBaseWithPassivesAndVico(jsonResp);
+
+        debug('totalBase: ', totalBase, ' totalPass: ', totalPass, ' totalEff: ', totalEff, ' totalVico: ', totalVico);
+
+        $("#xedx-stat-base")[0].textContent = "Base: " + numberWithCommas(Math.round(totalBase));
+        $("#xedx-stat-eff")[0].textContent = "Effective: " + numberWithCommas(Math.round(totalEff));
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Helpers for above, filling table elements
+    //////////////////////////////////////////////////////////////////////
+
+    // Get the passives applied to any given stat
+    function getPassives(jsonResp, stat) {
+        let key = stat + '_info';
+        let info = jsonResp[key];
+        let ret = 0;
+        for (let i = 0; i < info.length; i++) { // Parse out '+25%' ==> 25, keep running total
+            if (info[i][0] == '+') {
+                let pAt = info[i].indexOf('%');
+                let tmp = info[i].slice(1, pAt);
+                ret += Number(tmp);
+            }
+        }
+        return ret;
+    }
+
+    function fillBaseBatStats(jsonResp) {
+        document.getElementById('row-1-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.strength));
+        document.getElementById('row-2-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.defense));
+        document.getElementById('row-3-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.speed));
+        document.getElementById('row-4-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.dexterity));
+        document.getElementById('row-5-col-1').innerHTML = numberWithCommas(Math.round(jsonResp.total));
+        return jsonResp.total;
+    }
+
+    function fillBaseWithPassives(jsonResp) {
+        let strMod = getPassives(jsonResp, 'strength');
+        let speMod = getPassives(jsonResp, 'speed');
+        let defMod = getPassives(jsonResp, 'defense');
+        let dexMod = getPassives(jsonResp, 'dexterity');
+        let totMod = strMod + speMod + defMod + dexMod;
+
+        let strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        document.getElementById('row-1-col-2').innerHTML = numberWithCommas(Math.round(strTot)) + ' (+' + strMod + '%)';
+        let defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        document.getElementById('row-2-col-2').innerHTML = numberWithCommas(Math.round(defTot)) + ' (+' + defMod + '%)';
+        let speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        document.getElementById('row-3-col-2').innerHTML = numberWithCommas(Math.round(speedTot)) + ' (+' + speMod + '%)';
+        let dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        document.getElementById('row-4-col-2').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
+        let total = strTot + defTot + speedTot + dexTot;
+        document.getElementById('row-5-col-2').innerHTML = numberWithCommas(Math.round(total));
+
+        return total;
+    }
+
+    const getMod = function(x) {return ' (' + ((x > 0) ? '+' : '') + x + '%)'}
+    function fillCurrentEffectiveBatStats(jsonResp) {
+        let strMod = jsonResp.strength_modifier;
+        let defMod = jsonResp.defense_modifier;
+        let speMod = jsonResp.speed_modifier;
+        let dexMod = jsonResp.dexterity_modifier;
+        let strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        document.getElementById('row-1-col-3').innerHTML = numberWithCommas(Math.round(strTot)) + getMod(strMod);
+        let defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        document.getElementById('row-2-col-3').innerHTML = numberWithCommas(Math.round(defTot)) + getMod(defMod);
+        let speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        document.getElementById('row-3-col-3').innerHTML = numberWithCommas(Math.round(speedTot)) + getMod(speMod);
+        let dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        document.getElementById('row-4-col-3').innerHTML = numberWithCommas(Math.round(dexTot)) + getMod(dexMod);
+        let total = strTot + defTot + speedTot + dexTot;
+        document.getElementById('row-5-col-3').innerHTML = numberWithCommas(Math.round(total));
+        return total;
+    }
+
+    function fillBaseWithPassivesAndVico(jsonResp) {
+        const VICO_BOOST = 25;
+        let strMod = getPassives(jsonResp, 'strength') + VICO_BOOST;
+        let speMod = getPassives(jsonResp, 'speed') + VICO_BOOST;
+        let defMod = getPassives(jsonResp, 'defense') + VICO_BOOST;
+        let dexMod = getPassives(jsonResp, 'dexterity') + VICO_BOOST;
+
+        let strTot = Number(jsonResp.strength) + (jsonResp.strength * strMod/100);
+        document.getElementById('row-1-col-4').innerHTML = numberWithCommas(Math.round(strTot)) + ' (+' + strMod + '%)';
+        let defTot = Number(jsonResp.defense) + (jsonResp.defense * defMod/100);
+        document.getElementById('row-2-col-4').innerHTML = numberWithCommas(Math.round(defTot)) + ' (+' + defMod + '%)';
+        let speedTot = Number(jsonResp.speed) + (jsonResp.speed * speMod/100);
+        document.getElementById('row-3-col-4').innerHTML = numberWithCommas(Math.round(speedTot)) + ' (+' + speMod + '%)';
+        let dexTot = Number(jsonResp.dexterity) + (jsonResp.dexterity * dexMod/100);
+        document.getElementById('row-4-col-4').innerHTML = numberWithCommas(Math.round(dexTot)) + ' (+' + dexMod + '%)';
+        let total = strTot + defTot + speedTot + dexTot;
+        document.getElementById('row-5-col-4').innerHTML = numberWithCommas(Math.round(total));
+
+        return total;
     }
 
     ////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Collapsible Sidebar" (called at content complete)
+    // Build <LI>'s for each and insert into the <UL> (detailed summary)
+    // ------------------------------------------------------
+    // | Property Perks         |  +2% gym gains            |
+    // ------------------------------------------------------
+    // | Education Perks        |  + 1% Strength gym gains  |
+    // ------------------------------------------------------
+    // | Education Perks        |  + 1% Speed gym gains     |
+    // ------------------------------------------------------
+    // etc.
     ////////////////////////////////////////////////////////////////////////
 
-    var cs_caretState = 'fa-caret-down';
-    const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
+    // Can make this *much* simpler using JQuery and classes. TBD...
+    // eg $(node).append(`<span class="">...</span>`);
 
-    function tornCollapsibleSidebar() {
-        // Note: this requires a periodic callback, so that'll require a non-promise fn.
-        log('[tornCollapsibleSidebar]');
-
-        return new Promise((resolve, reject) => {
-            GM_addStyle(".xedx-caret {" +
-                "padding-top:5px;" +
-                "padding-bottom:5px;" +
-                "padding-left:20px;" +
-                "padding-right:10px;" +
-                "}");
-
-            let result = installCollapsibleCaret();
-
-            $(window).on('[tornCollapsibleSidebar] hashchange', function() {
-                debug('handle hash change.');
-                installCollapsibleCaret();
-            });
-
-            if (result)
-                reject(result);
-            else
-                resolve('[tornCollapsibleSidebar] complete!');
-        });
+    function createValueSpan(value) {
+        let valSpan = document.createElement('span');
+        valSpan.setAttribute('style', 'display: inline-block; width: 366px; padding: 5px 10px; ' +
+                             'border-bottom: 1px solid #ddd; background: 0 0;');
+        valSpan.innerText = value;
+        return valSpan;
     }
 
-    // Returns null on success, error otherwise.
-    function installCollapsibleCaret() {
-        cs_caretState = GM_getValue('cs_lastState', cs_caretState);
-        if (!document.querySelector("#sidebarroot")) return "'#sidebarroot' not found, try again later!";
-        if (document.getElementById('xedx-collapse')) document.getElementById('xedx-collapse').remove();
-        if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
-
-        // Set parents to 'flex', allow divs to be side-by-side
-        document.querySelector("#nav-city").setAttribute('style', 'display:flex;');
-        document.querySelector("#nav-city > div > a").setAttribute('style', 'width:70%;float:left;');
-
-        // Add the caret and handler.
-        let target = document.querySelector("#nav-city > div");
-        if (!target) return "'#nav-city > div' not found, try again later!";
-        $(target).append(caretNode);
-        document.getElementById("xedx-collapse").addEventListener('click', function (event) {
-            cs_handleClick(event)}, { passive: false });
-
-        // Little trick here - set current state to opposite of the saved state.
-        // So calling the handler tricks it to set the *other* way, which is how
-        // we want it to start up.
-        cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
-        cs_handleClick();
+    function createDividerSpan(name) {
+        let dividerSpan = document.createElement('span');
+        dividerSpan.className = ('divider');
+        dividerSpan.setAttribute('style',
+                                 'display: inline-block; width: 376px; padding: 5px 10px; ' +
+                                 'border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; background: 0 0;');
+        let nameSpan = document.createElement('span');
+        nameSpan.innerText = name;
+        dividerSpan.appendChild(nameSpan);
+        return dividerSpan;
     }
 
-    function cs_handleClick(e) {
-        debug('[cs_handleClick] state = ' + cs_caretState);
-        let targetNode = document.querySelector("#xedx-collapse"); // e.target
-        let elemState = 'block;';
-        if (cs_caretState == 'fa-caret-down') {
-            targetNode.classList.remove("fa-caret-down");
-            targetNode.classList.add("fa-caret-right");
-            cs_caretState = 'fa-caret-right';
-            elemState = 'none;';
-        } else {
-            targetNode.classList.remove("fa-caret-right");
-            targetNode.classList.add("fa-caret-down");
-            cs_caretState = 'fa-caret-down';
-        }
-        GM_setValue('cs_lastState', cs_caretState);
-        $("[id^=custlink-]").attr("style", "display: " + elemState);
+    var strengthPct = 0, defPct = 0, speedPct = 0, dexPct = 0;
+
+    function resetGains(ul) {
+        strengthPct = 0, defPct = 0, speedPct = 0, dexPct = 0;
+        $(ul).empty();
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Crime Tooltips" (called at content complete)
-    //////////////////////////////////////////////////////////////////////
+    function populateGymGainsDiv(responseText, id=null, unused=null) {
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleApiError(responseText);}
 
-    function tornCrimeTooltips() {
-        log('[tornCrimeTooltips]');
+        const ul = document.getElementById('gym-gains-list');
+        resetGains(ul);
+        const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks', 'book_perks', 'job_perks'];
+        const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks'];
+        for (let i=0; i<category.length; i++) { // Iterate object's arrays
+            let arr = jsonResp[category[i]];
+            debug('[populateGymGainsDiv] category: ', category[i], ' array: ', arr);
+            if (!arr) continue;
+            for (let j=0; j<arr.length; j++) { // Iterate category array
+                // If is a gym gain, create the value span and add to the UL
+                let gymGains = arr[j].toLowerCase().indexOf('gym gains');
+                let val = 0;
+                if (gymGains != -1) {
+                    let li = document.createElement('li'); // Create <li> for this category
+                    li.appendChild(createDividerSpan(categoryName[i]));
+                    li.appendChild(createValueSpan(arr[j]));
+                    ul.appendChild(li);
 
-        return new Promise((resolve, reject) => {
-            if (abroad()) return reject('[tornCrimeTooltips] not at home!');
+                    // Parse % and add to app. type: speed, str, dex, def.
+                    // If not specific, adds to all.
+                    let at = 0, at2 = 0, at3 = 0;
+                    let tmp = arr[j].slice(2, at-2);
+                    at2 = arr[j].toLowerCase().indexOf('gym gains by ');
+                    if (at2 > 0) {
+                        tmp = arr[j].slice(tmp+at2);
+                        at3 = tmp.indexOf('%');
+                    }
 
-            addCriminalRecordToolTips();
-            resolve("tornCrimeTooltips complete!");
-        });
-    }
-
-    function addCriminalRecordToolTips() {
-        let rootDiv = document.getElementsByClassName('cont-gray bottom-round criminal-record')[0];
-        if (!validPointer(rootDiv)) {return;}
-
-        addToolTipStyle();
-
-        let ul = rootDiv.getElementsByClassName("info-cont-wrap")[0];
-        let items = ul.getElementsByTagName("li");
-        for (let i = 0; i < items.length; ++i) {
-            let li = items[i];
-            let label = li.innerText;
-            let ariaLabel = li.getAttribute('aria-label');
-            let crimes = qtyFromAriaLabel(ariaLabel);
-
-            debug('li #' + i + '\nlabel = "' + label +'"\naria-label = "' + ariaLabel +'"');
-            if (ariaLabel.indexOf('Illegal') != -1) {
-                dispIllegalProductsTT(li, crimes);
-            } else if (ariaLabel.indexOf('Theft') != -1) {
-                dispTheftTT(li, crimes);
-            } else if (ariaLabel.indexOf('Auto theft') != -1) {
-                dispAutoTT(li, crimes);
-            } else if (ariaLabel.indexOf('Drug deals') != -1) {
-                dispDrugTT(li, crimes);
-            } else if (ariaLabel.indexOf('Computer crimes') != -1) {
-                dispComputerTT(li, crimes);
-            } else if (ariaLabel.indexOf('Murder') != -1) {
-                dispMurderTT(li, crimes);
-            } else if (ariaLabel.indexOf('Fraud crimes') != -1) {
-                dispFraudTT(li, crimes);
-            } else if (ariaLabel.indexOf('Other') != -1) {
-                dispOtherTT(li, crimes);
-            } else if (ariaLabel.indexOf('Total') != -1) {
-                dispTotalTT(li, crimes);
-            }
-        }
-    }
-
-    function dispIllegalProductsTT(li, crimes) {
-        debug('dispIllegalProductsTT');
-        var text = '<B>Illegal Products (Bottlegging):</B>' + CRLF + TAB + 'Sell Copied Media, Arms Trafficking' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Civil Offence\",</B> ' + getPctForLi(li, 5000);
-
-        displayToolTip(li, text);
-    }
-
-    function dispTheftTT(li, thefts) {
-        var text = '<B>Theft:</B>' + CRLF +
-            TAB + 'Shoplift, Pickpocket Someone, Larceny,' + CRLF + TAB + 'Armed Robberies, Kidnapping' + CRLF + CRLF;
-            text = text + 'Honor Bars at:' + CRLF +
-            TAB + '1,000: <B>\"Candy Man\",</B> ' + getPctForLi(li, 1000) + CRLF +
-            TAB + '2,500: <B>\"Smile You\'re On Camera\",</B> ' + getPctForLi(li, 2500) + CRLF +
-            TAB + '5,000: <B>\"Smokin\' Barrels\",</B> ' + getPctForLi(li, 5000) + CRLF +
-            TAB + '7,500: <B>\"Breaking And Entering\",</B> ' + getPctForLi(li, 7500) + CRLF +
-            TAB + '10,000: <B>\"Stroke Bringer\",</B> ' + getPctForLi(li, 10000);
-
-        debug('dispTheftTT, thefts = ' + thefts);
-        var text2 = 'Medals at: <B>' +
-            ((thefts >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((thefts >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((thefts >= 5000) ? '<font color=green>5000, </font></B>' : '<font color=red>5000, </font>') +
-            ((thefts >= 7500) ? '<font color=green>7500, </font></B>' : '<font color=red>7500, </font>') +
-            ((thefts >= 10000) ? '<font color=green>10000, </font></B>' : '<font color=red>10000, </font>') +
-            ((thefts >= 12500) ? '<font color=green>12500, </font></B>' : '<font color=red>12500, </font>') +
-            ((thefts >= 15000) ? '<font color=green>15000, </font></B>' : '<font color=red>15000, </font>') +
-            ((thefts >= 17500) ? '<font color=green>17500, </font></B>' : '<font color=red>17500, </font>') +
-            ((thefts >= 20000) ? '<font color=green>20000, </font></B>' : '<font color=red>20000, </font>') +
-            ((thefts >= 22500) ? '<font color=green>22500, </font></B>' : '<font color=red>22500, </font>') +
-            ((thefts >= 25000) ? '<font color=green>25000</font></B>' : '<font color=red>25000</font></B>');
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispAutoTT(li, crimes) {
-        var text = '<B>Auto Theft:</B>' + CRLF + TAB + 'Grand Theft Auto' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Joy Rider\",</B> ' + getPctForLi(li, 5000);
-
-        debug('dispAutoTT, crimes = ' + crimes);
-        var text2 = 'Medals at: <B>' +
-            ((crimes >= 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
-            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((crimes >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((crimes >= 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
-            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes >= 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
-            ((crimes >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((crimes >= 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
-            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes >= 6500) ? '<font color=green>6500, </font>' : '<font color=red>6500, </font>') +
-            ((crimes >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
-
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispDrugTT(li, crimes) {
-        var text = '<B>Drug deals:</B>' + CRLF + TAB + 'Transport Drugs' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Escobar\",</B> ' + getPctForLi(li, 5000);
-
-        debug('dispDrugTT, crimes = ' + crimes);
-        var text2 = 'Medals at: <B>' +
-            ((crimes >= 250) ? '<font color=green>250, </font>' : '<font color=red>250, </font>') +
-            ((crimes >= 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
-            ((crimes >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispComputerTT(li, crimes) {
-        var text = '<B>Computer crimes:</B>' + CRLF + TAB + 'Plant a Computer Virus, Hacking' + CRLF + CRLF;
-        text = text + 'Honor Bar at 1,000: <B>\"Bug\",</B> ' + getPctForLi(li, 1000) + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"We Have A Breach\",</B> ' + getPctForLi(li, 5000);
-
-        debug('dispComputerTT, crimes = ' + crimes);
-        var text2 = 'Medals at: <B>' +
-            ((crimes >= 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
-            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((crimes >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
-            ((crimes >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((crimes >= 3500) ? '<font color=green>3500, </font>' : '<font color=red>3500, </font>') +
-            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((crimes >= 4500) ? '<font color=green>4500, </font>' : '<font color=red>4500, </font>') +
-            ((crimes >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((crimes >= 5500) ? '<font color=green>5500, </font>' : '<font color=red>5500, </font>') +
-            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((crimes >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((crimes >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((crimes >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispMurderTT(li, frauds) {
-        var text = '<B>Murder crimes:</B>' + CRLF + TAB + 'Assasination' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Professional\",</B> ' + getPctForLi(li, 5000);
-
-        debug('dispMurderTT, crimes = ' + frauds);
-        var text2 = 'Medals at: <B>' +
-            ((frauds >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
-            ((frauds >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
-            ((frauds >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
-            ((frauds >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
-            ((frauds >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
-            ((frauds >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((frauds >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((frauds >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((frauds >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((frauds >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispFraudTT(li, frauds) {
-        var text = '<B>Fraud crimes:</B>' + CRLF + TAB + 'Arson, Pawn Shop, Counterfeiting,' + CRLF + TAB +
-            'Arms Trafficking, Bombings' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Fire Starter\",</B> ' + getPctForLi(li, 5000);
-
-        debug('dispFraudTT, crimes = ' + frauds);
-        var text2 = 'Medals at: <B>' +
-            ((frauds >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
-            ((frauds >= 7000) ? '<font color=green>7000, </font>' : '<font color=red>7000, </font>') +
-            ((frauds >= 8000) ? '<font color=green>8000, </font>' : '<font color=red>8000, </font>') +
-            ((frauds >= 9000) ? '<font color=green>9000, </font>' : '<font color=red>9000, </font>') +
-            ((frauds >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
-
-        displayToolTip(li, text + CRLF + CRLF + text2);
-    }
-
-    function dispOtherTT(li, crimes) {
-        debug('dispOtherTT');
-        var text = '<B>Other crimes:</B>' + CRLF + TAB + 'Search for cash' + CRLF + CRLF;
-        text = text + 'Honor Bar at 5,000: <B>\"Find A Penny, Pick It Up\",</B> ' + getPctForLi(li, 5000);
-
-        displayToolTip(li, text);
-    }
-
-    function dispTotalTT(li, crimes) {
-        debug('dispTotalTT');
-        var text = '<B>Total Criminal Offences:</B>' + CRLF + TAB + 'Well, everything.' + CRLF + CRLF;
-        text = text + 'Honor Bar at 10,000: <B>\"Society\'s Worst\",</B> ' + getPctForLi(li, 10000);
-
-        displayToolTip(li, text);
-    }
-
-    // Helper to parse # from an aria-label
-    function qtyFromAriaLabel(ariaLabel) {
-        // ex. aria-label = "Drug deals: 255"
-        var parts = ariaLabel.split(':');
-        return Number(parts[1].replace(/,/g, ""));
-    }
-
-    // Helper to get the value of the number associated with the
-    // span, which is a key/value string pair, as a percentage.
-    function getPctForLi(li, value) {
-        let ariaLabel = li.getAttribute('aria-label');
-        let crimes = qtyFromAriaLabel(ariaLabel);
-        let pctText = crimes/value * 100;
-        if (Number(pctText) >= 100) {
-            pctText = '<B><font color=\'green\'>100%</font></B>';
-        } else {
-            pctText = '<B><font color=\'red\'>' + Math.round(pctText) + '%</font></B>';
-        }
-
-        return pctText;
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    // Install general configuration menu for this script
-    //////////////////////////////////////////////////////////////////////
-
-    const opts_enabledScripts = {};
-    var general_intervalTimer = null;
-    var general_configWindow = null;
-
-    function installConfigMenu() {
-        if ($('#xedx-opts')[0]) return;
-        GM_addStyle(`
-            .xedx-tts-span {line-height: 12px; margin-left: 10px;}
-            .powered-by {color: var(--default-blue-color); text-decoration: none;}
-            `);
-        let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
-        let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
-        if (!serverDiv) return setTimeout(installConfigMenu, 100);
-
-        $(serverDiv).append(cfgSpan);
-        $("#xedx-opts").click(handleTtsOptionsClick);
-    }
-
-    function handleTtsOptionsClick() {
-        log('[handleTtsOptionsClick]');
-        general_configWindow = window.open(tornTotalSolutionCfgURL);
-
-        // Since broadcasts won't work, and storage notifications won't work, poll.
-        if (!general_intervalTimer) {
-            debug('[handleTtsOptionsClick] starting interval timer.');
-            general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
-        }
-    }
-
-    function checkGeneralSaveButton() {
-        let data = GM_getValue("general-config");
-        debug('[checkGeneralSaveButton] data: ', data);
-
-        if (data == 'saved') {
-            log('Save button has been pressed!');
-
-            clearInterval(general_intervalTimer);
-            general_intervalTimer = null;
-            GM_setValue("general-config", '');
-
-            updateGeneralCfg();      // General opts (which scripts to run)
-            updateSidebarLinksCfg(); // Custom for "Customizable Sidebar Links"
-
-            if (general_configWindow && !general_configWindow.closed) general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
-        }
-
-        debug('Check config win: ', general_configWindow, (general_configWindow ? general_configWindow.closed : 'no window'));
-        if (general_configWindow && general_configWindow.closed) {
-            general_configWindow = null;
-            clearInterval(general_intervalTimer);
-        }
-    }
-
-    function setGeneralCfgOpt(name, desc) {
-        debug('[setGeneralCfgOpt] name: ', name);
-        debug('[setGeneralCfgOpt] saved: ', GM_getValue(name));
-
-        opts_enabledScripts[name] = {enabled: GM_getValue(name, true), name: desc};
-    }
-
-    function updateGeneralCfg() {
-        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender");
-        setGeneralCfgOpt("statTracker", "Torn Stat Tracker");
-        setGeneralCfgOpt("drugStats", "Torn Drug Stats");
-        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips");
-        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors");
-        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons");
-        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned");
-        setGeneralCfgOpt("jailStats", "Torn Jail Stats");
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar");
-        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar");
-        setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)");
-
-        debug('[updateGeneralCfg] opts_enabledScripts: ', opts_enabledScripts);
-    }
-
-    function updateSidebarLinksCfg() {
-        // Save 'link-clickable' ("Customizable Sidebar") opts also...
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Portion of script run when on General config page
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    function handleGeneralConfigPage() {
-        log('[handleGeneralConfigPage]');
-
-        // Insert table rows (general opts, which scripts are supported)
-        let html = '';
-        let keys = Object.keys(opts_enabledScripts);
-        for (let i=0; i < keys.length; i++) {
-            let scriptName = keys[i]; // eg, 'heahits' - name in the personalstats obj
-            addGenOptsTableRow(scriptName);
-        }
-
-        // Install handlers ... general opts (which scripts to support)
-        let checkboxes = document.getElementsByClassName('gen-clickable');
-        for (let i=0; i<checkboxes.length; i++) {
-            // Saves state into storage
-            checkboxes[i].addEventListener('click', genOptsClickHandler);
-        }
-
-        $('#genOptsHdr').on('click', genOptsHdrClick);
-
-        $('#xedx-button').click(handleGenOptsSaveButton); // General 'Save' button
-
-        /**** Customizable Sidebar Links config stuff ****/
-
-        // If "Customizable Sidebar Links" is enabled, show it. Also fill the table, regardless.
-        if (opts_enabledScripts.customizableSidebar.enabled) {
-            initCustLinksObject(); // Fills object from storage
-            log('Enabling sidebar links');
-            $("#xedx-addl-links-div").attr("style", "");
-        }
-        fillCustLinksTable();
-
-        // And install Customizable Sidebar Links handlers
-        checkboxes = document.getElementsByClassName('link-clickable');
-        for (let i=0; i<checkboxes.length; i++) {
-            // Writes the row to storage
-            checkboxes[i].addEventListener('click', genLinksClickHandler);
-        }
-        $("#new-link-add-row").click(handleGenCfgAddLinkRow); // Custom sidebar links, 'Add Row' button
-
-        /**** End Customizable Sidebar Links config stuff ****/
-    }
-
-    // Called on header click - collapse table.
-    var genOptsDataRowsHidden = false;
-    function genOptsHdrClick() {
-        log('[genOptshdrClick] genOptsDataRowsHidden: ', genOptsDataRowsHidden);
-        let tBody = $('#xedx-table-body');
-        let tRows = tBody[0].getElementsByTagName('tr');
-        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandGenOptsHdr"><th colspan=4;>...click to expand</th></tr>`;
-        Array.from(tRows).forEach(function(rowNode) {
-            if (!rowNode.id) {
-                if (genOptsDataRowsHidden) {
-                    $(rowNode).attr('style', '');
-                } else {
-                    if (rowNode.firstChild.id != "genOptsHdr") $(rowNode).attr('style', 'display: none;');
+                    val = Number(arr[j].slice(at2+13, at3));
+                    if ((at = arr[j].toLowerCase().indexOf('speed')) != -1) {
+                        if (at2 < 0 || at3 < 0) {val = Number(arr[j].slice(2, at-2));}
+                        speedPct += val;
+                    } else if ((at = arr[j].toLowerCase().indexOf('strength')) != -1) {
+                        if (at2 < 0 || at3 < 0) {val = Number(arr[j].slice(2, at-2));}
+                        strengthPct += val;
+                    } else if ((at = arr[j].toLowerCase().indexOf('defense')) != -1) {
+                        if (at2 < 0 || at3 < 0) {val = Number(arr[j].slice(2, at-2));}
+                        defPct += val;
+                    } else if ((at = arr[j].toLowerCase().indexOf('dexterity')) != -1) {
+                        if (at2 < 0 || at3 < 0) {val = Number(arr[j].slice(2, at-2));}
+                        dexPct += val;
+                    } else {
+                        val = Number(arr[j].slice(2, gymGains-2));
+                        strengthPct += val;
+                        defPct += val;
+                        speedPct += val;
+                        dexPct += val; 
+                    }
                 }
             }
-        });
-
-        if (genOptsDataRowsHidden) {
-            $('#expandGenOptsHdr').remove();
-        } else {
-            $(tBody).append(expHdr);
-            $('#expandGenOptsHdr').on('click', genOptsHdrClick);
-        }
-        genOptsDataRowsHidden = !genOptsDataRowsHidden;
-    }
-
-    // Build and add a Gen opts script row
-    function addGenOptsTableRow(scriptName) {
-        let newRow = '<tr><td><input type="checkbox" class="gen-clickable" name="' + scriptName + '"' +
-            (opts_enabledScripts[scriptName].enabled? ' checked ': '') + ' /></td><td>' +
-            opts_enabledScripts[scriptName].name + '</td></tr>';
-        $('#xedx-table').append(newRow);
-    }
-
-    // Gen opts script selected handler, save to storage
-    function genOptsClickHandler(ev) {
-        GM_setValue(ev.target.name, ev.target.checked);
-    }
-
-    // Fired when 'Save' is clicked - notifies the page script to re-read data
-    // and change page as appropriate. Ideally, means the page won't need a refresh.
-    // For simplicity, may force a refresh for some script opts - such as the
-    // Customizabe Sidebar Links script, for now. Also creates the "Data Saved!"
-    // indicator.
-    function handleGenOptsSaveButton(ev) {
-        log('[handleGenOptsSaveButton]');
-
-        GM_setValue("general-config", 'saved');
-
-        const newP = '<p id="x1"><span class="notification">Data Saved!</span></p>';
-        let myTable = document.getElementById('xedx-table');
-        myTable.parentNode.insertBefore($(newP)[0], myTable.nextSibling);
-
-        setTimeout(clearGenoptsResult, 3000);
-
-        // Hide/show the "Customizable Sidebar" options as appropriate
-        // If visible, save the table data to storage
-        if (GM_getValue("customizableSidebar") == true) {
-            $("#xedx-addl-links-div").attr("style", "");
-            saveLinksTableToStorage();
-        } else {
-            $("#xedx-addl-links-div").attr("style", "display: none;");
-        }
-    }
-
-    // Clears the "Data Saved!" indicator.
-    function clearGenoptsResult() {
-        document.getElementById('x1').remove();
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Handlers/functions for the "Customizable Sidebar Links" script
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    var linkDataRowsHidden = false;
-
-    // *** Custom sidebar links, 'Add Row' button
-    function handleGenCfgAddLinkRow() { // Handler for the 'add row' button
-        log('[handleGenCfgAddLinkRow]');
-        const rowHtml = `<tr data-type="cust"><td><input type="checkbox" class="link-clickable" onclick="genLinksClickHandler"/></td>
-            <td data-type='desc'><input type="string"></td>
-            <td data-type='link'><input type="string"></td>
-            <td data-type='cat'><input type="string"></td></tr>`;
-        $("#xedx-links-table-body").append(rowHtml);
-    }
-
-    // *** Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
-    function initCustLinksObject() {
-        log('[initCustLinksObject]');
-
-        let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House", link: "amarket.php", cat: "City"})));
-        let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs", link: "shops.php?step=bitsnbobs", cat: "City"})));
-        let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building", link: "points.php", cat: "City"})));
-        let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market", link: "imarket.php", cat: "City"})));
-        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "apage.php?sid=log", cat: "City"})));
-        let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots", link: "loader.php?sid=slots", cat: "Casino"})));
-        let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel", link: "loader.php?sid=spinTheWheel", cat: "Casino"})));
-        let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker", link: "loader.php?sid=holdem", cat: "Casino"})));
-        let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette", link: "page.php?sid=russianRoulette", cat: "Casino"})));
-
-        GM_setValue('custlink-auctionhouse', JSON.stringify(link1));
-        GM_setValue('custlink-bitsnbobs', JSON.stringify(link2));
-        GM_setValue("custlink-pointsbuilding", JSON.stringify(link3));
-        GM_setValue("custlink-itemmarket", JSON.stringify(link4));
-        GM_setValue("custlink-log", JSON.stringify(link5));
-        GM_setValue("custlink-slots", JSON.stringify(link6));
-        GM_setValue("custlink-spinthewheel", JSON.stringify(link7));
-        GM_setValue("custlink-poker", JSON.stringify(link8));
-        GM_setValue("custlink-russianroulette", JSON.stringify(link9));
-
-        // Then fill the 'custLinksOpts' object
-        updateCustLinksRows();
-    }
-
-    // *** Handle header clicks, show/hide table
-    function custLinksHdrClick() {
-        log('[custLinksHdrClick] linkDataRowsHidden: ', linkDataRowsHidden);
-        let tBody = $('#xedx-links-table-body');
-        let tRows = tBody[0].getElementsByTagName('tr');
-        const expHdr = `<tr style="background-color: #A9A9A9;" id="expandLinksHdr"><th colspan=4;>...click to expand</th></tr>`;
-        Array.from(tRows).forEach(function(rowNode) {
-            if (!rowNode.id) {
-                if (linkDataRowsHidden) {
-                    $(rowNode).attr('style', '');
-                } else {
-                    $(rowNode).attr('style', 'display: none;');
-                }
-            }
-        });
-
-        if (linkDataRowsHidden) {
-            $('#expandLinksHdr').remove();
-        } else {
-            $(tBody).append(expHdr);
-            $('#expandLinksHdr').on('click', custLinksHdrClick);
-        }
-        linkDataRowsHidden = !linkDataRowsHidden;
-    }
-
-    // *** Fill the custom links table, from the 'custLinksOpts' object, which is populated by 'updateCustLinksRows()'
-    // Make a damn iterator for this!
-    function fillCustLinksTable() {
-        log('[fillCustLinksTable]');
-
-        // Table header
-        const tblHdr = `<tr style="background-color: #778899;" id="custLinksHdr"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
-        let tBody = $('#xedx-links-table-body');
-
-        // Clear table and re-create.
-        //$("#xedx-addl-links-table").empty();
-        let tRows = tBody[0].getElementsByTagName('tr');
-        Array.from(tRows).forEach(function(element) {$(element).remove()});
-        $(tBody).append(tblHdr);
-        $('#custLinksHdr').on('click', custLinksHdrClick);
-
-        let allKeys = GM_listValues();
-        for (let i=0; i<allKeys.length; i++) {
-            let key = allKeys[i];
-            if (key.indexOf('custlink-') == -1) continue;
-            let data = JSON.parse(GM_getValue(key));
-            debug('[fillCustLinksTable] build row: ', data);
-
-            let custom = data.cust
-            let newRow = '';
-            // If 'custom', TD's need to be editable inputs...with values rather than inner HTML.
-            // Also will need to modify where we just read inner HTML
-            if (custom) {
-                newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') + '><td><input type="checkbox" class="link-clickable"' +
-                    (data.enabled ? ' checked ' : '')  + '/></td>' +
-                    '<td data-type="desc"><input type="string" value="' + data.desc + '"></td>' +
-                    '<td data-type="link"><input type="string" value="' + data.link + '"></td>' +
-                    '<td data-type="cat"><input type="string" value="' + data.cat + '"></td></tr>';
-            } else {
-                newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') + '><td><input type="checkbox" class="link-clickable"' +
-                    (data.enabled ? ' checked ' : '')  + '/></td>' +
-                    '<td data-type="desc">' + data.desc + '</td><td data-type="link">' + data.link +
-                    '</td><td data-type="cat">' + data.cat + '</td></tr>';
-            }
-            $(newRow).appendTo(tBody);
-        }
-    }
-
-    // *** Custom, read all 'custlink-' storage entries into 'custLinksOpts' obj
-    function updateCustLinksRows() {
-        log('[updateCustLinksRows]');
-        // Find all keys saved as cust. links - 'custlink-'<key>
-        let allKeys = GM_listValues();
-        for (let i=0; i<allKeys.length; i++) {
-            let key = allKeys[i];
-            if (key.indexOf('custlink-') == -1) continue;
-            let keyData = JSON.parse(GM_getValue(key));
-            debug('[updateCustLinksRows] read data for ' + key + ' data: ', keyData);
-            custLinksOpts[key] = keyData;
-        }
-        debug('[updateCustLinksRows] data: ', custLinksOpts);
-    }
-
-    // *** Custom, for "Customizable Sidebar Links". Save cust. links data to storage
-    // Called when the 'enabled' checkbox is clicked
-    function genLinksClickHandler(ev) {
-        log('[genLinksClickHandler]');
-
-        let descNode = null, desc = null, keyName = '', linkNode = null, link = '', catNode = null, cat = '', linkValue = {};
-        let parentNode = ev.target.parentNode;
-        let rowNode = parentNode.parentNode;
-        let custom = $(rowNode).prop('data-type') == 'cust';
-        let enabled = ev.target.checked;
-
-        if (custom) {
-            descNode = $(rowNode).find(`[data-type='desc']`);
-            desc = descNode[0].firstChild.value;
-            keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
-            linkNode = $(rowNode).find(`[data-type='link']`);
-            link = linkNode[0].firstChild.value;
-            catNode = $(rowNode).find(`[data-type='cat']`);
-            cat = catNode[0].firstChild.value;
-            linkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
-        } else {
-            descNode = $(rowNode).find(`[data-type='desc']`);
-            desc = descNode[0].innerText;
-            keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
-            linkNode = $(rowNode).find(`[data-type='link']`);
-            link = linkNode[0].innerText;
-            catNode = $(rowNode).find(`[data-type='cat']`);
-            cat = catNode[0].innerText;
-            inkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
-        }
-        if (custom && (!link || !desc)) {
-            debug('[genLinksClickHandler] deleting value: ', linkValue);
-            GM_deleteValue(keyName);
-        } else {
-            debug('[genLinksClickHandler] setting value: ', linkValue);
-            GM_setValue(keyName, JSON.stringify(linkValue));
-        }
-    }
-
-    // *** Custom - on 'save', save entire custom links table to storage
-    // Note that clearing a row's name or link deletes it.
-    function saveLinksTableToStorage() {
-        log('[saveLinksTableToStorage]');
-
-        let tBody = $('#xedx-links-table-body');
-        let tRows = tBody[0].getElementsByTagName('tr');
-        Array.from(tRows).forEach(function(rowNode) {
-            let rowDataType = $(rowNode).attr('data-type');
-            let custom = (rowDataType == 'cust');
-
-            let descNode = $(rowNode).find(`[data-type='desc']`);
-            if (descNode[0]) {
-                let input = $(rowNode).find("input")[0];
-                let enabled = $(input).prop( "checked" );
-                let desc = null, keyName = '', linkNode = null, link = '', catNode = null, cat = '';
-               if (custom) {
-                    desc = descNode[0].firstChild.value;
-                    keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
-                    linkNode = $(rowNode).find(`[data-type='link']`);
-                    link = linkNode[0].firstChild.value;
-                    catNode = $(rowNode).find(`[data-type='cat']`);
-                    cat = catNode[0].firstChild.value;
-               } else {
-                    desc = descNode[0].innerText;
-                    keyName = 'custlink-' + desc.replace(/[\s+\W]/g, '').toLowerCase();
-                    linkNode = $(rowNode).find(`[data-type='link']`);
-                    link = linkNode[0].innerText;
-                    catNode = $(rowNode).find(`[data-type='cat']`);
-                    cat = catNode[0].innerText;
-               }
-
-                let linkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
-                if (custom && (!link || !desc)) {
-                    debug('[saveLinksTableToStorage] deleting value: ', linkValue);
-                    GM_deleteValue(keyName);
-                    $(rowNode).remove();
-                } else {
-                    debug('[saveLinksTableToStorage] setting value: ', linkValue);
-                    GM_setValue(keyName, JSON.stringify(linkValue));
-                }
-            }
-        });
-        updateCustLinksRows();
-    }
-
-    //////////////////////////////////////////////////////////////////////////////////
-    // End Handlers/functions for the "Customizable Sidebar Links" script
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    ///////////////////////////////////////////////////////////////////////////////////
-    // End portion of "Torn Stat Tracker" script run when on config page
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////////
-    // Handlers for various states of page loading
-    //////////////////////////////////////////////////////////////////////
-
-    // Some scripts can run as soon as the page has loaded.
-    function handlePageLoad() {
-        log('[handlePageLoad]');
-
-        if (opts_enabledScripts["customizableSidebar"].enabled) {
-            tornCustomizableSidebar().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
         }
 
-        if (opts_enabledScripts["sidebarColors"].enabled) {
-            tornSidebarColors().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["hideShowChat"].enabled) {
-            tornHideShowChat().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-    }
-
-    // And some need to wait until the page is complete.
-    function handlePageComplete() {
-        log('[handlePageComplete]');
-
-        installConfigMenu();
-
-        if (opts_enabledScripts["crimeToolTips"].enabled) {
-            tornCrimeTooltips().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["ttFilter"].enabled) {
-            tornTTFilter().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["collapsibleSidebar"].enabled) {
-            tornCollapsibleSidebar().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-    }
-
-    // And others after data from the API has been received.
-    function onApiComplete() {
-        log('[onApiComplete]');
-
-        if (opts_enabledScripts["latestAttacks"].enabled) {
-            tornLatestAttacksExtender().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["statTracker"].enabled) {
-            if (location.href.indexOf('test.html') > -1) {
-                handleStatsConfigPage();
-            } else {
-                tornStatTracker().then(
-                result => {
-                    log('[SUCCESS] ' + result);
-                },
-                error => {
-                    log('[ERROR] ' + error);
-                });
-            }
-        }
-
-        if (opts_enabledScripts["drugStats"].enabled) {
-            tornDrugStats().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["facRespect"].enabled) {
-            tornFacRespect().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
-        if (opts_enabledScripts["jailStats"].enabled) {
-            tornJailStats().then(
-            result => {
-                log('[SUCCESS] ' + result);
-            },
-            error => {
-                log('[ERROR] ' + error);
-            });
-        }
-
+        fillSummaryDiv(document.getElementById('xedx-summary-div'));
+        observer.observe(targetNode, config);
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Main.
+    // Fill the summary div with values obtained above
+    //////////////////////////////////////////////////////////////////////
+
+    function fillSummaryDiv(content) {
+        content.setAttribute('style', 'text-align: center; vertical-align: middle; line-height: 24px;');
+        let attr = ['Strength', 'Defense', 'Speed', 'Dexterity'];
+        $(content).empty();
+        for (let i=0; i < attr.length; i++) {
+            let s = document.createElement('span');
+            s.setAttribute('style', 'color: red; margin: 10px');
+            if (attr[i] === 'Strength') {
+                s.appendChild(document.createTextNode('+' + strengthPct + '%'));
+            } else if (attr[i] === 'Defense') {
+                s.appendChild(document.createTextNode('+' + defPct + '%'));
+            } else if (attr[i] === 'Speed') {
+                s.appendChild(document.createTextNode('+' + speedPct + '%'));
+            } else if (attr[i] === 'Dexterity') {
+                s.appendChild(document.createTextNode('+' + dexPct + '%'));
+            }
+            content.appendChild(document.createTextNode(attr[i] + ':'));
+            content.appendChild(s);
+        }
+    }
+
+    // Handler for 'queryGymDetails()', called by 'queryGymInfo()'
+    function fillGymDetailsDiv(responseText, unused_id, active_gym) {
+        let span1id = 'xedx-summary-s1';
+        let span2id = 'xedx-summary-s2';
+        let contentId = 'xedx-gymsum-contid';
+
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {return handleApiError(responseText);}
+
+        let e1 = document.getElementById(span1id);
+        let e2 = document.getElementById(span2id);
+        if (validPointer(e1)) {
+            e1.parentNode.removeChild(e1);
+        }
+        if (validPointer(e2)) {
+            e2.parentNode.removeChild(e2);
+        }
+
+        let parentDiv = document.getElementById('xedx-summary-body');
+        let content = document.getElementById(contentId);
+        if (!validPointer(content)) {
+            content = createContentDiv();
+            content.id = contentId;
+            parentDiv.appendChild(content);
+        }
+        let s = document.createElement('span');
+        s.id = span1id;
+        let s2 = document.createElement('span');
+        s2.id = span2id;
+        content.setAttribute('style', 'text-align: center; vertical-align: middle; line-height: 24px;');
+
+        let name = jsonResp.gyms[active_gym].name;
+        s.setAttribute('style', 'font-weight: bold;');
+        s.appendChild(document.createTextNode(name));
+        content.appendChild(s);
+
+        let speed = Math.round(jsonResp.gyms[active_gym].speed)/10;
+        let strength = Math.round(jsonResp.gyms[active_gym].strength)/10;
+        let dexterity = Math.round(jsonResp.gyms[active_gym].dexterity)/10;
+        let defense = Math.round(jsonResp.gyms[active_gym].defense)/10;
+        let result = ' - Strength: ' + strength + ', Defense: ' + defense + ', Speed: ' + speed + ', Dexterity: ' + dexterity;
+        s2.appendChild(document.createTextNode(result));
+        content.appendChild(s2);
+        observer.observe(targetNode, config);
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Main entry point. Start an observer so that we trigger when we
+    // actually get to the page(s) - technically, when the page(s) change.
+    // As they do on load. Seems more reliable than onLoad().
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
     validateApiKey();
     versionCheck();
 
-    updateGeneralCfg(); // Load options
+    var targetNode = document.getElementById('gymroot');
+    var config = { attributes: false, childList: true, subtree: true };
+    var callback = function(mutationsList, observer) {
+        observer.disconnect();
+        buildGymGainsDiv();
+    };
+    var observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
 
-    if (location.href == tornStatTrackerCfgURL) {
-        // Separate URL just for the 'Stats Tracker' script config page.
-        handleStatsConfigPage();
-    } else if (location.href == tornTotalSolutionCfgURL) {
-        // Separate URL just for the General script config page.
-        handleGeneralConfigPage()
-    } else {
-        // Start of by collecting stats we need. This will kick off some scripts that depend on stats.
-        // Callback triggers onApiCoomplete()
-        personalStatsQuery();
+    GM_addStyle(`
+        .xedx_mleft {margin-left: 10px;}
+        body.dark-mode .xedx_gg_td {border: 1px solid rgb(91, 91, 91) !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+        body:not(.dark-mode) .xedx_gg_td {border: 1px solid black !important; vertical-align: middle !important; text-align: center; margin-top: 10px;}
+        .xedx-stat-span {width: 40%; text-align: center; color: #DDDDDD;}
+    `);
 
-        // Other scripts can run at certain earlier page load states.
-        callOnContentLoaded(handlePageLoad);
-        callOnContentComplete(handlePageComplete);
+    // This is here as if even with the '!important' keyword, the base <td>
+    // color over-rides the specified one. Explicit 'style' does over-ride the base <td>.
+    // TBD: just use CSS syntax '.dark-mode', ':not(.dark-mode)' ...
+    function modeColor() {
+        return darkMode() ? `style="color: rgb(221, 221, 221);"` : `style="color: black;"`;
     }
 
+    const torn_gym_gains_div =
+          `<div class="content m-top10 sortable-list ui-sortable" id="xedx-gym-gains-wrap">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext0">
+                <div class="title main-title title-black top-round" role="table" aria-level="5" id="xedx-gym-gains-hdr-div">
+                    <div class="arrow-wrap sortable-list">
+                        <a role="button" href="#/" class="accordion-header-arrow right"></a>
+                    </div>Gym Gains (detailed)
+                </div>
+                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-gym-gains-body">
+                    <div class="cont-gray" style="height: auto;">
+                        <ul class="info-cont-wrap" id="gym-gains-list"></ul>
+                    </div>
+                </div>
+            </div>
+            <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext2">
+                <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-bat-stats-hdr-div">
+                    <div class="arrow-wrap sortable-list">
+                        <a role="button" href="#/" class="accordion-header-arrow right"></a>
+                    </div>
+                    <div style="width: 720px; display: flex;">
+                        <span id="xedx-bat-stats" class="" style="width: 10%;">Battle Stats</span>
+                        <span id="xedx-stat-base" class="xedx-stat-span">Base:</span>
+                        <span id="xedx-stat-eff" class="xedx-stat-span">Effective:</span>
+                    </div>
+                </div>
+                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-bat-stats-body">
+                    <div class="cont-gray" style="height: auto;" id="xedx-bat-stats">
+                        <table id="xedx-bat-stat-table" style="width: 782px;">
+                            <tbody>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-0-col-0"></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-1"><b>Base</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-2"><b>Base w/Passives</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-3"><b>Effective</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-0-col-4"><b>Base w/Passives &amp; Vico</b></td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-1-col-0"><b>Strength</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-1" id="row-1-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-2" id="row-1-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-3" id="row-1-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-1-col-4" id="row-1-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-2-col-0"><b>Defense</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-1" id="row-2-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-2" id="row-2-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-3" id="row-2-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-2-col-4" id="row-2-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-3-col-0"><b>Speed</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-3-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-4-col-0"><b>Dexterity</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-2">0 (+0%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-3">0 (false%)</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-4-col-4">0 (+25%)</td>
+                                </tr>
+                                <tr style="height: 23px;">
+                                    <td class="xedx_gg_td xedx_mleft" ` + modeColor() + ` id="row-5-col-0"><b>Total</b></td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-1">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-2">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-3">0</td>
+                                    <td class="xedx_gg_td" ` + modeColor() + ` id="row-5-col-4">0
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
+            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext1">
+                <div class="title main-title title-black top-round active" role="table" aria-level="5">Gym Gains (summary)</div>
+                <div class="bottom-round" style="display: block; overflow: hidden" id="xedx-summary-body">
+                    <div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-summary-div">
+                        Strength:<span style="color: red; margin: 10px">+0%</span>
+                        Defense:<span style="color: red; margin: 10px">+0%</span>
+                        Speed:<span style="color: red; margin: 10px">+0%</span>
+                        Dexterity:<span style="color: red; margin: 10px">+0%</span>
+                    </div>
+                    <div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-gymsum-contid"></div>
+                </div>
+            </div>
+        </div>`;
+
 })();
+
+
