@@ -2392,6 +2392,29 @@
 
     function removeBazaarAddButton() {} // Dummy, just don't reload.
 
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Racing Alert" (called at document loaded)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD !!!
+    function tornJailScores() {
+
+        return _tornJailScores();
+
+        function _tornJailScores() {
+             log('[tornJailScores]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornJailScores] not at home!');
+                if (!isJailPage()) return reject('tornJailScores wrong page!');
+
+                reject('[tornJailScores] not yet implemented!');
+
+                //resolve("[tornJailScores] complete!");
+            });
+        }
+    } // End function tornJailScores() {
+
     ///////////////////////////////////////////////////////////////////////////////////
     //
     // Install general configuration menu for this script
@@ -2578,6 +2601,9 @@
         // STOCKS: @match        https://www.torn.com/page.php?sid=stocks
         setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", tornStockProfits, null, "stocks", false);
 
+        // JAIL:  @match        https://www.torn.com/jailview.php*
+        setGeneralCfgOpt("tornJailScores", "Torn Jail Scores", tornJailScores, null, "jail", false);
+
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -2688,6 +2714,8 @@
                         return "#F08080"; // LightCoral //"#CD5C5C"; // IndianRed
                     case 'racing':
                         return "#7FFFD4"; // Aquamarine
+                    case 'jail':
+                        return "#DC143C"; // Crimson
                     default:
                         return "#FFE4C4"; // Bisque
                 }
@@ -2949,6 +2977,7 @@
     function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
     function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
     function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
+    function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
@@ -2980,10 +3009,6 @@
         if (opts_enabledScripts.tornBazaarPlus.enabled) {tornBazaarPlus().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornBazaarAddButton.enabled) {tornBazaarAddButton().then(a => _a(a), b => _b(b));}
-
-        if (isItemPage()) {
-
-        }
     }
 
     // And some need to wait until the page is complete. (readystatecomplete)
@@ -3023,10 +3048,6 @@
         if (opts_enabledScripts.tornStockProfits.enabled) {tornStockProfits().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornMuseumSetHelper.enabled) {tornMuseumSetHelper().then(a => _a(a), b => _b(b));}
-
-        if (isItemPage()) {
-
-        }
 
     }
 
@@ -3078,6 +3099,10 @@
 
     if (isRacePage()) {
         if (opts_enabledScripts.tornRacingStyles.enabled) {tornRacingStyles().then(a => _a(a), b => _b(b));}
+    }
+
+    if (isJailPage()) {
+        if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
     }
 
     // Separate URL just for the 'Stats Tracker' script config page.
