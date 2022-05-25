@@ -2237,9 +2237,10 @@
         // If exists, add tool tip to <tr> for script.
         // Alternatively, document on new page or iFrame? Have URL (HTML) on my site? With help (? mark) button?
 
-        function setGeneralCfgOpt(name, desc, enableFn=null, disableFn=null, cat='default', valid=true) {
+        function setGeneralCfgOpt(name, desc, enableFn=null, disableFn=null, cat='default', valid=true, enabled=true) {
             if (!knownScripts.includes(name)) knownScripts.push(name);
-            opts_enabledScripts[name] = {enabled: GM_getValue(name, true), installed: valid, name: desc,
+            if (!valid) enabled = false;
+            opts_enabledScripts[name] = {enabled: GM_getValue(name, enabled), installed: valid, name: desc,
                                          enableFn: enableFn, disableFn: disableFn, cat: cat};
             GM_setValue(name, opts_enabledScripts[name].enabled);
 
@@ -2270,7 +2271,7 @@
 
         // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
         setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", null, null, "attack");
-        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll On Attack", null, null, "attack");
+        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll On Attack", null, null, "attack", true, false);
 
         // CASINO:
         setGeneralCfgOpt("tornHoldemScore", "Torn Holdem Score", null, null, "casino", false);
