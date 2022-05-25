@@ -96,6 +96,10 @@
     initDebugOptions();
 
     // Configuration page URL's
+    const configHost = "18.119.136.223:8080";
+    const genConfigPath = "/TornTotalSolution/TTS-Opts.html";
+    const statsConfigPath = "/TornTotalSolution/StatTracker.html";
+
     const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
     const tornTotalSolutionCfgURL = "http://18.119.136.223:8080/TornTotalSolution/TTS-Opts.html";
 
@@ -2742,7 +2746,7 @@
         // Helper to build the debug opts menu. TBD: add opts to save values!!!!
         function addDebugMenu() {
             log('[addDebugMenu]');
-            let tbody = document.querySelector("#debug-opts > table > tbody");
+            let tbody = document.querySelector("#debug-opts-div > table > tbody");
             // Add header
             const tblHdr = `<tr id="dbgtblhdr" class="xtblehdr xvisible"><th>Enabled</th><th>Debug Option</th></tr>`;
             $(tbody).append(tblHdr);
@@ -3059,6 +3063,8 @@
 
         if (opts_enabledScripts.tornMuseumSetHelper.enabled) {tornMuseumSetHelper().then(a => _a(a), b => _b(b));}
 
+        if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
+
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -3112,14 +3118,16 @@
     }
 
     if (isJailPage()) {
-        if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
+        // Moved to API complete - requires two calls.
+        //if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
     }
 
     // Separate URL just for the 'Stats Tracker' script config page.
-    if (location.href == tornStatTrackerCfgURL) {
+    let urlNohash = location.href.split('#')[0];
+    if (urlNohash == tornStatTrackerCfgURL) {
         handleStatsConfigPage();
     // Separate URL just for the General script config page.
-    } else if (location.href == tornTotalSolutionCfgURL) {
+    } else if (urlNohash == tornTotalSolutionCfgURL) {
         handleGeneralConfigPage()
     // Every thing else - called for every Torn page.
     } else {
