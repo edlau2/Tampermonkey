@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -2632,21 +2632,29 @@
 
         let target = ev.currentTarget;
         let tbody = ev.currentTarget.parentNode;
-        log('[OptsHdrClick] target: ', target, ' parent: ', tbody);
         let tRows = tbody.getElementsByTagName('tr');
         let wasHidden = false;
+
+        let tblHdr = tRows[0];
+        if ($(tblHdr).hasClass('open')) {
+            $(tblHdr).addClass('closed').removeClass('open');
+        } else {
+            $(tblHdr).addClass('open').removeClass('closed');
+        }
 
         Array.from(tRows).forEach(function(rowNode) {
             if (!rowNode.classList.contains('xtblehdr')) { // Don't hide the header
                 if (!rowNode.classList.contains('xvisible')) { // Is hidden, so display.
-                         if (!rowNode.classList.contains('xexpand')) wasHidden = true;
-                         $(rowNode).addClass('xvisible').removeClass('xhidden');
-                         $(rowNode).attr('style', $(rowNode).attr('oldstyle'));
+                    if (!rowNode.classList.contains('xexpand')) wasHidden = true;
+                    $(rowNode).addClass('xvisible').removeClass('xhidden');
+                    $(rowNode).attr('style', $(rowNode).attr('oldstyle'));
                 } else {  // Is visible, hide.
-                         $(rowNode).addClass('xhidden').removeClass('xvisible');
+                    $(rowNode).addClass('xhidden').removeClass('xvisible');
                 }
             }
         });
+
+        log('[OptsHdrClick] classes: ', $(closest).classList);
     }
 
     function handleGeneralConfigPage() {
@@ -2666,10 +2674,14 @@
         $(".xtblehdr").on('click', optsHdrClick);
         $(".xexpand").on('click', optsHdrClick);
 
+        // Scroll to given hash, if any.
+        let hash = location.hash;
+        scrollTo(hash);
+
         // Helper to build the supported scripts table.
         function addSupportedScriptsTable() {
             // Add header
-            const tblHdr = `<tr class="xtblehdr xvisible"><th colspan=3;>Enabled Scripts</th></tr>`;
+            const tblHdr = `<tr class="xtblehdr xvisible open"><th colspan=3;>Enabled Scripts</th></tr>`;
             $('#xedx-table').append(tblHdr);
 
             // Insert table rows (general opts, which scripts are supported)
@@ -2748,7 +2760,7 @@
             log('[addDebugMenu]');
             let tbody = document.querySelector("#debug-opts-div > table > tbody");
             // Add header
-            const tblHdr = `<tr id="dbgtblhdr" class="xtblehdr xvisible"><th>Enabled</th><th>Debug Option</th></tr>`;
+            const tblHdr = `<tr id="dbgtblhdr" class="xtblehdr xvisible open"><th>Enabled</th><th>Debug Option</th></tr>`;
             $(tbody).append(tblHdr);
 
             // Add rows
@@ -2790,7 +2802,7 @@
 
             // Table header
             let tBody = $('#xedx-links-table-body');
-            const tblHdr = `<tr id="custLinksHdr" class="xtblehdr xvisible"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
+            const tblHdr = `<tr id="custLinksHdr" class="xtblehdr xvisible open"><th>Enabled</th><th>Name</th><th>Address</th><th>Parent (optional)</th></tr>`;
             $(tBody).append(tblHdr);
 
             // Clear table and re-create.
@@ -2931,6 +2943,17 @@
                 }
             }
         }
+    }
+
+    function scrollTo(hash) {
+        log('[handleGeneralConfigPage] scrollTo: ', hash);
+        if (!hash) return;
+        $(document.body).animate({
+            'scrollTop':   $(hash).offset().top
+        }, 2000);
+
+        let trHdr = $(hash + " > table > tbody > tr")[0];
+        if ($(trHdr).hasClass('closed')) $(trHdr).click();
     }
 
     // Fired when 'Save' is clicked - notifies the page script to re-read data
