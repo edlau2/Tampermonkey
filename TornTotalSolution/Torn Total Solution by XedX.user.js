@@ -716,7 +716,7 @@
 
             let divSpan = document.getElementById('xedx-div-span-' + item);
             let text = '<B>' + divSpan.innerText + ': </B>Honor Bar Available' + CRLF;
-            let effectText, cdText, sideEffectText, odChance;
+            let effectText, cdText, sideEffectText, odChance, addiction;
 
             switch (item) {
                 case 'cantaken':
@@ -726,6 +726,7 @@
                     cdText = 'Cooldown: 1 to 1 1/2 hr.';
                     sideEffectText = '-35% speed, -25% def, -20% strength';
                     odChance = '.04% (1/2,500), 5x chance on 4/20';
+                    addiction = '2 Addiction Points';
                     break;
                 case 'exttaken':
                     text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
@@ -733,6 +734,7 @@
                     cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 40 min';
                     sideEffectText = 'none.';
                     odChance = '~4%-5%';
+                    addiction = '20 Addiction Points';
                     break;
                 case 'kettaken':
                     text = text + TAB + '<B>Horse Tranquilizer</B> (50 Ketamine): ' + pctText + CRLF;
@@ -740,6 +742,7 @@
                     cdText = 'Cooldown: 50 min - 1 hr 30 min';
                     sideEffectText = '-20% speed, -20% strength';
                     odChance = 'high';
+                    addiction = '8 Addiction Points';
                     break;
                 case 'lsdtaken':
                     text = text + TAB + '<B>Acid Dream</B> (50 LSD): ' + pctText + CRLF;
@@ -747,6 +750,7 @@
                     cdText = 'Cooldown: 6 hrs 40 min - 7 hrs 30 min';
                     sideEffectText = '-30% dex';
                     odChance = '~5%-6%';
+                    addiction = '21 Addiction Points';
                     break;
                 case 'opitaken':
                     text = text + TAB + '<B>The Fields of Opium</B> (50 Opium): ' + pctText + CRLF;
@@ -754,6 +758,7 @@
                     cdText = 'Cooldown: 3 hrs 20 min - 4 hrs 10 min';
                     sideEffectText = 'none';
                     odChance = 'none';
+                    addiction = '10 Addiction Points';
                     break;
                 case 'shrtaken':
                     text = text + TAB + '<B>I Think I See Dead People</B> (50 Shrooms): ' + pctText + CRLF;
@@ -761,6 +766,7 @@
                     cdText = 'Cooldown: 3 hrs 20 min - 3 hrs 54 min';
                     sideEffectText = '-20% on all bat stats, -25e';
                     odChance = 'unknown';
+                    addiction = '6 Addiction Points';
                     break;
                 case 'spetaken':
                     text = text + TAB + '<B>Crank it Up</B> (50 Speed): ' + pctText + CRLF;
@@ -768,6 +774,7 @@
                     cdText = 'Cooldown: 3 hrs 28 min';
                     sideEffectText = '-20% dex';
                     odChance = 'unknown';
+                    addiction = '14 Addiction Points';
                     break;
                 case 'pcptaken':
                     text = text + TAB + '<B>Angel Dust</B> (50 PCP): ' + pctText + CRLF;
@@ -775,6 +782,7 @@
                     cdText = 'Cooldown: 5 hrs 40 min - 6 hrs 40 min';
                     sideEffectText = 'none.';
                     odChance = 'unknown';
+                    addiction = '26 Addiction Points';
                     break;
                 case 'xantaken':
                     text = text + TAB + '<B>Free Energy</B> (50 Xanax): ' + pctText + CRLF;
@@ -782,6 +790,7 @@
                     cdText = 'Cooldown: 6 - 8 hrs.';
                     sideEffectText = '-35% all bat stats';
                     odChance = '3.0%';
+                    addiction = '35 Addiction Points';
                     break;
                 case 'victaken':
                     text = text + TAB + '<B>Painkiller</B> (50 Vicodin): ' + pctText + '</B>';
@@ -789,12 +798,13 @@
                     cdText = 'Cooldown: 5 hrs - 5 hrs 50 min';
                     sideEffectText = 'none.';
                     odChance = 'unknown';
+                    addiction = '14 Addiction Points';
                     break;
                 default:
                     return;
             }
             text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
-                CRLF + 'Chance of OD: ' + odChance;
+                CRLF + 'Chance of OD: ' + odChance + CRLF + 'Addiction effect: ' + addiction;
             displayToolTip(useDiv.parentNode, text);
         }
 
