@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -127,9 +127,9 @@
     //////////////////////////////////////////////////////////////////////
 
     // Get data used for most of the handlers in here, in one call.
-    function personalStatsQuery() {
+    function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
-        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors', personalStatsQueryCB);
+        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors', callback);
     }
 
     // Callback for above
@@ -370,7 +370,9 @@
         const award_li = loadAwardLi();
 
         var stats_intervalTimer = null;
+        var stats_updateTimer = null;
         var stats_configWindow = null;
+        const autoUpdateMinutes = 1;
 
         return _tornStatTracker();
 
@@ -384,6 +386,13 @@
                 initOptStats();
 
                 let result = buildStatsUI();
+
+                if (autoUpdateMinutes) {
+                    log('[tornStatTracker] updating every ' + autoUpdateMinutes + ' minute(s)');
+                    stats_updateTimer = setInterval(function() {
+                        personalStatsQuery(updateStatsHandlerer)}, autoUpdateMinutes *60 * 1000);
+                }
+
                 if (result)
                     return reject(result);
                 else
@@ -391,7 +400,27 @@
             });
         }
 
-        function buildStatsUI() {
+        // Could set interval to query personalstats and in callback,
+        // set personalstats obj, and call buildUI(true). nee to finish
+        // function updateStat() ...
+
+        function updateStatsHandlerer(responseText, ID) {
+            log('[updateStatsHandlerer]');
+            let _jsonResp = JSON.parse(responseText);
+            if (_jsonResp.error) {return handleError(responseText);}
+
+            jsonResp = _jsonResp;
+            personalStats = jsonResp.personalstats;
+            honorsAwarded = jsonResp.honors_awarded;
+            attacks = jsonResp.attacks;
+
+            userId = jsonResp.player_id;
+            userName = jsonResp.name;
+
+            buildStatsUI(true);
+        }
+
+        function buildStatsUI(update=false) {
             let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 >" +
                                                            " div.content.m-top10 > div.sortable-list.left.ui-sortable");
             let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
@@ -409,7 +438,11 @@
             for (let i=0; i < keys.length; i++) {
                 let statName = keys[i];
                 if (optStats[statName].enabled) {
-                    addStat(optStats[statName].name, personalStats[statName]);
+                    if (update) {
+                        updateStat(statName, optStats[statName].name, personalStats[statName]);
+                    } else {
+                        addStat(statName, optStats[statName].name, personalStats[statName]);
+                    }
                 }
             }
 
@@ -445,11 +478,11 @@
         }
 
         function loadAwardLi() {
-            return '<li tabindex="0" role="row" aria-label="STAT_NAME: STAT_DESC">' +
+            return '<li tabindex="0" id="ID" role="row" aria-label="STAT_DESC: STAT_VAL">' +
                 '<span class="divider"  style="width: 180px;">' +
-                    '<span>STAT_NAME</span>' +
+                    '<span>STAT_DESC</span>' +
                 '</span>' +
-                '<span class="desc" style="width: 100px;">STAT_DESC</span>' +
+                '<span class="desc" style="width: 100px;">STAT_VAL</span>' +
             '</li>';
         }
 
@@ -485,13 +518,22 @@
         }
 
         // Add stats to the DIV on the home page
-        function addStat(name, desc) {
-            log('[addStat] ', name + ': ', desc);
+        function addStat(statName, desc, val) {
+            log('[addStat] ', desc + ': ', val);
             let newLi = award_li;
-            newLi = newLi.replaceAll('STAT_NAME', name);
-            newLi = newLi.replaceAll('STAT_DESC', numberWithCommas(Number(desc)));
+            newLi = newLi.replaceAll('ID', "x-" + statName);
+            newLi = newLi.replaceAll('STAT_DESC', desc);
+            newLi = newLi.replaceAll('STAT_VAL', numberWithCommas(Number(val)));
             debug('Stats LI: ', newLi);
             $('#stats-list').append(newLi);
+        }
+
+        function updateStat(statName, desc, newValue) {
+            let sel = "#x-" + statName;
+            let li = document.querySelector(sel + " > span.desc");
+            log('[updateStat] sel: ', sel, ' curr value: ', li.textContent,
+                ' new value: ', newValue);
+            li.textContent = numberWithCommas(Number(newValue));
         }
 
     }
@@ -578,7 +620,13 @@
         addOptStat("jailed", "Times Jailed", "jail");
     }
 
-    function removeTornStatTracker() {$("#xedx-stats").remove()}
+    function removeTornStatTracker() {
+        if (stats_updateTimer) {
+            clearInterval(stats_updateTimer);
+            stats_updateTimer = null;
+        }
+        $("#xedx-stats").remove()
+    }
 
     // Portion of "Torn Stat Tracker" script run when on config page
     function handleStatsConfigPage() {
