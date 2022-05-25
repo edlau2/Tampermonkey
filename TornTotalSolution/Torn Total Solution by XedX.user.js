@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.0
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1878,6 +1878,8 @@
              log('[tornMuseumSetHelper]');
 
             return new Promise((resolve, reject) => {
+                if (location.href.indexOf("item.php") < 0) return reject('tornMuseumSetHelper wrong page!');
+                if (abroad()) return reject('tornMuseumSetHelper not at home!');
 
                 reject('[tornMuseumSetHelper] not yet implemented!');
 
@@ -1899,6 +1901,8 @@
              log('[tornWeaponSort]');
 
             return new Promise((resolve, reject) => {
+                if (location.href.indexOf("item.php") < 0) return reject('tornWeaponSort wrong page!');
+                if (abroad()) return reject('tornWeaponSort not at home!');
 
                 reject('[tornWeaponSort] not yet implemented!');
 
@@ -1920,6 +1924,8 @@
              log('[tornWeTracker]');
 
             return new Promise((resolve, reject) => {
+                if (location.href.indexOf("item.php") < 0) return reject('tornWeTracker wrong page!');
+                if (abroad()) return reject('tornWeTracker not at home!');
 
                 reject('[tornWeTracker] not yet implemented!');
 
@@ -1941,6 +1947,8 @@
              log('[tornWeSpreadsheet]');
 
             return new Promise((resolve, reject) => {
+                if (location.href.indexOf("item.php") < 0) return reject('tornWeSpreadsheet wrong page!');
+                if (abroad()) return reject('tornWeSpreadsheet not at home!');
 
                 reject('[tornWeSpreadsheet] not yet implemented!');
 
@@ -1956,6 +1964,9 @@
     function tornSeeTheTemps() {
         log('[tornSeeTheTemps]');
         return new Promise((resolve, reject) => {
+            if (location.href.indexOf("loader.php?sid=attack") < 0) return reject('tornSeeTheTemps wrong page!');
+            if (abroad()) return reject('tornSeeTheTemps not at home!');
+
             GM_addStyle (`.defender___2q-P6 {background:none !important;}}`);
             resolve("tornSeeTheTemps complete!");
         });
@@ -1968,6 +1979,8 @@
     function tornScrollOnAttack() {
         log('[tornScrollOnAttack]');
         return new Promise((resolve, reject) => {
+            if (location.href.indexOf("loader.php?sid=attack") < 0) return reject('tornScrollOnAttack wrong page!');
+            if (abroad()) return reject('tornScrollOnAttack not at home!');
 
             // Make these configurable options one day.
             // 74 is exactly at the bottom of the header, on my MacBook Pro.
@@ -1995,6 +2008,7 @@
 
             return new Promise((resolve, reject) => {
                 if (location.href.indexOf("loader.php?sid=holdem") < 0) return reject('tornHoldemScore wrong page!');
+                if (abroad()) return reject('tornHoldemScore not at home!');
 
                 reject('[tornHoldemScore] not yet implemented!');
 
@@ -2024,6 +2038,68 @@
             });
         }
     } // End function tornStockProfits() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Racing Alert" (called at ...)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD !!!
+    function tornRacingAlert() {
+
+        return _tornRacingAlert();
+
+        function _tornRacingAlert() {
+             log('[tornRacingAlert]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornRacingAlert] not at home!');
+                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingAlert wrong page!');
+
+                reject('[tornRacingAlert] not yet implemented!');
+
+                //resolve("[tornRacingAlert] complete!");
+            });
+        }
+    } // End function tornRacingAlert() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Racing Styles" (called immediately)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornRacingStyles() {
+
+        return _tornRacingStyles();
+
+        function _tornRacingStyles() {
+             log('[tornRacingStyles]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornRacingStyles] not at home!');
+                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingStyles wrong page!');
+
+                const user_id = document.cookie.match('(^|;)\\s*uid\\s*=\\s*([^;]+)')?.pop() || '';
+                GM_addStyle(`
+                    .d .racing-main-wrap .car-selected-wrap #drivers-scrollbar#drivers-scrollbar {
+                        max-height: 328px!important;
+                    }
+                `);
+
+                GM_addStyle(`
+                    #leaderBoard {
+                      padding-top: 32px;
+                      position: relative;
+                    }
+                    #lbr-${user_id} {
+                      position: absolute;
+                      width: 100%;
+                      top: 0;
+                }`);
+
+                resolve("[tornRacingStyles] complete!");
+            });
+        }
+    } // End function tornRacingStyles() {
+
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -2171,7 +2247,7 @@
             debug('[setGeneralCfgOpt] saved: ', GM_getValue(name));
         }
 
-        // @match        https://www.torn.com/*
+        // HOME/ALL: @match        https://www.torn.com/*
         setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender", tornLatestAttacksExtender, removeLatestAttacksExtender, "home");
         setGeneralCfgOpt("statTracker", "Torn Stat Tracker", tornStatTracker, removeTornStatTracker, "home");
         setGeneralCfgOpt("drugStats", "Torn Drug Stats", tornDrugStats, removeDrugStats, "home");
@@ -2185,25 +2261,26 @@
         setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)", null, null, "all", false);
         setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alert Sidebar", null, null, 'racing', false);
 
-        // @match        https://www.torn.com/items.php*
+        // ITEMS: @match        https://www.torn.com/items.php*
         setGeneralCfgOpt("tornItemHints", "Torn Item Hints", null, null, "items");
         setGeneralCfgOpt("tornMusemSetHelper", "Torn Museum Sets Helper", null, null, "items", false);
         setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort", null, null, "items", false);
         setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", null, null, "items", false);
         setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", null, null, "items", false);
 
-        // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
+        // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
         setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", null, null, "attack");
         setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll On Attack", null, null, "attack");
 
-        // Casino
+        // CASINO:
         setGeneralCfgOpt("tornHoldemScore", "Torn Holdem Score", null, null, "casino", false);
 
-        // @match        https://www.torn.com/page.php?sid=stocks
+        // STOCKS: @match        https://www.torn.com/page.php?sid=stocks
         setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", null, null, "stocks", false);
 
-        // @match        https://www.torn.com/loader.php?sid=racing
+        // RACING: @match        https://www.torn.com/loader.php?sid=racing
         setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", null, null, "racing", false);
+        setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", null, null, "racing", true);
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -2368,6 +2445,7 @@
         // Helper to build the custom links table
         function addCustLinksTable() {
             log('[fillCustLinksTable]');
+            GM_addStyle(`.ctr-input {text-align: center;}`);
 
             initCustLinksObject(); // Fills object from storage
 
@@ -2393,9 +2471,9 @@
                     newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') +
                         ' class="defbg xvisible"><td><input type="checkbox" class="link-clickable"' +
                         (data.enabled ? ' checked ' : '')  + '/></td>' +
-                        '<td data-type="desc"><input type="string" value="' + data.desc + '"></td>' +
-                        '<td data-type="link"><input type="string" value="' + data.link + '"></td>' +
-                        '<td data-type="cat"><input type="string" value="' + data.cat + '"></td></tr>';
+                        '<td data-type="desc"><input class="ctr-input" type="string" value="' + data.desc + '"></td>' +
+                        '<td data-type="link"><input class="ctr-input" type="string" value="' + data.link + '"></td>' +
+                        '<td data-type="cat"><input class="ctr-input" type="string" value="' + data.cat + '"></td></tr>';
                 } else {
                     newRow = '<tr' + (data.cust ? ' data-type="cust"' : '') +
                         ' class="defbg xvisible"><td><input type="checkbox" class="link-clickable"' +
@@ -2428,9 +2506,9 @@
             function handleGenCfgAddLinkRow() { // Handler for the 'add row' button
                 log('[handleGenCfgAddLinkRow]');
                 const rowHtml = `<tr data-type="cust""><td><input type="checkbox" class="link-clickable" onclick="genLinksClickHandler"/></td>
-                    <td data-type='desc'><input type="string"></td>
-                    <td data-type='link'><input type="string"></td>
-                    <td data-type='cat'><input type="string"></td></tr>`;
+                    <td data-type='desc' class="ctr-input"><input type="string"></td>
+                    <td data-type='link' class="ctr-input"><input type="string"></td>
+                    <td data-type='cat' class="ctr-input"><input type="string"></td></tr>`;
                 $("#xedx-links-table-body").append(rowHtml);
             }
 
@@ -2523,6 +2601,14 @@
     // indicator.
     function handleGenOptsSaveButton(ev) {
         log('[handleGenOptsSaveButton]');
+
+        // Temporary workaround until I can figure out how this happened to me - once...
+        let val = GM_getValue("custlink-");
+        if (val) {
+            log('[handleGenOptsSaveButton] ERROR: Invalid custom link saved!');
+            debugger;
+            GM_deleteValue('custlink-');
+        }
 
         GM_setValue("general-config", 'saved');
 
@@ -2676,6 +2762,10 @@
     if (isAttackPage()) {
         if (opts_enabledScripts.tornSeeTheTemps.enabled) {tornSeeTheTemps().then(a => _a(a), b => _b(b));}
         if (opts_enabledScripts.tornScrollOnAttack.enabled) {tornScrollOnAttack().then(a => _a(a), b => _b(b));}
+    }
+
+    if (isRacePage()) {
+        if (opts_enabledScripts.tornRacingStyles.enabled) {tornRacingStyles().then(a => _a(a), b => _b(b));}
     }
 
     // Separate URL just for the 'Stats Tracker' script config page.
