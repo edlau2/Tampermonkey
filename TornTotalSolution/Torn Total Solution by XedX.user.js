@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -26,10 +26,10 @@
 /*eslint no-multi-spaces: 0*/
 /*eslint curly: 0*/
 
-// This script combines several scripts that are available individually, all that customize your
-// Home Page for various things.
 //
-// All are configurable, and can be enabled/disbaled individually.
+// This script combines several scripts that were previously only available individually.
+//
+// All are configurable, and can be enabled/disbabled individually.
 //
 // Torn Latest Attacks Extender - shows up to the last 100 attacks you've been in, with more detail.
 // Torn Stat Tracker - Allows you to easily track statistics of interest right on the home page.
@@ -51,10 +51,16 @@
 // Torn Scroll On Attack - Modify the attack page to suit my needs (scrolls view upward)
 // Torn Holdem Score - Makes the poker 'score' visible on the poker page. (TBD)
 // Torn Stock Profits - Displays current stock profits for owned shares (TBD)
+//
 
 //
 // For programmers: The way this is set up - at the very bottom are the entry points. The main entry point first
 // looks to see if called from Torn, or from the 2 configuration HTML pages (later to be merged into one).
+//
+// In general, to follow the script - use code folding! Fold everything at the top level beneath
+// the anonymous function "(function() {}". Every sub-script is in it's own code-folded block, with the exception
+// of public/static function related to updating/stopping/restarting that sub function. THose may be triggered from
+// other areas, such as the config pages.
 //
 // If not from a config script, 3 callback are set up. One is called on DOMContentLoaded, another at
 // readystate complete, and the third when an Torn API call is complete. It currently queries four selections.
@@ -78,11 +84,6 @@
 // On configuration pages (new HTML docs), the tables can automatically expand and collapse using the following classes:
 // xtblehdr - for the header.
 // xvisible - add to TD's to hide/show
-
-// Notes to self:
-//
-// Can I individualize "debugLoggingEnabled" and "loggingEnabled" somehow? Per function....
-// Add hashchange handling.
 //
 
 (function() {
@@ -2015,14 +2016,14 @@
              log('[tornStockProfits]');
 
             return new Promise((resolve, reject) => {
-                if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('_tornStockProfits wrong page!');
+                if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('tornStockProfits wrong page!');
 
-                reject('[_tornStockProfits] not yet implemented!');
+                reject('[tornStockProfits] not yet implemented!');
 
-                //resolve("[_tornStockProfits] complete!");
+                //resolve("[tornStockProfits] complete!");
             });
         }
-    } // End function _tornStockProfits() {
+    } // End function tornStockProfits() {
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -2181,7 +2182,8 @@
         setGeneralCfgOpt("jailStats", "Torn Jail Stats", tornJailStats, removeJailStats, "home");
         setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar", tornCollapsibleSidebar, removeCollapsibleSidebar, 'all');
         setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar", tornCustomizableSidebar, removeCustomizableSidebar, 'all');
-        setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)");
+        setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)", null, null, "all", false);
+        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alert Sidebar", null, null, 'racing', false);
 
         // @match        https://www.torn.com/items.php*
         setGeneralCfgOpt("tornItemHints", "Torn Item Hints", null, null, "items");
@@ -2199,6 +2201,9 @@
 
         // @match        https://www.torn.com/page.php?sid=stocks
         setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", null, null, "stocks", false);
+
+        // @match        https://www.torn.com/loader.php?sid=racing
+        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", null, null, "racing", false);
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -2247,7 +2252,7 @@
         $(".xtblehdr").on('click', optsHdrClick);
         $(".xexpand").on('click', optsHdrClick);
 
-        // Helper to buid the supported scripts table.
+        // Helper to build the supported scripts table.
         function addSupportedScriptsTable() {
             // Add header
             const tblHdr = `<tr class="xtblehdr xvisible"><th colspan=3;>Enabled Scripts</th></tr>`;
@@ -2298,17 +2303,19 @@
             function getBgColor(category) {
                 switch (category) {
                     case "items":
-                        return "#DAA520";
+                        return "#DAA520"; // GoldenRod
                     case 'all':
-                        return "#F0F8FF";
+                        return "#F0F8FF"; // AliceBlue
                     case 'home':
-                        return "#FFFFF0";
+                        return "#FFFFF0"; // Ivory
                     case 'casino':
-                        return "#90EE90";
+                        return "#90EE90"; // LightGreen
                     case 'attack':
-                        return "#F08080"; //"#CD5C5C";
+                        return "#F08080"; // LightCoral //"#CD5C5C"; // IndianRed
+                    case 'racing':
+                        return "#7FFFD4"; // Aquamarine
                     default:
-                        return "#FFE4C4";
+                        return "#FFE4C4"; // Bisque
                 }
             }
             }
@@ -2557,6 +2564,7 @@
     function isGymPage() {return (location.href.indexOf("gym.php") > -1)}
     function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&user2ID") > -1)}
     function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
+    function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
@@ -2678,13 +2686,8 @@
         handleGeneralConfigPage()
     // Every thing else - called for every Torn page.
     } else {
-        //
         // Start of by collecting stats we need. Callback triggers handleApiComplete()
         // That, in turn, calls any functions requiring an API call.
-        //
-        // Hmmm - pre-filter this based on URL, need to call on home page,
-        // maybe not certain other URLs....
-        //
         personalStatsQuery();
 
         // Other scripts can run at certain earlier page load states.
