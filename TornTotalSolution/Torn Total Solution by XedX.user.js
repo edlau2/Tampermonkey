@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -2040,7 +2040,7 @@
     } // End function tornStockProfits() {
 
     //////////////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Racing Alert" (called at ...)
+    // Handlers for "Torn Racing Alert" (called at document loaded)
     //////////////////////////////////////////////////////////////////////////////////
 
     // TBD !!!
@@ -2061,6 +2061,29 @@
             });
         }
     } // End function tornRacingAlert() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Racing Car Order" (called at document loaded, uses observer)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD !!!
+    function tornRacingCarOrder() {
+
+        return _tornRacingCarOrder();
+
+        function _tornRacingAlert() {
+             log('[tornRacingCarOrder]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornRacingCarOrder] not at home!');
+                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingCarOrder wrong page!');
+
+                reject('[tornRacingCarOrder] not yet implemented!');
+
+                //resolve("[tornRacingCarOrder] complete!");
+            });
+        }
+    } // End function tornRacingCarOrder() {
 
     //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Racing Styles" (called immediately)
@@ -2100,6 +2123,274 @@
         }
     } // End function tornRacingStyles() {
 
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Bazaar Plus" (called at API complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    async function tornBazaarPlus() {
+        // @name         TC Bazaar+ v2
+        // @version      0.5
+        // @description  description
+        // @author       tos
+        const event = new Event('input', {bubbles: true, simulated: true});
+        const undercut = 1; // Amount to under-cut current lowest bazaar price
+        let torn_items = null;
+
+        async function torn_api(args) {
+                const a = args.split('.');
+                if (a.length!==3) throw(`Bad argument in torn_api(args, key): ${args}`);
+                    return new Promise((resolve, reject) => {
+                        GM_xmlhttpRequest ({
+                            method: "POST",
+                            url: `https://api.torn.com/${a[0]}/${a[1]}?comment=Bazaarv2&selections=${a[2]}&key=${api_key}`,
+                            headers: {
+                                "Content-Type": "application/json"
+                        },
+                        onload: (response) => {
+                            try {
+                                const resjson = JSON.parse(response.responseText);
+                                resolve(resjson);
+                            } catch(err) {
+                                reject(err);
+                            }
+                        },
+                        onerror: (err) => {
+                            reject(err);
+                        }
+                    })
+                })
+            }
+
+        const get_torn_items = () => torn_api('torn..items')
+            .then(
+                (r) => Object.fromEntries( Object.entries(r.items).map( ([itemID, properties]) => [properties.name, itemID] )))
+            .catch(err => console.log(err));
+
+        return _tornBazaarPlus();
+
+        // Need error handling!
+        function _tornBazaarPlus() {
+             log('[tornBazaarPlus]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornBazaarPlus] not at home!');
+                if (!checkLocation()) return reject('tornBazaarPlus wrong page!');
+
+                document.addEventListener('dblclick', bazaarEventListener);
+
+                resolve("[tornBazaarPlus] complete!");
+            });
+
+            function bazaarEventListener(e) {
+                const location = window.location.pathname + window.location.hash;
+                debug('[bazaar event listener]', location, e);
+                if (e.target && e.target.tagName && e.target.tagName === 'INPUT') {
+                        const input = e.target;
+                        switch (location) {
+                            case '/bazaar.php#/':
+                                if (input.className.includes('buyAmountInput')) max_buy(input); //other bazaar buy
+                                break;
+                            case '/bazaar.php#/add':
+                                if (input.className.includes('input-money')) auto_price_add(input); //my bazaar add
+                                else if (input.className === 'clear-all') max_qty(input); //my bazaar qty add
+                                break;
+                            case '/bazaar.php#/manage':
+                                if (input.className.includes('priceInput')) auto_price_manage(input); //my bazaar manage
+                                else if (input.className.includes('numberInput')) max_qty_rem(input); //my bazaar qty remove
+                                break;
+                            case '/bigalgunshop.php':
+                            case '/shops.php':
+                                if (input.name ==='buyAmount[]') buy_hundred(input); //city shop buy 100
+                                else if (input.id.includes('sell')) city_sell_all(input); //city shop sell all
+                                else if (input.id.includes('item')) city_sell_all(input); //bigal sell all
+                                break;
+                            default:
+                                if (input.id.includes('item')) foriegn_max(input); //foreign buy
+                                else if (location.includes('trade.php') && input.name && input.name === 'amount') max_qty_trade(input);//trade qty input
+                                break;
+                        }
+                } else if (e.target && e.target.tagName && e.target.tagName === 'LABEL') {
+                      if (e.target.className === 'marker-css') {
+                          const itemID = e.target.closest('LI[data-item]').getAttribute('data-item');
+                          big_al_check_all(itemID); //big al check/uncheck all
+                      }
+                }
+            }
+
+            function checkLocation() {
+                let at = location.href;
+                let locationOK = ((at.indexOf('bazaar.php') > -1 ||
+                      at.indexOf('bigalgunshop.php') > -1 ||
+                      /* at.indexOf('index.php') > -1 || */
+                      at.indexOf('shops.php') > -1 ||
+                      at.indexOf('trade.php') > -1));
+                debug('[tornBazaarPlus] checkLocation', locationOK);
+                return locationOK;
+            }
+
+            function auto_price (lowest_price) {
+                let value = lowest_price - undercut;
+                let result = Math.floor(value/10) * 10; // Round down to closet $10
+                log('[tornBazaarPlus] lowest price: ', lowest_price, ' value: ', value, ' result: ', result);
+                return result;
+                //return (lowest_price - undercut);
+            }
+
+            function lowest_market_price(itemID) {
+                return torn_api(`market.${itemID}.bazaar,itemmarket`).then((r) => {
+                    //const market_prices = Object.values(r).flat().filter(function (l) {return l != null} )
+                    const market_prices = Object.values(r).reduce((acc, cur) => acc.concat(cur), []);
+                    return market_prices.reduce((a, c) => a < c.cost ? a : c.cost, market_prices[0].cost);
+                }).catch(err => log(err));
+            }
+
+            //other bazaar buy
+            function max_buy(input) {
+              const max = input.closest('DIV[class^=buyMenu]').querySelector('SPAN[class^=amount]').innerText.match(/[0-9]/g).join('');
+              let old_value = input.value;
+              set_react_input(input, max);
+            }
+
+            //foreign buy
+            function foriegn_max (input) {
+              const i = document.querySelector('div.user-info div.msg').innerText.match(/(\d+).\/.(\d+)/);
+              set_regular_input(input, parseInt(i[2]) - parseInt(i[1]));
+            }
+
+            //my bazaar add
+            async function auto_price_add(input) {
+              if (!torn_items) torn_items = await get_torn_items();
+              const item_name = input.closest('LI').querySelector('canvas.item-converted').getAttribute('aria-label');
+              const lowest_price = await lowest_market_price(parseInt(torn_items[item_name]));
+              set_regular_input(input, auto_price(lowest_price));
+            }
+
+            //my bazaar manage
+            async function auto_price_manage (input) {
+              if (!torn_items) torn_items = await get_torn_items();
+              const itemID = input.closest('div[class^=row]').querySelector('img').src.split('items/')[1].split('/')[0];
+              const lowest_price = await lowest_market_price(itemID);
+              set_react_input(input, auto_price(lowest_price));
+            }
+
+            //my bazaar qty add
+            function max_qty (input) {
+              const qty = input.closest('LI').querySelector('div.name-wrap').innerText.match(/x(\d+)/);
+              set_regular_input(input, qty ? qty[1] : 1);
+            }
+
+            //my bazaar qty remove
+            function max_qty_rem (input) {
+              const qty = input.closest('div[class^=row]').querySelector('div[class^=desc]').innerText.match(/x(\d+)/);
+              set_react_input(input, qty ? qty[1] : 1);
+            }
+
+            //city shop buy 100
+            function buy_hundred(input) {
+              set_regular_input(input, 100);
+            }
+
+            //city shop sell all
+            function city_sell_all(input) {
+              const qty = input.closest('UL').querySelector('LI.desc').innerText.match(/x(\d+)/);
+              set_regular_input(input, qty ? qty[1] : 1);
+            }
+
+            //big al check all
+            function big_al_check_all(item_id) {
+              document.querySelectorAll(`LI[data-item="${item_id}"] INPUT[type=checkbox]`).forEach(checkbox => checkbox.checked = !checkbox.checked);
+            }
+
+            //trade max qty
+            function max_qty_trade(input) {
+              console.log(input.closest('div.title-wrap'));//.querySelector('div.name-wrap'))
+            }
+
+            function set_regular_input(input, newval) {
+              input.value = newval;
+              input.dispatchEvent(event);
+              input.select();
+            }
+
+            function set_react_input(input, newval) {
+              let old_value = input.value;
+              input.value = newval;
+              input._valueTracker.setValue(old_value);
+              input.dispatchEvent(event);
+              input.select();
+            }
+
+        }
+
+    } // End function tornBazaarPlus() {
+
+    function removeBazaarPlus() {document.removeEventListener('dblclick', bazaarEventListener);}
+
+     //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Bazaar Plus" (called at API complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornBazaarAddButton() {
+
+        return _tornBazaarAddButton();
+
+        // Need error handling!
+        function _tornBazaarAddButton() {
+             log('[tornBazaarAddButton]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornBazaarAddButton] not at home!');
+                if (!isBazaarPage()) return reject('tornBazaarAddButton wrong page!');
+
+                $(window).on('hashchange', function() {
+                    debug('[tornBazaarAddButton] handle hash change.');
+                    installTheButton();
+                });
+
+                installTheButton(0);
+
+                resolve("[tornBazaarAddButton] complete!");
+            });
+
+            function isHidden(el) {return (el.offsetParent === null)}
+
+            function installTheButton(retries=0) {
+                const addBtnDiv = getAddBtnDiv();
+                if (document.getElementById('xedx-add-btn')) document.getElementById('xedx-add-btn').remove();
+                let hash = window.location.hash;
+                let substrings = ['manage', 'personalize', 'add', 'userid'];
+                if (substrings.some(v => hash.includes(v))) return;
+                let targetNode = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz > " +
+                                                    "div.topSection___OilHR > div.titleContainer___LJY0N");
+                if (!targetNode)
+                    targetNode = document.querySelector("#bazaarRoot > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY > " +
+                                       "div.topSection___OilHR > div.titleContainer___LJY0N");
+                if (!targetNode && retries++ < 10) {
+                    return setTimeout(function() {installTheButton(retries)}, 50);
+                }
+                if (!location.href.includes('userid=')) {
+                    $(targetNode).append(addBtnDiv);
+                }
+            }
+
+            function getAddBtnDiv() {
+                return '<a id="xedx-add-btn" to="#/add" role="button" aria-labelledby="add-items" href="#/add" ' +
+                    "style='float: right;' " +
+                    'class="linkContainer___AOKtu inRow___uFQ4S greyLineV___mY84h link-container-ItemsAdd" ' +
+                    'i-data="i_687_11_101_33"><span class="iconContainer___q3CES linkIconContainer___IqlVh">' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" class="default___qrLNi svgIcon___gFpTP" ' +
+                    'filter="url(#top_svg_icon)" fill="#777" stroke="transparent" stroke-width="1" ' +
+                    'width="17" height="16" viewBox="0 0 16.67 17">' +
+                    '<path d="M2,8.14A4.09,4.09,0,0,1,3,8a4,4,0,0,1,3.38,6.13l3,1.68V8.59L2,4.31ZM16,' +
+                    '4.23,8.51,0,6.45,1.16,13.7,5.43ZM5.11,1.92,2.79,3.23,10,7.43l2.33-1.27Zm5.56,6.66V16l6-3.42V5.36ZM3,' +
+                    '9a3,3,0,1,0,3,3A3,3,0,0,0,3,9Zm1.67,3.33H3.33v1.34H2.67V12.33H1.33v-.66H2.67V10.33h.66v1.34H4.67Z">' +
+                    '</path></svg></span><span class="linkTitle___QYMn6">Add items</span></a>';
+            }
+        }
+
+    } // End function tornBazaarAddButton() {
+
+    function removeBazaarAddButton() {} // Dummy, just don't reload.
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -2189,8 +2480,8 @@
         function liveScriptUpdateHandler() {
             log('[liveScriptUpdateHandler]');
 
-            log('[liveScriptUpdateHandler] opts_enabledScripts', opts_enabledScripts);
-            log('[liveScriptUpdateHandler] knownScripts', knownScripts);
+            debug('[liveScriptUpdateHandler] opts_enabledScripts', opts_enabledScripts);
+            debug('[liveScriptUpdateHandler] knownScripts', knownScripts);
 
             for (let i=0; i<knownScripts.length; i++) {
                 let script = knownScripts[i];
@@ -2250,38 +2541,43 @@
 
         // HOME/ALL: @match        https://www.torn.com/*
         setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender", tornLatestAttacksExtender, removeLatestAttacksExtender, "home");
-        setGeneralCfgOpt("statTracker", "Torn Stat Tracker", tornStatTracker, removeTornStatTracker, "home");
+        setGeneralCfgOpt("statTracker", "Torn Custom Stat Tracker", tornStatTracker, removeTornStatTracker, "home");
         setGeneralCfgOpt("drugStats", "Torn Drug Stats", tornDrugStats, removeDrugStats, "home");
         setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips", tornCrimeTooltips, removeCrimeTooltips, "home");
-        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors", tornSidebarColors, removeSidebarColors, 'all');
-        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat, 'all');
         setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned", tornFacRespect, removeTornFacRespect, "home");
         setGeneralCfgOpt("jailStats", "Torn Jail Stats", tornJailStats, removeJailStats, "home");
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar", tornCollapsibleSidebar, removeCollapsibleSidebar, 'all');
-        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar", tornCustomizableSidebar, removeCustomizableSidebar, 'all');
-        setGeneralCfgOpt("ttFilter", "Torn TT Filter (TBD)", null, null, "all", false);
-        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alert Sidebar", null, null, 'racing', false);
+        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors", tornSidebarColors, removeSidebarColors, 'all');
+        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat, 'all');
+        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar Links", tornCollapsibleSidebar, removeCollapsibleSidebar, 'all');
+        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar Links", tornCustomizableSidebar, removeCustomizableSidebar, 'all');
+        setGeneralCfgOpt("tornTTFilter", "Torn TT Filter (TBD)", tornTTFilter, null, "all", false);
+
+        // BAZAAR (and shops)
+        setGeneralCfgOpt("tornBazaarPlus", "Torn Bazaar Pricing, Plus!", tornBazaarPlus, removeBazaarPlus, "items", true);
+        setGeneralCfgOpt("tornBazaarAddButton", "Torn Bazaar 'Add Items' Button", tornBazaarAddButton, removeBazaarAddButton, "items", true);
 
         // ITEMS: @match        https://www.torn.com/items.php*
-        setGeneralCfgOpt("tornItemHints", "Torn Item Hints", null, null, "items");
-        setGeneralCfgOpt("tornMusemSetHelper", "Torn Museum Sets Helper", null, null, "items", false);
-        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort", null, null, "items", false);
-        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", null, null, "items", false);
-        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", null, null, "items", false);
+        setGeneralCfgOpt("tornItemHints", "Torn Item Hints", tornItemHints, null, "items");
+        setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper", tornMuseumSetHelper, null, "items", false);
+        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options", tornWeaponSort, null, "items", false);
+        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", tornWeTracker, null, "items", false);
+        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", tornWeSpreadsheet, null, "items", false);
 
         // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
-        setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", null, null, "attack");
-        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll On Attack", null, null, "attack", true, false);
-
-        // CASINO:
-        setGeneralCfgOpt("tornHoldemScore", "Torn Holdem Score", null, null, "casino", false);
-
-        // STOCKS: @match        https://www.torn.com/page.php?sid=stocks
-        setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", null, null, "stocks", false);
+        setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", tornSeeTheTemps, null, "attack");
+        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll Attack Window", tornScrollOnAttack, null, "attack", true, false);
 
         // RACING: @match        https://www.torn.com/loader.php?sid=racing
-        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", null, null, "racing", false);
-        setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", null, null, "racing", true);
+        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts", tornRacingAlert, null, 'racing', false);
+        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", tornRacingCarOrder, null, "racing", false);
+        setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", tornRacingStyles, null, "racing", true);
+
+        // CASINO:
+        setGeneralCfgOpt("tornHoldemScore", "Torn Texas Holdem Score", tornHoldemScore, null, "casino", false);
+
+        // STOCKS: @match        https://www.torn.com/page.php?sid=stocks
+        setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", tornStockProfits, null, "stocks", false);
+
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -2361,7 +2657,7 @@
                 let bgColor = getBgColor(opts_enabledScripts[scriptName].cat);
 
                 let addlText = !opts_enabledScripts[scriptName].installed ? ' (TBD)' :
-                    (typeof(opts_enabledScripts[scriptName].enableFn) == "function") ? '' : ' (change requires refresh)';
+                    (typeof(opts_enabledScripts[scriptName].disableFn) == "function") ? '' : ' (change requires refresh)';
 
                 /* To change text color:
                 let newRow = '<tr style="background-color: ' + bgColor + ';"><td><input type="checkbox" class="gen-clickable" name="' + scriptName + '"' +
@@ -2416,11 +2712,11 @@
             // Add rows
             let newRow = '<tr class="xvisible defbg">' +
                 '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
-                ' id="dbgopts-logging" checked/></td><td>Enable Logging</td></tr>';
+                ' id="dbgopts-logging" ' + (GM_getValue("dbgopts-logging", true) ? 'checked' : '') + '/></td><td>Enable Logging</td></tr>';
             $(tbody).append(newRow);
             newRow = '<tr class="xvisible defbg">' +
                 '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
-                ' id="dbgopts-dbglogging"/></td><td>Enable Debug Only Logging</td></tr>';
+                ' id="dbgopts-dbglogging" ' + (GM_getValue("dbgopts-dbglogging", false) ? 'checked' : '') + '/></td><td>Enable Debug Only Logging</td></tr>';
             $(tbody).append(newRow);
 
             // Add footer
@@ -2652,6 +2948,7 @@
     function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&user2ID") > -1)}
     function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
     function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
+    function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
@@ -2659,6 +2956,14 @@
     // promise.then(result => {<do something with success result>}, error => {<do something with error result>});
     function _a(result) {log('[SUCCESS] ' + result);}
     function _b(error) {log('[ERROR] ' + error);}
+
+    // TBD: replace this:
+    // if (opts_enabledScripts.latestAttacks.enabled) {tornLatestAttacksExtender().then(a => _a(a), b => _b(b));}
+    // with:
+    // if (opts_enabledScripts.xxx.enabled) {opts_enabledScripts.xxx.enableFn().then(...)}
+    // of
+    // if (opts_enabledScripts.xxx.enabled) doIt(script);
+    // function doIt() {opts_enabledScripts.script.enableFn().then(...)}
 
     // Some scripts can run as soon as the page has loaded (Run at DOMContentLoaded)
     function handlePageLoad() {
@@ -2671,6 +2976,10 @@
         if (opts_enabledScripts.hideShowChat.enabled) {tornHideShowChat().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornHoldemScore.enabled) {tornHoldemScore().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornBazaarPlus.enabled) {tornBazaarPlus().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornBazaarAddButton.enabled) {tornBazaarAddButton().then(a => _a(a), b => _b(b));}
 
         if (isItemPage()) {
 
@@ -2687,7 +2996,7 @@
 
         if (opts_enabledScripts.crimeToolTips.enabled) {tornCrimeTooltips().then(a => _a(a), b => _b(b));}
 
-        if (opts_enabledScripts.ttFilter.enabled) {tornTTFilter().then(a => _a(a), b => _b(b));}
+        if (opts_enabledScripts.tornTTFilter.enabled) {tornTTFilter().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.collapsibleSidebar.enabled) {tornCollapsibleSidebar().then(a => _a(a), b => _b(b));}
 
@@ -2712,6 +3021,8 @@
         if (opts_enabledScripts.jailStats.enabled) {tornJailStats().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornStockProfits.enabled) {tornStockProfits().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornMuseumSetHelper.enabled) {tornMuseumSetHelper().then(a => _a(a), b => _b(b));}
 
         if (isItemPage()) {
 
