@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -149,6 +149,14 @@
         // Call scripts that depend on stats being available
         handleApiComplete();
     }
+
+    /****************************************************************************
+     *
+     * May change all the following to classes...can the contructor return a
+     * promise? Or just have each class have a common "install()" and
+     * "remove()" function?
+     *
+     ****************************************************************************/
 
     //////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Latest Attacks Extender" (called at API call complete)
@@ -400,10 +408,6 @@
                     return resolve("tornStatTracker complete!");
             });
         }
-
-        // Could set interval to query personalstats and in callback,
-        // set personalstats obj, and call buildUI(true). nee to finish
-        // function updateStat() ...
 
         function updateStatsHandlerer(responseText, ID) {
             log('[updateStatsHandlerer]');
@@ -2106,24 +2110,86 @@
     // Handlers for "Torn Racing Alert" (called at document loaded)
     //////////////////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
+    var racingAlertTimer = null;
     function tornRacingAlert() {
 
         return _tornRacingAlert();
 
         function _tornRacingAlert() {
-             log('[tornRacingAlert]');
+            log('[tornRacingAlert]');
+            var animatedIcons = true; // TRUE to flash the red icon
+
+            const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
+            const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+            const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+
+            if (animatedIcons) GM_addStyle(`.highlight-active {
+                                            -webkit-animation: highlight-active 1s linear 0s infinite normal;
+                                            animation: highlight-active 1s linear 0s infinite normal;}`);
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornRacingAlert] not at home!');
-                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingAlert wrong page!');
-
-                reject('[tornRacingAlert] not yet implemented!');
-
-                //resolve("[tornRacingAlert] complete!");
+                racingAlertTimer = setInterval(addRaceIcon, 10000); // Check every 10 secs
+                resolve("[tornRacingAlert] complete!");
             });
+
+            function hasStockRaceIcons() {
+                let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
+                debug('[hasStockRaceIcons] result: ', result);
+                debug('Icon 17: ', document.getElementById("icon17-sidebar"));
+                debug('Icon 18: ', document.getElementById("icon18-sidebar"));
+                return result;
+            }
+
+            function addRaceIcon() {
+                let existingRaceIcon = document.getElementById("xedx-race-icon");
+                debug('[addRaceIcon] existingRaceIcon: ', existingRaceIcon);
+
+                let redIcon = document.getElementById("icon18-sidebar");
+                if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
+                    $(redIcon.parentNode).addClass('highlight-active');
+                }
+
+                if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
+                    if (existingRaceIcon) {
+                        $(existingRaceIcon).remove();
+                    }
+                    return;
+                }
+
+                if (existingRaceIcon) { // Style sometimes gets removed...not sure why. Test: used to have dup ID's!
+                    debug('[addRaceIcon] Class: ', $("#xedx-race-icon").attr('class'));
+                    if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
+                    return;
+                }
+
+                //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
+                let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
+                debug('iconArea: ', iconArea);
+                if (!iconArea /*&& devMode*/) {
+                    //alert('Can`t find icon area!');
+                    log('[addRaceIcon] Can`t find icon area!');
+                }
+
+                // TBD: possibly add sidebar link.
+                // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
+
+                // Add our icon
+                $(iconArea).append(raceIconRed);
+                existingRaceIcon = document.getElementById("xedx-race-icon");
+                if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
+                log('[addRaceIcon] Race icon appended!');
+                //setTimeout(addRaceIcon, 5000); // Style sometimes gets removed...not sure why. This will re-add it.
+                                               //  Test: used to have dup ID's! May  not need anymore....
+            }
         }
     } // End function tornRacingAlert() {
+
+    function removetornRacingAlert() {
+        $("#xedx-race-icon").remove();
+        if (racingAlertTimer) clearTimeout(racingAlertTimer);
+        racingAlertTimer = null;
+    }
 
     //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Racing Car Order" (called at document loaded, uses observer)
@@ -2134,7 +2200,7 @@
 
         return _tornRacingCarOrder();
 
-        function _tornRacingAlert() {
+        function _tornRacingCarOrder() {
              log('[tornRacingCarOrder]');
 
             return new Promise((resolve, reject) => {
@@ -2636,7 +2702,7 @@
         setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat, 'all');
         setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar Links", tornCollapsibleSidebar, removeCollapsibleSidebar, 'all');
         setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar Links", tornCustomizableSidebar, removeCustomizableSidebar, 'all');
-        setGeneralCfgOpt("tornTTFilter", "Torn TT Filter (TBD)", tornTTFilter, null, "all", false);
+        setGeneralCfgOpt("tornTTFilter", "Torn TT Filter", tornTTFilter, null, "all", false);
 
         // BAZAAR (and shops)
         setGeneralCfgOpt("tornBazaarPlus", "Torn Bazaar Pricing, Plus!", tornBazaarPlus, removeBazaarPlus, "items", true);
@@ -2654,7 +2720,7 @@
         setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll Attack Window", tornScrollOnAttack, null, "attack", true, false);
 
         // RACING: @match        https://www.torn.com/loader.php?sid=racing
-        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts", tornRacingAlert, null, 'racing', false);
+        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts", tornRacingAlert, removetornRacingAlert, 'racing', true);
         setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", tornRacingCarOrder, null, "racing", false);
         setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", tornRacingStyles, null, "racing", true);
 
@@ -3093,6 +3159,11 @@
         if (opts_enabledScripts.tornBazaarPlus.enabled) {tornBazaarPlus().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornBazaarAddButton.enabled) {tornBazaarAddButton().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornRacingAlert.enabled) {tornRacingAlert().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b));}
+
     }
 
     // And some need to wait until the page is complete. (readystatecomplete)
