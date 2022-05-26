@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -430,7 +430,7 @@
                                                            " div.content.m-top10 > div.sortable-list.left.ui-sortable");
             let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
             let targetDiv = divList[3];
-            debug('targetDivRoot: ', targetDivRoot, ' divList: ', divList, ' targetDiv: ', targetDiv);
+            debug('[tornStatTracker] targetDivRoot: ', targetDivRoot, ' divList: ', divList, ' targetDiv: ', targetDiv);
             if (!targetDiv) return '[tornStatTracker] targetDiv not found! Consider starting later.';
 
             if (!document.querySelector("#xedx-stats")) {
@@ -2195,23 +2195,556 @@
     // Handlers for "Torn Racing Car Order" (called at document loaded, uses observer)
     //////////////////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
+    // From original:
+    // @require  https://raw.githubusercontent.com/lodash/lodash/4.17.15-npm/core.js
+    // Don't recall why...
+
     function tornRacingCarOrder() {
+
+        //////////////////////////////////////////////////////////////////////
+        // Global to this function
+        ///////////////////////////////////////////////////////////////////////
+
+        const saveBtnId = 'saveBtnId';
+        const xedxMainDiv = getMainDiv();
+        var defOrderSaved = false;
+        var savedCarsArray = [];
+        var arrayFilled = false;
+        var opt_sortCars = true; // Checkbox: load the saved car order
+        var targetNode = document.getElementById('racingMainContainer');
+        var config = { attributes: false, childList: true, subtree: true };
+        var refDiv = null;
+        var draggableSet = false;
+        var carsSorted = false;
+        var savedCurrPage = 0;
+        var callback = function(mutationsList, observer) {
+            refDiv = document.querySelector("#racingAdditionalContainer");
+            let checkDiv = refDiv ? refDiv.getElementsByClassName('enlist-wrap enlisted-wrap')[0] : null;
+            if (!checkDiv) return;
+
+            debug('[tornRacingCarOrder] **** Observer triggered!');
+            debug('[tornRacingCarOrder] mutationsList: ', mutationsList);
+            observerOff();
+            buildRaceCarOrderDiv();
+            observerOn();
+        };
+        var observer = new MutationObserver(callback);
 
         return _tornRacingCarOrder();
 
         function _tornRacingCarOrder() {
-             log('[tornRacingCarOrder]');
+            log('[tornRacingCarOrder]');
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornRacingCarOrder] not at home!');
                 if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingCarOrder wrong page!');
 
-                reject('[tornRacingCarOrder] not yet implemented!');
+                loadStyles();
+                startCarOrderScript();
 
-                //resolve("[tornRacingCarOrder] complete!");
+                resolve("[tornRacingCarOrder] startup complete!");
             });
+
+            function startCarOrderScript() {
+                if (!targetNode) targetNode = document.getElementById('racingMainContainer');
+                if (!targetNode) return setTimeout(startCarOrderScript, 250);
+                observerOn();
+            }
         }
+
+        //////////////////////////////////////////////////////////////////////
+        // Order the cars.
+        ///////////////////////////////////////////////////////////////////////
+
+        // Given a list of cars, put them into the UL on the page, in that order.
+        function putCarsInOrder(carList) {
+            debug('[tornRacingCarOrder] [putCarsInOrder] ==>');
+            debug('[tornRacingCarOrder] arrayFilled: ', arrayFilled);
+            debug('[tornRacingCarOrder] carList: ', carList);
+
+            // The savedCarsArray contains the actual LI's, the carList just references to them
+            var ul = refDiv.getElementsByClassName('enlist-list')[0];
+            if (validPointer(ul)) {
+
+                if (!arrayFilled) { // Unused? Never set to true?
+                    debug('[tornRacingCarOrder] FILLING ARRAY');
+                    for (var i = 0, len = ul.children.length; i < len; i++ ) {
+                        var li = ul.children[i];
+                        if(savedCarsArray.includes(li, 0)){
+                            //log('savedCarsArray includes');
+                            continue;
+                        }
+                        //if (doesLiExistInArray(li)) {
+                        //    log('doesLiExistInArray');
+                        //    continue;
+                        //}
+                        savedCarsArray.push(li);
+                    }
+                    debug('[tornRacingCarOrder] savedCarsArray: ', savedCarsArray);
+                } else { // !arrayFilled
+                    debug('[tornRacingCarOrder] Array already filled. Length: ', savedCarsArray.length);
+                }
+
+                $(ul).empty();
+                carList.forEach(function(car){
+                    var li = findSavedCar(car, savedCarsArray);
+                    if (validPointer(li)) {
+                        ul.appendChild(li);
+                    } else {
+                        debug('[tornRacingCarOrder] Car not found in array!');
+                    }
+                })
+            }
+            log('<== [tornRacingCarOrder] [putCarsInOrder]');
+        }
+
+        function findSavedCar(name, liArray) {
+            for (let i = 0; i < liArray.length; i++) {
+                let li = liArray[i];
+                let elemList = myGetElementsByClassName(li, name);
+                if (validPointer(elemList) && elemList.length > 0) {
+                    return li;
+                }
+            }
+            return null;
+        }
+
+        function getCurrentCarOrder(parentNode) {
+            let elemList = myGetElementsByClassName(parentNode, 'model-car-name');
+            let nameArray = [];
+            elemList.forEach(element => nameArray.push(element.className));
+            return nameArray;
+        }
+
+        function myGetElementsByClassName(anode, className) {
+            var elems = anode.getElementsByTagName("*");
+            var matches = [];
+            for (var i=0, m=elems.length; i<m; i++) {
+                if (validPointer(elems[i].className) && elems[i].className.indexOf(className) != -1) {
+                    matches.push(elems[i]);
+                }
+            }
+            return matches;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // DnD handlers
+        //////////////////////////////////////////////////////////////////////
+
+        // If these work, put in common code?
+
+        function makePageDraggable() {
+            debug('[tornRacingCarOrder] [makePageDraggable] ==>');
+            // let ul = refDiv.getElementsByClassName('enlist-list')[0];
+            let ul = document.querySelector("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div.cont-black.bottom-round.enlist > ul");
+            if (!ul) return setTimeout(makePageDraggable, 250);
+
+            debug('[tornRacingCarOrder] [setDraggable] (only once!)');
+            for (let i = 0, len = ul.children.length; i < len; i++ ) {
+                let li = ul.children[i];
+                makeNodeDraggable(li);
+            }
+            draggableSet = true;
+            debug('<== [tornRacingCarOrder] [makePageDraggable]');
+        }
+
+        function makeNodeDraggable(node) {
+            node.setAttribute("draggable", "true");
+            node.addEventListener('dragstart', handleDragStart, false);
+            node.addEventListener('dragenter', handleDragEnter, false);
+            node.addEventListener('dragover', handleDragOver, false);
+            node.addEventListener('dragleave', handleDragLeave, false);
+            node.addEventListener('drop', handleDrop, false);
+            node.addEventListener('dragend', handleDragEnd, false);
+
+            //node.appendChild(createDraggableDiv()); // Adds the little cross shaped icon
+        }
+
+        var dragSrcEl = null;
+        function handleDragStart(e) {
+            log('type: ', e.type);
+            log('handleDragStart: ', e);
+            // this.style.opacity = '0.4';  // Done automatically in Chrome...
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            //log('type: ', e.type);
+            //log('handleDragOver: ', e);
+            if (e.preventDefault) e.preventDefault(); // Necessary. Allows us to drop.
+            e.dataTransfer.dropEffect = 'move'; // See the section on the DataTransfer object.
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            log('type: ', e.type);
+            log('handleDragEnter: ', e);
+            this.classList.add('over');
+        }
+
+        function handleDragLeave(e) {
+            debug('[tornRacingCarOrder] type: ', e.type);
+            // this / e.target is previous target element.
+            debug('[tornRacingCarOrder] handleDragLeave: ', e);
+            this.classList.remove('over');
+        }
+
+        var stopBlinkBtnId = null;
+        function handleDrop(e) {
+            debug('[tornRacingCarOrder] type: ', e.type);
+            debug('[tornRacingCarOrder] handleDrop: ', e);
+            observerOff();
+
+            if (e.stopPropagation) {
+                e.stopPropagation(); // stops the browser from redirecting.
+            }
+
+            // Don't do anything if dropping the same column we're dragging.
+            if (dragSrcEl != this) {
+                dragSrcEl.innerHTML = this.innerHTML;
+                this.innerHTML = e.dataTransfer.getData('text/html');
+                stopBlinkBtnId = blinkBtn(saveBtnId);
+                debug('[tornRacingCarOrder] Blinking "Save" button - ID = ' + stopBlinkBtnId);
+            }
+
+            // Get rid of the added <meta http-equiv="content-type" content="text/html;charset=UTF-8">
+            // I think this was added by the setData call in the start drag handler.
+            let elements = e.currentTarget.getElementsByTagName('meta');
+            elements[0].parentNode.removeChild(elements[0]);
+
+            observerOn();
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            debug('[tornRacingCarOrder] type: ', e.type);
+            // this / e.target is the current hover target.
+            debug('[tornRacingCarOrder] handleDragEnd: ', e);
+
+            // Remove the 'over' class,that was added to prevent dragOver
+            // from firing too many times, in the drag enter handler.
+            for (let i = 0, len = this.children.length; i < len; i++ ) {
+                let li = this.children[i];
+                li.classList.remove('over');
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Button handlers
+        //////////////////////////////////////////////////////////////////////
+
+        // Set up a handler for the page 2 button - what about the rest???
+        // No, no, no - 'page' is start car index, 1 based. So a 'page-value' of '0' means cars 0-9, '10' means 9-19, etc.
+        function clickHandler() {
+            observerOff();
+            let page = currentPage();
+
+            debug('[tornRacingCarOrder] curr page: ', page, ' Saved page: ', savedCurrPage);
+
+            // NEW
+            draggableSet = false;
+            //carsSorted = false;
+            // end new
+
+            let pageNum = Number(page);
+            if (pageNum == Number(savedCurrPage)) {
+                observerOn();
+                log('<== [clickHandler]');
+                return setTimeout(clickHandler, 250);
+            }
+
+            sortSavedCars(true);
+            savedCurrPage = pageNum;
+
+            observerOn();
+        }
+
+        // Why do this instead of the sort function???
+        function populatePage(index) {
+            debug('[populatePage] index: ', index);
+            debug('[populatePage] savedCarsArray: ', savedCarsArray);
+            let enlistList = refDiv.getElementsByClassName('enlist-list')[0];
+            $(enlistList).empty();
+
+            for (let i=index; i < savedCarsArray.length; i++) { // page 1 index is 0, page 2, 10, etc. Convert to 0-indexed.
+                 let li = savedCarsArray[i];
+                 if (validPointer(li)) {
+                     let element = li.getElementsByClassName('enlist-bars')[0];
+                     if (element) {
+                         element.parentNode.removeChild(element);
+                     }
+                     log('[populatePage] appending car: ', li);
+                     enlistList.appendChild(li);
+                 }
+
+            }
+        }
+
+        // Return page number, which is really an index into the paginator.
+        // Appears as 0, 10, 20 ...
+        function currentPage() {
+            let element = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination > a.page-number.active");
+            let page = element.getAttribute('page-value');
+            let active = element.hasAttribute('active');
+            return page;
+        }
+
+        // Add the handler for when the paginator is clicked.
+        function addPaginationHandler() {
+            let root = document.querySelector("#racingAdditionalContainer > div.gallery-wrapper.pagination.m-top10.left");
+            let aList = root.querySelectorAll('a'); // Paginator buttons: '<', 1, 2, ..., '>'
+            for (let i=0; i<aList.length; i++) {
+                aList[i].addEventListener('click', clickHandler); // associate the function above with the click event
+            }
+        }
+
+        function stopBlinkBtn(id) {
+            log('[stopBlinkBtn]');
+            clearInterval(id);
+        }
+
+        function blinkBtn(id) {
+            debug('[blinkBtn]');
+            let selector = document.getElementById(id);
+            let Id = setInterval(() => {
+                $(selector).fadeOut(500);
+                $(selector).fadeIn(500);},
+                1000);
+
+            return id;
+        }
+
+        // Wrapper for the actual sorter, 'putCarsInOrder'
+        function sortSavedCars(silent=false) {
+            debug('[sortSavedCars] ==>');
+            let carList = null;
+            let key = 'carsPage' + currentPage();
+            var data = GM_getValue(key);
+            if (validPointer(data)) {
+                carList = JSON.parse(data);
+                if (validPointer(carList) && carList.length > 0) {
+                    log('[sortSavedCars] carList: ', carList);
+                    putCarsInOrder(carList);
+                } else if (!silent) {
+                    alert('Torn Racing Car Order - No car list has been saved! Please see the "Help".');
+                } else {
+                    log('[sortSavedCars] No car list has been saved! Please see the "Help".');
+                }
+            }
+            debug('[sortSavedCars] carList: ', carList);
+            debug('<== [sortSavedCars]');
+        }
+
+        // Handle the 'Save' button, save the current car order to local storage
+        function handleSaveBtn() {
+            debug('[handleSaveBtn] ==>');
+            let checkDiv = refDiv.getElementsByClassName('enlist-wrap enlisted-wrap')[0];
+            let carList = getCurrentCarOrder(checkDiv);
+            debug('[handleSaveBtn] carList: ', carList);
+
+            let key = 'carsPage' + currentPage();
+            GM_setValue(key, JSON.stringify(carList));
+
+            if (stopBlinkBtnId) {
+                stopBlinkBtn(stopBlinkBtnId);
+            }
+            alert('Torn Racing Car Order - Car order has been saved! (key=' + key + ')');
+            debug('<== [handleSaveBtn]');
+        }
+
+        // Handle the 'Restore' button, restore the custom ordering, if you've moved stuff and changed your mind
+        function handleRestoreBtn(silent=false) {
+            observerOff();
+            sortSavedCars(false);
+            observerOn();
+        }
+
+        // Handle the 'Defaults' button, Restore the default ordering, currently not really supported.
+        function handleDefBtn() {
+            debug('[tornRacingCarOrder] [handleDefBtn]');
+            debug('[tornRacingCarOrder] Not yet implemented!');
+            return;
+
+            // Call 'putCarsInOrder', using def list.
+            observerOff();
+            let carList = JSON.parse(GM_getValue('default_car_order'));
+            if (validPointer(carList) && carList.length > 0) {
+                putCarsInOrder(carList);
+            } else {
+                alert('Default car list has not been saved! This is an error, please contact the developer' +
+                     ' (xedx [2100735]) for assistance!');
+            }
+            observerOn();
+        }
+
+        // Handle the 'Help' button, display help.
+        function handleHelpBtn() {
+            log('handleHelpBtn');
+            let helpText = "To create a saved car order, simply drag and drop the cars into any " +
+                "order you want. When finished, press the 'Save' button to save in local storage. " +
+                "\n\nSelecting the 'Load Saved on Startup' will cause that order to be restored whenever " +
+                "this script runs." +
+                "\n\nThe 'Restore' button will force any saved car order to be loaded." +
+                "\n\nSlecting the 'Defaults' button will restore the Default order, as selected by Torn. You'd " +
+                "need to select Save again, to keep that as the saved default, or de-select the 'Load Saved on Startup'" +
+                " checkbox.";
+            alert(helpText);
+        }
+
+        function loadStyles() { // TBD: finish 'styling' the dialog
+            GM_addStyle(`.xedx-label {color: #06699B; margin-left: 10px;}
+                         .xedx-chkbox {margin-right: 10px;}
+                         .xedx-btn {border: 1px black solid; border-radius: 5px; background-color: #888888;}
+                         .xedx-body {border: 2px black solid;}
+            `);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Build the Car Order div, append underneath the Personal Perks div
+        //////////////////////////////////////////////////////////////////////
+
+        function buildRaceCarOrderDiv() {
+            debug('[tornRacingCarOrder] [buildRaceCarOrderDiv] ==>');
+            refDiv = document.querySelector("#racingAdditionalContainer");
+            let checkDiv = refDiv.getElementsByClassName('enlist-wrap enlisted-wrap')[0];
+            let mainWrapDiv = document.querySelector("#racingMainContainer > div");
+            if (!refDiv || !checkDiv || !mainWrapDiv) return;
+
+            if (!document.querySelector("#xedx-carorder")) { // Build the 'Select Car Order' <DIV>, only do once.
+                debug('[tornRacingCarOrder] [buildRaceCarOrderDiv] Building UI');
+                $(xedxMainDiv).insertBefore(refDiv);
+
+                // Handler for the arrow button
+                $("#xedx-arrow").on("click", function() {
+                    if ($('#xedx-body-div').css('display') == 'block') {
+                        $('#xedx-body-div').css('display', 'none');
+                        $('#xedx-hdr-div').className = 'title main-title title-black border-round';
+                    } else {
+                        $('#xedx-body-div').css('display', 'block');
+                        $('#xedx-hdr-div').className = 'title main-title title-black top-round active';
+                    }
+                });
+
+                // Handlers for remaining buttons
+                $("#xedx-save-btn").on('click', handleSaveBtn);
+                $("#xedx-restore-btn").on('click', handleRestoreBtn);
+                $("#xedx-default-btn").on('click', handleDefBtn);
+                $("#xedx-help-btn").on('click', handleHelpBtn);
+
+                // Handler for checkbox, and set default state
+                opt_sortCars = GM_getValue('load_saved', opt_sortCars);
+                $("#xedx-chkbox1").prop('checked', opt_sortCars);
+                $("#xedx-chkbox1").on('click',  function() {
+                    opt_sortCars = $("#xedx-chkbox1").is(':checked');
+                    GM_setValue('load_saved', opt_sortCars);
+                });
+
+                savedCurrPage = currentPage();
+            } // End build main div
+
+            addPaginationHandler();
+
+            debug('[tornRacingCarOrder] currPage: ', currentPage(), ' saved: ', savedCurrPage);
+            debug('[tornRacingCarOrder] carsSorted: ', carsSorted, ' savedCarsArray: ', savedCarsArray);
+
+            // First save the current (default) car order
+            // For now, ignore the default ...
+            /*
+            if (!defOrderSaved) {
+                log('[defOrderSaved] (only once!)');
+                let currOrder = getCurrentCarOrder(checkDiv);
+                let saved = GM_getValue('default_car_order');
+
+                // Save if it does not match current default, or does not exist.
+                if (!validPointer(saved) || JSON.stringify(currOrder) != saved) {
+                    GM_setValue('default_car_order', JSON.stringify(currOrder));
+                }
+                defOrderSaved = true;
+            }
+            */
+
+            //if (!carsSorted) {
+                if (opt_sortCars) {
+                    //log('[sortSavedCars] (only once!)');
+                    sortSavedCars(true);
+                    carsSorted = true; // Don't need anymore?
+                }
+            //}
+
+            // Make cars draggable. Also only do once.
+            if (!draggableSet) makePageDraggable();
+
+            //savedCurrPage = currentPage();
+            debug('<== [tornRacingCarOrder] [buildRaceCarOrderDiv]');
+        }
+
+        function getMainDiv() {
+            let result =
+                `<div class="sortable-box t-blue-cont h" id="xedx-carorder">
+                <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-hdr-div">
+                    <div class="arrow-wrap sortable-list" id="xedx-arrow">
+                        <a role="button" href="#/" class="accordion-header-arrow right" i-data="i_946_369_9_14"></a>
+                    </div>Car Order
+                </div>
+                <div class="bottom-round xedx-body" id="xedx-body-div" style="display: none;">
+                    <div id="xedx-content-div" class="cont-gray bottom-round" style="background-color: #ddd;">
+                        <span style="display: block; overflow: hidden; padding: 5px 10px;">
+                            <span class="btn-wrap silver">
+                                <span class="xedx-btn" style="padding: 5px 10px;">
+                                    <button style="width: 108px;" id="xedx-save-btn">Save</button>
+                                </span>
+                            </span>
+                            <span class="btn-wrap silver">
+                                <span class="xedx-btn" style="padding: 5px 10px;">
+                                    <button style="width: 108px;" id="xedx-restore-btn">Restore</button>
+                                </span>
+                            </span>
+                            <span>
+                                <label class="xedx-label">
+                                <input type="checkbox" class="xedx-chkbox" id="xedx-chkbox1">Load Saved Order at Startup
+                                </label>
+                            </span>
+                        </span>
+                        <span style="display: block; overflow: hidden; padding: 5px 10px;">
+                            <span class="btn-wrap silver">
+                                <span class="xedx-btn" style="padding: 5px 10px;">
+                                    <button style="width: 108px;" id="xedx-default-btn">Defaults</button>
+                                </span>
+                            </span>
+                            <span class="btn-wrap silver">
+                                <span class="xedx-btn" style="padding: 5px 10px;">
+                                    <button style="width: 108px;" id="xedx-help-btn">Help</button>
+                                </span>
+                            </span>
+                        </span>
+                    </div>
+                </div>
+                <hr class="delimiter-999 m-top10 m-bottom10">
+            </div>`;
+
+            return result;
+        }
+
+        function observerOff() {
+            debug('[tornRacingCarOrder] [observerOff]');
+            if (observer) {
+                observer.disconnect();
+            } else {
+                debug('[tornRacingCarOrder] observer not initialized!');
+            }
+        }
+
+        function observerOn() {
+            debug('[tornRacingCarOrder] [observerOn]');
+            if (observer) {
+                observer.observe(targetNode, config);
+            } else {
+                debug('[tornRacingCarOrder] observer not initialized!');
+            }
+        }
+
     } // End function tornRacingCarOrder() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -2721,7 +3254,7 @@
 
         // RACING: @match        https://www.torn.com/loader.php?sid=racing
         setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts", tornRacingAlert, removetornRacingAlert, 'racing', true);
-        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", tornRacingCarOrder, null, "racing", false);
+        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", tornRacingCarOrder, null, "racing", true);
         setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", tornRacingStyles, null, "racing", true);
 
         // CASINO:
@@ -3134,7 +3667,7 @@
     // instead of
     // promise.then(result => {<do something with success result>}, error => {<do something with error result>});
     function _a(result) {log('[SUCCESS] ' + result);}
-    function _b(error) {log('[ERROR] ' + error);}
+    function _b(error, opt=null) {log('[ERROR] ' + (opt ? '[' + opt + '] ' : '') + error);}
 
     // TBD: replace this:
     // if (opts_enabledScripts.latestAttacks.enabled) {tornLatestAttacksExtender().then(a => _a(a), b => _b(b));}
@@ -3162,7 +3695,7 @@
 
         if (opts_enabledScripts.tornRacingAlert.enabled) {tornRacingAlert().then(a => _a(a), b => _b(b));}
 
-        if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b));}
+        if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b, 'tornRacingCarOrder'));}
 
     }
 
