@@ -372,7 +372,7 @@
         var stats_intervalTimer = null;
         var stats_updateTimer = null;
         var stats_configWindow = null;
-        const autoUpdateMinutes = 1;
+        var autoUpdateMinutes = 1;
 
         return _tornStatTracker();
 
@@ -384,6 +384,7 @@
                 if (!isIndexPage()) reject('[tornStatTracker] not on home page.');
 
                 initOptStats();
+                if (!optStats.length) autoUpdateMinutes = 0;
 
                 let result = buildStatsUI();
 
@@ -2701,8 +2702,6 @@
                 }
             }
         });
-
-        log('[OptsHdrClick] classes: ', $(closest).classList);
     }
 
     function handleGeneralConfigPage() {
