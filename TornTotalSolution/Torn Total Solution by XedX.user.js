@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -3094,7 +3094,7 @@
                 }
 
                 $("#xedx-search").remove();
-                let targetNode = document.querySelector("#factions > ul"); // Already checked in handlePageLoad !!!
+                let targetNode = document.querySelector("#factions > ul");
                 if (!targetNode) {
                     debug('[installUI] targetNode not found retrying...');
                     return setTimeout(function() {installUI(retries++)}, 500);
@@ -3102,7 +3102,6 @@
                 log('[installUI] primary target found:', targetNode);
 
                 if (location.href.indexOf('/tab=info') > -1) {
-                    //targetNode = document.querySelector("#memberFilter");
                     targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
                     if (!targetNode) {
                         debug('[installUI] targetNode not found, retrying...');
@@ -3147,43 +3146,86 @@
             }
 
             // Handle key presses in the search area -
-            let currSearch = '', lastSearch = '';
-            let lastElems = [];
             function handleSearchKeypress(e) {
+                // Sneaky way to make static 'class' vars, use the fn as a class.
+                 if ( typeof handleSearchKeypress.lastElems == 'undefined' ) {
+                    debug('[handleSearchKeypress] intializing lastElems!');
+                    handleSearchKeypress.lastElems = [];
+                    handleSearchKeypress.currSearch = '';
+                    handleSearchKeypress.lastSearch = '';
+                }
+
+                let memberList = location.href.indexOf('/tab=info') > -1;
+
+                debug('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
                 debug('[handleSearchKeypress] ==> ', e.key);
                 let target = e.target;
-                let searchNode = document.querySelector("#faction-controls");
+
+                let searchNode = '';
+                if (memberList) {
+                    searchNode = $(`[class^="searchWrap_"]`);
+                } else {
+                    searchNode = document.querySelector("#faction-controls");
+                }
 
                 // Special case, handled on keydown and backspace.
                 if (e.type == 'keydown') {
                     if (e.key == 'Backspace') {
-                        log('Backspace: last: ', lastSearch, ' curr: ', currSearch);
-                        lastElems.forEach(el => {$(el).removeClass('xedx-green');});
-                        searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                        log('[handleSearchKeypress] Backspace: last: ', handleSearchKeypress.lastSearch, ' curr: ', handleSearchKeypress.currSearch);
+                        log('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
+                        handleSearchKeypress.lastElems.forEach(el => {
+                            log('[handleSearchKeypress] removing green');
                             $(el).removeClass('xedx-green');
                         });
-                        searchNode.querySelectorAll('[title^="' + lastSearch + '"]').forEach((el) => {
+
+                        // Need diff query for some pages. Text content of class [searchText^
+                        // Under class searchWrap^, and case sensitive.
+                        searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]').forEach((el) => {
+                            $(el).removeClass('xedx-green');
+                            log('[handleSearchKeypress] removing green');
+                        });
+                        searchNode.querySelectorAll('[title^="' + handleSearchKeypress.lastSearch + '"]').forEach((el) => {
                             $(el).addClass('xedx-green');
-                            lastElems.push(el);
+                            log('[handleSearchKeypress] adding green');
+                            handleSearchKeypress.lastElems.push(el);
                         });
                         let temp = lastSearch.slice(0, -1);
-                        currSearch = lastSearch;
-                        lastSearch = temp;
+                        handleSearchKeypress.currSearch = handleSearchKeypress.lastSearch;
+                        handleSearchKeypress.lastSearch = temp;
                     }
                     return;
                 }
 
-                lastSearch = $(target)[0].value;
-                currSearch = $(target)[0].value + e.key;
+                handleSearchKeypress.lastSearch = $(target)[0].value;
+                handleSearchKeypress.currSearch = $(target)[0].value + e.key;
 
                 // Remove previous highlights
-                lastElems.forEach(el => {$(el).removeClass('xedx-green');});
-                lastElems.length = 0;
+                handleSearchKeypress.lastElems.forEach(el => {
+                    debug('[handleSearchKeypress] removing green');
+                    $(el).removeClass('xedx-green');
+                });
+                handleSearchKeypress.lastElems.length = 0;
 
-                // Add new ones
-                searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                // Add new ones (this is the search!)
+                debug('[handleSearchKeypress] matching: ', handleSearchKeypress.currSearch);
+                let list = memberList ?
+                    searchNode.filter(":contains(" + handleSearchKeypress.currSearch + ")") :
+                    searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]');
+
+                let count = list ? list.length : 0;
+                debug ('[handleSearchKeypress] found ' + count + ' matches');
+
+                // TBD: Scroll to first match! This does not seem to work at all,
+                // or in some cases removes what scrolls out...
+                if (false && list[0]) {
+                    debug('[handleSearchKeypress] scroll to: ', list[0]);
+                    list[0].scrollIntoView();
+                }
+
+                Array.from(list).forEach((el) => {
+                    debug('[handleSearchKeypress] adding green');
                     $(el).addClass('xedx-green');
-                    lastElems.push(el);
+                    handleSearchKeypress.lastElems.push(el);
                 });
             }
 
@@ -3193,6 +3235,7 @@
                     <div>
                         <label for="search">Search:</label>
                         <input type="text" id="search" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
+                        <span class="powered-by">Powered by XedX</span>
                     </div>
                 </div>`;
             }
