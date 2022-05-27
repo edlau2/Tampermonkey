@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Fac Page Search
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Add custom search bar to fac pages
 // @author       xedx [2100735]
-// @include      https://www.torn.com/factions.php?step=your*
+// @match        https://www.torn.com/factions.php?step=your*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -17,6 +17,11 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+
+// TBD
+// Case-insensitive? Maybe add new attr, same as name but LC?
+// Scroll page to first match
+// Blinking style... (easy)
 
 (function() {
     'use strict';
@@ -77,19 +82,49 @@
         });
     }
 
-    function installUI() {
+    function installUI(retries=0) {
         log('[installUI]');
-        $("#xedx-search").remove();
-        let targetNode = document.querySelector("#factions > ul");
 
-        if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
-            log('[installUI] inserting search div');
+        if (retries > 5) {
+            log('[installUI] too many retires: aborting');
+        }
+
+        $("#xedx-search").remove();
+        let targetNode = document.querySelector("#factions > ul"); // Already checked in handlePageLoad !!!
+        if (!targetNode) {
+            log('[installUI] targetNode not found retrying...');
+            return setTimeout(function() {installUI(retries++)}, 500);
+        }
+        log('[installUI] primary target found:', targetNode);
+
+        if (location.href.indexOf('/tab=info') > -1) {
+            //targetNode = document.querySelector("#memberFilter");
+            targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
+            if (!targetNode) {
+                log('[installUI] targetNode not found, retrying...');
+                return setTimeout(function() {installUI(retries++)}, 500);
+            }
+
+            log('[installUI] inserting search div before: ', targetNode);
+            $(targetNode).before(searchDiv);
+
+            $("#search").on("keypress", handleSearchKeypress);
+            $("#search").on("keydown", handleSearchKeypress); // For backspace only
+        } else if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
+            //targetNode = document.querySelector("#faction-controls");
+            if (!targetNode) {
+                log('[installUI] targetNode not found, retrying...');
+                return setTimeout(function() {installUI(retries++)}, 500);
+            }
+
+            log('[installUI] inserting search div after: ', targetNode);
             $(targetNode).append(searchDiv);
 
             $("#search").on("keypress", handleSearchKeypress);
             $("#search").on("keydown", handleSearchKeypress); // For backspace only
         } else {
-            //setTimeout(installUI, 500);
+            log('[installUI] missing selectors or hash, retrying (attempt #' + retries);
+            return setTimeout(function() {installUI(retries++)}, 500);
         }
     }
 
@@ -97,8 +132,10 @@
     function handleHashChange() {
         $("#xedx-search").remove();
         if (location.hash.indexOf('give-to-user') > -1 ||
-            location.hash.indexOf('pay-day') > -1) {
-            installUI()
+            location.hash.indexOf('pay-day') > -1 ||
+            location.href.indexOf('tab=info') > -1 ||
+            location.href.indexOf('tab=controls') > -1) {
+            installUI(0)
         }
     }
 
@@ -106,7 +143,7 @@
     function handlePageLoad() {
         let targetNode = document.querySelector("#factions > ul");
         if (!targetNode) return setTimeout(handlePageLoad, 50);
-        installUI();
+        installUI(0);
     }
 
     //////////////////////////////////////////////////////////////////////
