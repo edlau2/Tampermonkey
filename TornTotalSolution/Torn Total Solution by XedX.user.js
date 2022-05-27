@@ -350,7 +350,7 @@
                       '</div>' +
                   '</div>' +
                   '<div class="title-black bottom-round" style="text-align: center">' +
-                      '<button id="la-config-btn">Configure</button>' +
+                      '<button id="la-config-btn" class="powered-by">Configure</button>' +
                   '</div>' +
               '</div>';
             return result;
@@ -3083,7 +3083,9 @@
 
                  GM_addStyle(`
                     .xedx-bdr {border: solid 1px red;}
-                    .xedx-green {background: lime;}
+                    .xedx-green {background: lime;
+                                 -webkit-animation: highlight-active 1s linear 0s infinite normal;
+                                 animation: highlight-active 1s linear 0s infinite normal;}
                 `);
 
                 installHashChangeHandler(facSearchHashHandler);
