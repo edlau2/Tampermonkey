@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -120,6 +120,8 @@
         GM_addStyle(`.xexpand {background-color: #A9A9A9; cursor: pointer;}`); // Clickable, only visible when collapsed, expands table
         GM_addStyle(`.xhidden {display: none;} .xvisible {display: table row;}`); // Classes for hideable table rows
         GM_addStyle(`.defbg {background-color: #FFFFF0;}`); // #FFE4C4;
+        GM_addStyle(`.highlight-active {-webkit-animation: highlight-active 1s linear 0s infinite normal;
+                                        animation: highlight-active 1s linear 0s infinite normal;}`);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -380,7 +382,7 @@
         var stats_intervalTimer = null;
         var stats_updateTimer = null;
         var stats_configWindow = null;
-        var autoUpdateMinutes = 1;
+        var autoUpdateMinutes = 0; // Only sorta works, not sure why.
 
         return _tornStatTracker();
 
@@ -436,6 +438,11 @@
             if (!document.querySelector("#xedx-stats")) {
                 $(targetDiv).after(stats_div);
                 $('#config-btn').click(createStatsConfigDiv);
+                $('#refresh-btn').click(function() {
+                    $('#refresh-btn').addClass('highlight-active');
+                    personalStatsQuery(updateStatsHandlerer);
+                    setTimeout(function() {$('#refresh-btn').removeClass('highlight-active')}, 3000);
+                });
             }
 
             // Populate the UL of enabled stats
@@ -476,8 +483,9 @@
                       '</ul>' +
                   '</div>' +
               '</div>' +
-              '<div class="title-black bottom-round" style="text-align: center">' +
-                  '<button id="config-btn">Configure</button>' +
+              '<div class="title-black bottom-round" style="text-align: center;">' +
+                  '<button id="config-btn" class="powered-by">Configure</button>' +
+                  '<button id="refresh-btn" class="powered-by">Refresh</button>' +
               '</div>' +
           '</div>';
         }
@@ -2123,9 +2131,9 @@
             const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
             const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
-            if (animatedIcons) GM_addStyle(`.highlight-active {
-                                            -webkit-animation: highlight-active 1s linear 0s infinite normal;
-                                            animation: highlight-active 1s linear 0s infinite normal;}`);
+            //if (animatedIcons) GM_addStyle(`.highlight-active {
+            //                                -webkit-animation: highlight-active 1s linear 0s infinite normal;
+            //                                animation: highlight-active 1s linear 0s infinite normal;}`);
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornRacingAlert] not at home!');
