@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -2201,6 +2201,8 @@
 
     function tornRacingCarOrder() {
 
+        debugLoggingEnabled = true;
+
         //////////////////////////////////////////////////////////////////////
         // Global to this function
         ///////////////////////////////////////////////////////////////////////
@@ -2361,9 +2363,10 @@
         }
 
         var dragSrcEl = null;
+        var orgBgColor;
         function handleDragStart(e) {
-            log('type: ', e.type);
-            log('handleDragStart: ', e);
+            debug('[handleDragStart] type: ', e.type);
+            debug('[handleDragStart] e: ', e);
             // this.style.opacity = '0.4';  // Done automatically in Chrome...
             dragSrcEl = this;
             e.dataTransfer.effectAllowed = 'move';
@@ -2405,6 +2408,7 @@
             if (dragSrcEl != this) {
                 dragSrcEl.innerHTML = this.innerHTML;
                 this.innerHTML = e.dataTransfer.getData('text/html');
+
                 stopBlinkBtnId = blinkBtn(saveBtnId);
                 debug('[tornRacingCarOrder] Blinking "Save" button - ID = ' + stopBlinkBtnId);
             }
@@ -2412,7 +2416,7 @@
             // Get rid of the added <meta http-equiv="content-type" content="text/html;charset=UTF-8">
             // I think this was added by the setData call in the start drag handler.
             let elements = e.currentTarget.getElementsByTagName('meta');
-            elements[0].parentNode.removeChild(elements[0]);
+            if (elements[0]) elements[0].parentNode.removeChild(elements[0]);
 
             observerOn();
             return false;
@@ -2988,7 +2992,7 @@
 
     function removeBazaarPlus() {document.removeEventListener('dblclick', bazaarEventListener);}
 
-     //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Bazaar Plus" (called at API complete)
     //////////////////////////////////////////////////////////////////////////////////
 
@@ -3055,7 +3059,154 @@
     function removeBazaarAddButton() {} // Dummy, just don't reload.
 
     //////////////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Racing Alert" (called at document loaded)
+    // Handlers for "Torn Fac Page Search" (called at page complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornFacPageSearch() {
+
+        return _tornFacPageSearch();
+
+        function _tornFacPageSearch() {
+            log('[tornFacPageSearch]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornFacPageSearch] not at home!');
+                if (!isFactionPage()) return reject('tornFacPageSearch wrong page!');
+
+                 GM_addStyle(`
+                    .xedx-bdr {border: solid 1px red;}
+                    .xedx-green {background: lime;}
+                `);
+
+                installHashChangeHandler(facSearchHashHandler);
+
+                installUI(0);
+
+                resolve("[tornFacPageSearch] started!");
+            });
+
+            function installUI(retries=0) {
+                log('[installUI]');
+                const searchDiv = getFacSearchDiv();
+
+                if (retries > 5) {
+                    debug('[installUI] too many retires: aborting');
+                }
+
+                $("#xedx-search").remove();
+                let targetNode = document.querySelector("#factions > ul"); // Already checked in handlePageLoad !!!
+                if (!targetNode) {
+                    debug('[installUI] targetNode not found retrying...');
+                    return setTimeout(function() {installUI(retries++)}, 500);
+                }
+                log('[installUI] primary target found:', targetNode);
+
+                if (location.href.indexOf('/tab=info') > -1) {
+                    //targetNode = document.querySelector("#memberFilter");
+                    targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
+                    if (!targetNode) {
+                        debug('[installUI] targetNode not found, retrying...');
+                        return setTimeout(function() {installUI(retries++)}, 500);
+                    }
+
+                    debug('[installUI] inserting search div before: ', targetNode);
+                    $(targetNode).before(searchDiv);
+
+                    debug('[installUI] new div: ', document.querySelector("#xedx-search"));
+
+                    $("#search").on("keypress", handleSearchKeypress);
+                    $("#search").on("keydown", handleSearchKeypress); // For backspace only
+                } else if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
+                    //targetNode = document.querySelector("#faction-controls");
+                    if (!targetNode) {
+                        debug('[installUI] targetNode not found, retrying...');
+                        return setTimeout(function() {installUI(retries++)}, 500);
+                    }
+
+                    debug('[installUI] inserting search div after: ', targetNode);
+                    $(targetNode).append(searchDiv);
+
+                    debug('[installUI] new div: ', document.querySelector("#xedx-search"));
+
+                    $("#search").on("keypress", handleSearchKeypress);
+                    $("#search").on("keydown", handleSearchKeypress); // For backspace only
+                } else {
+                    debug('[installUI] missing selectors or hash, retrying (attempt #' + (retries+1));
+                    return setTimeout(function() {installUI(retries++)}, 500);
+                }
+            }
+
+            function facSearchHashHandler() {
+                $("#xedx-search").remove();
+                if (location.hash.indexOf('give-to-user') > -1 ||
+                    location.hash.indexOf('pay-day') > -1 ||
+                    location.href.indexOf('tab=info') > -1 ||
+                    location.href.indexOf('tab=controls') > -1) {
+                    installUI(0)
+                }
+            }
+
+            // Handle key presses in the search area -
+            let currSearch = '', lastSearch = '';
+            let lastElems = [];
+            function handleSearchKeypress(e) {
+                debug('[handleSearchKeypress] ==> ', e.key);
+                let target = e.target;
+                let searchNode = document.querySelector("#faction-controls");
+
+                // Special case, handled on keydown and backspace.
+                if (e.type == 'keydown') {
+                    if (e.key == 'Backspace') {
+                        log('Backspace: last: ', lastSearch, ' curr: ', currSearch);
+                        lastElems.forEach(el => {$(el).removeClass('xedx-green');});
+                        searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                            $(el).removeClass('xedx-green');
+                        });
+                        searchNode.querySelectorAll('[title^="' + lastSearch + '"]').forEach((el) => {
+                            $(el).addClass('xedx-green');
+                            lastElems.push(el);
+                        });
+                        let temp = lastSearch.slice(0, -1);
+                        currSearch = lastSearch;
+                        lastSearch = temp;
+                    }
+                    return;
+                }
+
+                lastSearch = $(target)[0].value;
+                currSearch = $(target)[0].value + e.key;
+
+                // Remove previous highlights
+                lastElems.forEach(el => {$(el).removeClass('xedx-green');});
+                lastElems.length = 0;
+
+                // Add new ones
+                searchNode.querySelectorAll('[title^="' + currSearch + '"]').forEach((el) => {
+                    $(el).addClass('xedx-green');
+                    lastElems.push(el);
+                });
+            }
+
+            function getFacSearchDiv() {
+                return `<div id="xedx-search">
+                    <hr class="delimiter-999 m-top10">
+                    <div>
+                        <label for="search">Search:</label>
+                        <input type="text" id="search" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
+                    </div>
+                </div>`;
+            }
+        }
+
+    } // End function tornFacPageSearch() {
+
+    function removeFacPageSearch() {
+        $("#xedx-search").remove();
+        window.removeEventListener('hashchange', facSearchHashHandler);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Jail Scores" (called at document loaded)
     //////////////////////////////////////////////////////////////////////////////////
 
     // TBD !!!
@@ -3266,6 +3417,9 @@
         // JAIL:  @match        https://www.torn.com/jailview.php*
         setGeneralCfgOpt("tornJailScores", "Torn Jail Scores", tornJailScores, null, "jail", false);
 
+        // FACTION: @match        https://www.torn.com/factions.php?step=your*
+        setGeneralCfgOpt("tornFacPageSearch", "Torn Fac Page Search", tornFacPageSearch, removeFacPageSearch, "faction", true);
+
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -3388,6 +3542,8 @@
                         return "#7FFFD4"; // Aquamarine
                     case 'jail':
                         return "#DC143C"; // Crimson
+                    case 'faction':
+                        return "#FF8C00"; // DarkOrange
                     default:
                         return "#FFE4C4"; // Bisque
                 }
@@ -3712,6 +3868,8 @@
         if (opts_enabledScripts.tornTTFilter.enabled) {tornTTFilter().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.collapsibleSidebar.enabled) {tornCollapsibleSidebar().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornFacPageSearch.enabled) {tornFacPageSearch().then(a => _a(a), b => _b(b));}
 
         if (isItemPage()) {
             if (opts_enabledScripts.tornItemHints.enabled) {tornItemHints().then(a => _a(a), b => _b(b));}
