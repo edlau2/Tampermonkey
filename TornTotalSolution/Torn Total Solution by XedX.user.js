@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      2.0
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -53,6 +53,8 @@
 // Torn Holdem Score - Makes the poker 'score' visible on the poker page. (TBD)
 // Torn Stock Profits - Displays current stock profits for owned shares (TBD)
 //
+// jail scores, fac page search, disable refills
+//
 
 //
 // For programmers: The way this is set up - at the very bottom are the entry points. The main entry point first
@@ -67,7 +69,7 @@
 // readystate complete, and the third when an Torn API call is complete. It currently queries four selections.
 //
 // Each of these 3 callbacks can have a filter added so that new subscripts which are Torn page specific,
-// such as perhaps the Items page (// @match https://www.torn.com/item.php) can be called only when on
+// such as perhaps the Items page (@match https://www.torn.com/item.php) can be called only when on
 // those specific pages. Currently, only scripts that run at //@match https://www.torn.com/* have been
 // implemented (migrated to here from standalone scripts).
 //
@@ -109,9 +111,17 @@
     var honorsAwarded = null;
     var attacks = null;
     var weArray = null;
+    var fhArray = null;
+    var inventoryArray = null;
+    let itemsArray = null; // Array of all Torn items
 
     var userId = null;
     var userName = null;
+
+    const recoverableErrors = [5, // Too many requests
+                               8, // IP Block
+                               9, // API disabled
+                               ];
 
     //////////////////////////////////////////////////////////////////////
     // Styles used on config pages, make into external CSS?
@@ -133,7 +143,7 @@
     // Get data used for most of the handlers in here, in one call.
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
-        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp', callback);
+        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
     }
 
     // Callback for above
@@ -147,6 +157,8 @@
         honorsAwarded = jsonResp.honors_awarded;
         attacks = jsonResp.attacks;
         weArray = jsonResp.weaponexp;
+        fhArray = jsonResp.personalstats;
+        inventoryArray = jsonResp.inventory;
 
         userId = jsonResp.player_id;
         userName = jsonResp.name;
@@ -1893,17 +1905,17 @@
 
             if (pageName == 'Flowers') {
                 let liList = $('#flowers-items > li');
-                if (liList.length <= 1) {setTimeout(handlePageLoaded, 1000); return;}
+                if (liList.length <= 1) {setTimeout(installHints, 1000); return;}
                 let hints = fillHints(liList, flowerHints);
                 log('Added hints to ' + hints + ' items.');
             } else if (pageName == 'Plushies') {
                 let liList = $('#plushies-items > li');
-                if (liList.length <= 1) {setTimeout(handlePageLoaded, 1000); return;}
+                if (liList.length <= 1) {setTimeout(installHints, 1000); return;}
                 let hints = fillHints(liList, plushieHints);
                 log('[installHints] Added hints to ' + hints + ' items.');
             } else if (pageName == 'Temporary') {
                 let liList = $('#temporary-items > li');
-                if (liList.length <= 1) {setTimeout(handlePageLoaded, 1000); return;}
+                if (liList.length <= 1) {setTimeout(installHints, 1000); return;}
                 let hints = fillHints(liList, temporaryHints);
                 log('Added hints to ' + hints + ' items.');
             }
@@ -1944,11 +1956,24 @@
     } // End function tornItemHints() {
 
     //////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Item Hints" (called at content complete)
+    // Handlers for "Torn Museum Set Helper" (called on API complete)
     //////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
     function tornMuseumSetHelper() {
+        const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
+        const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
+        const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
+        const mainItemsDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap";
+        const sepDiv = '<hr class="delimiter-999 m-top10 m-bottom10">';
+
+        const flowerSetColor = "#5f993c"; // "#FFFACD50"; // LemonChiffon, 0x50% xparency, looks OK in light and dark modes
+        const plushiesSetColor = "#5f993c";
+        const quransSetSetColor = "#2f690c";
+        const coinSetSetColor = "#5f993c"; //"Plum"; // #DDA0DD
+        const senetSetSetColor = "LightBlue"; // #ADD8E6
+        const missingItemColor = "#228B2250"; //"ForestGreen" #228B22
+
+        const pawnShopPays = 45000;
 
         return _tornMuseumSetHelper();
 
@@ -1959,11 +1984,471 @@
                 if (location.href.indexOf("item.php") < 0) return reject('tornMuseumSetHelper wrong page!');
                 if (abroad()) return reject('tornMuseumSetHelper not at home!');
 
-                reject('[tornMuseumSetHelper] not yet implemented!');
+                initStatics();
+                removeTTBlock();
+                xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
 
-                //resolve("[tornMuseumSetHelper] complete!");
+                resolve("[tornMuseumSetHelper] startup complete!");
             });
         }
+
+        function initStatics() {
+            if (typeof tornMuseumSetHelper.pointsPriceUnitCost == 'undefined') {
+                tornMuseumSetHelper.pointsPriceUnitCost = 0;
+                tornMuseumSetHelper.pageModified = false; // Page has been  modified
+                tornMuseumSetHelper.pageObserver = null; // Mutation observer for the page
+                tornMuseumSetHelper.observing = false; // Observer is active
+                tornMuseumSetHelper.pageName = null;
+                tornMuseumSetHelper.pageSpan = null;
+                tornMuseumSetHelper.pageDiv = null;
+                tornMuseumSetHelper.xedxSepNode = null;
+                tornMuseumSetHelper.xedxHdrNode = null;
+                tornMuseumSetHelper.xedxHdrID = 'xedx-required-hdr';
+            }
+        }
+
+        function marketQueryCB(responseText, ID, param) {
+            debug('[tornMuseumSetHelper] market query callback.');
+            var jsonResp = JSON.parse(responseText);
+            if (jsonResp.error) {return handleError(responseText);}
+
+            let objEntries = Object.entries(jsonResp.pointsmarket);
+            let firstPointTrade = Object.entries(objEntries[0][1]);
+            tornMuseumSetHelper.pointsPriceUnitCost = firstPointTrade[0][1]; // Save globally
+            debug('[tornMuseumSetHelper] Unit Price: ' + tornMuseumSetHelper.pointsPriceUnitCost);
+
+            modifyPage(true);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Helpers for page modification
+        //////////////////////////////////////////////////////////////////////
+
+        // Helper to highlight proper LI's, and track item amounts
+        function highlightList(liList, searchArray, color) {
+            debug('[tornMuseumSetHelper] Highlighting items, <li> is ' + liList.length + ' item(s) long.');
+            if (liList.length == 1) {
+                console.log(GM_info.script.name + ' Re-calling modifyPage');
+                tornMuseumSetHelper.pageModified = false;
+                setTimeout(function() { modifyPage(false); }, 2000);
+                return false;
+            }
+            for (let i = 0; i < liList.length; ++i) {
+                searchArray.forEach((element, index, array) => {
+                    let qty = Number(liList[i].getAttribute('data-qty'));
+                    if (element.id == liList[i].getAttribute('data-item') && qty > 0) {
+                        // Highlight & save quantity
+                        liList[i].style.backgroundColor = color;
+                        array[index].quantity = qty;
+                        debug('[tornMuseumSetHelper] Highlighted ' + element.name + "'s, count = " + qty);
+                    }
+                });
+            }
+            return true;
+        }
+
+        // Builds a valid node element for inserting into the DOM
+        function createElementFromHTML(htmlString) {
+            var div = document.createElement('div');
+            div.innerHTML = htmlString.trim();
+
+            // Change this to div.childNodes to support multiple top-level nodes
+            return div.firstChild;
+            //return div.childNodes;
+        }
+
+        // Insert a node after a reference node
+        function insertAfter(newNode, referenceNode) {
+            referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+        }
+
+        // Create a <li> with supplied item ID and name
+        function buildNewLi(id, name) {
+            // LI and DIVs to insert for set count, items needed, items required
+            const newLi =
+                '<li class="">' +
+                    '<div class="thumbnail-wrap" tabindex="0">' +
+                        '<div class="thumbnail">' +
+                            '<img class="torn-item item-plate" data-size="medium" src="/images/items/replaceID/large.png"' +
+                                'style="opacity: 0;" data-converted="1" aria-hidden="true">' +
+                            '<canvas role="img"style="opacity: 1;" width="60" height="30" class="torn-item item-plate item-converted" item-mode="true">' +
+                            '</canvas>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="title-wrap">' +
+                        '<div class="title left">' +
+                            '<span class="image-wrap">' +
+                                '<div class="thumbnail">' +
+                                    '<img src="/images/items/replaceID/large.png" width="60" height="30">' +
+                                '</div>' +
+                            '</span>' +
+                            '<span class="name-wrap">'+
+                                '<span class="qty bold d-hide"> x0</span>'+
+                                '<span class="name">replaceName</span>'+
+                                '<span class="qty bold t-hide"> x0</span>'+
+                            '</span>'+
+                        '</div>'+
+                    '</div>' +
+                    '<div class="cont-wrap">'+
+                        '<div class="actions right">'+
+                            '<ul class="actions-wrap">'+
+                                '<li class="left"></li>'+
+                                '<li class="left"></li>'+
+                                '<li class="left"></li>'+
+                                '<li class="left"></li>'+
+                                '<li class="clear"></li>' +
+                            '</ul>'+
+                        '</div>'+
+                    '</div>' +
+                '<div class="clear"></div>'+
+                '</li>';
+            let temp = newLi.replace(/replaceID/g, id);
+            let temp2 = temp.replace(/replaceName/g, name);
+            return temp2;
+        }
+
+        // Helper to add items which we don't own
+        function addMissingItems(ulDiv, setArray) {
+            debug('[tornMuseumSetHelper] Adding missing items.');
+            let hdrNode = document.getElementById(tornMuseumSetHelper.xedxHdrID);
+            if (validPointer(hdrNode)) {
+                log('[tornMuseumSetHelper] addMissingItems: header already present.');
+                return;
+            } // Means we've done this already.
+
+            // Add a separator, header (and UL for new LI's)
+            let mainItemsDiv = document.querySelector(mainItemsDivSelector);
+            tornMuseumSetHelper.xedxSepNode = createElementFromHTML(sepDiv);
+            tornMuseumSetHelper.xedxHdrNode = createElementFromHTML(requiredHdr());
+            insertAfter(tornMuseumSetHelper.xedxSepNode, mainItemsDiv);
+            insertAfter(tornMuseumSetHelper.xedxHdrNode.nextSibling, tornMuseumSetHelper.xedxSepNode);
+
+            // Add LI's for each missing item - TBD
+            debug('Going to add ' + setArray.length + ' items.');
+            for (let i = 0; i < setArray.length; i++) {
+                let item = setArray[i];
+                if (item.quantity == 0) {
+                    debug('[tornMuseumSetHelper] Adding ' + item.name + ' to required list.');
+                    let liStr = buildNewLi(item.id, item.name);
+                    let newNode = createElementFromHTML(liStr);
+                    newNode.style.backgroundColor = missingItemColor;
+                    let ulList = $('#xedx-required-items');
+                    ulList[0].appendChild(newNode);
+                }
+            }
+        }
+
+        // Header to display if we have full sets
+        function displayFullSetHdr(count, pts) {
+            debug('[tornMuseumSetHelper] displayFullSetHdr');
+            let mainItemsDiv = document.querySelector(mainItemsDivSelector);
+            tornMuseumSetHelper.xedxSepNode = createElementFromHTML(sepDiv);
+
+            // '<span class="m-hide"> You have numberFullSets full sets. This can be traded in for ' +
+            // ' numberFullPoints points, at priceOfPoints each, for totalPrice.</span>' +
+
+            // This can be done in one shot?
+            let fullSets = fullSetsHdr().replace('numberFullSets', count);
+            let fullPts = fullSets.replace('numberFullPoints', count * pts);
+            let ptsPrice = fullPts.replace('priceOfPoints', asCurrency(tornMuseumSetHelper.pointsPriceUnitCost));
+            //log('displayFullSetHdr - points cost: "' + tornMuseumSetHelper.pointsPriceUnitCost + '"');
+            let totalPrice = ptsPrice.replace('totalPrice', asCurrency(count * pts * tornMuseumSetHelper.pointsPriceUnitCost));
+            let output = totalPrice.replace('pawnPrice', asCurrency(count * pts * pawnShopPays));
+
+            tornMuseumSetHelper.xedxHdrNode = createElementFromHTML(output);
+            insertAfter(tornMuseumSetHelper.xedxSepNode, mainItemsDiv);
+            insertAfter(tornMuseumSetHelper.xedxHdrNode.nextSibling, tornMuseumSetHelper.xedxSepNode);
+        }
+
+        // Helper to remove above header(s) and items list
+        function removeAdditionalItemsList() {
+            if (tornMuseumSetHelper.xedxSepNode) {tornMuseumSetHelper.xedxSepNode.remove();}
+            let hdrNode = document.getElementById(tornMuseumSetHelper.xedxHdrID);
+            if (hdrNode) {hdrNode.remove();}
+        }
+
+        function removeFullSetHdr() {
+            const xedxFullSetHdr = 'xedx-fullset-hdr';
+            if (tornMuseumSetHelper.xedxSepNode) {tornMuseumSetHelper.xedxSepNode.remove();}
+            let hdrNode = document.getElementById(xedxFullSetHdr);
+            if (hdrNode) {hdrNode.remove();}
+        }
+
+        // Remove TornTools additional items required div
+        function removeTTBlock() {
+            if (validPointer($('#tt-needed-flowers-div'))) {$('#tt-needed-flowers-div').remove();}
+            if (validPointer($('#tt-needed-plushies-div'))) {$('#tt-needed-plushies-div').remove();}
+        }
+
+        // Helpers to turn on and off the observer
+        function observeOff() {
+            if (tornMuseumSetHelper.observing && tornMuseumSetHelper.pageObserver) {
+                tornMuseumSetHelper.pageObserver.disconnect();
+                debug('[tornMuseumSetHelper] disconnected observer.');
+                tornMuseumSetHelper.observing = false;
+            }
+        }
+
+        function observeOn() {
+            if (tornMuseumSetHelper.pageObserver) {
+                tornMuseumSetHelper.pageObserver.observe(tornMuseumSetHelper.pageDiv, observerConfig);
+                debug('[tornMuseumSetHelper] observing page.');
+                tornMuseumSetHelper.observing = true;
+            }
+        }
+
+        // Helper to see how many complete sets we have of a given type.
+        function countCompleteSets(itemArray) {
+            var totalSets = 999999999;
+            itemArray.forEach((element, index, array) => {
+                let amt = element.quantity;
+                if (!amt || amt == null) {totalSets = 0;} // Too bad we can't 'break' here, or 'return'.
+                if (amt < totalSets) {totalSets = amt;}
+            });
+            return totalSets;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Modify the page
+        //////////////////////////////////////////////////////////////////////
+
+        function modifyPage(enableObserver) {
+            if (!enableObserver) {log('[tornMuseumSetHelper] detected page change.');}
+            if (tornMuseumSetHelper.pageModified) {return;}
+
+            // To calculate prices/profit/etc.
+            //
+            // Plushies and flowers - 10 points per set.
+            // Medieval coins - 100 points
+            // Vairocana Buddha - 100 pts
+            // Ganesha Sculpture - 250 pts
+            // Shabti Sculpture - 500 pts
+            // Script's from the Quran - 1,000 pts
+            // Senet Game - 2,000 pts
+            // Egyptian Amulet - 10,000 pts.
+            //
+            // To get value of points, call "https://api.torn.com/market/?selections=pointsmarket&key="
+            //
+            // pointsmarket": {
+            //	    "11154988": {
+            //		"cost": 45550,    <== Use this for current (live) price info.
+            //		"quantity": 4000,
+            //		"total_cost": 182200000
+            //	},
+            let flowersPtsPerSet = 10;
+            let plushiesPtsPerSet = 10;
+            let coinPtsPerSet = 100;
+            let VairocanaPtsPerSet = 100;
+            let ganeshaPtsPerSet = 250;
+            let shabtiPtsPerSet = 500;
+            let quranPtsPerSet = 1000
+            let senetPtsPerSet = 2000;
+            let egyptianPtsPerSet = 10000;
+
+            // Variables tracking # full sets
+            let fullFlowerSets = 0;
+            let fullPlushieSets = 0;
+            let fullCoinsSets = 0;
+            let fullQuranSets = 0;
+            let fullSenetSets = 0;
+            // ...
+
+            // Names of items in various sets.
+            const flowersInSet = [{"name":"Dahlia", "id": 260, "quantity": 0},
+                                  {"name":"Orchid", "id": 264, "quantity": 0},
+                                  {"name":"African Violet", "id": 282, "quantity": 0},
+                                  {"name":"Cherry Blossom", "id": 277, "quantity": 0},
+                                  {"name":"Peony", "id": 276, "quantity": 0},
+                                  {"name":"Ceibo Flower", "id": 271, "quantity": 0},
+                                  {"name":"Edelweiss", "id": 272, "quantity": 0},
+                                  {"name":"Crocus", "id": 263, "quantity": 0},
+                                  {"name":"Heather", "id": 267, "quantity": 0},
+                                  {"name":"Tribulus Omanense","id": 385, "quantity": 0},
+                                  {"name":"Banana Orchid", "id": 617, "quantity": 0}];
+
+            const plushiesInSet = [{"name":"Jaguar Plushie", "id": 258, "quantity": 0},
+                                   {"name":"Lion Plushie", "id": 281, "quantity": 0},
+                                   {"name":"Panda Plushie", "id": 274, "quantity": 0},
+                                   {"name":"Monkey Plushie", "id": 269, "quantity": 0},
+                                   {"name":"Chamois Plushie", "id": 273, "quantity": 0},
+                                   {"name":"Wolverine Plushie", "id": 261, "quantity": 0},
+                                   {"name":"Nessie Plushie", "id": 266, "quantity": 0},
+                                   {"name":"Red Fox Plushie", "id": 268, "quantity": 0},
+                                   {"name":"Camel Plushie", "id": 384, "quantity": 0},
+                                   {"name":"Kitten Plushie", "id": 215, "quantity": 0},
+                                   {"name":"Teddy Bear Plushie", "id": 187, "quantity": 0},
+                                   {"name":"Sheep Plushie", "id": 186, "quantity": 0},
+                                   {"name":"Stingray Plushie", "id": 618, "quantity": 0}];
+
+            const coinsInSet = [{"name":"Leopard Coin",  "id": 450, "quantity": 0},
+                               {"name":"Florin Coin",  "id": 451, "quantity": 0},
+                               {"name":"Gold Noble Coin",  "id": 452, "quantity": 0}];
+
+            const quransInSet = [{"name":"Quran Script : Ibn Masud",  "id": 455, "quantity": 0},
+                               {"name":"Quran Script : Ubay Ibn Kab",  "id": 456, "quantity": 0},
+                               {"name":"Quran Script : Ali",  "id": 457, "quantity": 0}];
+
+            // TBD: sculptures, senets
+
+            //$('#xedx-fullset-hdr').remove();
+            removeFullSetHdr();
+            removeAdditionalItemsList();
+            removeTTBlock();
+            tornMuseumSetHelper.pageModified = true;
+            debug('[tornMuseumSetHelper] modifying page.');
+
+            // See what page we are on
+            tornMuseumSetHelper.pageSpan = document.querySelector(pageSpanSelector);
+            tornMuseumSetHelper.pageName = tornMuseumSetHelper.pageSpan.innerText;
+            debug("[tornMuseumSetHelper] On page '" + tornMuseumSetHelper.pageName + "'");
+
+            // Highlight items that are in sets, if on an artifact page, flower page or plushie page.
+            // Iterate the item <lis>'s, highlight if in proper array of items that are in sets.
+            observeOff();
+            if (tornMuseumSetHelper.pageName == 'Flowers') {
+                // Highlight set items and count complete sets
+                let ulDiv = $('#flowers-items'); // Verify this...
+                let liList = $('#flowers-items > li');
+                if (!highlightList(liList, flowersInSet, flowerSetColor)) {return;}
+                let fullFlowerSets = countCompleteSets(flowersInSet);
+                debug("[tornMuseumSetHelper] Complete flower sets: " + fullFlowerSets);
+                sortUL($('#flowers-items > li'));
+
+                // Add 'hints' - where to get items
+                let hints = fillHints(liList, flowerHints);
+                debug('[tornMuseumSetHelper] Added hints to ' + hints + ' items.');
+
+                // Add LI's for missing items
+                if (!fullFlowerSets) {
+                    removeFullSetHdr();
+                    addMissingItems(ulDiv, flowersInSet); // Verify this...
+                } else {
+                    removeAdditionalItemsList();
+                    displayFullSetHdr(fullFlowerSets, flowersPtsPerSet);
+                }
+
+            } else if (tornMuseumSetHelper.pageName == 'Plushies') {
+                // HIghlight set items and count complete sets
+                let ulDiv = $('#plushies-items'); // Verify this...
+                let liList = $('#plushies-items > li');
+                if (!highlightList(liList, plushiesInSet, plushiesSetColor)) {return;}
+                fullPlushieSets = countCompleteSets(plushiesInSet);
+                debug("[tornMuseumSetHelper] Complete plushie sets: " + fullPlushieSets);
+                sortUL($('#plushies-items > li'));
+
+                // Add 'hints' - where to get items
+                let hints = fillHints(liList, plushieHints);
+                debug('[tornMuseumSetHelper] Added hints to ' + hints + ' items.');
+
+                // Add LI's for missing items
+                if (!fullPlushieSets) {
+                    removeFullSetHdr();
+                    addMissingItems(ulDiv, plushiesInSet);
+                } else {
+                    removeAdditionalItemsList();
+                    displayFullSetHdr(fullPlushieSets, plushiesPtsPerSet);
+                }
+            } else if (tornMuseumSetHelper.pageName == 'Artifacts') {
+                // TBD -
+                //
+                // Medieval coins - 100 points
+                // Vairocana Buddha - 100 pts
+                // Ganesha Sculpture - 250 pts
+                // Shabti Sculpture - 500 pts
+                // Script's from the Quran - 1,000 pts
+                // Senet Game - 2,000 pts
+                // Egyptian Amulet - 10,000 pts.
+
+                // HIghlight set items and count complete sets
+                let ulDiv = $('#artifacts-items'); // Verify this...
+                let liList = $('#artifacts-items > li');
+
+                if (!highlightList(liList, coinsInSet, coinSetSetColor)) {return;}
+                fullCoinsSets = countCompleteSets(coinsInSet);
+                debug("[tornMuseumSetHelper] Complete coin sets: " + fullCoinsSets);
+
+                if (!highlightList(liList, quransInSet, quransSetSetColor)) {return;}
+                fullQuranSets = countCompleteSets(quransInSet);
+                debug("[tornMuseumSetHelper] Complete coin sets: " + fullQuranSets);
+
+                sortUL($('#artifacts-items > li'));
+
+                // Add LI's for missing items
+                removeFullSetHdr();
+                removeAdditionalItemsList();
+                if (!fullCoinsSets || !fullQuranSets) {
+                    debug("[tornMuseumSetHelper] ulDiv", ulDiv);
+                    debug("[tornMuseumSetHelper] Adding missing items. " + JSON.stringify({fullCoinsSets, coinsInSet, fullQuranSets, quransInSet}));
+                    if (!fullCoinsSets) {addMissingItems(ulDiv, coinsInSet);}
+                    if (!fullQuranSets) {addMissingItems(ulDiv, quransInSet);}
+                }
+                if (fullCoinsSets || fullQuranSets) {
+                    debug("[tornMuseumSetHelper] ulDiv", ulDiv);
+                    debug("[tornMuseumSetHelper] Displaying full set header. " + JSON.stringify({fullCoinsSets, fullQuranSets}));
+                    if (fullCoinsSets) {displayFullSetHdr(fullCoinsSets, coinPtsPerSet);}
+                    if (fullQuranSets) {displayFullSetHdr(fullQuranSets, quranPtsPerSet);}
+                }
+            } else {
+                removeAdditionalItemsList()
+            }
+
+            // Watch for active page changes.
+            if (tornMuseumSetHelper.pageObserver == null) {
+                tornMuseumSetHelper.pageDiv = document.querySelector(pageDivSelector);
+                var callback = function(mutationsList, observer) {
+                    tornMuseumSetHelper.pageModified = false;
+                    modifyPage(false);
+                };
+                tornMuseumSetHelper.pageObserver = new MutationObserver(callback);
+            }
+
+            tornMuseumSetHelper.pageModified = false;
+            observeOn();
+        }
+
+        // Sort the list, ascending, by qty. See 'https://github.com/Sjeiti/TinySort'
+        function sortUL(ulDiv) {
+            log('[tornMuseumSetHelper] Sorting UL ' + ulDiv + ', length = ' + ulDiv.length);
+            tinysort(ulDiv, {attr:'data-qty'});
+            log('[tornMuseumSetHelper] Sorted.');
+
+        }
+
+        function requiredHdr() {
+             const _requiredHdr = +
+            '<div>' +
+                '<div id="xedx-required-hdr" class="items-wrap primary-items t-blue-cont">' +
+                    '<div class="title-black top-round scroll-dark" role="heading" aria-level="5">' +
+                        '<span class="m-hide"> Required items for full sets </span>' +
+                    '</div>' +
+                    '<div id="xedx-category-wrap" class="category-wrap ui-tabs ui-widget ui-widget-content ui-corner-all">' +
+                        '<ul id="xedx-required-items" class="items-cont tab-menu-cont cont-gray bottom-round itemsList ui-tabs-panel ui-widget-content ui-corner-bottom current-cont" data-loaded="0" aria-expanded="true" aria-hidden="false">' +
+                        '</ul>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+
+            return _requiredHdr;
+        }
+
+        function fullSetsHdr() {
+            const _fullSetsHdr = +
+                '<div>' +
+                    '<div id="xedx-fullset-hdr" class="items-wrap primary-items t-blue-cont">' +
+                        '<div class="title-black top-round bottom-round scroll-dark" role="heading" aria-level="5">' +
+                            '<span class="m-hide"> You have numberFullSets full set(s). This can be traded in for ' +
+                            ' numberFullPoints points, at priceOfPoints each, for totalPrice (pawnPrice at the Pawn Shop).</span>' +
+                        '</div>' +
+                        '<div id="xedx-category-wrap" class="category-wrap ui-tabs ui-widget ui-widget-content ui-corner-all">' +
+                            '<ul id="xedx-required-items" class="items-cont tab-menu-cont cont-gray bottom-round itemsList ui-tabs-panel ui-widget-content ui-corner-bottom current-cont" data-loaded="0" aria-expanded="true" aria-hidden="false">' +
+                            '</ul>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+            return _fullSetsHdr;
+        }
+
     } // End function tornMuseumSetHelper() {
 
     //////////////////////////////////////////////////////////////////////
@@ -2475,11 +2960,26 @@
     } // End function tornWeTracker() {
 
     //////////////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Weapon Experience Spreadsheet" (called at content complete)
+    // Handlers for "Torn Weapon Experience Spreadsheet" (called at API complete)
     //////////////////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
     function tornWeSpreadsheet() {
+
+         // Will be table rows
+        let fhRows = null;
+        let weRows = null;
+
+        // Globals
+        let itemsArray = null; // Array of all Torn items
+        let weAt100pct = 0; // Count of weapons at 100%
+        let fhRemains = 0; // Remaining finishing hits total
+
+        let useCellBackground = false; // true to color background, else text itself.
+
+        let primaryArray = [];
+        let secondaryArray = [];
+        let meleeArray = [];
+        let temporaryArray = [];
 
         return _tornWeSpreadsheet();
 
@@ -2490,12 +2990,560 @@
                 if (location.href.indexOf("item.php") < 0) return reject('tornWeSpreadsheet wrong page!');
                 if (abroad()) return reject('tornWeSpreadsheet not at home!');
 
-                reject('[tornWeSpreadsheet] not yet implemented!');
+                loadTableStyles();
 
-                //resolve("[tornWeSpreadsheet] complete!");
+                xedx_TornTornQuery(null, 'items', tornQueryCB);
+
+                resolve("[tornWeSpreadsheet] startup complete!");
             });
         }
+
+        function tornQueryCB(responseText, ID, param) {
+            debug('[tornWeSpreadsheet] Torn items query callback.');
+            var jsonResp = JSON.parse(responseText);
+            if (jsonResp.error) {return handleError(responseText);}
+            itemsArray = jsonResp.items; // Array of Torn items
+            sortArrays(); // Also calls 'modifyPage()'
+        }
+
+        // Sorts and merges the two arrays, items and experience, into 4 new arrays,
+        // primary, secondary, melee and temporary weapons and their WE.
+        // Also count the ## at 100% (weAt100pct)
+        function sortArrays() {
+            for (let i =0; i < weArray.length; i++) {
+                if (weArray[i].exp == 100) {weAt100pct++;}
+                let ID = weArray[i].itemID;
+                let itemObj = getItemById(ID);
+                if (validPointer(itemObj)) {
+                    if (itemObj.type == 'Primary') {
+                        primaryArray.push(weArray[i]);
+                    } else if (itemObj.type == 'Secondary') {
+                        secondaryArray.push(weArray[i]);
+                    } else if (itemObj.type == 'Melee') {
+                        meleeArray.push(weArray[i]);
+                    } else if (itemObj.type == 'Temporary') {
+                        temporaryArray.push(weArray[i]);
+                    } else {
+                        debug('Unknown type ' + itemObj.type + ' for weapon ID ' + ID);
+                    }
+                } else {
+                    debug('Error finding item ' + ID + ' in itemsArray!');
+                }
+            }
+
+            weRows = buildWeTableRows();
+            fhRows = buildFhTableRows(fhArray);
+            modifyPage();
+        }
+
+        // Build our new DIV
+        function modifyPage() {
+            log('[tornWeSpreadsheet] modifyPage');
+
+            // Install above this div
+            let refDiv = $("#loadoutsRoot");
+            if (!refDiv) return setTimeout(modifyPage, 250);
+
+            if (validPointer(document.querySelector("#xedx-we-spreadsheet-div"))) {
+                debug('New WE and FH div already installed!');
+                return;
+            }
+            let newDiv = newTopDiv() + fhRows + newMiddleDiv() + weRows + newBottomDiv();
+
+            $(newDiv).insertBefore(refDiv);
+            setTitlebar();
+            installClickHandler();
+
+            // Add all tooltips
+            // displayToolTip(li, text + CRLF + CRLF + text2);
+            addWeaponTypeToolTips();
+        }
+
+        function addWeaponTypeToolTips() {
+            const typeIDs = ["machits", "rifhits", "piehits", "axehits", "smghits", "pishits",
+                             "chahits", "grehits", "heahits", "shohits", "slahits", "h2hhits"];
+
+            addToolTipStyle();
+
+            for (let i=0; i<typeIDs.length; i++) {
+                displayToolTip($("#" + typeIDs[i]), getToolTipText(typeIDs[i]));
+            }
+        }
+
+        function machineGunText() {
+            return  '<B>Machine Gun Weapons:</B>' + CRLF + CRLF +
+                    TAB + "PKM" + CRLF +
+                    TAB + "Stoner 96" + CRLF +
+                    TAB + "Negev NG-5" + CRLF +
+                    TAB + "Rheinmetall MG 3" + CRLF +
+                    TAB + "Snow Cannon" + CRLF +
+                    TAB + "M249 SAW" + CRLF +
+                    TAB + "Minigun" + CRLF;
+        }
+        function mechanicalText() {
+            return  '<B>Mechanical Weapons:</B>' + CRLF + CRLF +
+                    TAB + "Bolt Gun" + CRLF +
+                    TAB + "Taser" + CRLF +
+                    TAB + "Chainsaw" + CRLF;
+        }
+        function SubMachineGunText() {
+            return  '<B>Sub Machine Guns:</B>' + CRLF + CRLF +
+                    TAB + "Dual TMPs" + CRLF +
+                    TAB + "Dual Bushmasters" + CRLF +
+                    TAB + "Dual MP5s" + CRLF +
+                    TAB + "Dual P90s" + CRLF +
+                    TAB + "Dual Uzis" + CRLF +
+                    TAB + "Pink Mac-10" + CRLF +
+                    TAB + "9mm Uzi" + CRLF +
+                    TAB + "MP5k" + CRLF +
+                    TAB + "Skorpion" + CRLF +
+                    TAB + "TMP" + CRLF +
+                    TAB + "Thompson" + CRLF +
+                    TAB + "MP 40" + CRLF +
+                    TAB + "AK74U" + CRLF +
+                    TAB + "Bushmaster Carbon 15" + CRLF +
+                    TAB + "P90" + CRLF +
+                    TAB + "BT MP9" + CRLF +
+                    TAB + "MP5 Navy" + CRLF;
+        }
+        function rifleText() {
+            return  '<B>Rifle Weapons:</B>' + CRLF + CRLF +
+                    TAB + "Prototype" + CRLF +
+                    TAB + "Gold Plated AK-47" + CRLF +
+                    TAB + "SIG 552" + CRLF +
+                    TAB + "ArmaLite M-15A4" + CRLF +
+                    TAB + "SIG 550" + CRLF +
+                    TAB + "SKS Carbine" + CRLF +
+                    TAB + "Heckler & Koch SL8" + CRLF +
+                    TAB + "Tavor TAR-21" + CRLF +
+                    TAB + "Vektor CR-21" + CRLF +
+                    TAB + "XM8 Rifle" + CRLF +
+                    TAB + "M4A1 Colt Carbine" + CRLF +
+                    TAB + "M16 A2 Rifle" + CRLF +
+                    TAB + "AK-47" + CRLF +
+                    TAB + "Enfield SA-80" + CRLF +
+                    TAB + "Steyr AUG" + CRLF;
+        }
+        function piercingText() {
+            return  '<B>Piercing Weapons:</B>' + CRLF + CRLF +
+                    TAB + "Tranquilizer Gun" + CRLF +
+                    TAB + "Scalpel" + CRLF +
+                    TAB + "Wand of Destruction" + CRLF +
+                    TAB + "Poison Umbrella" + CRLF +
+                    TAB + "Meat Hook" + CRLF +
+                    TAB + "Devil's Pitchfork" + CRLF +
+                    TAB + "Pair of High Heels" + CRLF +
+                    TAB + "Fine Chisel" + CRLF +
+                    TAB + "Diamond Icicle" + CRLF +
+                    TAB + "Twin Tiger Hooks" + CRLF +
+                    TAB + "Harpoon" + CRLF +
+                    TAB + "Ice Pick" + CRLF +
+                    TAB + "Sai" + CRLF +
+                    TAB + "Ninja Claws" + CRLF +
+                    TAB + "Spear" + CRLF +
+                    TAB + "Crossbow" + CRLF +
+                    TAB + "Dagger" + CRLF +
+                    TAB + "Butterfly Knife" + CRLF +
+                    TAB + "Pen Knife" + CRLF +
+                    TAB + "Blowgun" + CRLF +
+                    TAB + "Diamond Bladed Knife" + CRLF +
+                    TAB + "Macana" + CRLF +
+                    TAB + "Swiss Army Knife" + CRLF +
+                    TAB + "Kitchen Knife" + CRLF;
+        }
+        function clubbingText() {
+            return  '<B>Clubbing Weapons:</B>' + CRLF + CRLF +
+                    TAB + "Millwall Brick" + CRLF +
+                    TAB + "Handbag" + CRLF +
+                    TAB + "Sledgehammer" + CRLF +
+                    TAB + "Penelope" + CRLF +
+                    TAB + "Duke's Hammer" + CRLF +
+                    TAB + "Madball" + CRLF +
+                    TAB + "Dual Axes" + CRLF +
+                    TAB + "Flail" + CRLF +
+                    TAB + "Dual Hammers" + CRLF +
+                    TAB + "Golden Broomstick" + CRLF +
+                    TAB + "Petrified Humerus" + CRLF +
+                    TAB + "Ivory Walking Cane" + CRLF +
+                    TAB + "Wushu Double Axes" + CRLF +
+                    TAB + "Cricket Bat" + CRLF +
+                    TAB + "Wooden Nunchakus" + CRLF +
+                    TAB + "Pillow" + CRLF +
+                    TAB + "Slingshot" + CRLF +
+                    TAB + "Metal Nunchakus" + CRLF +
+                    TAB + "Bo Staff" + CRLF +
+                    TAB + "Frying Pan" + CRLF +
+                    TAB + "Axe" + CRLF +
+                    TAB + "Knuckle Dusters" + CRLF +
+                    TAB + "Lead Pipe" + CRLF +
+                    TAB + "Crowbar" + CRLF +
+                    TAB + "Plastic Sword" + CRLF +
+                    TAB + "Baseball Bat" + CRLF +
+                    TAB + "Hammer" + CRLF;
+        }
+        function pistolText() {
+            return  '<B>Pistol Weapons:</B>' + CRLF + CRLF +
+                TAB + "Beretta Pico" + CRLF +
+                TAB + "S&W M29" + CRLF +
+                TAB + "Cobra Derringer" + CRLF +
+                TAB + "Desert Eagle" + CRLF +
+                TAB + "Luger" + CRLF +
+                TAB + "Beretta 92FS" + CRLF +
+                TAB + "Dual 92G Berettas" + CRLF +
+                TAB + "Fiveseven" + CRLF +
+                TAB + "Qsz-92" + CRLF +
+                TAB + "Springfield 1911" + CRLF +
+                TAB + "Flare Gun" + CRLF +
+                TAB + "Beretta M9" + CRLF +
+                TAB + "Magnum" + CRLF +
+                TAB + "S&W Revolver" + CRLF +
+                TAB + "Ruger 22/45" + CRLF +
+                TAB + "Lorcin 380" + CRLF +
+                TAB + "Taurus" + CRLF +
+                TAB + "Raven MP25" + CRLF +
+                TAB + "USP" + CRLF +
+                TAB + "Glock 17" + CRLF;
+        }
+        function tempText() {
+            return  '<B>Temporary, damaging Weapons:</B>' + CRLF + CRLF +
+                TAB + "Nerve Gas" + CRLF +
+                TAB + "Semtex" + CRLF +
+                TAB + "Concussion Grenade" + CRLF +
+                TAB + "Sand" + CRLF +
+                TAB + "Nail Bomb" + CRLF +
+                TAB + "Book" + CRLF +
+                TAB + "Claymore Mine" + CRLF +
+                TAB + "Fireworks" + CRLF +
+                TAB + "Throwing Knife" + CRLF +
+                TAB + "Molotov Cocktail" + CRLF +
+                TAB + "Stick Grenade" + CRLF +
+                TAB + "Snowball" + CRLF +
+                TAB + "Trout" + CRLF +
+                TAB + "Ninja Star" + CRLF +
+                TAB + "HEG" + CRLF +
+                TAB + "Grenade" + CRLF +
+                TAB + "Brick" + CRLF;
+        }
+        function heavyArtilleryText() {
+             return  '<B>Heavy Artillery Weapons:</B>' + CRLF + CRLF +
+                    TAB + "Milkor MGL" + CRLF +
+                    TAB + "SMAW Launcher" + CRLF +
+                    TAB + "China Lake" + CRLF +
+                    TAB + "Neutrilux 2000" + CRLF +
+                    TAB + "Egg Propelled Launcher" + CRLF +
+                    TAB + "RPG Launcher" + CRLF +
+                    TAB + "Type 98 Anti Tank" + CRLF +
+                    TAB + "Flamethrower" + CRLF;
+        }
+        function shotgunText() {
+            return  '<B>Shotgun Weapons:</B>' + CRLF + CRLF +
+                TAB + "Nock Gun" + CRLF +
+                TAB + "Homemade Pocket Shotgun" + CRLF +
+                TAB + "Blunderbuss" + CRLF +
+                TAB + "Jackhammer" + CRLF +
+                TAB + "Ithaca 37" + CRLF +
+                TAB + "Mag 7" + CRLF +
+                TAB + "Benelli M4 Super" + CRLF +
+                TAB + "Sawed-Off Shotgun" + CRLF +
+                TAB + "Benelli M1 Tactical" + CRLF;
+        }
+        function slashingText() {
+            return  '<B>Slashing Weapons:</B>' + CRLF + CRLF +
+                TAB + "Bug Swatter" + CRLF +
+                TAB + "Bread Knife" + CRLF +
+                TAB + "Riding Crop" + CRLF +
+                TAB + "Cleaver" + CRLF +
+                TAB + "Dual Scimitars" + CRLF +
+                TAB + "Naval Cutlass" + CRLF +
+                TAB + "Dual Samurai Swords" + CRLF +
+                TAB + "Pair of Ice Skates" + CRLF +
+                TAB + "Blood Spattered Sickle" + CRLF +
+                TAB + "Guandao" + CRLF +
+                TAB + "Kama" + CRLF +
+                TAB + "Yasukuni Sword" + CRLF +
+                TAB + "Chain Whip" + CRLF +
+                TAB + "Claymore Sword" + CRLF +
+                TAB + "Katana" + CRLF +
+                TAB + "Rusty Sword" + CRLF +
+                TAB + "Samurai Sword" + CRLF +
+                TAB + "Scimitar" + CRLF +
+                TAB + "Kodachi" + CRLF +
+                TAB + "Leather Bullwhip" + CRLF;
+        }
+        function hand2handText() {
+            return "I hope it's obvious - feet and hands." + CRLF;
+        }
+
+        function getToolTipText(id) {
+            switch (id) {
+                case "machits":
+                    return machineGunText();
+                case "rifhits":
+                    return rifleText();
+                case "piehits":
+                    return piercingText();
+                case "axehits":
+                    return clubbingText();
+                case "smghits":
+                    return SubMachineGunText();
+                case "pishits":
+                    return pistolText();
+                case "chahits":
+                    return mechanicalText();
+                case "grehits":
+                    return tempText();
+                case "heahits":
+                    return heavyArtilleryText();
+                case "shohits":
+                    return shotgunText();
+                case "slahits":
+                    return slashingText();
+                case "h2hhits":
+                    return hand2handText();
+                default:
+                    return null;
+
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Helper functions
+        //////////////////////////////////////////////////////////////////////
+
+        // Helper to set the title in the title bar to reflect # of weapons completed to 100%
+        function setTitlebar() {
+            let titleBar = document.querySelector("#xedx-we-title");
+            if (!validPointer(titleBar)) {
+                setTimeout(setTitlebar, 1000);
+            } else {
+                let rfPct = Math.round((fhArray.roundsfired/1000000)*100);
+                let dmgPct = Math.round((fhArray.attackdamage) /100000000*100);
+                //document.querySelector("#xedx-we-title").innerText = "WE and Finishing Hits: " +
+                titleBar.innerText = "WE and Finishing Hits: " +
+                    weAt100pct + " weapons at 100%, Rounds fired: " + numberWithCommas(fhArray.roundsfired) + "/1,000,000 (" + rfPct + "%)," +
+                    " Total damage: " + numberWithCommas(fhArray.attackdamage) + "/100,000,000 (" + dmgPct + "%)";
+
+                $("#xedx-fh-hdr")[0].textContent = 'Finishing hits: ' + fhRemains + ' remain, about ' + numberWithCommas(fhRemains * 25) + 'e';
+            }
+        }
+
+        // Function to build the table rows from our arrays for Weapon Experience
+        function buildWeTableRows() {
+            let maxRows = Math.max(primaryArray.length, secondaryArray.length, meleeArray.length, temporaryArray.length);
+            if (maxRows < 1) {return;}
+
+            let result = '';
+            for (let i = 0; i < maxRows; i++) {
+                result += '<tr style="height: 23px;">'; // Start row
+
+                let arrays = [primaryArray, secondaryArray, meleeArray, temporaryArray];
+                for (let j = 0; j < 4; j++) {
+                    let useArray = arrays[j];
+                    if (validPointer(useArray[i])) {
+                        result += buildWeCell(useArray[i]);
+                    } else {
+                        result += '<td class="xtdx"></td>'; // Empty cell
+                    }
+                }
+                result += '</tr>'; // End row
+            }
+            return result;
+        }
+
+        // Helper to build and color-code an individual cell for WE
+        function buildWeCell(weItem) {
+            let itemObj = getInventoryById(weItem.itemID);
+            let color = (weItem.exp == 100) ? 'xtdx-green' :
+                (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
+            if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
+
+            let output = '<td class="xtdx ' + color + '">' +
+                '<span style="float:left">' + weItem.name +
+                '</span><span style="float:right">' + weItem.exp + '%</span></td>';
+
+            return output;
+        }
+
+        // Function to build the table rows from our arrays for Finishing Hits
+        function buildFhTableRows(obj) { // obj is a personalstats object
+            let result = '<tr>';
+            result += buildFhCell('Machine Guns', obj.machits, "machits");
+            result += buildFhCell('Rifles', obj.rifhits, "rifhits");
+            result += buildFhCell('Piercing', obj.piehits, "piehits");
+            result += buildFhCell('Clubbing', obj.axehits, "axehits");
+            result += '</tr><tr>';
+            result += buildFhCell('Sub Machine Guns', obj.smghits, "smghits");
+            result += buildFhCell('Pistols', obj.pishits, "pishits");
+            result += buildFhCell('Mechanical', obj.chahits, "chahits");
+            result += buildFhCell('Temporary', obj.grehits, "grehits");
+            result += '</tr><tr>';
+            result += buildFhCell('Heavy Artillery', obj.heahits, "heahits");
+            result += buildFhCell('Shotguns', obj.shohits, "shohits");
+            result += buildFhCell('Slashing', obj.slahits, "slahits");
+            result += buildFhCell('Hand to Hand', obj.h2hhits, "h2hhits");
+            result += '</tr>';
+
+            fhRemains = calcRemainingFinishingHits(obj);
+
+            return result;
+        }
+
+        // Helper to add together remaining finishing hits
+        function calcRemainingFinishingHits(obj) {
+            let result = remainingHits(obj.machits);
+            result += remainingHits(obj.rifhits);
+            result += remainingHits(obj.piehits);
+            result += remainingHits(obj.axehits);
+            result += remainingHits(obj.smghits);
+            result += remainingHits(obj.pishits);
+            result += remainingHits(obj.chahits);
+            result += remainingHits(obj.grehits);
+            result += remainingHits(obj.heahits);
+            result += remainingHits(obj.shohits);
+            result += remainingHits(obj.slahits);
+            result += remainingHits(obj.h2hhits);
+
+            return result;
+        }
+
+        function remainingHits(count) {
+            return (count > 1000) ? 0 : 1000 - count;
+        }
+
+        // Helper to build and color-code an individual cell for FH
+        function buildFhCell(name, count, id=null) {
+            let color = (count >= 1000) ? 'xtdx-green' : (count >= 750 ? 'xtdx-orange' : 'xtdx-red');
+            let result = '<td class="xtdx ' + color + '"' + (id ? ('id="' + id + '"') : '' ) + '><span style="float:left">' + name +
+                '</span><span style="float:right">' + numberWithCommas(count) + '</span></td>';
+            return result;
+        }
+
+        // Helper to get item object by ID
+        function getItemById(itemID) {
+            let itemObj = itemsArray[itemID.toString()];
+            return itemObj;
+        }
+
+        // Helper to get inventory object by ID
+        function getInventoryById(itemID) {
+            let itemObjs = inventoryArray.filter(item => item.ID == itemID);
+            return itemObjs[0];
+        }
+
+        // Helper to toggle body div on arrow click
+        function installClickHandler() {
+            const bodyDiv = document.getElementById('xedx-we-spreadsheet-body');
+            const bodyDiv2 = document.getElementById('xedx-fh-spreadsheet-body');
+            const headerDiv = document.getElementById('xedx-we-spreadsheet-hdr-div');
+            const arrowDiv = headerDiv.parentElement; // xedx-we-spreadsheet-div ??
+
+            arrowDiv.addEventListener("click", function() {
+                if (bodyDiv.style.display === "block") {
+                    bodyDiv.style.display = "none";
+                    bodyDiv2.style.display = "none";
+                    headerDiv.className = 'title main-title title-black border-round';
+                } else {
+                    bodyDiv.style.display = "block";
+                    bodyDiv2.style.display = "block";
+                }
+            });
+        }
+
+        // These are all functions to help reduce clutter in here, can use code folding
+        function newTopDiv() {
+            return '<div class="sortable-box t-blue-cont h" id="xedx-we-spreadsheet-div">' +
+                         '<div class="title main-title title-black top-round active box" role="table" aria-level="5" id="xedx-we-spreadsheet-hdr-div">' +
+                             '<div class="arrow-wrap sortable-list">' +
+                                 '<a role="button" href="#/" class="accordion-header-arrow right"></a>' +
+                             '</div>' +
+                             '<div class="box"><span id="xedx-we-title">Weapon Experience and Finishing Hits</span></div>' +
+                         '</div>' +
+                             '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-fh-spreadsheet-body">' +
+                                 '<div class="cont-gray" style="height: auto;" id="xedx-fh-spreadsheet-cont">' +
+                                     // Finishing hits table
+                                     '<table id="xedx-fh-spreadsheet-table" style="width: 782px;">' +
+                                         '<thead><tr>' +
+                                             '<th class="xthx" id="xedx-fh-hdr" colspan="4" scope="colgroup">Finishing Hits</th>' +
+                                         '</tr></thead>' +
+                                         '<tbody>'; // Start table
+
+                                         /* Rows (fhRows) will be inserted here */
+        }
+
+        function newMiddleDiv() {
+            return '</tbody>' + // End table
+                                     '</table>' +
+                                 '</div>' +
+                             '</div>' +
+
+                             '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-we-spreadsheet-body">' +
+                                 '<div class="cont-gray" style="height: auto;" id="xedx-we-spreadsheet-cont">' +
+                                     // Weapon Experience table
+                                     '<table id="xedx-we-spreadsheet-table" style="width: 782px;">' +
+                                         //'<thead><tr>' +
+                                         //    '<th class="xthx" colspan="4" scope="colgroup">Weapon Experience</th>' +
+                                         //'</tr></thead>' +
+                                         '<thead><tr>' +
+                                             '<th class="xthx">Primary</th>' +
+                                             '<th class="xthx">Secondary</th>' +
+                                             '<th class="xthx">Melee</th>' +
+                                             '<th class="xthx">Temporary</th>' +
+                                         '</tr></thead>' +
+                                         '<tbody>'; // Start table
+
+                                         /* Rows (weRows) will be inserted here */
+        }
+
+        function newBottomDiv() {
+           return            '</tbody>' + // End table
+                                     '</table>' +
+                                 '</div>' +
+                             '</div>' +
+                         '</div>' +
+                     '</div>' +
+                 '</div>' +
+                 '<hr class="delimiter-999 m-top10 m-bottom10"></hr>';
+        }
+
+        // Load CSS styles for the new UI.
+        function loadTableStyles() {
+            log('Loading table styles.');
+            GM_addStyle(`.box {display: flex; align-items: center; justify-content: center; flex-direction: column;}`);
+
+            // General cell styles
+            GM_addStyle(".xthx, .xtdx {" +
+                        (useCellBackground ? '' : "background: #333333 !important;") +
+                        "border-width: 1px !important;" +
+                        "border-style: solid !important;" +
+                        "border-color: #5B5B5B !important;" +
+                        "padding: 0.5rem !important;" +
+                        "vertical-align: middle !important;" +
+                        "color: white; !important;" +
+                        "text-align: center;" + // hmmm - seems redundant/not needed
+                        "}");
+
+            // Cell alignment
+            GM_addStyle(`.xtdx-left {text-align: left;}
+                        .xtdx-center {text-align: center;}
+                        .xtdx-right {text-align: right;}`);
+
+            // Cell colors. Text or background.
+            if (useCellBackground) {
+                GM_addStyle(`.xtdx-green {background: green;}
+                             .xtdx-red {background: red;}
+                             .xtdx-yellow {background: yellow;}
+                             .xtdx-orange {background: orange;}`);
+            } else {
+                GM_addStyle(`.xtdx-green {color: green;}
+                             .xtdx-red {color: red;}
+                             .xtdx-yellow {color: yellow;}
+                             .xtdx-orange {color: orange;}`);
+            }
+        }
+
     } // End function tornWeSpreadsheet() {
+
+    function removeWeSpreadsheet() {$("#xedx-we-spreadsheet-div").remove()}
 
     //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn See The Temps" (called immediately)
@@ -3977,10 +5025,10 @@
 
         // ITEMS: @match        https://www.torn.com/items.php*
         setGeneralCfgOpt("tornItemHints", "Torn Item Hints", tornItemHints, null, "items");
-        setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper", tornMuseumSetHelper, null, "items", false);
+        setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper", tornMuseumSetHelper, null, "items", true);
         setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options", tornWeaponSort, null, "items", true);
         setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", tornWeTracker, null, "items", true);
-        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", tornWeSpreadsheet, null, "items", false);
+        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", tornWeSpreadsheet, removeWeSpreadsheet, "items", true);
 
         // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
         setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", tornSeeTheTemps, null, "attack");
@@ -4489,6 +5537,8 @@
         if (opts_enabledScripts.tornWeaponSort.enabled) {tornWeaponSort().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornWeTracker.enabled) {tornWeTracker().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornWeSpreadsheet.enabled) {tornWeSpreadsheet().then(a => _a(a), b => _b(b));}
 
     }
 
