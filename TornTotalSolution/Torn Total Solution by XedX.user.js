@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -10,6 +10,7 @@
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
@@ -107,6 +108,7 @@
     var personalStats = null;
     var honorsAwarded = null;
     var attacks = null;
+    var weArray = null;
 
     var userId = null;
     var userName = null;
@@ -131,7 +133,7 @@
     // Get data used for most of the handlers in here, in one call.
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
-        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors', callback);
+        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp', callback);
     }
 
     // Callback for above
@@ -144,6 +146,7 @@
         personalStats = jsonResp.personalstats;
         honorsAwarded = jsonResp.honors_awarded;
         attacks = jsonResp.attacks;
+        weArray = jsonResp.weaponexp;
 
         userId = jsonResp.player_id;
         userName = jsonResp.name;
@@ -1858,7 +1861,7 @@
         const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
         const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
         const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
-        const pageDiv = document.querySelector(pageDivSelector);
+        const pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
         const mainItemsDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap";
         let pageName = null;
         let pageSpan = null;
@@ -1967,7 +1970,6 @@
     // Handlers for "Torn Weapon Sort" (called at content complete)
     //////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
     function tornWeaponSort() {
 
         return _tornWeaponSort();
@@ -1976,21 +1978,332 @@
              log('[tornWeaponSort]');
 
             return new Promise((resolve, reject) => {
+
+                initStatics();
+
                 if (location.href.indexOf("item.php") < 0) return reject('tornWeaponSort wrong page!');
                 if (abroad()) return reject('tornWeaponSort not at home!');
 
-                reject('[tornWeaponSort] not yet implemented!');
+                GM_addStyle(`.xedx-ctrls {margin: 10px;}`);
 
-                //resolve("[tornWeaponSort] complete!");
+                installUI();
+
+                if (tornWeaponSort.pageObserver == null) { // Watch for active page changes.
+                    tornWeaponSort.pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
+                    var callback = function(mutationsList, observer) {
+                        log('[tornWeaponSort] Observer triggered - page change!');
+                        lastSortOrder = 'Default';
+                        sortPage(true);
+                    };
+                    tornWeaponSort.pageObserver = new MutationObserver(callback);
+                    observeOn();
+                }
+
+                sortPage();
+
+                resolve("[tornWeaponSort] startup complete!");
             });
         }
+
+        // Function to sort the page
+        function sortPage(pageChange = false) {
+            let lastPage =  tornWeaponSort.pageName;
+            tornWeaponSort.pageName = getPageName();
+            debug('[tornWeaponSort] sortPage: pageName = "' +  tornWeaponSort.pageName + '" pageChange = "' + pageChange + '"');
+            if ((lastPage != '') && ( tornWeaponSort.pageName.indexOf(lastPage) == -1) && (pageChange == false)) {
+                debug('[tornWeaponSort] Went from page "' + lastPage + '" to "' +  tornWeaponSort.pageName +'"');
+            } else if (pageChange) {
+                debug('[tornWeaponSort] pageChange (observer): "' + lastPage + '" --> "' +  tornWeaponSort.pageName + '"');
+            } else {
+                debug('[tornWeaponSort] pageChange: "' + lastPage + '" --> "' +  tornWeaponSort.pageName + '"');
+            }
+            debug('[tornWeaponSort] Observing = ' +  tornWeaponSort.observing);
+
+            // Hide/show UI as appropriate
+            let itemUL = null;
+            if ( tornWeaponSort.pageName == 'Primary') {
+                enableSortDiv();
+                itemUL = $("#primary-items")[0];
+            } else if ( tornWeaponSort.pageName == 'Secondary') {
+                enableSortDiv();
+                itemUL = $("#secondary-items")[0];
+            } else if ( tornWeaponSort.pageName == 'Melee') {
+                enableSortDiv();
+                itemUL = $("#melee-items")[0];
+            } else {
+                enableSortDiv(false);
+                return; // Not on a weapons page, go home.
+            }
+
+            // If not sorting, bail
+            debug('[tornWeaponSort] sortPage: Auto Sort is ' + (tornWeaponSort.autosort ? 'ON' : 'OFF'));
+            if (!tornWeaponSort.autosort) {
+                debug('[tornWeaponSort] Auto Sort not on, going home.');
+                return;
+            }
+
+            // Make sure fully loaded.
+            let items = itemUL.getElementsByTagName("li");
+            let itemLen = items.length;
+            log('[tornWeaponSort] ' +  tornWeaponSort.pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
+            if (itemLen <= 1) { // Not fully loaded: come back later
+                return setTimeout(function(){ sortPage(true); }, 500);
+            }
+
+            let sorted = false, sortSel = null;
+            if (tornWeaponSort.lastSortOrder == tornWeaponSort.sortOrder[tornWeaponSort.selID]) return;
+             tornWeaponSort.lastSortOrder = tornWeaponSort.sortOrder[tornWeaponSort.selID];
+
+            observeOff(); // Don't call ourselves while sorting.
+            setSumTotal(itemUL); // Create the 'totalStats' attr.
+
+            debug('[tornWeaponSort] Preparing to sort by ' + tornWeaponSort.sortOrder[tornWeaponSort.selID]);
+
+            let order = 'desc';
+            let attr = '';
+            switch (tornWeaponSort.sortOrder[ tornWeaponSort.selID]) {
+                case 'Default':
+                    location.reload();
+                    observeON();
+                    return;
+                case 'Accuracy':
+                    setSelectors(itemUL);
+                    sorted = true;
+                    sortSel =  tornWeaponSort.accSel;
+                    break;
+                case 'Damage':
+                    setSelectors(itemUL);
+                    sorted = true;
+                    sortSel = tornWeaponSort.dmgSel;
+                    break;
+                case 'Total':
+                    attr = 'totalStats';
+                    sorted = true;
+                    break;
+                case 'Name':
+                    sorted = true;
+                    order = 'asc';
+                    sortSel = "div.title-wrap > div > span.name-wrap > span.name";
+                    break;
+                default:
+                    break;
+            }
+
+            if (!sorted) {
+                debug('[tornWeaponSort] Not sorting by ' + tornWeaponSort.sortOrder[ tornWeaponSort.selID]);
+            } else {
+                debug('[tornWeaponSort] Sorting by ' + tornWeaponSort.sortOrder[ tornWeaponSort.selID]);
+                debug('[tornWeaponSort] selector = "' + sortSel + '" attr = "' + attr + '"');
+                let matches = itemUL.querySelectorAll("li[data-weaponinfo='1']");
+                if (attr) {
+                    tinysort(matches, {attr: attr, order: order});
+                } else {
+                    tinysort(matches, {selector: sortSel, order: order});
+                }
+            }
+
+            observeOn();
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        //
+        // Find each pertinent li, meaning which child it is. It *may*
+        // vary, for example, if my WE script is installed, and WE hasn't
+        // yet gotten here yet. So need to check each time, but only on first weapon.
+        // We need this number, which 'nth' child:
+        // document.querySelector(div.cont-wrap > div.bonuses.left > ul > li:nth-child(2) > span")
+        //
+        //////////////////////////////////////////////////////////////////////
+
+        function setSelectors(itemUL) {
+            debug('[tornWeaponSort] setSelectors ==>');
+            let firstItemSel = itemUL.querySelector("li.bg-green");
+            if (!firstItemSel) firstItemSel = itemUL.querySelectorAll("li.t-first-in-row")[0];
+            debug('[tornWeaponSort] setSelectors: firstItemSel = ', firstItemSel);
+            let liList = firstItemSel.querySelectorAll("div.cont-wrap > div.bonuses.left > ul > li");
+            debug('[tornWeaponSort] setSelectors: liList = ', liList);
+            for (let i=0; i<liList.length; i++) {
+                let iSel = liList[i].querySelector('i');
+                if (!iSel) continue;
+                if (iSel.classList[0].indexOf('damage') > -1) {
+                    tornWeaponSort.dmgSel = "div.cont-wrap > div.bonuses.left > ul > li:nth-child(" + (i+1) + ") > span";
+                }
+                if (iSel.classList[0].indexOf('accuracy') > -1) {
+                    tornWeaponSort.accSel = "div.cont-wrap > div.bonuses.left > ul > li:nth-child(" + (i+1) + ") > span";
+                }
+            }
+            debug('[tornWeaponSort] <== setSelectors');
+        }
+
+        // Summ acc and dmg to sort by sum total
+        function setSumTotal(itemUL) {
+            debug('[tornWeaponSort] setSumTotal ==>');
+            let items = itemUL.children;
+            for (let j = 0; j < items.length; j++) {
+                let dmg = 0, acc = 0;
+                let liList = items[j].querySelectorAll("div.cont-wrap > div.bonuses.left > ul > li");
+                for (let i=0; i<liList.length; i++) {
+                    let iSel = liList[i].querySelector('i');
+                    if (!iSel) continue;
+                    if (iSel.classList[0].indexOf('damage') > -1) {
+                        tornWeaponSort.dmgSel = "div.cont-wrap > div.bonuses.left > ul > li:nth-child(" + (i+1) + ") > span";
+                        dmg = Number(items[j].querySelector(tornWeaponSort.dmgSel).innerText);
+                    }
+                    if (iSel.classList[0].indexOf('accuracy') > -1) {
+                        tornWeaponSort.accSel = "div.cont-wrap > div.bonuses.left > ul > li:nth-child(" + (i+1) + ") > span";
+                        acc = Number(items[j].querySelector( tornWeaponSort.accSel).innerText);
+                    }
+                }
+                if (dmg && acc) items[j].setAttribute('totalStats', (dmg + acc));
+                //if (dmg && acc) items[j].setAttribute('totalStats', (dmg * acc));
+            }
+            debug('[tornWeaponSort] <== setSumTotal');
+        }
+
+        function installUI() {
+            debug('[tornWeaponSort] installUI');
+            let parent = document.querySelector("#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.equipped-items-wrap");
+            if (!parent) return setTimeout(installUI, 50);
+            if (!document.querySelector("xedx-weapon-sort")) {
+                let optionsDiv = getOptionsDiv();
+                $(optionsDiv).insertAfter(parent);
+            }
+
+            // Install handlers and default states
+            let ckBox = document.querySelector("#autosort");
+            if (!ckBox) return setTimeout(installUI, 50);
+
+            tornWeaponSort.autosort = GM_getValue('wsort-checkbox', tornWeaponSort.autosort);
+            ckBox.checked = tornWeaponSort.autosort;
+            ckBox.addEventListener("click", onCheckboxClicked);
+
+            tornWeaponSort.selID = GM_getValue('wsort-selectedBtn', tornWeaponSort.selID);
+            let btn = document.querySelector("#" + tornWeaponSort.selID); // querySelector("#\\3" + selID);
+            btn.checked = true;
+            btn.click();
+            GM_setValue('wsort-selectedBtn', tornWeaponSort.selID);
+            $('input[type="radio"]').on('click change', onRadioClicked);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Helpers
+        //////////////////////////////////////////////////////////////////////
+
+        // Turn on/off sort option div.
+        function enableSortDiv(enable=true) {
+            let sortSel = document.querySelector("#xedx-weapon-sort");
+            debug('[tornWeaponSort] enableSortDiv enable = ' + enable + ' selector: ' + sortSel);
+            if (sortSel) sortSel.setAttribute('style', 'display: ' + (enable ? 'block' : 'none'));
+        }
+
+        // Handle the sort type radio buttons
+        function onRadioClicked(e) {
+            tornWeaponSort.lastSelID = tornWeaponSort.selID;
+            tornWeaponSort.selID = document.querySelector('input[name="sortopts"]:checked').value;
+            if (tornWeaponSort.lastSelID == tornWeaponSort.selID) return;
+            debug('[tornWeaponSort] Radio Button Selected: ' + tornWeaponSort.selID);
+            GM_setValue('wsort-selectedBtn', tornWeaponSort.selID);
+            debug('[tornWeaponSort] onRadioClicked: Sorting page by ' + tornWeaponSort.sortOrder[tornWeaponSort.selID]);
+            sortPage();
+        }
+
+        // Handle the "Auto Sort" checkbox
+        function onCheckboxClicked() {
+            let ckBox = document.querySelector("#autosort");
+            GM_setValue('wsort-checkbox', ckBox.checked);
+            tornWeaponSort.autosort = ckBox.checked;
+            debug('[tornWeaponSort] onCheckboxClicked: Auto Sort is ' + (tornWeaponSort.autosort ? 'ON' : 'OFF'));
+        }
+
+        // Returns the page name of current page
+        function getPageName() {
+            let pageSpan = document.querySelector(tornWeaponSort.pageSpanSelector);
+            let pageName = pageSpan.innerText;
+            debug("[tornWeaponSort] On page '" + pageName + "'");
+            return pageName;
+        }
+
+        // Helpers to turn on and off the observer
+        function observeOff() {
+            debug('[tornWeaponSort] disconnecting observer.');
+            if (tornWeaponSort.observing &&  tornWeaponSort.pageObserver) {
+                debug('disconnected observer.');
+                tornWeaponSort.pageObserver.disconnect();
+                tornWeaponSort.observing = false;
+            }
+        }
+
+        function observeOn() {
+            if (tornWeaponSort.pageObserver) {
+                tornWeaponSort.pageObserver.observe( tornWeaponSort.pageDiv,  tornWeaponSort.observerConfig);
+                debug('[tornWeaponSort] observing page.');
+                tornWeaponSort.observing = true;
+            }
+        }
+
+
+        function initStatics() {
+            if (typeof tornWeaponSort.autoSort == 'undefined') {
+                tornWeaponSort.autoSort = false; // TRUE to auto sort on load
+                tornWeaponSort.dmgSel = null; // Selectors for sorting
+                tornWeaponSort.accSel = null; // ...
+                tornWeaponSort.selID = 'xedx-1'; // What to sort by (1 = default, 2 = acc, 3 = dmg, 4 = Q, 5 = name)
+                tornWeaponSort.lastSelID = 'xedx-1'; // Previous selection
+                tornWeaponSort.lastSortOrder = 'Default';
+
+                tornWeaponSort.pageName = ''; // Items page we are on
+                tornWeaponSort.pageDiv = null; // Mis-named selector for items page div.
+                tornWeaponSort.pageObserver = null; // Mutation observer for the page
+                tornWeaponSort.observing = false; // Observer is active
+
+                tornWeaponSort.sortOrder = {
+                    'xedx-0': 'none',
+                    'xedx-1': 'Default',
+                    'xedx-2': 'Accuracy',
+                    'xedx-3': 'Damage',
+                    'xedx-4': 'Total',
+                    'xedx-5': 'Name',
+                };
+                tornWeaponSort.pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
+                tornWeaponSort.pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
+                tornWeaponSort.observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
+            }
+        }
+
+        function getOptionsDiv() {
+            let optionsDiv =
+                '<hr class="page-head-delimiter m-top10 m-bottom10">' +
+                '<div class="t-blue-cont h" id="xedx-weapon-sort" style="display: none;">' +
+                      '<div id="xedx-content-div" class="cont-gray border-round" style="height: auto; overflow: auto;">' +
+                          '<div style="text-align: center">' +
+                              '<span class="xedx-main">' +
+                                  '<div>' +
+                                      '<input class="xedx-ctrls" type="checkbox" id="autosort" name="autosort" value="autosort">' +
+                                      '<label for="confirm">Auto Sort?</label>'+
+                                      '<input class="xedx-ctrls" type="radio" id="xedx-1" class="xedx-oneclick" name="sortopts" data="Default" value="xedx-1">' +
+                                          '<label for="xedx-1">Default</label>' +
+                                      '<input class="xedx-ctrls" type="radio" id="xedx-2" class="xedx-oneclick" name="sortopts" data="Accuracy" value="xedx-2">' +
+                                          '<label for="xedx-2">Accuracy</label>' +
+                                      '<input class="xedx-ctrls" type="radio" id="xedx-3" class="xedx-oneclick" name="sortopts" data="Damage" value="xedx-3">' +
+                                          '<label for="xedx-3">Damage</label>' +
+                                      '<input class="xedx-ctrls" type="radio" id="xedx-4" class="xedx-oneclick" name="sortopts" data="Total" value="xedx-4">' +
+                                          '<label for="xedx-4">Total</label>'+
+                                      '<input class="xedx-ctrls" type="radio" id="xedx-5" class="xedx-oneclick" name="sortopts" data="Name" value="xedx-5">' +
+                                          '<label for="xedx-5">Name</label>'+
+                                  '</div>'+
+                              '</span>' +
+                          '</div>' +
+                      '</div>' +
+                  '</div>';
+            return optionsDiv;
+        }
+
     } // End function tornWeaponSort() {
 
     ////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Weapon Experience Tracker" (called at content complete)
     ////////////////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
     function tornWeTracker() {
 
         return _tornWeTracker();
@@ -1998,15 +2311,167 @@
         function _tornWeTracker() {
              log('[tornWeTracker]');
 
+            // Selectors
+            const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
+            const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
+
+            // Global vars
+            let pageName = ''; // Items page we are on
+            let pageDiv = null;
+            let pageObserver = null; // Mutation observer for the page
+            let observing = false; // Observer is active
+            const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
+
             return new Promise((resolve, reject) => {
                 if (location.href.indexOf("item.php") < 0) return reject('tornWeTracker wrong page!');
                 if (abroad()) return reject('tornWeTracker not at home!');
 
-                reject('[tornWeTracker] not yet implemented!');
+                modifyPage(weArray);
 
-                //resolve("[tornWeTracker] complete!");
+                resolve("[tornWeTracker] complete!");
             });
+
+            // Write out WE onto the page
+            function modifyPage(array, pageChange = false) {
+                if (pageObserver == null) { // Watch for active page changes.
+                    pageDiv = document.querySelector(pageDivSelector);
+                    var callback = function(mutationsList, observer) {
+                        log('[tornWeTracker] Observer triggered - page change!');
+                        log('[tornWeTracker] Setting onload function.');
+                        modifyPage(weArray, true);
+                    };
+                    pageObserver = new MutationObserver(callback);
+                }
+
+                let lastPage = pageName;
+                pageName = getPageName();
+                debug('[tornWeTracker] modifyPage: pageName = "' + pageName + '" pageChange = "' + pageChange + '"');
+                if ((lastPage != '') && (pageName.indexOf(lastPage) == -1) && (pageChange == false)) {
+                    debug('[tornWeTracker] Went from page "' + lastPage + '" to "' + pageName +'"');
+                } else if (array && pageChange) {
+                    debug('[tornWeTracker] pageChange (observer): ' + lastPage + ' --> ' + pageName);
+                } else if (array == null) {
+                    debug('[tornWeTracker] pageChange (timeout): ' + lastPage + ' --> ' + pageName);
+                    array = weArray;
+                }
+                let itemUL = null;
+
+                if (pageName == 'Primary') {
+                    itemUL = $("#primary-items")[0];
+                } else if (pageName == 'Secondary') {
+                    itemUL = $("#secondary-items")[0];
+                } else if (pageName == 'Melee') {
+                    itemUL = $("#melee-items")[0];
+                } else if (pageName == 'Temporary') {
+                    itemUL = $("#temporary-items")[0];
+                } else {
+                    observeOn();
+                    return; // Not on a weapons page
+                }
+
+                let items = itemUL.getElementsByTagName("li");
+                let itemLen = items.length;
+                debug(pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
+                if (itemLen <= 1) { // Not fully loaded: come back later
+                    setTimeout(function(){ modifyPage(null, true); }, 500);
+                    return;
+                }
+
+                observeOff(); // Don't call ourselves while editing.
+
+                debug('[tornWeTracker] modifyPage scanning <li>s');
+                for (let i = 0; i < items.length; ++i) {
+                    let itemLi = items[i]; // <li> selector
+                    let itemID = itemLi.getAttribute('data-item');
+                    if (itemID == null) {continue;} // Not an item
+                    let category = itemLi.getAttribute('data-category');
+                    if (category == null) {continue;} // Child elem.
+
+                    debug('[tornWeTracker] Item ID: ' + itemID + ' Category: ' + category);
+
+                    let nameSel = itemLi.querySelector('div.title-wrap > div > span.name-wrap > span.name');
+                    if (!validPointer(nameSel)) {continue;} // Child elem.
+                    let name = nameSel.innerHTML;
+                    debug('[tornWeTracker] Name: ' + name);
+
+                    let item = getItemByItemID(array, Number(itemID));
+                    let WE = 0;
+                    if (validPointer(item)) {
+                        WE = item.exp;
+                        //log('Weapon Exp.: ' + WE);
+                    } else {
+                        //log('Assuming 0 WE.');
+                    }
+
+                    let bonusUL = itemLi.querySelector('div.cont-wrap > div.bonuses.left > ul');
+                    let ttPriceSel = bonusUL.querySelector('li.bonus.left.tt-item-price');
+                    if (validPointer(ttPriceSel)) {ttPriceSel.remove();}
+                    let weSel = bonusUL.querySelector('li.left.we');
+                    if (validPointer(weSel)) {weSel.remove();}
+                    bonusUL.prepend(buildExpLi(itemLi, WE));
+
+
+                } // End 'for' loop. iterating LI's
+
+                observeOn();
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // Helpers
+            //////////////////////////////////////////////////////////////////////
+
+            // Get 1st object for item ID
+            // @param data - data array to search
+            // @param itemID - ID to look for
+            // @return first JSON object with matching ID
+            function getItemByItemID(data, itemID) {
+                let objs = getItemsByItemID(data, itemID);
+                return objs[0];
+            }
+
+            // Helper for above, get array of objects that match requested ID
+            function getItemsByItemID(data, itemID) {
+                return data.filter(
+                    function(data){ return data.itemID == itemID }
+                );
+            }
+
+            // Build an <li> to display the WE
+            function buildExpLi(itemLi, WE) {
+                let newLi = document.createElement("li");
+                newLi.className = 'we left';
+                let weSpan = document.createElement('span')
+                weSpan.innerHTML = WE + '%';
+                newLi.appendChild(weSpan);
+                return newLi;
+            }
+
+            // Returns the page name of current page
+            function getPageName() {
+                let pageSpan = document.querySelector(pageSpanSelector);
+                let pageName = pageSpan.innerText;
+                debug("[tornWeTracker] On page '" + pageName + "'");
+                return pageName;
+            }
+
+            // Helpers to turn on and off the observer
+            function observeOff() {
+                if (observing && pageObserver) {
+                    pageObserver.disconnect();
+                    debug('[tornWeTracker] disconnected observer.');
+                    observing = false;
+                }
+            }
+
+            function observeOn() {
+                if (pageObserver) {
+                    pageObserver.observe(pageDiv, observerConfig);
+                    debug('[tornWeTracker] observing page.');
+                    observing = true;
+                }
+            }
         }
+
     } // End function tornWeTracker() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -3158,7 +3623,7 @@
             // Handle key presses in the search area -
             function handleSearchKeypress(e) {
                 // Sneaky way to make static 'class' vars, use the fn as a class.
-                 if ( typeof handleSearchKeypress.lastElems == 'undefined' ) {
+                if ( typeof handleSearchKeypress.lastElems == 'undefined' ) {
                     debug('[handleSearchKeypress] intializing lastElems!');
                     handleSearchKeypress.lastElems = [];
                     handleSearchKeypress.currSearch = '';
@@ -3280,6 +3745,71 @@
             });
         }
     } // End function tornJailScores() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Disable Refills" (called on API complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornDisableRefills() {
+
+        return _tornDisableRefills();
+
+        function _tornDisableRefills() {
+            log('[tornDisableRefills]');
+
+            const safetyNet = '<input class="xedx-ctrls" type="checkbox" id="refill_confirm" name="refill_confirm" value="refill_confirm" checked>' +
+                            '<label for="refill_confirm">  Safety Net! Note that clicking the title bar will bypass the safety net.</label>';
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornDisableRefills] not at home!');
+                if (!isPointsPage()) return reject('tornDisableRefills wrong page!');
+
+                xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
+
+                resolve("[tornDisableRefills] startup complete!");
+            });
+
+            function onCheckboxClicked() {
+                let ckBox = document.querySelector("#refill_confirm");
+                tornDisableRefills.safetyOn = ckBox.checked;
+                GM_setValue('refills_checkbox', ckBox.checked);
+            }
+
+            function onRefillClick(e) {
+                let target = e.target;
+                var parent = e.target.parentElement;
+                if (!tornDisableRefills.safetyOn) return;
+                if (target.classList[1] == undefined) {
+                    if ((parent.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                    if ((parent.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+                } else {
+                    if ((target.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                    if ((target.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+                }
+            }
+
+            function refillsUserQueryCB(responseText, id, param) {
+                if (typeof tornDisableRefills.jsonResp == 'undefined' ) {
+                    tornDisableRefills.jsonResp = null;
+                    tornDisableRefills.safetyOn = false;
+                }
+                tornDisableRefills.jsonResp = JSON.parse(responseText);
+                if (tornDisableRefills.jsonResp.error) {return handleApiError(responseText);}
+
+                let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content-title");
+                if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
+                $(titleBar).append(safetyNet);
+
+                let ckBox = document.querySelector("#refill_confirm");
+                ckBox.addEventListener("click", onCheckboxClicked);
+                ckBox.checked = tornDisableRefills.safetyOn = GM_getValue('refills_checkbox', true);
+
+                document.querySelector("#mainContainer > div.content-wrapper > ul").addEventListener('click', onRefillClick, {capture: true}, true);
+            }
+        }
+    } // End function tornDisableRefills() {
+
+    function removeDisableRefills() {$("refill_confirm").remove()}
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -3448,8 +3978,8 @@
         // ITEMS: @match        https://www.torn.com/items.php*
         setGeneralCfgOpt("tornItemHints", "Torn Item Hints", tornItemHints, null, "items");
         setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper", tornMuseumSetHelper, null, "items", false);
-        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options", tornWeaponSort, null, "items", false);
-        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", tornWeTracker, null, "items", false);
+        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options", tornWeaponSort, null, "items", true);
+        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", tornWeTracker, null, "items", true);
         setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", tornWeSpreadsheet, null, "items", false);
 
         // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -3472,6 +4002,9 @@
 
         // FACTION: @match        https://www.torn.com/factions.php?step=your*
         setGeneralCfgOpt("tornFacPageSearch", "Torn Fac Page Search", tornFacPageSearch, removeFacPageSearch, "faction", true);
+
+        // POINTS:  @match        https://www.torn.com/points.php*
+        setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net", tornDisableRefills, removeDisableRefills, "misc", true);
 
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
@@ -3597,6 +4130,8 @@
                         return "#DC143C"; // Crimson
                     case 'faction':
                         return "#FF8C00"; // DarkOrange
+                    case 'misc':
+                        return "#D8BFD8"; // Thistle
                     default:
                         return "#FFE4C4"; // Bisque
                 }
@@ -3870,6 +4405,7 @@
     function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
     function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
     function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
+    function isPointsPage() {return (location.href.indexOf("points.php") > -1)}
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
@@ -3950,6 +4486,10 @@
 
         if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
 
+        if (opts_enabledScripts.tornWeaponSort.enabled) {tornWeaponSort().then(a => _a(a), b => _b(b));}
+
+        if (opts_enabledScripts.tornWeTracker.enabled) {tornWeTracker().then(a => _a(a), b => _b(b));}
+
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -4000,6 +4540,10 @@
 
     if (isRacePage()) {
         if (opts_enabledScripts.tornRacingStyles.enabled) {tornRacingStyles().then(a => _a(a), b => _b(b));}
+    }
+
+    if (isPointsPage()) {
+        if (opts_enabledScripts.tornDisableRefills.enabled) {tornDisableRefills().then(a => _a(a), b => _b(b));}
     }
 
     if (isJailPage()) {
