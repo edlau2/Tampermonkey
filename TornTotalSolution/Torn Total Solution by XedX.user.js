@@ -1992,7 +1992,7 @@
                     tornWeaponSort.pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
                     var callback = function(mutationsList, observer) {
                         log('[tornWeaponSort] Observer triggered - page change!');
-                        lastSortOrder = 'Default';
+                        tornWeaponSort.lastSortOrder = 'Default';
                         sortPage(true);
                     };
                     tornWeaponSort.pageObserver = new MutationObserver(callback);
