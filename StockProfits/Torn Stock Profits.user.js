@@ -40,13 +40,14 @@
         log(GM_info.script.name + ' userStocksCB');
         userStocksJSON = JSON.parse(responseText);
         if (userStocksJSON.error) {return handleError(responseText);}
+        xedx_TornTornQuery(null, 'stocks', tornStocksCB);
     }
 
     function tornStocksCB(responseText, ID, param) {
         log(GM_info.script.name + ' tornStocksCB');
         tornStocksJSON = JSON.parse(responseText);
         if (tornStocksJSON.error) {return handleError(responseText);}
-
+        modifyPage();
     }
 
     function highlightReadyStocks() {
@@ -67,16 +68,15 @@
     const stockPriceFromID = function(ID){return tornStocksJSON.stocks[ID].current_price;};
 
     // Called when page loaded.
-    function handlePageLoaded() {
+    function modifyPage() {
         if (observer) observer.disconnect();
 
         // -- prep work --
         var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
-        if (!mainStocksUL) return setTimeout(handlePageLoaded, 1000); // Check should not be needed
+        if (!mainStocksUL) return setTimeout(modifyPage, 250); // Check should not be needed
 
         var stocksList = mainStocksUL.getElementsByTagName('ul');
-        if (stocksList.length < 2) return setTimeout(handlePageLoaded, 1000); // Check should not be needed
-        if (!userStocksJSON || !tornStocksJSON) return setTimeout(handlePageLoaded, 1000);
+        if (stocksList.length < 2) return setTimeout(modifyPage, 250); // Check should not be needed
 
         // -- Now we're all good to go. --
         for (let i = 0; i < stocksList.length; i++) {
@@ -119,8 +119,6 @@
         userStocksJSON = null;
         tornStocksJSON = null;
         xedx_TornUserQuery(null, 'stocks', userStocksCB);
-        xedx_TornTornQuery(null, 'stocks', tornStocksCB);
-        setTimeout(handlePageLoaded, 2000);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -132,10 +130,7 @@
     versionCheck();
     addStyles();
 
-    // Kick off our API calls - two of them
+    // Kick off our API calls
     xedx_TornUserQuery(null, 'stocks', userStocksCB);
-    xedx_TornTornQuery(null, 'stocks', tornStocksCB);
-
-    callOnContentComplete(handlePageLoaded);
 
 })();
