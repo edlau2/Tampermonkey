@@ -4,16 +4,19 @@
 // @version      0.7
 // @description  Allows cars to be sorted in any order when starting a race.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/loader.php?sid=racing*
+// @match        https://www.torn.com/loader.php?sid=racing*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
-// @require      https://raw.githubusercontent.com/lodash/lodash/4.17.15-npm/core.js
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -67,6 +70,7 @@
         return nameArray;
     }
 
+    /*
     function doesLiExistInArray(li) {
         let len = savedCarsArray.length;
         for (let i=0; i<len; ++i) {
@@ -76,6 +80,7 @@
                  }
         }
     }
+    */
 
     //////////////////////////////////////////////////////////////////////
     // Order the cars.
@@ -96,13 +101,13 @@
                 for (var i = 0, len = ul.children.length; i < len; i++ ) {
                     var li = ul.children[i];
                     if(savedCarsArray.includes(li, 0)){
-                        log('savedCarsArray includes');
+                        //log('savedCarsArray includes');
                         continue;
                     }
-                    if (doesLiExistInArray(li)) {
-                        log('doesLiExistInArray');
-                        continue;
-                    }
+                    //if (doesLiExistInArray(li)) {
+                    //    log('doesLiExistInArray');
+                    //    continue;
+                    //}
                     savedCarsArray.push(li);
                 }
                 log('savedCarsArray: ', savedCarsArray);
@@ -198,13 +203,13 @@
         }
         */
 
-        if (!carsSorted) {
+        //if (!carsSorted) {
             if (opt_sortCars) {
-                log('[sortSavedCars] (only once!)');
+                //log('[sortSavedCars] (only once!)');
                 sortSavedCars(true);
-                carsSorted = true;
+                carsSorted = true; // Don't need anymore?
             }
-        }
+        //}
 
         // Make cars draggable. Also only do once.
         if (!draggableSet) makePageDraggable();
