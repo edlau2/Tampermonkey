@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Collapsible Sidebar
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Make certain sidebar links collapsible
 // @author       xedx [2100735]
-// @include      https://www.torn.com/*
+// @match        https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -14,6 +14,8 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-undef: 0*/
+
 (function() {
     'use strict';
 
@@ -22,8 +24,6 @@
                 "padding-bottom:5px;" +
                 "padding-left:20px;" +
                 "padding-right:10px;" +
-                //"width:15px;" +
-                //"height:15px;" +
                 "}");
 
     const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
@@ -75,20 +75,15 @@
             if (node.id == '') node.setAttribute('style' , 'display: ' + elemState);
         }
     }
- 
+
     //////////////////////////////////////////////////////////////////////
-    // Main. 
+    // Main.
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
     versionCheck();
 
-    let stateCheck = setInterval(() => {
-      if (document.readyState === 'complete') {
-        clearInterval(stateCheck);
-        setTimeout(handlePageLoaded, 100);
-      }
-    }, 100);
+    callOnContentComplete(function() {setTimeout(handlePageLoaded, 100)});
 
     $(window).on('hashchange', function() {
         log('handle hash change.');
