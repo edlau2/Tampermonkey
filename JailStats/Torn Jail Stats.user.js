@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Jail Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/index.php
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/JailStats/Torn%20Jail%20Stats.user.js
+// @match        https://www.torn.com/index.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -21,42 +20,46 @@
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
 
-const extDivId = 'xedx-jailstats-ext-div';
-const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId + '">' +
-      '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
-          '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
-          '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
-          'Jail and Bounty Stats' +
-      '</div>' +
-      '<div class="bottom-round">' +
-          '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
-              '<ul class="info-cont-wrap">' +
-                  '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
-                  '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
-                  '<li id="xedx-bails" title="original"><span class="divider" id="xedx-div-span-peoplebought"><span>People Bailed</span></span><span id="xedx-val-span-peoplebought" class="desc">0</span></li>' +
-                  '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
-                  '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
-                  '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
-                  '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
-              '</ul>' +
-          '</div>' +
-      '</div>' +
-  '</div>';
-
-
 (function() {
     'use strict';
+
+    const jailExtDivId = 'xedx-jailstats-ext-div';
 
     //////////////////////////////////////////////////////////////////////
     // Build the Jail Stats div, append underneath the Personal Perks div
     //////////////////////////////////////////////////////////////////////
 
+    function getJailStatsDiv() {
+        let result = '<div class="sortable-box t-blue-cont h" id="' + jailExtDivId + '">' +
+              '<div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">' +
+                  '<div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>' +
+                  '<div class="move-wrap"><i class="accordion-header-move right"></i></div>' +
+                  'Jail and Bounty Stats' +
+              '</div>' +
+              '<div class="bottom-round">' +
+                  '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
+                      '<ul class="info-cont-wrap">' +
+                          '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
+                          '<li id="xedx-bails" title="original"><span class="divider" id="xedx-div-span-peoplebought"><span>People Bailed</span></span><span id="xedx-val-span-peoplebought" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
+                          '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
+                          '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
+                          '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
+                      '</ul>' +
+                  '</div>' +
+              '</div>' +
+          '</div>';
+
+        return result;
+    }
+
     function buildJailStatsDiv() {
-        if (document.querySelector(extDivId)) {return;} // Only do this once
+        if (document.querySelector(jailExtDivId)) {return;} // Only do this once
 
         var mainDiv = document.getElementById('column0');
         if (!validPointer(mainDiv)) {return;}
-        $(mainDiv).append(jail_stat_div);
+        $(mainDiv).append(getJailStatsDiv());
 
         xedx_TornUserQuery('', 'personalstats', personalStatsQueryCB); // Callback will set the correct values.
     }
@@ -65,13 +68,13 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     // Callback to parse returned JSON.
     //////////////////////////////////////////////////////////////////////
 
-    let statArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
+    let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
     function personalStatsQueryCB(responseText) {
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
-        for (let i=0; i<statArray.length; i++) {
-            let name = statArray[i];
+        for (let i=0; i<jailStatArray.length; i++) {
+            let name = jailStatArray[i];
             let searchName = 'xedx-val-span-' + name;
             let valSpan = document.getElementById(searchName);
             let stats = jsonResp.personalstats;
@@ -87,14 +90,14 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
             }
         }
 
-        addToolTips();
+        addJailToolTips();
     }
 
     //////////////////////////////////////////////////////////////////////
     // Functions to add tooltips for honor bars/medals (merits)
     //////////////////////////////////////////////////////////////////////
 
-    function addToolTips() {
+    function addJailToolTips() {
         addToolTipStyle();
 
         var bustsLi = document.getElementById('xedx-busts');
@@ -209,12 +212,4 @@ const jail_stat_div = '<div class="sortable-box t-blue-cont h" id="' + extDivId 
     validateApiKey();
 
     callOnContentLoaded(buildJailStatsDiv);
-
-    /* Delay until DOM content load (not full page) complete, so that other scripts run first.
-    if (document.readyState == 'loading') {
-        document.addEventListener('DOMContentLoaded', buildJailStatsDiv);
-    } else {
-        buildJailStatsDiv();
-    }
-    */
 })();
