@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Page Search
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add custom search bar to fac pages
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php?step=your*
