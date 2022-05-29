@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn WE Spreadsheet
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Creates a new expandable DIV on the Items page with Weapon Experience info in a table
 // @match        https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -222,11 +222,7 @@
 
         // Install above this div
         let refDiv = $("#loadoutsRoot");
-        if (!validPointer(refDiv)) {
-            console.log('Do something here!!');
-            // Set up an observer, or timer, ....
-            return;
-        }
+        if (!refDiv) return setTimeout(modifyPage, 250);
 
         if (validPointer(document.querySelector("#xedx-we-spreadsheet-div"))) {
             debug('New WE and FH div already installed!');
