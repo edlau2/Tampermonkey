@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Hide-Show Chat Icons
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Toggles the display of chat icons at the bottom of the screen
 // @author       xedx [2100735]
-// @include      https://www.torn.com/*
+// @match        https://www.torn.com/*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -12,6 +12,10 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -38,7 +42,7 @@
     }
 
     function appendHideShowChatDiv() {
-        $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatHdr);
+        //$('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatHdr);
         $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
         installClickHandler();
     }
