@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Drug Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Adds drug stats to the home page: drugs used, OD's, Rehabs and rehab total cost to date.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/index.php
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats.user.js
+// @match        https://www.torn.com/index.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
@@ -60,12 +59,12 @@
 
         switch (item) {
             case 'cantaken':
-                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannibus): ' + pctText + CRLF +
-                    TAB + '<B>Spaced Out</B> (Overdose on Cannibus)' + CRLF;
+                text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannabis): ' + pctText + CRLF +
+                    TAB + '<B>Spaced Out</B> (Overdose on Cannabis)' + CRLF;
                 effectText = 'Increases nerve by 2-3.';
                 cdText = 'Cooldown: 1 to 1 1/2 hr.';
                 sideEffectText = '-35% speed, -25% def, -20% strength';
-                odChance = 'Very low (near impossible!), 5x chance on 4/20';
+                odChance = '.04% (1/2,500), 5x chance on 4/20';
                 break;
             case 'exttaken':
                 text = text + TAB + '<B>Party Animal</B> (50 Ecstacy): ' + pctText + CRLF;
@@ -161,7 +160,7 @@
             if (!name.localeCompare('rehabcost')) {
                 valSpan.innerText = '$' + numberWithCommas(value);
             } else if (!name.localeCompare('overdosed')) {
-                var pct = (Number(value) / Number(stats['drugsused'])*100).toFixed(2);
+                var pct = (Number(value) / Number(stats.drugsused)*100).toFixed(2);
                 valSpan.innerText = value + ' (' + pct + '%)';
             } else {
                 valSpan.innerText = value;
