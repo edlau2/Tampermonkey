@@ -1591,10 +1591,15 @@
         var observer = null;
         const config = {attributes: false, childList: true, subtree: true};
 
+        function handleNewPage() {
+            debug('[tornTTFilter] hash change!');
+            hideTtActiveIndicator();
+        }
+
         return new Promise((resolve, reject) => {
 
             hideTtActiveIndicator();
-            installHashChangeHandler(handlePageLoad);
+            installHashChangeHandler(handleNewPage);
 
             // Faction page specific stuff
             if (location.href.indexOf('factions.php?step=your') > -1 &&
@@ -4846,10 +4851,15 @@
                             log('[handleSearchKeypress] adding green');
                             handleSearchKeypress.lastElems.push(el);
                         });
-                        let temp = lastSearch.slice(0, -1);
+                        let temp = handleSearchKeypress.lastSearch.slice(0, -1);
                         handleSearchKeypress.currSearch = handleSearchKeypress.lastSearch;
                         handleSearchKeypress.lastSearch = temp;
                     }
+
+                    let count = $(".xedx-green").length;
+                    debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
+                    $("#xmatches").html(count ? "  (" + count + " matches)" : "");
+
                     return;
                 }
 
@@ -4869,9 +4879,6 @@
                     searchNode.filter(":contains(" + handleSearchKeypress.currSearch + ")") :
                     searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]');
 
-                let count = list ? list.length : 0;
-                debug ('[handleSearchKeypress] found ' + count + ' matches');
-
                 // TBD: Scroll to first match! This does not seem to work at all,
                 // or in some cases removes what scrolls out...
                 if (false && list[0]) {
@@ -4884,6 +4891,10 @@
                     $(el).addClass('xedx-green');
                     handleSearchKeypress.lastElems.push(el);
                 });
+
+                let count = $(".xedx-green").length;
+                debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
+                $("#xmatches").html(count ? "  (" + count + " matches)" : "");
             }
 
             function getFacSearchDiv() {
@@ -4893,6 +4904,7 @@
                         <label for="search">Search:</label>
                         <input type="text" id="search" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
                         <span class="powered-by">Powered by XedX</span>
+                        <span id="xmatches"></span>
                     </div>
                 </div>`;
             }
