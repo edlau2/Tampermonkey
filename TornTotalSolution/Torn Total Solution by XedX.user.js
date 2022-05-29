@@ -3609,21 +3609,111 @@
     // Handlers for "Torn Stock Profits" (called at API complete)
     //////////////////////////////////////////////////////////////////////////////////
 
-    // TBD !!!
     function tornStockProfits() {
+
+        let observer = null;
+        let userStocksJSON = null;
+        let tornStocksJSON = null;
+        const showProfit = true;
+        const showLoss = true;
+
+        // Get stock name/price from ID
+        const stockNameFromID = function(ID){return tornStocksJSON.stocks[ID].name;};
+        const stockPriceFromID = function(ID){return tornStocksJSON.stocks[ID].current_price;};
 
         return _tornStockProfits();
 
         function _tornStockProfits() {
-             log('[tornStockProfits]');
+            log('[tornStockProfits]');
 
             return new Promise((resolve, reject) => {
                 if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('tornStockProfits wrong page!');
 
-                reject('[tornStockProfits] not yet implemented!');
+                xedx_TornUserQuery(null, 'stocks', userStocksCB);
 
-                //resolve("[tornStockProfits] complete!");
+                resolve("[tornStockProfits] startup complete!");
             });
+
+            // Callbacks for our Torn API calls.
+            function userStocksCB(responseText, ID, param) {
+                log('[tornStockProfits] userStocksCB');
+                userStocksJSON = JSON.parse(responseText);
+                if (userStocksJSON.error) {return handleError(responseText);}
+                xedx_TornTornQuery(null, 'stocks', tornStocksCB);
+            }
+
+            function tornStocksCB(responseText, ID, param) {
+                log('[tornStockProfits] tornStocksCB');
+                tornStocksJSON = JSON.parse(responseText);
+                if (tornStocksJSON.error) {return handleError(responseText);}
+                modifyPage();
+            }
+
+            function highlightReadyStocks() {
+                log('[tornStockProfits] [highlightReadyStocks]');
+                var objects = $(".Ready___Y6Stk");
+                log('objects: ', objects);
+                for (let i=0; i<objects.length; i++) {
+                    let obj = objects[i];
+                    if (obj.textContent == 'Ready for collection') {
+                        log('[tornStockProfits] Stock is ready!!');
+                        if (!$(obj).hasClass('highlight-active')) $(obj).addClass('highlight-active');
+                    }
+                }
+            }
+
+            // Called when page loaded.
+            function modifyPage() {
+                if (observer) observer.disconnect();
+
+                // -- prep work --
+                var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
+                if (!mainStocksUL) return setTimeout(modifyPage, 250); // Check should not be needed
+
+                var stocksList = mainStocksUL.getElementsByTagName('ul');
+                if (stocksList.length < 2) return setTimeout(modifyPage, 250); // Check should not be needed
+
+                // -- Now we're all good to go. --
+                for (let i = 0; i < stocksList.length; i++) {
+                    let stockUL = stocksList[i];
+                    let stockID = stockUL.id;
+                    if (!stockID) continue; // Expanded stock column
+                    let stockName = stockNameFromID(stockID);
+                    let stockPrice = stockPriceFromID(stockID);
+                    //log('Stock ' + i + ' ID = ' + stockID);
+                    if (!userStocksJSON.stocks[stockID]) { // Un-owned
+                        continue;
+                    }
+                    stockUL.setAttribute('style', 'height: auto;');
+                    let owned = userStocksJSON.stocks[stockID].transactions;
+                    let keys = Object.keys(owned);
+                    for (let j = 0; j < keys.length; j++) {
+                        let ownedLI = stockUL.querySelector("#ownedTab");
+                        //console.log('ownedLI: ', ownedLI);
+                        let ownedShares = owned[keys[j]].shares;
+                        let boughtPrice = owned[keys[j]].bought_price;
+                        let profit = (stockPrice - boughtPrice) * ownedShares; // Gross profit
+                        let fee = stockPrice * ownedShares * .001;
+                        profit = profit - fee; // -.1% fee.
+                        if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
+                        if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
+                    }
+                }
+
+                highlightReadyStocks();
+
+                // Now set up an observer, as the prices update now and again.
+                if (!observer) observer = new MutationObserver(reload);
+                observer.observe(mainStocksUL, {attributes: true, characterData: true});
+            }
+
+            // Reload after stock prices change
+            function reload() {
+                userStocksJSON = null;
+                tornStocksJSON = null;
+                xedx_TornUserQuery(null, 'stocks', userStocksCB);
+            }
+
         }
     } // End function tornStockProfits() {
 
@@ -4861,6 +4951,66 @@
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
+    // Tool tip functions, return the text to be displayed
+    //
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    // Testing
+    function generalToolTip(name) {
+        return "This is a really generic Tool Tip for [" + name + "] , to be replaced at a later date!";
+    }
+
+    function attacksExtenderTt() {
+        return "Adds a dialog that displays up to the latest 100 " +
+            "attacks, along with attacker, defender, faction, and respect." + CRLF +
+            "Date and time format are configurable, and is linked to the attack log.";
+    }
+
+    function statTrackerTt() {
+        return "Adds a dialog to the home page to track almost any " +
+            "personal stat you'd like. The stats to watch can be added via " +
+            "a configuration menu.";
+    }
+
+    function crimeToolTipsTt() {
+        return "Adds tool tips to the 'Criminal Record' section " +
+            "of the home page. ALlows you to easily follow progress " +
+            "towards all honor bars and medals available.";
+    }
+
+    function facRespectTt() {
+        return "Adds personal faction respect earned to the home page " +
+            "'Faction Information' section, and installs a tool tip to " +
+            "follow your award progress.";
+    }
+
+    function drugStatsTt() {
+        return "Adds drug usage statistics to the home page." + CRLF +
+            "Shows the amount taken, overdoses, rehabs, as " +
+            "well as installing tool tips for each with drug details " +
+            "such as OD %, effects, and addiction points added.";
+    }
+
+    function hideShowChatTt() {
+        return "Adds an option to the sidebar to hide the chat icons, and then re-diplay them";
+    }
+
+    function jailStatsTt() {
+        return "Adds jail and bounty statistics to the home page." + CRLF +
+            "Shows the amounts, as installing tool tips for each with " +
+            "progress towards any merits.";
+    }
+
+    function sidebarColorTt() {
+        return "Just for fun, adds color to the icons on the sidebar.";
+    }
+
+    function collapsibleSidebarTt() {
+
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    //
     // Install general configuration menu for this script
     //
     // Install the only UI portion (general configuration menu) for the main script.
@@ -4995,11 +5145,11 @@
         // If exists, add tool tip to <tr> for script.
         // Alternatively, document on new page or iFrame? Have URL (HTML) on my site? With help (? mark) button?
 
-        function setGeneralCfgOpt(name, desc, enableFn=null, disableFn=null, cat='default', valid=true, enabled=true) {
+        function setGeneralCfgOpt(name, desc, enableFn=null, disableFn=null, ttFn=null, cat='default', valid=true, enabled=true) {
             if (!knownScripts.includes(name)) knownScripts.push(name);
             if (!valid) enabled = false;
             opts_enabledScripts[name] = {enabled: GM_getValue(name, enabled), installed: valid, name: desc,
-                                         enableFn: enableFn, disableFn: disableFn, cat: cat};
+                                         enableFn: enableFn, disableFn: disableFn, ttFn: ttFn, cat: cat};
             GM_setValue(name, opts_enabledScripts[name].enabled);
 
             debug('[setGeneralCfgOpt] name: ', name);
@@ -5007,52 +5157,81 @@
         }
 
         // HOME/ALL: @match        https://www.torn.com/*
-        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender", tornLatestAttacksExtender, removeLatestAttacksExtender, "home");
-        setGeneralCfgOpt("statTracker", "Torn Custom Stat Tracker", tornStatTracker, removeTornStatTracker, "home");
-        setGeneralCfgOpt("drugStats", "Torn Drug Stats", tornDrugStats, removeDrugStats, "home");
-        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips", tornCrimeTooltips, removeCrimeTooltips, "home");
-        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned", tornFacRespect, removeTornFacRespect, "home");
-        setGeneralCfgOpt("jailStats", "Torn Jail Stats", tornJailStats, removeJailStats, "home");
-        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors", tornSidebarColors, removeSidebarColors, 'all');
-        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons", tornHideShowChat, removeHideShowChat, 'all');
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar Links", tornCollapsibleSidebar, removeCollapsibleSidebar, 'all');
-        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar Links", tornCustomizableSidebar, removeCustomizableSidebar, 'all');
-        setGeneralCfgOpt("tornTTFilter", "Torn TT Filter", tornTTFilter, null, "all", false);
+        setGeneralCfgOpt("latestAttacks", "Torn Latest Attacks Extender",
+                         tornLatestAttacksExtender, removeLatestAttacksExtender, attacksExtenderTt, "home");
+        setGeneralCfgOpt("statTracker", "Torn Custom Stat Tracker",
+                         tornStatTracker, removeTornStatTracker, statTrackerTt, "home");
+        setGeneralCfgOpt("drugStats", "Torn Drug Stats",
+                         tornDrugStats, removeDrugStats, drugStatsTt, "home");
+        setGeneralCfgOpt("crimeToolTips", "Torn Crime Tooltips",
+                         tornCrimeTooltips, removeCrimeTooltips, crimeToolTipsTt, "home");
+        setGeneralCfgOpt("facRespect", "Torn Fac Respect Earned",
+                         tornFacRespect, removeTornFacRespect, facRespectTt, "home");
+        setGeneralCfgOpt("jailStats", "Torn Jail Stats",
+                         tornJailStats, removeJailStats, jailStatsTt, "home");
+        setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors",
+                         tornSidebarColors, removeSidebarColors, sidebarColorTt, 'all');
+        setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons",
+                         tornHideShowChat, removeHideShowChat, hideShowChatTt, 'all');
+
+        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar Links",
+                         tornCollapsibleSidebar, removeCollapsibleSidebar, generalToolTip, 'all');
+        setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar Links",
+                         tornCustomizableSidebar, removeCustomizableSidebar, generalToolTip, 'all');
+        setGeneralCfgOpt("tornTTFilter", "Torn TT Filter",
+                         tornTTFilter, null, generalToolTip, "all", false);
 
         // BAZAAR (and shops)
-        setGeneralCfgOpt("tornBazaarPlus", "Torn Bazaar Pricing, Plus!", tornBazaarPlus, removeBazaarPlus, "items", true);
-        setGeneralCfgOpt("tornBazaarAddButton", "Torn Bazaar 'Add Items' Button", tornBazaarAddButton, removeBazaarAddButton, "items", true);
+        setGeneralCfgOpt("tornBazaarPlus", "Torn Bazaar Pricing, Plus!",
+                         tornBazaarPlus, removeBazaarPlus, generalToolTip, "items");
+        setGeneralCfgOpt("tornBazaarAddButton", "Torn Bazaar 'Add Items' Button",
+                         tornBazaarAddButton, removeBazaarAddButton, generalToolTip, "items");
 
         // ITEMS: @match        https://www.torn.com/items.php*
-        setGeneralCfgOpt("tornItemHints", "Torn Item Hints", tornItemHints, null, "items");
-        setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper", tornMuseumSetHelper, null, "items", true);
-        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options", tornWeaponSort, null, "items", true);
-        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker", tornWeTracker, null, "items", true);
-        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet", tornWeSpreadsheet, removeWeSpreadsheet, "items", true);
+        setGeneralCfgOpt("tornItemHints", "Torn Item Hints",
+                         tornItemHints, null, generalToolTip, "items");
+        setGeneralCfgOpt("tornMuseumSetHelper", "Torn Museum Sets Helper",
+                         tornMuseumSetHelper, null, generalToolTip, "items");
+        setGeneralCfgOpt("tornWeaponSort", "Torn Weapon Sort Options",
+                         tornWeaponSort, null, generalToolTip, "items");
+        setGeneralCfgOpt("tornWeTracker", "Torn Weapon Experience Tracker",
+                         tornWeTracker, null, generalToolTip, "items");
+        setGeneralCfgOpt("tornWeSpreadsheet", "Torn Weapon Experience Spreadsheet",
+                         tornWeSpreadsheet, removeWeSpreadsheet, generalToolTip, "items");
 
         // ATTACKS: @match        https://www.torn.com/loader.php?sid=attack&user2ID*
-        setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps", tornSeeTheTemps, null, "attack");
-        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll Attack Window", tornScrollOnAttack, null, "attack", true, false);
+        setGeneralCfgOpt("tornSeeTheTemps", "Torn See The Temps",
+                         tornSeeTheTemps, null, generalToolTip, "attack");
+        setGeneralCfgOpt("tornScrollOnAttack", "Torn Scroll Attack Window",
+                         tornScrollOnAttack, null, generalToolTip, "attack");
 
         // RACING: @match        https://www.torn.com/loader.php?sid=racing
-        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts", tornRacingAlert, removetornRacingAlert, 'racing', true);
-        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order", tornRacingCarOrder, null, "racing", true);
-        setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles", tornRacingStyles, null, "racing", true);
+        setGeneralCfgOpt("tornRacingAlert", "Torn Racing Alerts",
+                         tornRacingAlert, removetornRacingAlert, generalToolTip, 'racing', true);
+        setGeneralCfgOpt("tornRacingCarOrder", "Torn Racing Car Order",
+                         tornRacingCarOrder, null, generalToolTip, "racing", true, false);
+        setGeneralCfgOpt("tornRacingStyles", "Torn Racing Styles",
+                         tornRacingStyles, null, generalToolTip, "racing", true);
 
         // CASINO:
-        setGeneralCfgOpt("tornHoldemScore", "Torn Texas Holdem Score", tornHoldemScore, null, "casino", false);
+        setGeneralCfgOpt("tornHoldemScore", "Torn Texas Holdem Score",
+                         tornHoldemScore, null, generalToolTip, "casino", false);
 
         // STOCKS: @match        https://www.torn.com/page.php?sid=stocks
-        setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits", tornStockProfits, null, "stocks", false);
+        setGeneralCfgOpt("tornStockProfits", "Torn Stock Profits",
+                         tornStockProfits, null, generalToolTip, "stocks");
 
         // JAIL:  @match        https://www.torn.com/jailview.php*
-        setGeneralCfgOpt("tornJailScores", "Torn Jail Scores", tornJailScores, null, "jail", false);
+        setGeneralCfgOpt("tornJailScores", "Torn Jail Scores",
+                         tornJailScores, null, generalToolTip, "jail", false);
 
         // FACTION: @match        https://www.torn.com/factions.php?step=your*
-        setGeneralCfgOpt("tornFacPageSearch", "Torn Fac Page Search", tornFacPageSearch, removeFacPageSearch, "faction", true);
+        setGeneralCfgOpt("tornFacPageSearch", "Torn Fac Page Search",
+                         tornFacPageSearch, removeFacPageSearch, generalToolTip, "faction");
 
         // POINTS:  @match        https://www.torn.com/points.php*
-        setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net", tornDisableRefills, removeDisableRefills, "misc", true);
+        setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net",
+                         tornDisableRefills, removeDisableRefills, generalToolTip, "misc");
 
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
@@ -5094,6 +5273,8 @@
     function handleGeneralConfigPage() {
         log('[handleGeneralConfigPage]');
 
+        addToolTipStyle();
+
         // Main menu: supported scripts
         addSupportedScriptsTable();
 
@@ -5123,7 +5304,7 @@
             let keys = Object.keys(opts_enabledScripts);
             for (let i=0; i < keys.length; i++) {
                 let scriptName = keys[i]; // eg, 'drugstats'
-                addGenOptsTableRow(scriptName);
+                addGenOptsTableRow(scriptName, i);
             }
 
             // Add footer
@@ -5138,10 +5319,10 @@
             }
 
             // Build and add a Gen opts script row
-            function addGenOptsTableRow(scriptName) {
+            function addGenOptsTableRow(scriptName, rowNum) {
                 let rowTextColor = (typeof(opts_enabledScripts[scriptName].enableFn) == "function") ? 'black;' : 'red;';
                 let bgColor = getBgColor(opts_enabledScripts[scriptName].cat);
-
+                let id = "ttsRow" + rowNum;
                 let addlText = !opts_enabledScripts[scriptName].installed ? ' (TBD)' :
                     (typeof(opts_enabledScripts[scriptName].disableFn) == "function") ? '' : ' (change requires refresh)';
 
@@ -5153,12 +5334,22 @@
                 */
 
                 // To change text desc:
-                let newRow = '<tr class="xvisible" style="background-color: ' + bgColor + ';">' +
+                //let newRow = '<tr class="xvisible" style="background-color: ' + bgColor + ';" id="' + id + '" title="original">' +
+                let newRow = '<tr class="xvisible" style="background-color: ' + bgColor + ';" id="' + id + '">' +
                     '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="gen-clickable" name="' + scriptName + '"' +
                     (opts_enabledScripts[scriptName].enabled ? ' checked ': '') + ' /></td>' +
                     '<td>' + opts_enabledScripts[scriptName].name + addlText + '</td>' +
                     '<td>' + opts_enabledScripts[scriptName].cat + '</td></tr>';
                 $('#xedx-table').append(newRow);
+
+                // Add general tool tip - gettext from fn.
+                log('[[handleGeneralConfigPage]] ttFn: ', opts_enabledScripts[scriptName].ttFn);
+                if (opts_enabledScripts[scriptName].ttFn) {
+                    let ttText = opts_enabledScripts[scriptName].ttFn(opts_enabledScripts[scriptName].name);
+                    log('text: ', ttText);
+                    let node = document.getElementById(id);
+                    displayToolTip(node, ttText);
+                }
 
             function getBgColor(category) {
                 switch (category) {
@@ -5528,8 +5719,6 @@
 
         if (opts_enabledScripts.jailStats.enabled) {tornJailStats().then(a => _a(a), b => _b(b));}
 
-        if (opts_enabledScripts.tornStockProfits.enabled) {tornStockProfits().then(a => _a(a), b => _b(b));}
-
         if (opts_enabledScripts.tornMuseumSetHelper.enabled) {tornMuseumSetHelper().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
@@ -5599,6 +5788,10 @@
     if (isJailPage()) {
         // Moved to API complete - requires two calls.
         //if (opts_enabledScripts.tornJailScores.enabled) {tornJailScores().then(a => _a(a), b => _b(b));}
+    }
+
+    if (isStocksPage()) {
+        if (opts_enabledScripts.tornStockProfits.enabled) {tornStockProfits().then(a => _a(a), b => _b(b));}
     }
 
     // Separate URL just for the 'Stats Tracker' script config page.
