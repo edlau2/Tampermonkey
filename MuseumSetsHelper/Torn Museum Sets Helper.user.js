@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Torn Museum Sets Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.8
 // @description  Helps determine when museum sets are complete in Item pages
 // @author       xedx [2100735]
-// @include      https://www.torn.com/item.php*
+// @match        https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -17,47 +17,12 @@
 // @grant        unsafeWindow
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
+
 (function() {
     'use strict';
-
-    // LI and DIVs to insert for set count, items needed, items required
-    var newLi =
-        '<li class="">' +
-            '<div class="thumbnail-wrap" tabindex="0">' +
-                '<div class="thumbnail">' +
-                    '<img class="torn-item item-plate" data-size="medium" src="/images/items/replaceID/large.png"' +
-                        'style="opacity: 0;" data-converted="1" aria-hidden="true">' +
-                    '<canvas role="img"style="opacity: 1;" width="60" height="30" class="torn-item item-plate item-converted" item-mode="true">' +
-                    '</canvas>' +
-                '</div>' +
-            '</div>' +
-            '<div class="title-wrap">' +
-                '<div class="title left">' +
-	                '<span class="image-wrap">' +
-                        '<div class="thumbnail">' +
-                            '<img src="/images/items/replaceID/large.png" width="60" height="30">' +
-                        '</div>' +
-                    '</span>' +
-                    '<span class="name-wrap">'+
-	                    '<span class="qty bold d-hide"> x0</span>'+
-                        '<span class="name">replaceName</span>'+
-	                    '<span class="qty bold t-hide"> x0</span>'+
-	                '</span>'+
-                '</div>'+
-            '</div>' +
-            '<div class="cont-wrap">'+
-                '<div class="actions right">'+
-                    '<ul class="actions-wrap">'+
-                        '<li class="left"></li>'+
-                        '<li class="left"></li>'+
-                        '<li class="left"></li>'+
-                        '<li class="left"></li>'+
-                        '<li class="clear"></li>' +
-                    '</ul>'+
-                '</div>'+
-            '</div>' +
-        '<div class="clear"></div>'+
-        '</li>';
 
     const requiredHdr = +
         '<div>' +
@@ -76,8 +41,8 @@
         '<div>' +
             '<div id="xedx-fullset-hdr" class="items-wrap primary-items t-blue-cont">' +
                 '<div class="title-black top-round bottom-round scroll-dark" role="heading" aria-level="5">' +
-                    '<span class="m-hide"> You have numberFullSets full sets. This can be traded in for ' +
-                    ' numberFullPoints points, at priceOfPoints each, for totalPrice.</span>' +
+                    '<span class="m-hide"> You have numberFullSets full set(s). This can be traded in for ' +
+                    ' numberFullPoints points, at priceOfPoints each, for totalPrice (pawnPrice at the Pawn Shop).</span>' +
                 '</div>' +
                 '<div id="xedx-category-wrap" class="category-wrap ui-tabs ui-widget ui-widget-content ui-corner-all">' +
                     '<ul id="xedx-required-items" class="items-cont tab-menu-cont cont-gray bottom-round itemsList ui-tabs-panel ui-widget-content ui-corner-bottom current-cont" data-loaded="0" aria-expanded="true" aria-hidden="false">' +
@@ -118,8 +83,8 @@
     // can use different colors for either.
     const flowerSetColor = "#5f993c"; // "#FFFACD50"; // LemonChiffon, 0x50% xparency, looks OK in light and dark modes
     const plushiesSetColor = "#5f993c";
-    const scriptsSetSetColor = "#5f993c";
-    const coinSetSetColor = "Plum"; // #DDA0DD
+    const quransSetSetColor = "#2f690c";
+    const coinSetSetColor = "#5f993c"; //"Plum"; // #DDA0DD
     const senetSetSetColor = "LightBlue"; // #ADD8E6
     const missingItemColor = "#228B2250"; //"ForestGreen" #228B22
 
@@ -150,16 +115,27 @@
                            {"name":"Sheep Plushie", "id": 186, "quantity": 0},
                            {"name":"Stingray Plushie", "id": 618, "quantity": 0}];
 
-    // TBD: Coins, sculptures, senets, scripts
+    var coinsInSet = [{"name":"Leopard Coin",  "id": 450, "quantity": 0},
+                       {"name":"Florin Coin",  "id": 451, "quantity": 0},
+                       {"name":"Gold Noble Coin",  "id": 452, "quantity": 0}];
+
+    var quransInSet = [{"name":"Quran Script : Ibn Masud",  "id": 455, "quantity": 0},
+                       {"name":"Quran Script : Ubay Ibn Kab",  "id": 456, "quantity": 0},
+                       {"name":"Quran Script : Ali",  "id": 457, "quantity": 0}];
+
+    // TBD: sculptures, senets
 
     // Variables tracking # full sets
     var fullFlowerSets = 0;
     var fullPlushieSets = 0;
     var fullCoinsSets = 0;
+    var fullQuranSets = 0;
+    var fullSenetSets = 0;
     // ...
 
     // Misc other globals
     var pointsPriceUnitCost = 0;
+    const pawnShopPays = 45000;
 
     // To calculate prices/profit/etc.
     //
@@ -182,14 +158,13 @@
 	//	},
     var flowersPtsPerSet = 10;
     var plushiesPtsPerSet = 10;
-    var coinPtsPerSet  = 100;
+    var coinPtsPerSet = 100;
     var VairocanaPtsPerSet = 100;
     var ganeshaPtsPerSet = 250;
     var shabtiPtsPerSet = 500;
-    var scriptPtsPerSet = 1000
+    var quranPtsPerSet = 1000
     var senetPtsPerSet = 2000;
     var egyptianPtsPerSet = 10000;
-
 
     //////////////////////////////////////////////////////////////////////
     // Handle the response from querying the Torn API
@@ -267,6 +242,44 @@
 
     // Create a <li> with supplied item ID and name
     function buildNewLi(id, name) {
+        // LI and DIVs to insert for set count, items needed, items required
+        const newLi =
+            '<li class="">' +
+                '<div class="thumbnail-wrap" tabindex="0">' +
+                    '<div class="thumbnail">' +
+                        '<img class="torn-item item-plate" data-size="medium" src="/images/items/replaceID/large.png"' +
+                            'style="opacity: 0;" data-converted="1" aria-hidden="true">' +
+                        '<canvas role="img"style="opacity: 1;" width="60" height="30" class="torn-item item-plate item-converted" item-mode="true">' +
+                        '</canvas>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="title-wrap">' +
+                    '<div class="title left">' +
+                        '<span class="image-wrap">' +
+                            '<div class="thumbnail">' +
+                                '<img src="/images/items/replaceID/large.png" width="60" height="30">' +
+                            '</div>' +
+                        '</span>' +
+                        '<span class="name-wrap">'+
+                            '<span class="qty bold d-hide"> x0</span>'+
+                            '<span class="name">replaceName</span>'+
+                            '<span class="qty bold t-hide"> x0</span>'+
+                        '</span>'+
+                    '</div>'+
+                '</div>' +
+                '<div class="cont-wrap">'+
+                    '<div class="actions right">'+
+                        '<ul class="actions-wrap">'+
+                            '<li class="left"></li>'+
+                            '<li class="left"></li>'+
+                            '<li class="left"></li>'+
+                            '<li class="left"></li>'+
+                            '<li class="clear"></li>' +
+                        '</ul>'+
+                    '</div>'+
+                '</div>' +
+            '<div class="clear"></div>'+
+            '</li>';
         let temp = newLi.replace(/replaceID/g, id);
         let temp2 = temp.replace(/replaceName/g, name);
         return temp2;
@@ -276,7 +289,10 @@
     function addMissingItems(ulDiv, setArray) {
         log('Adding missing items.');
         let hdrNode = document.getElementById(xedxHdrID);
-        if (validPointer(hdrNode)) {return;} // Means we've done this already.
+        if (validPointer(hdrNode)) {
+            log('addMissingItems: header already present.');
+            return;
+        } // Means we've done this already.
 
         // Add a separator, header (and UL for new LI's)
         let mainItemsDiv = document.querySelector(mainItemsDivSelector);
@@ -286,6 +302,7 @@
         insertAfter(xedxHdrNode.nextSibling, xedxSepNode);
 
         // Add LI's for each missing item - TBD
+        log('Going to add ' + setArray.length + ' items.');
         for (let i = 0; i < setArray.length; i++) {
             let item = setArray[i];
             if (item.quantity == 0) {
@@ -299,24 +316,9 @@
         }
     }
 
-    /*
-    // This is in the helper library - remove once library uploaded
-    function asCurrency(num) {
-        var formatter = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-
-            // These options are needed to round to whole numbers if that's what you want.
-            //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-            maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
-        });
-
-    return formatter.format(num);
-    }
-    */
-
     // Header to display if we have full sets
     function displayFullSetHdr(count, pts) {
+        log('displayFullSetHdr');
         let mainItemsDiv = document.querySelector(mainItemsDivSelector);
         xedxSepNode = createElementFromHTML(sepDiv);
 
@@ -327,8 +329,9 @@
         let fullSets = fullSetsHdr.replace('numberFullSets', count);
         let fullPts = fullSets.replace('numberFullPoints', count * pts);
         let ptsPrice = fullPts.replace('priceOfPoints', asCurrency(pointsPriceUnitCost));
-        log('displayFullSetHdr - points cost: "' + pointsPriceUnitCost + '"');
-        let output = ptsPrice.replace('totalPrice', asCurrency(count * pts * pointsPriceUnitCost));
+        //log('displayFullSetHdr - points cost: "' + pointsPriceUnitCost + '"');
+        let totalPrice = ptsPrice.replace('totalPrice', asCurrency(count * pts * pointsPriceUnitCost));
+        let output = totalPrice.replace('pawnPrice', asCurrency(count * pts * pawnShopPays));
 
         xedxHdrNode = createElementFromHTML(output);
         insertAfter(xedxSepNode, mainItemsDiv);
@@ -337,14 +340,14 @@
 
     // Helper to remove above header(s) and items list
     function removeAdditionalItemsList() {
-        log('Removing extra DOM from page.');
+        // log('Removing extra node (removeAdditionalItemsList - ' + xedxHdrID + ') from page.');
         if (xedxSepNode) {xedxSepNode.remove();}
         let hdrNode = document.getElementById(xedxHdrID);
         if (hdrNode) {hdrNode.remove();}
     }
 
     function removeFullSetHdr() {
-        log('Removing extra DOM from page.');
+        // log('Removing extra node (removeFullSetHdr - ' + xedxFullSetHdr + ') from page.');
         if (xedxSepNode) {xedxSepNode.remove();}
         let hdrNode = document.getElementById(xedxFullSetHdr);
         if (hdrNode) {hdrNode.remove();}
@@ -408,6 +411,7 @@
         observeOff();
         if (pageName == 'Flowers') {
             // Highlight set items and count complete sets
+            let ulDiv = $('#flowers-items'); // Verify this...
             let liList = $('#flowers-items > li');
             if (!highlightList(liList, flowersInSet, flowerSetColor)) {return;}
             let fullFlowerSets = countCompleteSets(flowersInSet);
@@ -421,7 +425,7 @@
             // Add LI's for missing items
             if (!fullFlowerSets) {
                 removeFullSetHdr();
-                addMissingItems(ulDiv, flowersInSet);
+                addMissingItems(ulDiv, flowersInSet); // Verify this...
             } else {
                 removeAdditionalItemsList();
                 displayFullSetHdr(fullFlowerSets, flowersPtsPerSet);
@@ -429,6 +433,7 @@
 
         } else if (pageName == 'Plushies') {
             // HIghlight set items and count complete sets
+            let ulDiv = $('#plushies-items'); // Verify this...
             let liList = $('#plushies-items > li');
             if (!highlightList(liList, plushiesInSet, plushiesSetColor)) {return;}
             fullPlushieSets = countCompleteSets(plushiesInSet);
@@ -457,6 +462,36 @@
             // Script's from the Quran - 1,000 pts
             // Senet Game - 2,000 pts
             // Egyptian Amulet - 10,000 pts.
+
+            // HIghlight set items and count complete sets
+            let ulDiv = $('#artifacts-items'); // Verify this...
+            let liList = $('#artifacts-items > li');
+
+            if (!highlightList(liList, coinsInSet, coinSetSetColor)) {return;}
+            fullCoinsSets = countCompleteSets(coinsInSet);
+            log("Complete coin sets: " + fullCoinsSets);
+
+            if (!highlightList(liList, quransInSet, quransSetSetColor)) {return;}
+            fullQuranSets = countCompleteSets(quransInSet);
+            log("Complete coin sets: " + fullQuranSets);
+
+            sortUL($('#artifacts-items > li'));
+
+            // Add LI's for missing items
+            removeFullSetHdr();
+            removeAdditionalItemsList();
+            if (!fullCoinsSets || !fullQuranSets) {
+                log("ulDiv", ulDiv);
+                log("Adding missing items. " + JSON.stringify({fullCoinsSets, coinsInSet, fullQuranSets, quransInSet}));
+                if (!fullCoinsSets) {addMissingItems(ulDiv, coinsInSet);}
+                if (!fullQuranSets) {addMissingItems(ulDiv, quransInSet);}
+            }
+            if (fullCoinsSets || fullQuranSets) {
+                log("ulDiv", ulDiv);
+                log("Displaying full set header. " + JSON.stringify({fullCoinsSets, fullQuranSets}));
+                if (fullCoinsSets) {displayFullSetHdr(fullCoinsSets, coinPtsPerSet);}
+                if (fullQuranSets) {displayFullSetHdr(fullQuranSets, quranPtsPerSet);}
+            }
         } else {
             removeAdditionalItemsList()
         }
