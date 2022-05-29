@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1259,11 +1259,22 @@
     var custLinkClassNames = {};
 
     function tornCustomizableSidebar() {
+        let cs_caretState = 'fa-caret-down';
 
         return _tornCustomizableSidebar();
 
         function _tornCustomizableSidebar() {
             log('[tornCustomizableSidebar]');
+
+            GM_addStyle(".xedx-caret {" +
+                    "padding-top:5px;" +
+                    "padding-bottom:5px;" +
+                    "padding-left:20px;" +
+                    "padding-right:10px;" +
+                    "}");
+
+            installCollapsibleCaret();
+            installHashChangeHandler(installCollapsibleCaret);
 
             return new Promise((resolve, reject) => {
                 initCustLinksObject();
@@ -1346,11 +1357,56 @@
 
             return outerDiv + aData + /* span1 + */ span2 + endDiv;
         }
+
+        // Returns null on success, error otherwise.
+        function installCollapsibleCaret() {
+            const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
+            cs_caretState = GM_getValue('cs_lastState', cs_caretState);
+            if (!document.querySelector("#sidebarroot")) return "'#sidebarroot' not found, try again later!";
+            if (document.getElementById('xedx-collapse')) document.getElementById('xedx-collapse').remove();
+            if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
+
+            // Set parents to 'flex', allow divs to be side-by-side
+            document.querySelector("#nav-city").setAttribute('style', 'display:flex;');
+            document.querySelector("#nav-city > div > a").setAttribute('style', 'width:70%;float:left;');
+
+            // Add the caret and handler.
+            let target = document.querySelector("#nav-city > div");
+            if (!target) return "'#nav-city > div' not found, try again later!";
+            $(target).append(caretNode);
+            document.getElementById("xedx-collapse").addEventListener('click', function (event) {
+                cs_handleClick(event)}, { passive: false });
+
+            // Little trick here - set current state to opposite of the saved state.
+            // So calling the handler tricks it to set the *other* way, which is how
+            // we want it to start up.
+            cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+            cs_handleClick();
+        }
+
+        function cs_handleClick(e) {
+            debug('[cs_handleClick] state = ' + cs_caretState);
+            let targetNode = document.querySelector("#xedx-collapse"); // e.target
+            let elemState = 'block;';
+            if (cs_caretState == 'fa-caret-down') {
+                targetNode.classList.remove("fa-caret-down");
+                targetNode.classList.add("fa-caret-right");
+                cs_caretState = 'fa-caret-right';
+                elemState = 'none;';
+            } else {
+                targetNode.classList.remove("fa-caret-right");
+                targetNode.classList.add("fa-caret-down");
+                cs_caretState = 'fa-caret-down';
+            }
+            GM_setValue('cs_lastState', cs_caretState);
+            $("[id^=custlink-]").attr("style", "display: " + elemState);
+        }
     } // End function tornCustomizableSidebar() {
 
-    function removeCustomizableSidebar() {$("[id^=custlink-]").remove()}
-
-    // The following must remain statis/public!
+    function removeCustomizableSidebar() {
+        $("[id^=custlink-]").remove();
+        $("#xedx-collapse").remove();
+    }
 
     // Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
     function initCustLinksObject() {
@@ -1526,97 +1582,85 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornTTFilter() {
-        // Note: this requires a periodic callback, so that'll require a non-promise fn.
         log('[tornTTFilter]');
 
+        const TT_HIDE_BAT_STATS = true; // Hide TT bat stats?
+
+        // Mutation observer for attacks list
+        var targetNode = null;
+        var observer = null;
+        const config = {attributes: false, childList: true, subtree: true};
+
         return new Promise((resolve, reject) => {
-            reject("tornTTFilter not yet implememnted!");
-        });
-    }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Handlers for "Torn Collapsible Sidebar" (called at content complete)
-    ////////////////////////////////////////////////////////////////////////
+            hideTtActiveIndicator();
+            installHashChangeHandler(handlePageLoad);
 
-    var cs_caretState = 'fa-caret-down';
-
-    function tornCollapsibleSidebar() {
-
-        return _tornCollapsibleSidebar();
-
-        function _tornCollapsibleSidebar() {
-            // Note: this requires a periodic callback, so that'll require a non-promise fn.
-            log('[tornCollapsibleSidebar]');
-
-            return new Promise((resolve, reject) => {
-                GM_addStyle(".xedx-caret {" +
-                    "padding-top:5px;" +
-                    "padding-bottom:5px;" +
-                    "padding-left:20px;" +
-                    "padding-right:10px;" +
-                    "}");
-
-                let result = installCollapsibleCaret();
-
-                $(window).on('[tornCollapsibleSidebar] hashchange', function() {
-                    debug('handle hash change.');
-                    installCollapsibleCaret();
-                });
-
-                if (result)
-                    reject(result);
-                else
-                    resolve('[tornCollapsibleSidebar] complete!');
-            });
-        }
-
-        // Returns null on success, error otherwise.
-        function installCollapsibleCaret() {
-            const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
-            cs_caretState = GM_getValue('cs_lastState', cs_caretState);
-            if (!document.querySelector("#sidebarroot")) return "'#sidebarroot' not found, try again later!";
-            if (document.getElementById('xedx-collapse')) document.getElementById('xedx-collapse').remove();
-            if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
-
-            // Set parents to 'flex', allow divs to be side-by-side
-            document.querySelector("#nav-city").setAttribute('style', 'display:flex;');
-            document.querySelector("#nav-city > div > a").setAttribute('style', 'width:70%;float:left;');
-
-            // Add the caret and handler.
-            let target = document.querySelector("#nav-city > div");
-            if (!target) return "'#nav-city > div' not found, try again later!";
-            $(target).append(caretNode);
-            document.getElementById("xedx-collapse").addEventListener('click', function (event) {
-                cs_handleClick(event)}, { passive: false });
-
-            // Little trick here - set current state to opposite of the saved state.
-            // So calling the handler tricks it to set the *other* way, which is how
-            // we want it to start up.
-            cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
-            cs_handleClick();
-        }
-
-        function cs_handleClick(e) {
-            debug('[cs_handleClick] state = ' + cs_caretState);
-            let targetNode = document.querySelector("#xedx-collapse"); // e.target
-            let elemState = 'block;';
-            if (cs_caretState == 'fa-caret-down') {
-                targetNode.classList.remove("fa-caret-down");
-                targetNode.classList.add("fa-caret-right");
-                cs_caretState = 'fa-caret-right';
-                elemState = 'none;';
-            } else {
-                targetNode.classList.remove("fa-caret-right");
-                targetNode.classList.add("fa-caret-down");
-                cs_caretState = 'fa-caret-down';
+            // Faction page specific stuff
+            if (location.href.indexOf('factions.php?step=your') > -1 &&
+                location.hash.indexOf('tab=info') > -1) { // Faction info page
+                setTimeout(handleFacInfoPage, 500);
             }
-            GM_setValue('cs_lastState', cs_caretState);
-            $("[id^=custlink-]").attr("style", "display: " + elemState);
+
+            // Hide bat stats estimates? (various pages)
+            hideStatEstimates();
+
+            resolve("tornTTFilter startup complete!");
+        });
+
+        // Hide the 'Last Action' TT installs on the Fac Info page. Already there...
+        function hideTtLastAction(mutationsList, observer) {
+            debug('[tornTTFilter] [hideTtLastAction] observer: ', observer);
+
+            let liList = Array.from(document.getElementsByClassName('tt-last-action'));
+            debug('[tornTTFilter] liList: ', liList);
+            liList.forEach(e => {if (!($(e).hasClass('xhidden'))) $(e).addClass('xhidden')});
+
+            if (observer && liList.length > 10) observer.disconnect();
+        }
+
+        function handleFacInfoPage() {
+            debug('[tornTTFilter] [handleFacInfoPage]');
+            let targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body");
+            if (targetNode) {
+                hideTtLastAction();
+
+                let node = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap >" +
+                                       " div.f-war-list.members-list > ul.table-header.cont-gray > li:nth-child(8)");
+                if (node) node.textContent = 'Last';
+
+                debug('[tornTTFilter] Starting observer, target: ', targetNode);
+                if (!observer) observer = new MutationObserver(hideTtLastAction);
+                observer.observe(targetNode, config);
+            }
+        }
+
+        function hideStatEstimates() {
+            debug('[tornTTFilter] [hideStatEstimates]');
+            if (!TT_HIDE_BAT_STATS) return;
+            let ttNodes = document.getElementsByClassName('tt-stats-estimate');
+            debug('[tornTTFilter] Found ' + ttNodes.length + ' stat estimates');
+            if (ttNodes) {
+                Array.prototype.forEach.call(ttNodes, function(node) {
+                    debug('[tornTTFilter] Hiding node ', node);
+                    node.setAttribute('style', 'display: none;');
+                });
+            }
+        }
+
+        function hideTtActiveIndicator() {
+            debug('[tornTTFilter] [hideTtActiveIndicator]');
+            let ttIndicator = document.querySelector("#tt-page-status");
+            if (ttIndicator) {
+                debug("[tornTTFilter] Hidding 'active' indicator");
+                $(ttIndicator).addClass('xhidden');
+            } else {
+                debug("[tornTTFilter] not found - will check later.");
+                setTimeout(hideTtActiveIndicator, 500);
+            }
         }
 
     }
-
-    function removeCollapsibleSidebar() {$("#xedx-collapse").remove()}
 
     //////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Crime Tooltips" (called at content complete)
@@ -5005,8 +5049,10 @@
         return "Just for fun, adds color to the icons on the sidebar.";
     }
 
-    function collapsibleSidebarTt() {
-
+    function ttFilterTt() {
+        return "This hides various Torn Tools features that I find redundant or annoying." + CRLF +
+            "It hides the 'TornTools Active' icon on the lower left, the 'last active' status on " +
+            "various fac pages, and the Bat Stats estimates showing up underneath users on various pages.";
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
@@ -5174,12 +5220,10 @@
         setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons",
                          tornHideShowChat, removeHideShowChat, hideShowChatTt, 'all');
 
-        setGeneralCfgOpt("collapsibleSidebar", "Torn Collapsible Sidebar Links",
-                         tornCollapsibleSidebar, removeCollapsibleSidebar, generalToolTip, 'all');
         setGeneralCfgOpt("customizableSidebar", "Torn Customizable Sidebar Links",
                          tornCustomizableSidebar, removeCustomizableSidebar, generalToolTip, 'all');
         setGeneralCfgOpt("tornTTFilter", "Torn TT Filter",
-                         tornTTFilter, null, generalToolTip, "all", false);
+                         tornTTFilter, null, ttFilterTt, "all", true);
 
         // BAZAAR (and shops)
         setGeneralCfgOpt("tornBazaarPlus", "Torn Bazaar Pricing, Plus!",
@@ -5694,8 +5738,6 @@
         if (opts_enabledScripts.crimeToolTips.enabled) {tornCrimeTooltips().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornTTFilter.enabled) {tornTTFilter().then(a => _a(a), b => _b(b));}
-
-        if (opts_enabledScripts.collapsibleSidebar.enabled) {tornCollapsibleSidebar().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornFacPageSearch.enabled) {tornFacPageSearch().then(a => _a(a), b => _b(b));}
 
