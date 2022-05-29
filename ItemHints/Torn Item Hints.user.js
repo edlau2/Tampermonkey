@@ -4,14 +4,17 @@
 // @version      0.2
 // @description  Adds useful info onto the items page, so you don't have to expand the item.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/item.php*
+// @match        https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
-// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-Hints-Helper.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
