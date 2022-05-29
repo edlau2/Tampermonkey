@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Torn Sort Weapons
+// @name         Torn Weapon Sort
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.3
 // @description  Sorts weapons on the Items page by various criteria
 // @author       xedx [2100735]
-// @include      https://www.torn.com/item.php*
+// @match        https://www.torn.com/item.php*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @grant        GM_addStyle
@@ -15,18 +15,15 @@
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     console.log('Torn Sort Weapons...enter');
 
     'use strict';
 
-    GM_addStyle('.xedx-ctrls {' +
-                    'margin: 10px;' +
-                '}'
-    );
-    
-    console.log('Torn Sort Weapons...styles set');
+    GM_addStyle(`.xedx-ctrls {'margin: 10px;}`);
 
     // Global variables
     var debugLoggingEnabled = true; // Defined in helper lib.
@@ -239,6 +236,7 @@
                 }
             }
             if (dmg && acc) items[j].setAttribute('totalStats', (dmg + acc));
+            //if (dmg && acc) items[j].setAttribute('totalStats', (dmg * acc));
         }
         log('<== setSumTotal');
     }
@@ -253,6 +251,7 @@
         let parent = document.querySelector("#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.equipped-items-wrap");
         if (!parent) return setTimeout(installUI, 50);
         if (!document.querySelector("xedx-weapon-sort")) {
+            let optionsDiv = getOptionsDiv();
             $(optionsDiv).insertAfter(parent);
         }
 
@@ -342,7 +341,8 @@
         window.onload = function(e){handlePageLoad();}
     }
 
-     var optionsDiv =
+    function getOptionsDiv() {
+     let optionsDiv =
         '<hr class="page-head-delimiter m-top10 m-bottom10">' +
         '<div class="t-blue-cont h" id="xedx-weapon-sort" style="display: none;">' +
               '<div id="xedx-content-div" class="cont-gray border-round" style="height: auto; overflow: auto;">' +
@@ -366,6 +366,8 @@
                   '</div>' +
               '</div>' +
           '</div>';
+        return optionsDiv;
+    }
 
 
 })();
