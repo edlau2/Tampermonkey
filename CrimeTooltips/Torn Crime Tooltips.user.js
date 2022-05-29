@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Crime Tooltips
 // @namespace    http://tampermonkey.net/
-// @version      0.13
+// @version      0.14
 // @description  Provides Tool Tips the Criminal Record section of the Home page
 // @author       xedx [2100735]
-// @include      https://www.torn.com/index.php
-// @updateURL    https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js
+// @match        https://www.torn.com/index.php
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
