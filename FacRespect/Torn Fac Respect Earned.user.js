@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Respect Earned
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Displays faction respect earned by you on the home page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
