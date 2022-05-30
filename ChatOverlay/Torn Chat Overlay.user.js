@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -534,7 +534,10 @@
             $(ta).after(chatOverlay);
             myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
             $(myChat).attr("class", $(ta).attr("class")); // Mirror class - the names change.
-            $(myChat).attr("style", $(ta).attr("style")); // And style.
+            // $(myChat).attr("style", $(ta).attr("style")); // And style. (this won't work - gets over-written)
+
+            let wrappedStyle = ta.getAttribute('style');
+            ta.setAttribute('style', (wrappedStyle + 'display: none;')); // and hide real textarea
 
             addOverlayActive(ta);
 
