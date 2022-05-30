@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -22,7 +22,7 @@
 (function() {
     'use strict'
 
-    const devMode = true;
+    const devMode = false;
     const indicatorsOn = false;
 
     // Function so I can use code collapse to see stuff easier.
@@ -63,13 +63,7 @@
     // Globals for an observer
     const targetNode = document.querySelector("#chatRoot");
 
-    //const chatboxTextArea = 'chat-box-textarea_1RrlX';
-    //const chatboxInputArea = 'chat-box-input_1Nsmp';
-    const chatboxTextArea = '_chat-box-textarea_14cwy_816';
-    const chatboxInputArea = '_chat-box-input_14cwy_789';
-
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
-                            'class="' + chatboxTextArea + '" ' +
                             'style="width: 179.4px; height: 51px;">' + // Will be over-written with target style
                         '</textarea>';
     const chatOverlayActive = '<i class="icon_chat_active"></i>'; // Only used if "indicatorsOn = true;"
@@ -528,25 +522,30 @@
     function addChatOverlay(ta) {
         if (!ta) return;
         if (observer) observer.disconnect();
-
         debug('[addChatOverlay]');
-        let myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
-        if (myChat) {
-            debug('Overlay already exists');
+        try {
+            let myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
+            if (myChat) {
+                debug('Overlay already exists');
+                if (observer) observer.observe(targetNode, config);
+                return; // Only do once!
+            }
+
+            $(ta).after(chatOverlay);
+            myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
+            $(myChat).attr("class", $(ta).attr("class")); // Mirror class - the names change.
+            $(myChat).attr("style", $(ta).attr("style")); // And style.
+
+            addOverlayActive(ta);
+
+            $(ta).addClass("xedx-hide"); //Hide real textarea
+            $(myChat).on("keypress", handleChatKeypress); // Trap 'enter'
+            autoComplete.attach(myChat); // Add autocomplete, filters on ':'
+        } catch (e) {
+            log("[chatOverlay] ERROR: ", e);
+        } finally {
             if (observer) observer.observe(targetNode, config);
-            return; // Only do once!
         }
-
-        let wrappedStyle = ta.getAttribute('style');
-        $(ta).after(chatOverlay);
-        myChat = ta.parentNode.querySelectorAll('[name="xedx-chatbox2"]')[0];
-        myChat.setAttribute('style', wrappedStyle); // Mirror wrapped textarea
-        addOverlayActive(ta);
-        ta.setAttribute('style', (wrappedStyle + 'display: none;')); // and hide real textarea
-        $(myChat).on("keypress", handleChatKeypress); // Trap 'enter'
-        autoComplete.attach(myChat); // Add autocomplete, filters on ':'
-
-        if (observer) observer.observe(targetNode, config);
     }
 
     // Add an 'active' indicator to the chatbox (optional - decided I didn't like it)
@@ -574,10 +573,11 @@
         debug('[processAddedNodes]');
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
-            //debug('Target node ', target, ' being added!');
+            let ia = target ? target.querySelectorAll("div[class ^= '_chat-box-input']")[0] : null;
+            let ta = ia ? ia.querySelector("div > textarea") : null;
 
-            let ta = target ? target.querySelector('.' + chatboxInputArea + ' > div > textarea') : null;
-            //debug('textarea: ', ta);
+            debug('target: ', target, ' ia: ', ia, ' ta: ', ta);
+
             if (ta) addChatOverlay(ta);
             let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
             if (iconNode) {
@@ -620,7 +620,8 @@
     };
 
     function handlePageLoad() {
-        let chatNodes = targetNode.getElementsByClassName(chatboxTextArea);
+        let chatNodes = targetNode.querySelectorAll("textarea[class ^= '_chat-box-textarea']");
+
         debug('Found ' + chatNodes.length + ' existing open chat boxes');
         for (let i=0; i<chatNodes.length; i++) {
             addChatOverlay(chatNodes[i]);
