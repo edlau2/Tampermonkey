@@ -18,14 +18,42 @@ var itemUpdateRan = false;
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
-  let ss = important_getSSID();
+  let ss = null;
+  console.log('Getting SSID...');
+  try {
+    ss = important_getSSID();
+  } catch (e) {
+    log(e);
+    log('Error getting SSID ... will continue.')
+  }
+  
   console.log(getVersion());
-  loadScriptOptions(ss);
-  syncPriceCalcWithSheet26(ss);
-  // checkForUpdates();
+
+  console.log('Loading options');
+  try {
+    loadScriptOptions(ss);
+   } catch (e) {
+    log(e);
+    log('Error Loading options ... will continue.')
+  }
+
+  console.log('Syncing price calc');
+  try {
+    syncPriceCalcWithSheet26(ss);
+    // checkForUpdates(); 
+  } catch (e) {
+    log(e);
+    log('Error Syncing price calc ... will continue.')
+  }
 
   // See if triggers already exist. If not, create.
-  checkInstalledTriggers();
+  console.log('Checking triggers');
+  try {
+    checkInstalledTriggers(); 
+  } catch (e) {
+    log(e);
+    log('Error Checking triggers ... will continue.')
+  }
 }
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
@@ -91,6 +119,37 @@ function onEdit(e) {
   console.log('<== onEdit');
 }
 
+// See if the 3 required triggers exist.
+// If not, add them.
+//   fn up2, time-driven, day, midnight TCT
+//   fn batchAPI, time-driven, minutes, every 1 minute
+//   fn checkSheet10, time-driven, minutes, every 5 minutes
+function checkInstalledTriggers() {
+  if (!isInstalledTrigger("up2")) {
+    startPeriodicTrigger("up2");
+  }
+  if (!isInstalledTrigger("batchAPI")) {
+    startPeriodicTrigger("batchAPI");
+  }
+  if (!isInstalledTrigger("checkSheet10")) {
+    startPeriodicTrigger("checkSheet10");
+  }
+}
+
+function isInstalledTrigger(funcName) {
+  let allTriggers = ScriptApp.getProjectTriggers();
+  for (let i=0; i < allTriggers.length; i++) {
+    console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId(), 
+                ' Handler: ', allTriggers[i].getHandlerFunction());
+    if (allTriggers[i].getHandlerFunction() === funcName) {
+      log('Timer installed for ' + funcName);
+      return true;
+    }
+  }
+
+  log('Timer NOT installed for ' + funcName);
+  return false;
+}
 // Helper: create a periodic (ever timeMins minutes) trigger
 function startPeriodicTrigger(someFunc) {
   log('Creating time-based trigger for ' + someFunc);
@@ -101,7 +160,7 @@ function startPeriodicTrigger(someFunc) {
     case 'up2':
         trigger = ScriptApp.newTrigger(someFunc)
           .timeBased()
-          .atHour(24)
+          .atHour(23)
           .inTimezone("GMT")
           .everyDays(1) // Frequency is required if you are using atHour() or nearMinute()
           .create();
@@ -118,40 +177,16 @@ function startPeriodicTrigger(someFunc) {
           .everyMinutes(5)
           .create();
         break;
+    default: 
+        log('Don`t know how to install a trigger for "' + someFunc + '"');
   }
 
-  log('Trigger created: ', trigger);
+  if (trigger) {
+    log('Trigger created: ', trigger);
+  } else {
+    log('Failed to install trigger for ' + someFunc);
+  }
   return trigger;
-}
-
-// See if the 3 required triggers exist.
-// If not, add them.
-// fn up2, time-driven, day, midnight TCT
-// fn batchAPI, time-driven, minutes, every 1 minute
-// fn checkSheet10, time-driven, minutes, every 5 minutes
-function checkInstalledTriggers() {
-  if (!isInstalledTrigger("up2")) {
-    startPeriodicTrigger("up2")
-  }
-  if (!isInstalledTrigger("batchAPI")) {
-    startPeriodicTrigger("batchAPI")
-  }
-  if (!isInstalledTrigger("checkSheet10")) {
-    startPeriodicTrigger("checkSheet10")
-  }
-}
-
-function isInstalledTrigger(funcName) {
-  let allTriggers = ScriptApp.getProjectTriggers();
-  for (let i=0; i < allTriggers.length; i++) {
-    console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId(), 
-                ' Handler: ', allTriggers[i].getHandlerFunction());
-    if (allTriggers[i].getHandlerFunction() === funcName) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function syncPriceCalcWithSheet26(ss=null) {
@@ -226,7 +261,7 @@ function getVersion(ss=null) {
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
          'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
          'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
-         'SSID: ' + (ss ? ss.getKey() : important_getSSID().getKey());
+         'SSID: ' + (ss ? ss.getKey() : important_getSSID() ? important_getSSID().getKey() : 'Unknown');
 }
 
 // Function to get the spredsheet handle by SSID
@@ -259,11 +294,17 @@ function important_getSSID() {
     if (ss) console.log('Used saved SSID: ', ss.getKey());
   } catch (e) {
     console.log('Error: ' , e + '\nWill retry with default SSID (' + defSSID + ')');
-    ss = SpreadsheetApp.openById(defSSID);
-    if (ss) {
-      console.log('Success! key = ', ss.getKey());
-      SCRIPT_PROP.setProperty("key", ss.getKey());
-      console.log('Saved SSID: ', ss.getKey());
+    try {
+      ss = SpreadsheetApp.openById(defSSID);
+      if (ss) {
+        console.log('Success! key = ', ss.getKey());
+        SCRIPT_PROP.setProperty("key", ss.getKey());
+        console.log('Saved SSID: ', ss.getKey());
+      } else {
+        console.log('Default SSID failed also.')
+      }
+    } catch(e) {
+      log('Failed with def SSID also: ', e);
     }
   } finally {
     return ss;
@@ -381,7 +422,7 @@ function deepCopy(copyArray) {
 
 // Helper to optionally log.
 function log(...data) {
-  if (opts.opt_consoleLogging) console.log(...data);
+  /*if (opts.opt_consoleLogging)*/ console.log(...data);
 }
 
 // Helpers to get various sheets by name
