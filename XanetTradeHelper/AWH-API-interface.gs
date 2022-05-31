@@ -19,7 +19,7 @@ const nameCol = 1; // Column for name, (both sheets)
 // Main entry point
 /////////////////////////////////////////////////////////////////////////////
 
-function main() {
+function awhMain() {
   var ss = important_getSSID();
   let success = true;
   let savedExceptions  = [];
@@ -108,6 +108,13 @@ function main() {
       log('Releasing lock.');
       lock.releaseLock();
       }
+  }
+}
+
+// Install the AWH trigger
+function installAwhTrigger() {
+  if (!isInstalledTrigger("awhMain")) {
+    startPeriodicTrigger("awhMain");
   }
 }
 
@@ -289,4 +296,3 @@ function getItemBids(itemsJSON) {
 
     safeAlert('Finished downloading prices!\n\n' + alertText);
 }
-
