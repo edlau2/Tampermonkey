@@ -177,6 +177,11 @@ function startPeriodicTrigger(someFunc) {
           .everyMinutes(5)
           .create();
         break;
+    case 'awhMain':
+        trigger = ScriptApp.newTrigger(someFunc)
+          .timeBased()
+          .everyMinutes(15)
+          .create();
     default: 
         log('Don`t know how to install a trigger for "' + someFunc + '"');
   }
