@@ -182,6 +182,7 @@ function startPeriodicTrigger(someFunc) {
           .timeBased()
           .everyMinutes(15)
           .create();
+          break;
     default: 
         log('Don`t know how to install a trigger for "' + someFunc + '"');
   }
