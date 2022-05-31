@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.7';
+const UTILITIES_VERSION_INTERNAL = '2.8';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -18,42 +18,31 @@ var itemUpdateRan = false;
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
-  let ss = null;
-  console.log('Getting SSID...');
-  try {
-    ss = important_getSSID();
-  } catch (e) {
-    log(e);
-    log('Error getting SSID ... will continue.')
-  }
-  
+  /*
+  let ss = important_getSSID();
+  console.log(getVersion());
+  loadScriptOptions(ss);
+  */
+  syncPriceCalcWithSheet26(ss);
+  // checkForUpdates();
+}
+
+function setup() {
+  let ss = important_getSSID();
   console.log(getVersion());
 
-  console.log('Loading options');
-  try {
-    loadScriptOptions(ss);
-   } catch (e) {
-    log(e);
-    log('Error Loading options ... will continue.')
-  }
+  loadScriptOptions(ss);
+  log('Options loaded.');
 
-  console.log('Syncing price calc');
-  try {
-    syncPriceCalcWithSheet26(ss);
-    // checkForUpdates(); 
-  } catch (e) {
-    log(e);
-    log('Error Syncing price calc ... will continue.')
-  }
+  syncPriceCalcWithSheet26(ss);
+  log('Price calc synced with Sheet26');
 
-  // See if triggers already exist. If not, create.
-  console.log('Checking triggers');
-  try {
-    checkInstalledTriggers(); 
-  } catch (e) {
-    log(e);
-    log('Error Checking triggers ... will continue.')
-  }
+  // checkForUpdates();
+  checkInstalledTriggers();
+  log('Triggers all set.');
+
+  sortPriceCalc();
+  log('Proce Calc sorted.')
 }
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
@@ -119,6 +108,117 @@ function onEdit(e) {
   console.log('<== onEdit');
 }
 
+function syncPriceCalcWithSheet26(ss=null) {
+  markDupsInPriceList(ss);
+  handleNewItems(ss);
+  if (opts.opt_autoSort) sortPriceCalc(ss);
+}
+
+// Determine the type of common objects
+function getObjType(obj) {
+  var type = typeof(obj);
+  if (type === "object") {
+    try {
+      // Try a dummy method, catch the error
+      type = obj.getObjTypeXYZZY();
+    } catch (error) {
+      // Should be a TypeError - parse the object type from error message
+      type = error.message.split(" object ")[1].replace('.','');
+    }
+  }
+  return type;
+}
+
+// Determine the main spreadsheet version, as a number
+function getSpreadsheetVersion(ss=null) {
+  let verStr = priceSheet(ss).getRange('A2').getValue();
+  let verArray = verStr.split(' ');
+  let version = +verArray[1]; // The '+' casts the string to a number
+  //console.log(version + ' ' + getObjType(version));
+
+  return version;
+}
+
+// Load script options
+function loadScriptOptions(ss) {
+  opts.opt_detectDuplicates = optsSheet(ss).getRange("B3").getValue();
+  opts.opt_maxTransactions = optsSheet(ss).getRange("B4").getValue();
+  opts.opt_consoleLogging = optsSheet(ss).getRange("B5").getValue();
+  opts.opt_colorDataCells = optsSheet(ss).getRange("B6").getValue();
+  opts.opt_logRemote = optsSheet(ss).getRange("B7").getValue();
+  opts.opt_calcSetItemPrices = optsSheet(ss).getRange("B8").getValue();
+  opts.opt_calcSetPointPrices = optsSheet(ss).getRange("B9").getValue();
+  opts.opt_clearRunningAverages = optsSheet(ss).getRange("B10").getValue();
+  opts.opt_markdown = Number(optsSheet(ss).getRange("B11").getValue());
+  opts.opt_useLocks = optsSheet(ss).getRange("B12").getValue();
+  opts.opt_allowUI = optsSheet(ss).getRange("B13").getValue();
+  opts.opt_profile = optsSheet(ss).getRange("B14").getValue();
+  opts.opt_autoSort = optsSheet(ss).getRange("B15").getValue();
+  opts.opt_fixup26 = optsSheet(ss).getRange("B16").getValue();
+  opts.opt_bulkPricing = optsSheet(ss).getRange("B17").getValue();
+  opts.opt_autoReceipts = optsSheet(ss).getRange("B18").getValue();
+
+  // AWH options
+  opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
+  opts.awhKey = optsSheet(ss).getRange("B24").getValue();
+  opts.opt_getItemBids = optsSheet(ss).getRange("B25").getValue();
+
+  if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
+    log('ALERT: Can`t have both set item prices and ' + 
+    'set point prices enabled, point prices will take precedence!');
+    opts.opt_calcSetItemPrices = false;
+    optsSheet(ss).getRange("B8").setValue(false);
+  }
+
+  console.log('loadScriptOptions: ', opts);
+}
+
+// Versioning info
+function getVersion(ss=null) {
+  return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
+         'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
+         'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
+         'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
+         'SSID: ' + (ss ? ss.getKey() : important_getSSID().getKey());
+}
+
+// Function to get the spredsheet handle by SSID
+// See also ssidTest() in 'unitTests.gs'
+var SCRIPT_PROP = PropertiesService.getScriptProperties();
+function important_getSSID() {
+  let ss = null;
+  let savedKey = SCRIPT_PROP.getProperty("key");
+  if (!savedKey) {
+    let doc = SpreadsheetApp.getActiveSpreadsheet();
+    if (doc) {
+      console.log('Saved SSID not found, using current SSID:', doc.getId())
+      SCRIPT_PROP.setProperty("key", doc.getId());
+      console.log('Saved SSID: ' + doc.getId());
+    }
+  }
+
+  try {
+    ss = SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
+    if (ss) console.log('Used saved SSID: ', ss.getKey());
+  } catch (e) {
+    console.log('Error: ' , e + '\nWill retry with default SSID (' + defSSID + ')');
+    ss = SpreadsheetApp.openById(defSSID);
+    if (ss) {
+      console.log('Success! key = ', ss.getKey());
+      SCRIPT_PROP.setProperty("key", ss.getKey());
+      console.log('Saved SSID: ', ss.getKey());
+    }
+  } finally {
+    return ss;
+  }
+}
+
+// Delete any saved spreadsheet key - debugging utility only.
+function deleteSSID() {
+  SCRIPT_PROP.deleteProperty("key");
+  console.log('Deleted saved SSID');
+}
+
 // See if the 3 required triggers exist.
 // If not, add them.
 //   fn up2, time-driven, day, midnight TCT
@@ -150,6 +250,7 @@ function isInstalledTrigger(funcName) {
   log('Timer NOT installed for ' + funcName);
   return false;
 }
+
 // Helper: create a periodic (ever timeMins minutes) trigger
 function startPeriodicTrigger(someFunc) {
   log('Creating time-based trigger for ' + someFunc);
@@ -193,134 +294,6 @@ function startPeriodicTrigger(someFunc) {
     log('Failed to install trigger for ' + someFunc);
   }
   return trigger;
-}
-
-function syncPriceCalcWithSheet26(ss=null) {
-  markDupsInPriceList(ss);
-  handleNewItems(ss);
-  if (opts.opt_autoSort) sortPriceCalc(ss);
-}
-
-// Determine the type of common objects
-function getObjType(obj) {
-  var type = typeof(obj);
-  if (type === "object") {
-    try {
-      // Try a dummy method, catch the error
-      type = obj.getObjTypeXYZZY();
-    } catch (error) {
-      // Should be a TypeError - parse the object type from error message
-      type = error.message.split(" object ")[1].replace('.','');
-    }
-  }
-  return type;
-}
-
-// Determine the main spreadsheet version, as a number
-function getSpreadsheetVersion(ss=null) {
-  let verStr = priceSheet(ss).getRange('A2').getValue();
-  let verArray = verStr.split(' ');
-  let version = +verArray[1]; // The '+' casts the string to a number
-  //console.log(version + ' ' + getObjType(version));
-
-  return version;
-}
-
-// Load script options
-function loadScriptOptions(ss) {
-  log('[loadScriptOptions] ==>');
-  opts.opt_detectDuplicates = optsSheet(ss).getRange("B3").getValue();
-  opts.opt_maxTransactions = optsSheet(ss).getRange("B4").getValue();
-  opts.opt_consoleLogging = optsSheet(ss).getRange("B5").getValue();
-  opts.opt_colorDataCells = optsSheet(ss).getRange("B6").getValue();
-  opts.opt_logRemote = optsSheet(ss).getRange("B7").getValue();
-  opts.opt_calcSetItemPrices = optsSheet(ss).getRange("B8").getValue();
-  opts.opt_calcSetPointPrices = optsSheet(ss).getRange("B9").getValue();
-  opts.opt_clearRunningAverages = optsSheet(ss).getRange("B10").getValue();
-  opts.opt_markdown = Number(optsSheet(ss).getRange("B11").getValue());
-  opts.opt_useLocks = optsSheet(ss).getRange("B12").getValue();
-  opts.opt_allowUI = optsSheet(ss).getRange("B13").getValue();
-  opts.opt_profile = optsSheet(ss).getRange("B14").getValue();
-  opts.opt_autoSort = optsSheet(ss).getRange("B15").getValue();
-  opts.opt_fixup26 = optsSheet(ss).getRange("B16").getValue();
-  opts.opt_bulkPricing = optsSheet(ss).getRange("B17").getValue();
-  opts.opt_autoReceipts = optsSheet(ss).getRange("B18").getValue();
-
-  // AWH options
-  opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
-  opts.awhKey = optsSheet(ss).getRange("B24").getValue();
-  opts.opt_getItemBids = optsSheet(ss).getRange("B25").getValue();
-
-  if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
-    log('ALERT: Can`t have both set item prices and ' + 
-    'set point prices enabled, point prices will take precedence!');
-    opts.opt_calcSetItemPrices = false;
-    optsSheet(ss).getRange("B8").setValue(false);
-  }
-
-  console.log('loadScriptOptions: ', opts);
-}
-
-// Versioning info
-function getVersion(ss=null) {
-  return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
-         'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
-         'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
-         'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
-         'SSID: ' + (ss ? ss.getKey() : important_getSSID() ? important_getSSID().getKey() : 'Unknown');
-}
-
-// Function to get the spredsheet handle by SSID
-// See also ssidTest() in 'unitTests.gs'
-var SCRIPT_PROP = PropertiesService.getScriptProperties();
-function important_getSSID() {
-  /* New chnages:
-  let ss = null;
-  let doc = SpreadsheetApp.getActiveSpreadsheet();
-    if (doc) {
-      console.log('Using current SSID:', doc.getId())
-      SCRIPT_PROP.setProperty("key", doc.getId());
-      console.log('Saved SSID: ' + doc.getId());
-    }
-    */
-
-  let ss = null;
-  let savedKey = SCRIPT_PROP.getProperty("key");
-  if (!savedKey) {
-    let doc = SpreadsheetApp.getActiveSpreadsheet();
-    if (doc) {
-      console.log('Saved SSID not found, using current SSID:', doc.getId())
-      SCRIPT_PROP.setProperty("key", doc.getId());
-      console.log('Saved SSID: ' + doc.getId());
-    }
-  }
-
-  try {
-    ss = SpreadsheetApp.openById(SCRIPT_PROP.getProperty("key"));
-    if (ss) console.log('Used saved SSID: ', ss.getKey());
-  } catch (e) {
-    console.log('Error: ' , e + '\nWill retry with default SSID (' + defSSID + ')');
-    try {
-      ss = SpreadsheetApp.openById(defSSID);
-      if (ss) {
-        console.log('Success! key = ', ss.getKey());
-        SCRIPT_PROP.setProperty("key", ss.getKey());
-        console.log('Saved SSID: ', ss.getKey());
-      } else {
-        console.log('Default SSID failed also.')
-      }
-    } catch(e) {
-      log('Failed with def SSID also: ', e);
-    }
-  } finally {
-    return ss;
-  }
-}
-
-// Delete any saved spreadsheet key - debugging utility only.
-function deleteSSID() {
-  SCRIPT_PROP.deleteProperty("key");
-  console.log('Deleted saved SSID');
 }
 
 // Find any duplicate names in 'price calc' and highlight
@@ -427,8 +400,8 @@ function deepCopy(copyArray) {
 }
 
 // Helper to optionally log.
-function log(...data) {
-  /*if (opts.opt_consoleLogging)*/ console.log(...data);
+function log(data) {
+  if (opts.opt_consoleLogging) console.log(data);
 }
 
 // Helpers to get various sheets by name
