@@ -27,21 +27,30 @@
        log('Setting .myPopups to "show" in one sec');
        setTimeout (function () {
            log("myPopups: ", $('.myPopups'));
-           //$('.myPopups').show(); // Over-ridden by the style def
            $('.myPopups').addClass('xshow').removeClass('xhide');
        }, 1000);});
 
-  let iframe = $("body").prepend(
-       "<div style='position: fixed; width:1000px; height:500px; top:200px; left:775px; z-index:999;'" +
-       "class='myPopups xhide'> <iframe id='pointspopup' style='width: 1000px; height: 500px;'" +
-       "src='https://www.torn.com/points.php'> </iframe> </div>");
+    // Get a copy of the e-bar.
+    let eBar = document.querySelector("#refill-energy-bar");
+    let orgEnergyBar = $(eBar).clone();
+    $(orgEnergyBar).addClass('myPopups xhide'); // Set class so I can find it, and to hide it.
+    log('orgEnergyBar: ', orgEnergyBar);
 
+    // Saved for now
+    let myFrameContent = "<div style='position: fixed; width:1000px; height:500px; top:200px; left:775px; z-index:999;'" +
+       "class='myPopups xhide'> <iframe id='pointspopup' style='width: 1000px; height: 500px;'" +
+       "src='https://www.torn.com/points.php'> </iframe> </div>"
+
+    let iframe = $("body").prepend(orgEnergyBar);
+
+    // Not dong this ATM...
+    //
     // Note sure why this is here, but hides everything, so need to unhide everything if you want to see it.
     // If this is what I think it is, this is what I meant about needing to be sure your parent divs aren't hidden.
-  if (window.top === window.self) {
-      let res = $("#pointspopup").contents().find("body");
-      log('res: ', res);
-      $("#pointspopup").contents().find("body").hide(); // Comment this out, and you'll see stuff again
+    if (window.top === window.self) {
+        let res = $("#pointspopup").contents().find("body");
+        log('res: ', res);
+        //$("#pointspopup").contents().find("body").hide(); // Comment this out, and you'll see stuff again
   }
 
 
