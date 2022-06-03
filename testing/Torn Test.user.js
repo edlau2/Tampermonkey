@@ -18,6 +18,51 @@
 
 (function() {
     'use strict';
+
+    // What I really do, in practice:
+    let result =
+        `<div class="sortable-box t-blue-cont h" id="xedx-carorder">
+        <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-hdr-div">
+            <div class="arrow-wrap sortable-list" id="xedx-arrow">
+                <a role="button" href="#/" class="accordion-header-arrow right" i-data="i_946_369_9_14"></a>
+            </div>Car Order
+        </div>
+        <div class="bottom-round xedx-body" id="xedx-body-div" style="display: none;">
+            <div id="xedx-content-div" class="cont-gray bottom-round" style="background-color: #ddd;">
+                <span style="display: block; overflow: hidden; padding: 5px 10px;">
+                    <span class="btn-wrap silver">
+                        <span class="xedx-btn" style="padding: 5px 10px;">
+                            <button style="width: 108px;" id="xedx-save-btn">Save</button>
+                        </span>
+                    </span>
+                    <span class="btn-wrap silver">
+                        <span class="xedx-btn" style="padding: 5px 10px;">
+                            <button style="width: 108px;" id="xedx-restore-btn">Restore</button>
+                        </span>
+                    </span>
+                    <span>
+                        <label class="xedx-label">
+                        <input type="checkbox" class="xedx-chkbox" id="xedx-chkbox1">Load Saved Order at Startup
+                        </label>
+                    </span>
+                </span>
+                <span style="display: block; overflow: hidden; padding: 5px 10px;">
+                    <span class="btn-wrap silver">
+                        <span class="xedx-btn" style="padding: 5px 10px;">
+                            <button style="width: 108px;" id="xedx-default-btn">Defaults</button>
+                        </span>
+                    </span>
+                    <span class="btn-wrap silver">
+                        <span class="xedx-btn" style="padding: 5px 10px;">
+                            <button style="width: 108px;" id="xedx-help-btn">Help</button>
+                        </span>
+                    </span>
+                </span>
+            </div>
+        </div>
+        <hr class="delimiter-999 m-top10 m-bottom10">
+    </div>`;
+
     // Note in this one - 'id' is *inside* the style attribute. Messing up everything.
     let div1 = "<div style=' display: none ; position:fixed ; width:1000px ; height:500px ; top:200px ; left:775px ; z-index:999 ;" +
                "' class='myPopups' > <iframe style=' id='pointspopup'; width: 100%;height: 100%;' src='https://www.torn.com/points.php'>" +
