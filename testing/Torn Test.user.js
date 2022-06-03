@@ -28,14 +28,19 @@
                  .xshow {display: block;}
                  `);
 
-    $('.toggle-content___C6m1T span:contains("Points")').next().mousedown(function() {     //  Pick MouseDown event
+    $('.toggle-content___C6m1T span:contains("Points")').next().mouseover(function() {     //  Pick mouseover event
         log('Mouse click detected');
-        setTimeout(function() {
+        $(this).data('timeout', setTimeout(function () { // Save timeout fn if we need to cancel
             log('timer popped: ', $('#myIframe'));
             hideFrameContent();  // Hide the stuff we don't want.
             $('#myIframe').removeClass('xhide').addClass('xshow');
-        }, 1000);
-    });
+            setTimeout(hideFrameContent, 250); // This is a just in case, if we call the hideFrameContent before everything is actually
+                                               // there, the 'show()' calls may not work. Yes bad name as it hides and shows.
+        }, 1000));
+        }).mouseleave(function () {
+            clearTimeout($(this).data('timeout'));
+            log('mouse left');
+        });
 
     const content = "<div id='myIframe' class='myframe xedx-container xhide'" +
           "><iframe id='x-iframe' class='xedx-iframe' src='https://www.torn.com/points.php'></iframe></div>";
@@ -43,6 +48,7 @@
     // This is so you don't load iFrames inside of iFrames forever, if you click on the points in the iFrame :-)
     if (window.top === window.self) {     // Run Script if the Focus is Main Window
         let iframe = $("body").prepend(content);
+        //hideFrameContent();
     } else {
         //--- Script is on domain_B.com if it is IN AN IFRAME.
         // DO YOUR STUFF HERE.
