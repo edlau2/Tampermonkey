@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 (function() {
-    'use strict' ;
+    'use strict'
 
   $('.tt-points-value').mousedown (function() {
        setTimeout (function () {
@@ -32,7 +32,6 @@
   if (window.top === window.self) {
        $("#pointspopup").contents().find("body").hide();
   }
-})
 
 
 })();
