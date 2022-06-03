@@ -21,21 +21,27 @@
 
     logScriptStart();
 
+    GM_addStyle(".xshow {display: block;} .xhide {display: none;}");
+
   $('.tt-points-value').mousedown (function() {
+       log('Setting .myPopups to "show" in one sec');
        setTimeout (function () {
-           log('Setting .myPopups to "show" in one sec');
-           $('.myPopups').show();
+           log("myPopups: ", $('.myPopups'));
+           //$('.myPopups').show(); // Over-ridden by the style def
+           $('.myPopups').addClass('xshow').removeClass('xhide');
        }, 1000);});
 
   let iframe = $("body").prepend(
-       "<div style='display: none; position: fixed; width:1000px; height:500px; top:200px; left:775px; z-index:999;'" +
-       "class='myPopups'> <iframe id='pointspopup' style='width: 1000px; height: 500px;'" +
+       "<div style='position: fixed; width:1000px; height:500px; top:200px; left:775px; z-index:999;'" +
+       "class='myPopups xhide'> <iframe id='pointspopup' style='width: 1000px; height: 500px;'" +
        "src='https://www.torn.com/points.php'> </iframe> </div>");
 
+    // Note sure why this is here, but hides everything, so need to unhide everything if you want to see it.
+    // If this is what I think it is, this is what I meant about needing to be sure your parent divs aren't hidden.
   if (window.top === window.self) {
       let res = $("#pointspopup").contents().find("body");
       log('res: ', res);
-      $("#pointspopup").contents().find("body").hide();
+      $("#pointspopup").contents().find("body").hide(); // Comment this out, and you'll see stuff again
   }
 
 
