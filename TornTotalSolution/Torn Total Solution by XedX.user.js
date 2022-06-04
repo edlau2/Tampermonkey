@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -195,7 +195,7 @@
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornLatestAttacksExtender] not at home!');
-                if (!isIndexPage()) reject('[tornLatestAttacksExtender] not on home page.');
+                if (!isIndexPage()) reject('[tornLatestAttacksExtender] wrong page!');
 
                 let result = extendLatestAttacks();
                 if (result)
@@ -406,7 +406,7 @@
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornStatTracker] not at home!');
-                if (!isIndexPage()) reject('[tornStatTracker] not on home page.');
+                if (!isIndexPage()) reject('[tornStatTracker] wrong page!');
 
                 initOptStats();
                 if (!optStats.length) autoUpdateMinutes = 0;
@@ -526,7 +526,7 @@
                 reloadOptStats();
                 $("#stats-list").empty();
                 buildStatsUI();
-                if (stats_configWindow && !stats_configWindow.closed) stats_intervalTimer = setInterval(checkSaveButton, 2000);
+                if (stats_configWindow && !stats_configWindow.closed) stats_intervalTimer = setInterval(checkStatsSaveButton, 2000);
             }
 
             debug('Check config win: ', stats_configWindow, (stats_configWindow ? stats_configWindow.closed : 'no window'));
@@ -733,7 +733,7 @@
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornDrugStats] not at home!');
-                if (!isIndexPage()) reject('[tornDrugStats] not on home page.');
+                if (!isIndexPage()) reject('[tornDrugStats] wrong page!');
                 if (!validPointer(mainDiv)) return reject('[tornDrugStats] unable to locate main DIV! Consider launching later.');
                 $(mainDiv).append(extDiv); // could be $('#column0') ???
 
@@ -759,7 +759,7 @@
                 if (!name.localeCompare('rehabcost')) {
                     valSpan.innerText = '$' + numberWithCommas(value);
                 } else if (!name.localeCompare('overdosed')) {
-                    var pct = (Number(value) / Number(stats['drugsused'])*100).toFixed(2);
+                    var pct = (Number(value) / Number(stats.drugsused)*100).toFixed(2);
                     valSpan.innerText = value + ' (' + pct + '%)';
                 } else {
                     valSpan.innerText = value;
@@ -906,7 +906,7 @@
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornJailStats] not at home!');
-                if (!isIndexPage()) reject('[tornJailStats] not on home page.');
+                if (!isIndexPage()) reject('[tornJailStats] wrong page!');
                 if (document.querySelector(jailExtDivId)) {resolve('tornJailStats complete!');} // Only do this once
 
                 let mainDiv = document.getElementById('column0');
@@ -1085,7 +1085,7 @@
 
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornFacRespect] not at home!');
-                if (!isIndexPage()) reject('[tornFacRespect] not on home page.');
+                if (!isIndexPage()) reject('[tornFacRespect] wrong page!');
                 if ($('#skip-to-content').html().indexOf('Home') < 0) return reject('[tornFacRespect] unable to find content header.');
                 let error = buildPersonalRespectLi();
                 if (error)
@@ -1283,12 +1283,12 @@
                 for (let i=0; i<keys.length; i++) {
                     let key = keys[i];
                     if (custLinksOpts[key].enabled) {
-                        log('[tornCustomizableSidebar] Adding: ' + key.replaceAll('custlink-', ''));
+                        debug('[tornCustomizableSidebar] Adding: ' + key.replaceAll('custlink-', ''));
                         let node = buildCustLink(key, custLinksOpts[key]);
                         let root = custLinkGetRoot(key);
                         custLinkInsert(root, node, key);
                     } else {
-                        log('[tornCustomizableSidebar] Removing: ' + key.replaceAll('custlink-', ''));
+                        debug('[tornCustomizableSidebar] Removing: ' + key.replaceAll('custlink-', ''));
                         custLinkNodeRemove(key);
                     }
                 }
@@ -1410,7 +1410,7 @@
 
     // Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
     function initCustLinksObject() {
-        log('[initCustLinksObject]');
+        debug('[initCustLinksObject]');
 
         // Add 'dump' 'racetrack' - see altercoes for others (stock market, travel agency)
         // drag-and-drop to set order? (they appear in reverse order of here)
@@ -1451,7 +1451,7 @@
     // Read all 'custlink-' storage entries into 'custLinksOpts' obj
     // Called from saveLinksTableToStorage, initCustLinksObject
     function updateCustLinksRows() {
-        log('[updateCustLinksRows]');
+        debug('[updateCustLinksRows]');
         // Find all keys saved as cust. links - 'custlink-'<key>
         let allKeys = GM_listValues();
         for (let i=0; i<allKeys.length; i++) {
@@ -1468,7 +1468,7 @@
     // Note that clearing a row's name or link deletes it.
     // Called from handleGenOptsSaveButton
     function saveLinksTableToStorage() {
-        log('[saveLinksTableToStorage]');
+        debug('[saveLinksTableToStorage]');
 
         let tBody = $('#xedx-links-table-body');
         let tRows = tBody[0].getElementsByTagName('tr');
@@ -1584,7 +1584,11 @@
     function tornTTFilter() {
         log('[tornTTFilter]');
 
-        const TT_HIDE_BAT_STATS = true; // Hide TT bat stats?
+        const opts = {
+            opt_cleanupFacPage: true,
+            opt_hidebatStats: true,
+            opt_hideTtActive: true,
+        }
 
         // Mutation observer for attacks list
         var targetNode = null;
@@ -1594,9 +1598,14 @@
         function handleNewPage() {
             debug('[tornTTFilter] hash change!');
             hideTtActiveIndicator();
+            hideStatEstimates();
         }
 
         return new Promise((resolve, reject) => {
+
+            if (!opts.opt_cleanupFacPage && !opts.opt_hidebatStats && !opts.opt_hideTtActive) {
+                return reject("[tornTTFilter] no options enabled!");
+            }
 
             hideTtActiveIndicator();
             installHashChangeHandler(handleNewPage);
@@ -1608,7 +1617,7 @@
             }
 
             // Hide bat stats estimates? (various pages)
-            hideStatEstimates();
+            if (opts.opt_hidebatStats) setInterval(hideStatEstimates , 1000);
 
             resolve("tornTTFilter startup complete!");
         });
@@ -1625,6 +1634,7 @@
         }
 
         function handleFacInfoPage() {
+            if (!opts.opt_cleanupFacPage) return;
             debug('[tornTTFilter] [handleFacInfoPage]');
             let targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body");
             if (targetNode) {
@@ -1641,19 +1651,12 @@
         }
 
         function hideStatEstimates() {
-            debug('[tornTTFilter] [hideStatEstimates]');
-            if (!TT_HIDE_BAT_STATS) return;
-            let ttNodes = document.getElementsByClassName('tt-stats-estimate');
-            debug('[tornTTFilter] Found ' + ttNodes.length + ' stat estimates');
-            if (ttNodes) {
-                Array.prototype.forEach.call(ttNodes, function(node) {
-                    debug('[tornTTFilter] Hiding node ', node);
-                    node.setAttribute('style', 'display: none;');
-                });
-            }
+            if (!opts.opt_hidebatStats) return;
+            $('.tt-stats-estimate').remove();
         }
 
         function hideTtActiveIndicator() {
+            if (!opts.opt_hideTtActive) return;
             debug('[tornTTFilter] [hideTtActiveIndicator]');
             let ttIndicator = document.querySelector("#tt-page-status");
             if (ttIndicator) {
@@ -2570,8 +2573,8 @@
             }
 
             // If not sorting, bail
-            debug('[tornWeaponSort] sortPage: Auto Sort is ' + (tornWeaponSort.autosort ? 'ON' : 'OFF'));
-            if (!tornWeaponSort.autosort) {
+            debug('[tornWeaponSort] sortPage: Auto Sort is ' + (tornWeaponSort.autoSort ? 'ON' : 'OFF'));
+            if (!tornWeaponSort.autoSort) {
                 debug('[tornWeaponSort] Auto Sort not on, going home.');
                 return;
             }
@@ -2707,11 +2710,9 @@
             let ckBox = document.querySelector("#autosort");
             if (!ckBox) return setTimeout(installUI, 50);
 
-            tornWeaponSort.autosort = GM_getValue('wsort-checkbox', tornWeaponSort.autosort);
-            ckBox.checked = tornWeaponSort.autosort;
+            ckBox.checked = tornWeaponSort.autoSort;
             ckBox.addEventListener("click", onCheckboxClicked);
 
-            tornWeaponSort.selID = GM_getValue('wsort-selectedBtn', tornWeaponSort.selID);
             let btn = document.querySelector("#" + tornWeaponSort.selID); // querySelector("#\\3" + selID);
             btn.checked = true;
             btn.click();
@@ -2734,9 +2735,11 @@
         function onRadioClicked(e) {
             tornWeaponSort.lastSelID = tornWeaponSort.selID;
             tornWeaponSort.selID = document.querySelector('input[name="sortopts"]:checked').value;
-            if (tornWeaponSort.lastSelID == tornWeaponSort.selID) return;
-            debug('[tornWeaponSort] Radio Button Selected: ' + tornWeaponSort.selID);
             GM_setValue('wsort-selectedBtn', tornWeaponSort.selID);
+            debug('[tornWeaponSort] set selId to ', tornWeaponSort.selID);
+            if (tornWeaponSort.lastSelID == tornWeaponSort.selID) return;
+
+            debug('[tornWeaponSort] Radio Button Selected: ' + tornWeaponSort.selID);
             debug('[tornWeaponSort] onRadioClicked: Sorting page by ' + tornWeaponSort.sortOrder[tornWeaponSort.selID]);
             sortPage();
         }
@@ -2744,9 +2747,12 @@
         // Handle the "Auto Sort" checkbox
         function onCheckboxClicked() {
             let ckBox = document.querySelector("#autosort");
+            debug('[tornWeaponSort] set autoSort to ', ckBox.checked);
             GM_setValue('wsort-checkbox', ckBox.checked);
-            tornWeaponSort.autosort = ckBox.checked;
-            debug('[tornWeaponSort] onCheckboxClicked: Auto Sort is ' + (tornWeaponSort.autosort ? 'ON' : 'OFF'));
+
+            //debug('[tornWeaponSort] GM_getValue("wsort-checkbox"): ', GM_getValue("wsort-checkbox"));
+            tornWeaponSort.autoSort = ckBox.checked;
+            debug('[tornWeaponSort] onCheckboxClicked: Auto Sort is ' + (tornWeaponSort.autoSort ? 'ON' : 'OFF'));
         }
 
         // Returns the page name of current page
@@ -2778,10 +2784,10 @@
 
         function initStatics() {
             if (typeof tornWeaponSort.autoSort == 'undefined') {
-                tornWeaponSort.autoSort = false; // TRUE to auto sort on load
+                tornWeaponSort.autoSort = GM_getValue('wsort-checkbox', false); //false; // TRUE to auto sort on load
                 tornWeaponSort.dmgSel = null; // Selectors for sorting
                 tornWeaponSort.accSel = null; // ...
-                tornWeaponSort.selID = 'xedx-1'; // What to sort by (1 = default, 2 = acc, 3 = dmg, 4 = Q, 5 = name)
+                tornWeaponSort.selID = GM_getValue('wsort-selectedBtn', 'xedx-1'); // What to sort by (1 = default, 2 = acc, 3 = dmg, 4 = Q, 5 = name)
                 tornWeaponSort.lastSelID = 'xedx-1'; // Previous selection
                 tornWeaponSort.lastSortOrder = 'Default';
 
@@ -3125,7 +3131,7 @@
                     TAB + "Stoner 96" + CRLF +
                     TAB + "Negev NG-5" + CRLF +
                     TAB + "Rheinmetall MG 3" + CRLF +
-                    TAB + "Snow Cannon" + CRLF +
+                    TAB + "Neutrilux 2000" + CRLF +
                     TAB + "M249 SAW" + CRLF +
                     TAB + "Minigun" + CRLF;
         }
@@ -3277,8 +3283,8 @@
              return  '<B>Heavy Artillery Weapons:</B>' + CRLF + CRLF +
                     TAB + "Milkor MGL" + CRLF +
                     TAB + "SMAW Launcher" + CRLF +
+                    TAB + "Snow Cannon" + CRLF +
                     TAB + "China Lake" + CRLF +
-                    TAB + "Neutrilux 2000" + CRLF +
                     TAB + "Egg Propelled Launcher" + CRLF +
                     TAB + "RPG Launcher" + CRLF +
                     TAB + "Type 98 Anti Tank" + CRLF +
@@ -3783,10 +3789,6 @@
             const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
             const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
-            //if (animatedIcons) GM_addStyle(`.highlight-active {
-            //                                -webkit-animation: highlight-active 1s linear 0s infinite normal;
-            //                                animation: highlight-active 1s linear 0s infinite normal;}`);
-
             return new Promise((resolve, reject) => {
                 if (abroad()) return reject('[tornRacingAlert] not at home!');
                 racingAlertTimer = setInterval(addRaceIcon, 10000); // Check every 10 secs
@@ -3795,15 +3797,14 @@
 
             function hasStockRaceIcons() {
                 let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
-                debug('[hasStockRaceIcons] result: ', result);
-                debug('Icon 17: ', document.getElementById("icon17-sidebar"));
-                debug('Icon 18: ', document.getElementById("icon18-sidebar"));
+                //debug('[hasStockRaceIcons] result: ', result);
+                //debug('Icon 17: ', document.getElementById("icon17-sidebar"));
+                //debug('Icon 18: ', document.getElementById("icon18-sidebar"));
                 return result;
             }
 
             function addRaceIcon() {
                 let existingRaceIcon = document.getElementById("xedx-race-icon");
-                debug('[addRaceIcon] existingRaceIcon: ', existingRaceIcon);
 
                 let redIcon = document.getElementById("icon18-sidebar");
                 if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
@@ -3817,17 +3818,14 @@
                     return;
                 }
 
-                if (existingRaceIcon) { // Style sometimes gets removed...not sure why. Test: used to have dup ID's!
-                    debug('[addRaceIcon] Class: ', $("#xedx-race-icon").attr('class'));
+                if (existingRaceIcon) {
                     if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
                     return;
                 }
 
                 //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
                 let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
-                debug('iconArea: ', iconArea);
                 if (!iconArea /*&& devMode*/) {
-                    //alert('Can`t find icon area!');
                     log('[addRaceIcon] Can`t find icon area!');
                 }
 
@@ -3838,9 +3836,6 @@
                 $(iconArea).append(raceIconRed);
                 existingRaceIcon = document.getElementById("xedx-race-icon");
                 if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
-                log('[addRaceIcon] Race icon appended!');
-                //setTimeout(addRaceIcon, 5000); // Style sometimes gets removed...not sure why. This will re-add it.
-                                               //  Test: used to have dup ID's! May  not need anymore....
             }
         }
     } // End function tornRacingAlert() {
@@ -3860,8 +3855,6 @@
     // Don't recall why...
 
     function tornRacingCarOrder() {
-
-        debugLoggingEnabled = true;
 
         //////////////////////////////////////////////////////////////////////
         // Global to this function
@@ -4753,13 +4746,14 @@
 
                 if (retries > 5) {
                     debug('[installUI] too many retires: aborting');
+                    return;
                 }
 
                 $("#xedx-search").remove();
                 let targetNode = document.querySelector("#factions > ul");
                 if (!targetNode) {
                     debug('[installUI] targetNode not found retrying...');
-                    return setTimeout(function() {installUI(retries++)}, 500);
+                    return setTimeout(function() {installUI(++retries)}, 500);
                 }
                 log('[installUI] primary target found:', targetNode);
 
@@ -4767,7 +4761,7 @@
                     targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
                     if (!targetNode) {
                         debug('[installUI] targetNode not found, retrying...');
-                        return setTimeout(function() {installUI(retries++)}, 500);
+                        return setTimeout(function() {installUI(++retries)}, 500);
                     }
 
                     debug('[installUI] inserting search div before: ', targetNode);
@@ -4781,7 +4775,7 @@
                     //targetNode = document.querySelector("#faction-controls");
                     if (!targetNode) {
                         debug('[installUI] targetNode not found, retrying...');
-                        return setTimeout(function() {installUI(retries++)}, 500);
+                        return setTimeout(function() {installUI(++retries)}, 500);
                     }
 
                     debug('[installUI] inserting search div after: ', targetNode);
@@ -4792,8 +4786,8 @@
                     $("#search").on("keypress", handleSearchKeypress);
                     $("#search").on("keydown", handleSearchKeypress); // For backspace only
                 } else {
-                    debug('[installUI] missing selectors or hash, retrying (attempt #' + (retries+1));
-                    return setTimeout(function() {installUI(retries++)}, 500);
+                    debug('[installUI] [tornFacPageSearch] missing selectors or hash, retrying (attempt #' + (retries+1));
+                    return setTimeout(function() {installUI(++retries)}, 500);
                 }
             }
 
@@ -5005,6 +4999,1394 @@
 
     function removeDisableRefills() {$("refill_confirm").remove()}
 
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn User List Extender" (called on page complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD: Add clear/refresh cache option !!!!
+    function tornUserList() {
+
+        return _tornUserList();
+
+        function _tornUserList() {
+            log('[tornUserList]');
+
+            // Options
+            /*
+            let opts = {
+                opt_devmode: false,
+                opt_loggingEnabled: false, // Only affect debug logging, not regular
+                opt_hidefedded: true,
+                opt_hidefallen: true,
+                opt_hidetravel: true,
+                opt_showcaymans: false,
+                opt_hidehosp: true,
+                opt_disabled: false,
+                opt_paused: false,
+                cacheMins: GM_getValue("userlist-cache-time", 30), // Gets set from opts page, read separately
+                cacheMaxMs: (GM_getValue("userlist-cache-time", 30) * 60 * 1000), // Default
+            }
+            */
+
+            let opts = {};
+            getSavedOptions(); // Could assign & declare in one shot here...
+
+            let stats = {
+                cache_hits: 0,
+                cache_misses: 0
+            };
+
+            log('[userListExtender] options: ', opts);
+
+            let   reqDelay = 10; //seconds to delay on error code 5 (too many req's)
+            let   mainTargetNode = null;
+            const mainConfig = { attributes: false, childList: true, subtree: true };
+            const mainObserver = new MutationObserver(function() {updateUserLevels('mainObserver')});
+
+            function xedx_main_div() {
+                const _xedx_main_div =
+                  '<div class="t-blue-cont h" id="xedx-main-div">' +
+
+                      // Header and title.
+                      '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
+                          "<span>Advanced Search by XedX</span>" +
+
+                          // This displays the active/inactive status - active when data array is populated.
+                          '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px; color: green;">' +
+                              '<span>Active</span>' +
+                          '</div>' +
+
+                          // This displays the [hide] | [show] link
+                          '<div class="right" style="margin-right: 10px">' +
+                              '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
+                          '</div>' +
+                      '</div>' +
+
+                  // This is the content that we want to hide when '[hide] | [show]' is clicked.
+                  // '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: hide";>' +
+                  '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
+                      '<br>' +
+                      '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
+                      '<table style="margin-top: 10px; width: 500px;"><tbody>' +
+                          '<tr>' + // Row 1
+                              '<td class="xtdx" ><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
+                                  '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-hidefallen-opt" name="hidefallen">' +
+                                  '<label for="hidefallen"><span style="margin-left: 15px;">Hide Fallen</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
+                                  '<button id="xedx-viewcache-btn" class = "button">View Cache</button>' +
+                              '</div></td>' +
+                          '</tr>' +
+                          '<tr>' + // Row 2
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded"">' +
+                                  '<label for="hidefedded"><span style="margin-left: 15px">Hide Fedded</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx""><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
+                                  '<label for="disabled"><span style="margin-left: 15px;">Disable Script</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
+                                  '<button id="xedx-refreshcache-btn" class = "button">Refresh</button>' +
+                              '</div></td>' +
+                          '</tr>' +
+                          '<tr>' + // Row 3
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
+                                  '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx" id="showcaymans" style="display: hide;"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
+                                  '<label for="showcaymans"><span style="margin-left: 15px">Caymans Only</span></label>' +
+                              '</div></td>' +
+                          '<tr>' +
+                          '</tr>' + // Row 4
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
+                                  '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
+                              '</div></td>' +
+                              //'<td class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
+                              //    '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
+                              //    '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
+                              //'</div></td>' +
+                          '</tr>' +
+                      '</tbody></table>' +
+                      '<div id="xedx-stats" style="float: right; margin-top: 10px;">' +
+                          '<span id="xedx-info-text" style="color: red; margin-right: 20px; margin-left: 20px;">' +
+                          //'<span id="xedx-info-text" class="powered-by" style="margin-right: 20px; margin-left: 20px;">' +
+                          GM_info.script.name +
+                          '</span>' +
+                      '</div>' +
+                      '<br>' +
+                  '</div>'; // End _xedx_main_div
+
+                return _xedx_main_div;
+            }
+
+            // Global cache of ID->Rank associations, backed to storage.
+            // rank_cache = [{ID: , numeric_rank:, name: , lifeCurr: , lifeMax: , state: , description: , access: , fromCache:}];
+            let rank_cache = [];
+
+            function newCacheItem(ID, obj) {
+                let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
+                let lifeMax = obj.life.maximum;  // ...
+                let rank = numericRankFromFullRank(obj.rank);
+                return {ID: ID, numeric_rank: rank, name: obj.name, lifeCurr: lifeCurr, lifeMax: lifeMax,
+                        state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true};
+            }
+
+            //let cacheMins = GM_getValue("userlist-cache-time", 30);
+            //let cacheMaxMs = cacheMins * 60 * 1000;
+            //const cacheMaxMs = 3600 * 1000; // one hour in ms
+            //const cacheMaxMs = 18000 * 1000; // 300 min (5 hrs) in ms
+            //const cacheMaxMs = 1800 * 1000; // 30 min in ms
+            //const cacheMaxMs = 180 * 1000; // 3 min in ms
+            //const cacheMaxMs = 60 * 1000; // 1 min in ms
+
+            // TRUE if TornTools filtering is in play
+            let ttInstalled = false;
+
+            //////////////////////////////////////////////////////////////////////
+            // Query profile information based on ID
+            //////////////////////////////////////////////////////////////////////
+
+            // Query profile information based on ID. Skip those we'd like to filter out.
+            // We don't display if the class contains 'filter-hidden', added by TornTools,
+            // or 'xedx_hidden', added here.
+            function getRankFromId(ID, li) {
+                debug('[userListExtender] getRankFromId: ID ' + ID + ' classList: ' + li.classList);
+
+                if (opts.opt_disabled) {
+                    debug('[userListExtender] Script disabled - ignoring.');
+                    return true;
+                }
+
+                if (li.classList.contains('filter-hidden') || li.classList.contains('xedx_hidden')) {
+                    log('[userListExtender] Skipping ' + ID + ': hidden.');
+                    return true;
+                }
+
+                if (isRanked(li)) { // Don't do again!
+                    debug('[userListExtender] ***** getRankFromId: rank already present! *****');
+                    debug('[userListExtender] ***** Should not be here!!! *****');
+                    return true;
+                }
+
+                if (opts.opt_paused) {
+                    debug('[userListExtender] Script paused - requeuing. (' + $("#xedx-info-text")[0].innerText + ')');
+                    if (!$("#xedx-info-text")[0].innerText) {
+                        $("#xedx-info-text")[0].innerText = 'Requests paused, please wait.';
+                    }
+                    setTimeout(function(){
+                       xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
+                    return true;
+                }
+
+                debug("[userListExtender] Querying Torn for rank, ID = " + ID);
+                xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // This callback create the cache used to store ID-rank associations
+            // and updates the UI.
+            //////////////////////////////////////////////////////////////////////
+
+            function updateUserLevelsCB(responseText, ID, li) {
+                var jsonResp = JSON.parse(responseText);
+                if (jsonResp.error) {
+                    debug('[userListExtender] updateUserLevelsCB: error:', jsonResp.error);
+                    if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                        if (isRanked(li)) { // Don't do again!
+                            log('[userListExtender] ***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
+                            return;
+                        }
+                        let name = fullNameFromLi(li);
+                        let msg = "Delaying request for " + reqDelay + " seconds.";
+                        debug('[userListExtender] updateUserLevelsCB requeuing ' + name);
+                        setTimeout(function(){
+                            $("#xedx-info-text")[0].innerText = "Restarting requests.";
+                            opts.opt_paused = false;
+                            xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+                            debug('[userListExtender] Restarting requests.');
+                        },
+                        reqDelay * 1000);  // Turn back on in <delay> secs.
+
+                        $("#xedx-info-text")[0].innerText = "Error: " + jsonResp.error.error + "\n" + msg;
+                        debug('[userListExtender] ', msg);
+                        opts.opt_paused = true;
+                        return;
+                    }
+                    return handleError(responseText);
+                }
+
+                $("#xedx-info-text")[0].innerText = 'Queried ID ' + ID;
+                setTimeout(function(){$("#xedx-info-text")[0].innerText = opts.opt_paused ? 'Requests paused, please wait.' : '';}, 5000);
+
+                let lifeCurr = jsonResp.life.current; // Can't use these (?), will be invalid if cached.
+                let lifeMax = jsonResp.life.maximum;  // ...
+
+                let numeric_rank = numericRankFromFullRank(jsonResp.rank);
+                let cache_item = newCacheItem(ID, jsonResp);
+                debug("[userListExtender] Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
+                rank_cache.push(cache_item);
+                debug('[userListExtender] Caching ID ' + ID + ' to storage.');
+                //GM_setValue(ID, cache_item); // cacheID(...)
+                writeCacheToStorage();
+                updateLiWithRank(li, cache_item);
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // Find a rank from our cache, based on ID
+            //////////////////////////////////////////////////////////////////////
+
+            function setCacheAccess() {
+                let now = new Date().getTime();
+                rank_cache.lastAccessed = now;
+            }
+
+            function writeCacheToStorage() {
+                try {
+                    setCacheAccess();
+                    GM_setValue('userListExtender.rank_cache', JSON.stringify(rank_cache));
+                } catch(e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+            }
+
+            function readCacheFromStorage() {
+                try {
+                     rank_cache = JSON.parse(GM_getValue('userListExtender.rank_cache', JSON.stringify(rank_cache)));
+                     return rank_cache;
+                } catch(e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+            }
+
+            function getCachedRankFromId(ID, li) {
+                try {
+                    let name = fullNameFromLi(li);
+                    log('[userListExtender] Looking for ' + name + + ' [' + ID + '] in cache...');
+
+                    let isHosped = isInHosp(li);
+                    let inFed = isFedded(li);
+                    let travelling = isTravelling(li);
+                    if (isHosped || inFed || travelling) {
+                        log('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
+                        log('[userListExtender] **** Shouldn`t be here? *****');
+                    }
+
+                    for (var i = 0; i < rank_cache.length; i++) {
+                        if (!rank_cache[i]) continue;
+                        if (rank_cache[i].ID == ID) {
+                            //let cacheObj = rank_cache[i];
+                            log("[userListExtender] Returning cached rank: " + ID + "(" +  rank_cache[i].name + ") ==> " +  rank_cache[i].numeric_rank);
+                            updateLiWithRank(li, rank_cache[i]);
+
+                            let now = new Date().getTime();
+                            let accessed = rank_cache[i].access;
+                            let age = now - accessed;
+                            debug("[userListExtender] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+
+                            if ((now - accessed) > opts.cacheMaxMs) {
+                                log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
+                                //GM_deleteValue(ID);
+                                let rank = rank_cache[i].numeric_rank;
+                                delete rank_cache[i];
+                                writeCacheToStorage();
+                                stats.cache_hits++;
+                                return rank;
+                            }
+
+                            rank_cache[i].access = now;
+                            writeCacheToStorage();
+                            stats.cache_hits++;
+                            return rank_cache[i].numeric_rank;
+                        }
+                    }
+
+                    debug("[userListExtender] didn't find " + name + ' [' + ID + "] in cache.");
+                    stats.cache_misses++;
+                    return 0; // Not found!
+                } catch(e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+            }
+
+            // Write out some cache stats
+            function writeCacheStats() {
+                readCacheFromStorage();
+                let now = new Date().getTime();
+                let lastAccess = rank_cache.lastAccessed;
+                let arrayOfKeys = Object.keys(rank_cache);
+                log('[userListExtender] Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
+                    'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
+            }
+
+            // Function to scan our cache and clear old entries
+            function clearStorageCache() {
+                try {
+                    readCacheFromStorage();
+                    let counter = 0;
+                    let idArray = [];
+                    let now = new Date().getTime();
+                    //let arrayOfKeys = GM_listValues();
+                    let arrayOfKeys = Object.keys(rank_cache);
+                    //GM_setValue('LastCacheAccess', now);
+                    rank_cache.lastAccessed = now;
+                    log("[userListExtender] Clearing cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
+                    for (let i = 0; i < arrayOfKeys.length; i++) {
+                        //let obj = GM_getValue(arrayOfKeys[i]);
+                        let obj = rank_cache[arrayOfKeys[i]];
+                        if (obj && obj.access && (now - obj.access) > opts.cacheMaxMs) {idArray.push(arrayOfKeys[i]);}
+                    }
+                    for (let i = 0; i < idArray.length; i++) {
+                        counter++;
+                        log('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+                        //GM_deleteValue(idArray[i]);
+                        delete rank_cache[idArray[i]];
+                    }
+                    writeCacheToStorage();
+                    log('[userListExtender] Finished clearing cache, removed ' + counter + ' object.');
+                } catch(e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // This actually updates the UI - it finds the rank associated
+            // with an ID from our cache and updates.
+            //////////////////////////////////////////////////////////////////////
+
+            // Write to the UI
+            function updateLiWithRank(li, cache_item) {
+                // Run through our filter
+                li.classList.remove('xedx_hidden');
+
+                if (opts.opt_disabled) return;
+
+                if (!cache_item) {
+                    debug('[userListExtender] Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item);
+                    return;
+                }
+
+                if (filterUser(li, cache_item)) {
+                    debug('[userListExtender] Filtered ' + cache_item.name);
+                    li.classList.add('xedx_hidden');
+                    return;
+                }
+
+                let jsonResp = cache_item.jsonResp;
+                let lifeCurr = cache_item.lifeCurr;
+                let lifeMax = cache_item.lifeMax;
+                let fullLife = (lifeCurr == lifeMax);
+
+                let numeric_rank = cache_item.numeric_rank;
+                if (validPointer(li)) {
+                    let lvlNode = li.getElementsByClassName('level')[0];
+                    let text = lvlNode.innerText;
+                    if (text.indexOf("/") != -1) { // Don't do again!
+                        debug('[userListExtender] ***** Rank already present!! *****');
+                        return;
+                    }
+
+                    // Not filtered: add rank.
+                    if (!lifeMax || !lifeCurr) {
+                        lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+                    } else {
+                        lvlNode.parentNode.setAttribute('style', 'width: 60%;');
+                        lvlNode.setAttribute('style', 'width: 25%; color: ' + (fullLife ? 'limegreen;' : 'red;'));
+                        lvlNode.nextElementSibling.setAttribute('style', 'width: 50%;');
+                        lvlNode.innerText = '[' + lifeCurr + '/' + lifeMax + '] ' + text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+                    }
+                } else {
+                    debugger;
+                }
+            }
+
+            // Diagnostic aids, will be used elsewhere later
+            function isInHosp(li) {
+                return (li.querySelector("[id^='icon15___']")) ? true : false;
+            }
+            function isFedded(li) {
+                return (li.querySelector("[id^='icon70___']")) ? true : false;
+            }
+            function isFallen(li) {
+                return (li.querySelector("[id^='icon77___']")) ? true : false;
+            }
+            function isTravelling(li) {
+                return (li.querySelector("[id^='icon71___']")) ? true : false;
+            }
+
+            function isRanked(li) {
+                let lvlNode = li.getElementsByClassName('level')[0];
+                let lvlText = lvlNode.innerText;
+                if (lvlText.indexOf("/") != -1) { // Don't do again!
+                    debug('[userListExtender] ***** isRanked: rank already present! *****');
+                    return true;
+                }
+                return false;
+            }
+
+            // Pre-filter - just based on icons in the li
+            // If filtered, return TRUE
+            function preFilter(li) {
+                let ID = idFromLi(li);
+                let name = fullNameFromLi(li);
+
+                log("[userListExtender] Pre-filtering " + name + ' [' + ID + ']');
+
+                if (opts.opt_hidehosp && isInHosp(li)) {
+                    log('[userListExtender] ***** preFilter: in hospital! (' + name + + ' [' + ID + '])');
+                    return true;
+                }
+                if (opts.opt_hidefedded && isFedded(li)) {
+                    log('[userListExtender] ***** preFilter: fedded! (' + name + + ' [' + ID + '])');
+                    return true;
+                }
+                if (opts.opt_hidefallen && isFallen(li)) {
+                    log('[userListExtender] ***** preFilter: fallen! (' + name + + ' [' + ID + '])');
+                    return true;
+                }
+                if (opts.opt_hidetravel && isTravelling(li)) {
+                    log('[userListExtender] ***** preFilter: travelling! (' + name + + ' [' + ID + '])');
+                    return true;
+                }
+
+                return false;
+            }
+
+            // Filter to cull out those we're not interested in, based callback info (not icons). Return TRUE if filtered.
+            function filterUser(li, ci) {
+                try {
+                    debug('[userListExtender] Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
+                    if (opts.opt_showcaymans && ci.state != 'Traveling') {
+                        debug('[userListExtender] Filtered - Caymans only, but either not returning or not Caymans');
+                        debug('[userListExtender] State = ' + ci.state);
+                        return true;
+                    }
+
+                    let isHosped = isInHosp(li);
+                    let infed = isFedded(li);
+                    let fallen = isFallen(li);
+                    let travelling = isTravelling(li);
+                    if (isHosped || infed || travelling) {
+                        log('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + infed + ' IsTravelling: ' + travelling);
+                        log('[userListExtender] **** Shouldn`t be here? *****');
+                    }
+
+                    switch (ci.state) {
+                        case 'Hospital':
+                            if (opts.opt_hidehosp) {
+                                if (isHosped) log('**** Shouldn`t be here? *****');
+                                debug('[userListExtender] ***** Filtered - in hosp.');
+                                return true;
+                            }
+                            break;
+                        case 'Federal':
+                            if (opts.opt_hidefedded) {
+                                if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
+                                debug('[userListExtender] ***** Filtered - fedded.');
+                                return true;
+                            }
+                            break;
+                        case 'Fallen':
+                            if (opts.opt_hidefallen) {
+                                if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
+                                debug('[userListExtender] ***** Filtered - fallen.');
+                                return true;
+                            }
+                            break;
+                        case 'Abroad':
+                        case 'Traveling':
+                            if (opts.opt_hidetravel) {
+                                if (travelling) log('[userListExtender] **** Shouldn`t be here? *****');
+                                debug('[userListExtender] ***** Filtered - traveling.');
+                                return true;
+                            }
+                            if (opts.opt_showcaymans) {
+                                if (ci.description.indexOf('Cayman') != -1) {
+                                    if (ci.description.indexOf('Returning') != -1) {
+                                        debug('[userListExtender] ******Returning from Caymans! Not filtered!');
+                                        return false;
+                                    }
+                                }
+                                debug('[userListExtender] Filtered - caymans only, but either not returning or not Caymans');
+                                return true;
+                            }
+                            break;
+                        default:
+                            return false;
+                    }
+                    return false;
+                } catch(e) {
+                    log('[tornUserList] ERROR: ', e);
+                }
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // This prepares to update the UI by locating level, user ID
+            // and the index of the <li> in the <ul>.
+            //////////////////////////////////////////////////////////////////////
+
+            function updateUserLevels(display) {
+                debug('[userListExtender] updateUserLevels called by: ' + display);
+
+                if (opts.opt_disabled) {
+                    debug('[userListExtender] Script disabled - not processing.');
+                    return;
+                }
+
+                // See if TornTools filtering is in play.
+                let ttPlayerFilter = document.querySelector("#tt-player-filter");
+                if (validPointer(ttPlayerFilter)) {
+                    debug('[userListExtender] TornTools filter detected!');
+                    ttInstalled = true;
+                    }
+
+                // Get the <UL>, list of all users.
+                let elemList = document.getElementsByClassName('user-info-list-wrap bottom-round cont-gray');
+                let items = elemList[0].getElementsByTagName("li");
+                if (items.length <= 1) {return;} // DOM not fully loaded, observer will recall us.
+
+                observerOFF();
+                for (var i = 0; i < items.length; ++i) {
+                    let li = items[i], ID = 0;
+                    if ((ID = idFromLi(li)) != 0) {
+
+                        if (isRanked(li)) { // Don't do again!
+                            debug('[userListExtender] ***** updateUserLevels: rank already present, ignoring *****');
+                            continue;
+                        }
+
+                        // NOTE: Filter here first, before secondary filter, which
+                        // requires stuff from a stats query. We can filter based on icons in the li.
+                        // Just need to add the filter class, will be caught in getRankFromId()
+                        // and ignored. The secondary filter, which uses data from the Torn API
+                        // call, is called from updateLiWithRank().
+                        if (preFilter(li)) {
+                            li.classList.add('xedx_hidden');
+                            debug('[userListExtender] pre-filtered: ignoring.');
+                            continue;
+                        }
+
+                        // This returns TRUE if either a cached rank item is found, or it is filtered out.
+                        // If neither of these cases is true, we query the Torn API, and then update the UI
+                        // according - we perform secondary filtering there.
+                        if (!getCachedRankFromId(ID, li)) {
+                            setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
+                                                                                 // to limit the 100 reqs/min errors
+                        }
+                    }
+                }
+                observerON();
+            }
+
+            function fullNameFromLi(li) {
+                try {
+                    let elems = li.getElementsByClassName('user name'); // debugging
+                    if (elems.length == 0) {return 0;}
+                    return elems[0].getAttribute("data-placeholder");
+                } catch(err) { // Should never hit this.
+                    console.error(err);
+                    debugger;
+                    return 0;
+                }
+            }
+
+            // Helper for above
+            function idFromLi(li) {
+                try {
+                    let elems = li.getElementsByClassName('user name'); // debugging
+                    if (elems.length == 0) {return 0;}
+                    return elems[0].getAttribute("href").split("=")[1];
+                } catch(err) { // Should never hit this.
+                    console.error(err);
+                    debugger;
+                    return 0;
+                }
+            }
+
+            // Disable the script
+            function disableScript(disabled=true) {
+                opts.opt_disabled = disabled;
+                GM_setValue("opts.opt_disabled", opts.opt_disabled);
+                $("#xedx-disabled-opt")[0].checked = disabled;
+                indicateActive();
+            }
+
+            //////////////////////////////////////////////////////////////////////
+            // UI related stuff, namely options
+            //////////////////////////////////////////////////////////////////////
+
+            // Build the main UI
+            function buildUI() {
+                getSavedOptions();
+                if (validPointer(document.getElementById('xedx-main-div'))) {
+                    debug('[userListExtender] UI already installed!');
+                    return;
+                }
+
+                let parentDiv = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
+                if (!validPointer(parent)) {setTimeout(buildUI, 500);}
+
+                loadTableStyles();
+                $(separator).insertBefore(parentDiv);
+                $(xedx_main_div()).insertBefore(parentDiv);
+
+                installHandlers();
+                setDefaultCheckboxes();
+                hideDevOpts(!opts.opt_devmode);
+                indicateActive();
+                debug('[userListExtender] UI installed.');
+
+                let node = document.getElementById("xedx-refreshcache-btn");
+                displayToolTip(node, "Not Yet Implemented!");
+            }
+
+            // Handle the selected options
+            function handleOptsClick() {
+                try {
+                    let option = this.id;
+                    debug('[userListExtender] Handling checkbox change for ' + option);
+                    switch (option) {
+                        //case "xedx-loggingEnabled-opt":
+                        //    opts.opt_loggingEnabled = this.checked;
+                        //    debugLoggingEnabled = opts.opt_loggingEnabled;
+                        //    debug('[userListExtender] Saved value for opts.opt_loggingEnabled');
+                        //    break;
+                        case "xedx-hidefedded-opt":
+                            opts.opt_hidefedded = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_hidefedded');
+                            break;
+                        case "xedx-hidefallen-opt":
+                            opts.opt_hidefallen = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_hidefallen');
+                            break;
+                        case "xedx-devmode-opt":
+                            opts.opt_devmode = this.checked;
+                            hideDevOpts(!opts.opt_devmode);
+                            debug('[userListExtender] Saved value for opts.opt_devmode');
+                            break;
+                        case "xedx-hidetravel-opt":
+                            opts.opt_hidetravel = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_hidetravel');
+                            break;
+                        case "xedx-showcaymans-opt":
+                            opts.opt_showcaymans = this.checked;
+                            if (opts.opt_showcaymans) {
+                                $('#xedx-hidetravel-opt').prop("checked", false);
+                                opts.opt_hidetravel = false;
+                            }
+                            debug('[userListExtender] Saved value for opts.opt_showcaymans');
+                            break;
+                        case "xedx-hidehosp-opt":
+                            opts.opt_hidehosp = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_hidehosp');
+                            break;
+                        case "xedx-disabled-opt":
+                            opts.opt_disabled = this.checked;
+                            opts.opt_disabled ? observerOFF() : observerON();
+                            indicateActive();
+                            debug('[userListExtender] Saved value for opts.opt_disabled');
+                            break;
+                        case "xedx-viewcache-btn":
+                            displayCache();
+                            break;
+                        case "xedx-refreshcache-btn":
+                            debug('[userListExtender] Cache refresh not yet implemented!');
+                            break;
+                        default:
+                            debug('[userListExtender] Checkbox ID not found!');
+                    }
+                    debug('[userListExtender] opts: ', opts);
+                    setSavedOptions();
+                    updateUserLevels('handleOptsClick');
+                } catch(e) {
+                    log('[tornUserList] ERROR: ', e);
+                }
+            }
+
+            // Function to enable/diable dev mode options
+            function hideDevOpts(hide = true) {
+                if (hide) {
+                    $('#showcaymans')[0].style.display = 'none';
+                    //$('#loggingEnabled')[0].style.display = 'none';
+                    $('#viewcache')[0].style.display = 'none';
+                    opts.opt_showcaymans = false;
+                    //GM_setValue("opts.opt_showcaymans", opts.opt_showcaymans);
+                } else {
+                    $('#showcaymans')[0].style.display = 'block';
+                    //$('#loggingEnabled')[0].style.display = 'block';
+                    $('#viewcache')[0].style.display = 'block';
+                }
+
+                setSavedOptions();
+            }
+
+            // Function to display cache contents
+            function displayCache() {
+                debug('[userListExtender] displayCache');
+                readCacheFromStorage();
+                // var rank_cache = [{ID: 0, numeric_rank: 0, name: '', state: '', description: ''}];
+                let rc = rank_cache;
+                let now = new Date().getTime();
+                var output = 'Cached Users (' + rc.length + ', max age = ' + (opts.cacheMaxMs/1000) + ' secs)\n';
+                output += "Hits: " + stats.cache_hits + " Misses: " + stats.cache_misses + "\n\n";
+
+                for (let i = 0; i < rc.length; i++) {
+                    if (!rc[i] || !rc[i].name) continue;
+                    let cacheObj = rc[i];
+                    let age = (now - cacheObj.access)/1000; // seconds
+                    output += 'Name: "' + cacheObj.name + '" Rank: ' + cacheObj.numeric_rank +
+                        ' State: ' + cacheObj.state + ' Age: ' + age + ' secs.\n';
+                }
+                alert(output);
+            }
+
+            // Read saved options values
+            function getSavedOptions() {
+                log('[userListExtender] Getting saved options.');
+                try {
+                    let tmpOpts = JSON.parse(GM_getValue('userListExtenderOpts', opts));
+
+                    opts.opt_devmode = (typeof tmpOpts.opt_devmode !== undefined) ? tmpOpts.opt_devmode : true;
+                    opts.opt_loggingEnabled = (typeof tmpOpts.opt_loggingEnabled !== undefined) ? tmpOpts.opt_loggingEnabled : false;
+                    opts.opt_hidefedded = (typeof tmpOpts.opt_hidefedded !== undefined) ? tmpOpts.opt_hidefedded : true;
+                    opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== undefined) ? tmpOpts.opt_hidefallen : true;
+                    opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== undefined) ? tmpOpts.opt_hidetravel : true;
+                    opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
+                    opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
+                    opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
+                    opts.opt_paused = (typeof tmpOpts.opt_paused !== undefined) ? tmpOpts.opt_paused : false;
+                    //if (typeof tmpOpts.cacheMins !== undefined) opts.cacheMins = tmpOpts.cacheMins;
+                    opts.cacheMins = GM_getValue("userlist-cache-time", 30); // So can be set by config page - may change that later
+                    //if (typeof tmpOpts.cacheMaxMs !== undefined) opts.cacheMaxMs = tmpOpts.cacheMaxMs;
+                    opts.cacheMaxMs = opts.cacheMins * 60 * 1000;
+                } catch (e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+
+                return opts;
+            }
+
+            // Write saved options values
+            function setSavedOptions() {
+                GM_setValue('userListExtenderOpts', JSON.stringify(opts));
+            }
+
+            // Check checkboxes to default.
+            function setDefaultCheckboxes() {
+                try {
+                    log('[userListExtender] Setting default state of checkboxes.');
+                    debug('[userListExtender] opts: ', opts);
+                    opts = getSavedOptions();
+                    //$("#xedx-loggingEnabled-opt")[0].checked = opts.opt_loggingEnabled;
+                    $("#xedx-devmode-opt")[0].checked = opts.opt_devmode;
+                    $("#xedx-hidefedded-opt")[0].checked = opts.opt_hidefedded;
+                    $("#xedx-hidefallen-opt")[0].checked = opts.opt_hidefallen;
+                    $("#xedx-hidetravel-opt")[0].checked = opts.opt_hidetravel;
+                    $("#xedx-showcaymans-opt")[0].checked = opts.opt_showcaymans;
+                    $("#xedx-hidehosp-opt")[0].checked = opts.opt_hidehosp;
+                    $("#xedx-disabled-opt")[0].checked = opts.opt_disabled;
+                } catch(e) {
+                    log('[tornUserList] ERROR: ', e);
+                }
+            }
+
+            // Show/hide opts page
+            function hideOpts(hide=true) {
+                debug('[userListExtender] ' + (hide ? "hiding " : "showing ") + "options page.");
+                $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
+                document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'flex';
+            }
+
+            // Toggle active/inactive status
+            function indicateActive() {
+                try {
+                    debug('[userListExtender] Toggling active status: ' + (opts.opt_disabled ? 'active' : 'disabled'));
+                    if (validPointer($('#xedx-active-light')[0])) {
+                        var str = `[${opts.opt_disabled ? 'Disabled' : 'Active'}]`;
+                        $('#xedx-active-light').text(str);
+                        $('#xedx-active-light')[0].style.color = opts.opt_disabled ? "red" : "green";
+                        opts.opt_disabled ? observerOFF() : observerON();
+                    } else {
+                        debug('[userListExtender] Active indicator not found!');
+                    }
+                } catch(e) {
+                    log('[userListExtender] ERROR: ', e);
+                }
+            }
+
+            // Add button handler(s).
+            function installHandlers() {
+                // Show/Hide options link
+                const savedHide = GM_getValue('xedxHideOpts', false);
+                hideOpts(savedHide);
+                $('#xedx-show-hide-btn').on('click', function () {
+                    const hide = $('#xedx-show-hide-btn').text() == '[hide]';
+                    GM_setValue('xedxHideOpts', hide);
+                    hideOpts(hide);
+                });
+
+                // Options checkboxes
+                //$("#xedx-loggingEnabled-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-hidefedded-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-hidetravel-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-showcaymans-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
+            }
+
+            // Styles for UI elements
+            function loadTableStyles() {
+                GM_addStyle(".xedx_hidden {display: none;}");
+                GM_addStyle(".xcbx {margin-left: 12px;}");
+                if (darkMode()) {
+                    GM_addStyle(".xtdx {color: white;}");
+                    GM_addStyle(".button {" +
+                          "border: solid 1px;" +
+                          "color: black;" +
+                          "background-color: #c4c3c0;" +
+                          "padding: 5;" +
+                          "text-align: center;" +
+                          "display: inline-block;" +
+                          "cursor: pointer;" +
+                          "border-radius: 4px;" +
+                          "margin-left: 50px;" +
+                        "}");
+
+                } else {
+                    GM_addStyle(".xtdx {color: black;}");
+                    GM_addStyle(".button {" +
+                          "border: solid 1px;" +
+                          "color: black;" +
+                          "background-color: #c4c3c0;" +
+                          "padding: 5;" +
+                          "text-align: center;" +
+                          "display: inline-block;" +
+                          "cursor: pointer;" +
+                          "border-radius: 4px;" +
+                          "margin-left: 50px;" +
+                        "}");
+                }
+            }
+
+            // Adds an observer to handle changes from dark mode to light
+            function addDarkModeObserver() {
+                var dmObserver = new MutationObserver(function() {loadTableStyles();});
+                dmObserver.observe($('body')[0], {attributes: true, childList: false, subtree: false});
+            }
+
+            // Functions to log when we connect/disconnect main observer, for debugging
+            function observerON() {
+                debug('[userListExtender] Turning observer ON');
+                if (validPointer(mainObserver)) {mainObserver.observe(mainTargetNode, mainConfig);}
+            }
+
+            function observerOFF() {
+                debug('[userListExtender] Turning observer OFF');
+                if (validPointer(mainObserver)) {mainObserver.disconnect();}
+            }
+
+            return new Promise((resolve, reject) => {
+                //if (abroad()) return reject('[tornDisableRefills] not at home!');
+
+                rank_cache = readCacheFromStorage();
+
+                // Check for expired cache entries at intervals, half max cache age.
+                setInterval(function() {
+                    debug('[userListExtender] **** Performing interval driven cache clearing ****');
+                    clearStorageCache();}, (0.5*opts.cacheMaxMs));
+
+                mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
+                addDarkModeObserver();
+                buildUI();
+                observerON();
+
+                // If *already* loaded, go ahead...
+                if (document.readyState === 'complete') {
+                    updateUserLevels('document.readyState');
+                }
+
+                resolve("[tornUserList] startup complete!");
+            });
+
+        } // End function _tornUserList() {
+
+
+    } // End function tornUserList() {
+
+    function removeUserList() {
+        disableScript(true);
+        $("#xedx-main-div").remove();
+    }
+
+     //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Overseas Rank" (called on page load)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // Note: auto-refresh won't work, timer isn't cleared when leaving page.
+    // Will handleHashChange() catch it? And nee to turn back on....
+    function tornOverseasRank() {
+        let opts = {};
+        getSavedOpts();
+        writeSavedOpts(); // Just write here for now, only need to save on change
+
+        let   autoRefreshId = 0;
+        const loggingEnabled = true;
+        let   requestsPaused = false;
+        const ulRootContainerName = 'travel-people';
+        const ulRootClassName = 'users-list';
+        const config = { attributes: true, childList: true, subtree: true };
+        const callback = function(mutationsList, observer) {updateUserLevels('Mutation Observer!')};
+        let   targetNode = document.getElementsByClassName(ulRootContainerName)[0];
+        let   observer = null;
+
+        // Cache of ID->Rank associations
+        let rank_cache = [];
+        function newCacheItem(ID, rank, la, curr, max, state) {
+            return {ID: ID, numeric_rank: rank, la: la, lifeCurr: curr, lifeMax: max, state: state, access: new Date().getTime(), fromCache: false};
+        }
+
+        function newCacheItem(ID, obj) {
+            let numeric_rank = numericRankFromFullRank(jsonResp.rank);
+            debug("[tornOverseasRank] Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
+            let state = jsonResp.status.state;
+            let la = jsonResp.last_action.relative;
+            let lifec = jsonResp.life.current;
+            let lifem = jsonResp.life.maximum;
+            return {ID: ID, name: jsonResp.name, numeric_rank: numeric_rank, la: la, lifeCurr: lifec, lifeMax: lifem, state: state,
+                    access: new Date().getTime(), fromCache: false};
+        }
+
+        // Queue of rank from ID requests, from the Torn API
+        let queryQueue = []; // The queue
+        let queryQueueId = null; // ID for queue check interval
+        let sentIdQueue = [];
+        function processQueryQueue() {if (!requestsPaused) processQueueMsg(queryQueue.pop());} // Pop message from queue and dispatch
+        function processQueueMsg(msg) { // Process a queued message (request) for rank from ID
+            if (!validPointer(msg)) return;
+            let ID = msg.ID;
+            let li = msg.li;
+            let optMsg = msg.optMsg;
+
+            log('Processing queued ID ' + ID);
+            if (optMsg) {log(optMsg)};
+            if (requestsPaused) {
+                log("Requests pause, can't make request. Will retry later.");
+                return queryQueue.push(msg);
+            }
+            xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, msg);
+        }
+
+        return _tornOverseasRank();
+
+        function _tornOverseasRank() {
+            log('[tornOverseasRank]');
+
+            return new Promise((resolve, reject) => {
+                if (!abroad()) return reject('[tornOverseasRank] at home!');
+                GM_addStyle(`.xedx-cached {float: right; margin-left: 10px; font-size: 12px; color:red;}
+                             .xedx-notcached {float: right; margin-left: 10px; font-size: 12px; color:green;}
+                             .xedx-bg {background-color: green}
+                `);
+
+                buildUI();
+
+                rank_cache = readCacheFromStorage();
+                installHashChangeHandler(updateUserLevels);
+                setInterval(function() {clearStorageCache();}, (0.5*opts.cacheMaxMs));
+                startObserver();
+                updateUserLevels('Ready State Complete!');
+                //buildUI();
+
+                resolve("[tornOverseasRank] startup complete!");
+                //reject("[tornOverseasRank] not yet implemented!");
+            });
+        }// End function _tornOverseasRank() {
+
+        function buildUI() { // r8989  m-top10 m-bottom10 background
+            let div = `<div class="cont-gray border-round m-top10">
+                           <input type="checkbox" class="abroad_click m-top10 m-left20 m-bottom10" name="autoRefresh"` +
+                           (opts.autoRefresh ? ' checked ': '') + ` />
+                           <span style="color: red;"> Auto Refresh? </span>
+                       </div>`;
+            let target = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.travel-people.revive-people");
+            $(target).before(div);
+
+            // TBD: if went from off to on, set timer. Or just set, if now on.
+            // Switch to interval?
+            $(".abroad_click").on('click', function(event){
+                if (event.currentTarget.name == "autoRefresh") {
+                    opts.autoRefresh = $(event.currentTarget).is(':checked');
+                    writeSavedOpts();
+                }
+            });
+        }
+
+        // Query profile information based on ID. Places on a queue for later processing.
+        // In case we are recalled before getting an answer, save the ID's we've already
+        // sent requests for.
+        function getRankFromId(ID, li, optMsg = null) {
+            if (sentIdQueue.includes(ID)) {
+                return;
+            }
+            debug("[tornOverseasRank] Querying Torn for rank, ID = " + ID);
+            let msg = {ID: ID, li: li, optMsg: optMsg};
+            sentIdQueue.push(ID);
+            queryQueue.push(msg);
+            if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, opts.queueIntms);}
+        }
+
+        // Pauses further requets to the Torn API for 'timeout' seconds
+        function pauseRequests(timeout) {
+            if (!requestsPaused) {setTimeout(function(){
+                requestsPaused = false;
+                log('Restarting requests.');}, timeout*1000); // Turn back on in 'timeout' secs.
+            }
+            debug('[tornOverseasRank] Pausing requests for ' + timeout + ' seconds.');
+            return (requestsPaused = true);
+        }
+
+        // Callback from querying the Torn API
+        function updateUserLevelsCB(responseText, ID, msg) {
+            var jsonResp = JSON.parse(responseText);
+            debug("[tornOverseasRank] updateUserLevelsCB = " + ID);
+            if (jsonResp.error) {
+                log('Error: ' + JSON.stringify(jsonResp.error));
+                if (recoverableErrors.includes(jsonResp.error.code)) { // Recoverable - pause for now.
+                    pauseRequests(15); // Pause for 15 secs
+                    queryQueue.push(msg);
+                }
+                return handleError(responseText);
+            }
+            let li = msg.li;
+            /*
+            let numeric_rank = numericRankFromFullRank(jsonResp.rank);
+            debug("[tornOverseasRank] Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
+            let state = jsonResp.status.state;
+            let la = jsonResp.last_action.relative;
+            let lifec = jsonResp.life.current;
+            let lifem = jsonResp.life.maximum;
+            let cacheObj = newCacheItem(ID, numeric_rank, la, lifec, lifem, state);
+            */
+            let cacheObj = newCacheItem(ID, jsonResp);
+
+            rank_cache.push(cacheObj);
+            debug('[tornOverseasRank] Caching ID ' + ID + ' to storage.');
+            writeCacheToStorage();
+            if (validPointer(li)) {updateLiWithRank(li, cacheObj);}
+        }
+
+        // Write to the UI
+        function updateLiWithRank(li, cacheObj) {
+            observer.disconnect();
+            let lvlNode = li.getElementsByClassName('level')[0];
+            let statusNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.status > span.t-green");
+            let text = lvlNode.childNodes[2].data;
+            if (text.indexOf("/") != -1) { // Don't do again!
+                observer.observe(targetNode, config);
+                return;
+            }
+            let numeric_rank = cacheObj.numeric_rank;
+            let la = cacheObj.la;
+            let lifeCurrurr = cacheObj.lifeCurr;
+            let lifeMaxax = cacheObj.lifeMax;
+            let ul = li.querySelector("div.center-side-bottom.left > ul");
+            let div = li.querySelector("div.center-side-bottom.left");
+
+            if (opts.displayHealth) {
+                if (cacheObj.fromCache) {
+                    $(div).append('<span class="xedx-cached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
+                } else {
+                    $(div).append('<span class="xedx-notcached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
+                }
+            }
+            if (statusNode && opts.displayLastAction) {
+                la = la.replace('minutes', 'min');
+                la = la.replace('minute', 'min');
+                la = la.replace('hours', 'hrs');
+                statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
+                statusNode.textContent = statusNode.textContent + ' ' + la;
+            }
+            if (opts.displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+
+            observer.observe(targetNode, config);
+        }
+
+        function setCacheAccess() {
+            let now = new Date().getTime();
+            rank_cache.lastAccessed = now;
+        }
+
+        function writeCacheToStorage() {
+            try {
+                setCacheAccess();
+                GM_setValue('overseasRank.rank_cache', JSON.stringify(rank_cache));
+            } catch(e) {
+                log('[overseasRank] ERROR: ', e);
+            }
+        }
+
+        function readCacheFromStorage() {
+            try {
+                 rank_cache = JSON.parse(GM_getValue('overseasRank.rank_cache', JSON.stringify(rank_cache)));
+                 return rank_cache;
+            } catch(e) {
+                log('[overseasRank] ERROR: ', e);
+            }
+        }
+
+        // Find a rank from our cache, based on ID
+        function getCachedRankFromId(ID, li) {
+            try {
+                for (let i=0; i<rank_cache.length; i++) {
+                    if (!rank_cache[i]) continue;
+                    if (rank_cache[i].ID == ID) {
+                        let cacheObj = rank_cache[i];
+                        debug("[tornOverseasRank] Returning cached rank: " + ID + "(" +  cacheObj.name + ") ==> " +  cacheObj.numeric_rank);
+                        updateLiWithRank(li, cacheObj);
+
+                        let now = new Date().getTime();
+                        let accessed = cacheObj.access;
+                        let age = now - accessed;
+                        debug("[tornOverseasRank] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+                        if (age > opts.cacheMaxMs) {
+                            debug('[tornOverseasRank] Cache entry for ID ' + ID + ' expired, deleting.');
+                            delete rank_cache.ID;
+                        }
+                        rank_cache[i].access = now;
+
+                        writeCacheToStorage();
+                        return rank_cache[i].numeric_rank;
+                    }
+                }
+
+                debug("[tornOverseasRank] didn't find " + name + ' [' + ID + "] in cache.");
+                return 0; // Not found!
+            } catch(e) {
+                log('[tornOverseasRank] ERROR: ', e);
+            }
+        }
+
+        // Write out some cache stats
+        function writeCacheStats() {
+            readCacheFromStorage();
+            let now = new Date().getTime();
+            let lastAccess = rank_cache.lastAccessed;
+            let arrayOfKeys = Object.key(rank_cache);
+            log('[tornOverseasRank] Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
+                'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
+        }
+
+        // Function to scan our storage cache and clear old entries
+        function clearStorageCache() {
+            readCacheFromStorage();
+            let counter = 0;
+            let idArray = [];
+            let now = new Date().getTime();
+            let arrayOfKeys = Object.keys(rank_cache);
+            debug("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
+            for (let i = 0; i < arrayOfKeys.length; i++) {
+                let obj = rank_cache[arrayOfKeys[i]];
+                if (!obj || !obj.access) continue;
+                if ((now - obj.access) > opts.cacheMaxMs) {idArray.push(arrayOfKeys[i]);}
+            }
+            for (let i = 0; i < idArray.length; i++) {
+                counter++;
+                debug('[tornOverseasRank] Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+                delete rank_cache[idArray[i]];
+            }
+            writeCacheToStorage();
+            debug('[tornOverseasRank] Finished clearing cache, removed ' + counter + ' object.');
+        }
+
+        function getSavedOpts() {
+            try {
+                let tmpOpts = JSON.parse(GM_getValue('overseasRankOpts', JSON.stringify(opts)));
+                opts.displayRank = (typeof tmpOpts.displayRank !== undefined) ? tmpOpts.displayRank : true;
+                opts.displayHealth = (typeof tmpOpts.displayHealth !== undefined) ? tmpOpts.displayHealth : true;
+                opts.displayLastAction = (typeof tmpOpts.displayLastAction !== undefined) ? tmpOpts.displayLastAction : true;
+                opts.autoRefreshSecs = (typeof tmpOpts.autoRefreshSecs !== undefined) ? tmpOpts.autoRefreshSecs : 45;
+                opts.autoRefresh = (typeof tmpOpts.autoRefresh !== undefined) ? tmpOpts.autoRefresh : true;
+                opts.cacheMaxHours = (typeof tmpOpts.cacheMaxHours !== undefined) ? tmpOpts.cacheMaxHours : 6;
+                opts.cacheMaxMs = (typeof tmpOpts.cacheMaxMs !== undefined) ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
+                opts.queueIntms = (typeof tmpOpts.queueIntms !== undefined) ? tmpOpts.queueIntms : 300;
+            } catch (e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+
+            return opts;
+        }
+
+        function writeSavedOpts() {
+            GM_setValue('overseasRankOpts', JSON.stringify(opts));
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // This prepares to update the UI by locating level, user ID
+        // and getting the rank for each of the <li>'s in the <ul>.
+        //////////////////////////////////////////////////////////////////////
+
+        function updateUserLevels(optMsg=null) {
+            if (optMsg != null) {debug('[tornOverseasRank] updateUserLevels: ' + optMsg);}
+            debug('[tornOverseasRank] document.readyState: ' + document.readyState);
+            debug('[tornOverseasRank] Entering updateUserLevels, cache depth = ' + rank_cache.length);
+            let items = $('ul.' + ulRootClassName +  ' > li');
+            if (!validPointer(items)) {return;}
+
+            highlightMyself();
+
+            debug('[tornOverseasRank] Detected ' + items.length + ' user entries');
+            for (let i = 0; i < items.length; i++) {
+                let li = items[i];
+                if (window.getComputedStyle(li).display === "none") {continue;}
+                let idNode = li.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name");
+                document.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name")
+                if (!validPointer(idNode)) { // Should never happen.
+                    continue;
+                }
+
+                let ID = idNode.getAttribute('href').split('=')[1];
+                if (!getCachedRankFromId(ID, li)) {
+                    let statusSel = li.querySelector('div.left-right-wrapper > div.right-side.right > span.status > span.t-green');
+                    let nameSel = li.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name > img");
+                    let name = validPointer(nameSel) ? nameSel.title : 'unknown';
+                    // let name2 = validPointer(nameSel) ? nameSel.getAttribute('title') : 'unknown'; // Also valid.
+
+                    if (validPointer(statusSel)) {
+                        // Only get rank if status is 'Okay' ...
+                        if (statusSel.innerText == 'Okay') {
+                            debug('[tornOverseasRank] Querying rank for player ' + ID + ' ' + name + ' (i = ' + i + ')');
+                            getRankFromId(ID, li, 'call to getRankFromId from updateUserLevels: ' + optMsg);
+                        } else {
+                            debug('[tornOverseasRank] player ' + ID + ', ' + name + ' status is ' + statusSel.innerText + ', skipping.');
+                        }
+                    } else {
+                        debug("[tornOverseasRank] Invalid status selector, can't query rank.");
+                    }
+                }
+            }
+
+            debug('[tornOverseasRank] Finished iterating ' + items.length + ' users, ' + rank_cache.length + ' cache entries.');
+
+            // If configured, reload periodically
+            if (opts.autoRefreshSecs && opts.autoRefresh) {
+                let interval = opts.autoRefreshSecs*1000;
+                setTimeout(refreshCB, interval);
+            }
+        }
+
+        function highlightMyself() {
+            let uid = $('script[secret]').attr("uid");
+            let name = $('script[secret]').attr("name");
+            let fullName = name + ' [' + uid + ']';
+
+            // getPlayerFullName();
+            let li = $( "a[data-placeholder='" + fullName + "']");
+            let parent = (li && li[0]) ? li[0].parentNode : null;
+            if (parent) {
+                let root = parent.parentNode.parentNode;
+                $(root).addClass('xedx-bg');
+            }
+        }
+
+        function refreshCB() {
+            if (!opts.autoRefresh) return;
+            if (location.href.indexOf("page=people") < 0) return;
+            let interval = opts.autoRefreshSecs*1000;
+            debug('[tornOverseasRank] Auto-refreshing in ' + interval + ' secs');
+            location.reload();
+            setTimeout(refreshCB, interval);
+        }
+
+        function startObserver() {
+            if (targetNode) targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
+            if (!targetNode) return setTimeout(startObserver, 100);
+
+            observer = new MutationObserver(callback);
+            observer.observe(targetNode, config);
+        }
+
+    } // End function tornOverseasRank() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Ammo and Mods Icons" (called on page load complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornAmmoMods() {
+
+        return _tornAmmoMods();
+
+        function _tornAmmoMods() {
+            log('[tornAmmoMods]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornAmmoMods] not at home!');
+                if (!isAmmoPage() && !isModsPage()) return reject('[tornAmmoMods] wrong page!');
+
+                GM_addStyle(`.xsvg-icon {width: 25px; height: 25px;}
+                             .xicon-wrap {display: flex;}
+                             .xicon-span {color: var(--appheader-links-color); margin-left: 5px;}
+                            `);
+                addIcons();
+                resolve("[tornAmmoMods] startup complete!");
+            });
+
+            function getAmmoIcon() {
+                let icon = `<a aria-labelledby="ammo" class=" ammo-locker t-clear h c-pointer m-icon line-h24 right last" href="page.php?sid=ammo" i-data="i_386_15_62_25">
+                    <span class="icon-wrap svg-icon-wrap">
+                    <span class="link-icon-svg ammo xsvg-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12.79407 17"><g id="Layer_2" data-name="Layer 2"><g id="icons"><g opacity="0.35"><path d="M1.77466,6.85571h1.0332V5.03528A8.01973,8.01973,0,0,0,1.76727,1.023,8.4107,8.4107,0,0,0,.73407,5.03528V6.85645H1.77466Zm1.0694.73047H.71338a4.52018,4.52018,0,0,1-.43274,1.5376H3.27679A4.50843,4.50843,0,0,1,2.84406,7.58618ZM0,16.89209A.10813.10813,0,0,0,.10858,17h3.3418a.10745.10745,0,0,0,.10779-.10791V9.85327H0Zm4.62018-.45923a.55111.55111,0,0,0,.5354.55237h2.4696a.56693.56693,0,0,0,.55316-.55237V9.83044H4.62018ZM7.45605,7.56323H5.32544a4.51663,4.51663,0,0,1-.432,1.5354h2.994A4.51422,4.51422,0,0,1,7.45605,7.56323Zm-.0354-2.55078A8.02017,8.02017,0,0,0,6.38007,1,8.40538,8.40538,0,0,0,5.34686,5.01245v1.821H7.42065Zm4.615,0A8.02118,8.02118,0,0,0,10.99579,1a8.40823,8.40823,0,0,0-1.0332,4.01245v1.821h2.07305Zm.0362,2.55078H9.94122a4.519,4.519,0,0,1-.43133,1.5354h2.99322A4.51276,4.51276,0,0,1,12.07184,7.56323ZM9.2359,9.83044v6.60242a.55112.55112,0,0,0,.53546.55237H12.241a.56693.56693,0,0,0,.5531-.55237V9.83044Z" fill="#fff"></path></g><path d="M1.77466,5.85571h1.0332V4.03528A8.01973,8.01973,0,0,0,1.76727.023,8.4107,8.4107,0,0,0,.73407,4.03528V5.85645H1.77466Zm1.0694.73047H.71338a4.52018,4.52018,0,0,1-.43274,1.5376H3.27679A4.50843,4.50843,0,0,1,2.84406,6.58618ZM0,15.89209A.10813.10813,0,0,0,.10858,16h3.3418a.10745.10745,0,0,0,.10779-.10791V8.85327H0Zm4.62018-.45923a.55111.55111,0,0,0,.5354.55237h2.4696a.56693.56693,0,0,0,.55316-.55237V8.83044H4.62018ZM7.45605,6.56323H5.32544a4.51663,4.51663,0,0,1-.432,1.5354h2.994A4.51422,4.51422,0,0,1,7.45605,6.56323Zm-.0354-2.55078A8.02017,8.02017,0,0,0,6.38007,0,8.40538,8.40538,0,0,0,5.34686,4.01245v1.821H7.42065Zm4.615,0A8.02118,8.02118,0,0,0,10.99579,0a8.40823,8.40823,0,0,0-1.0332,4.01245v1.821h2.07305Zm.0362,2.55078H9.94122a4.519,4.519,0,0,1-.43133,1.5354h2.99322A4.51276,4.51276,0,0,1,12.07184,6.56323ZM9.2359,8.83044v6.60242a.55112.55112,0,0,0,.53546.55237H12.241a.56693.56693,0,0,0,.5531-.55237V8.83044Z" fill="#777"></path></g></g></svg>
+                    </span>
+                    </span>
+                    <span id="ammo">Ammo</span>
+                    </a>
+                    `;
+                return icon;
+            }
+
+            function getModsIcon() {
+                let icon = `
+                    <a aria-labelledby="mods" class="mods t-clear h c-pointer line-h24 right xicon-wrap" href="loader.php?sid=itemsMods" i-data="i_474_15_56_25">
+                    <span class="icon-wrap svg-icon-wrap xsvg-icon">
+                    <span class="link-icon-svg mods">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 15"><defs><style>.cls-1{opacity:0.35;}.cls-2{fill:#fff;}.cls-3{fill:#777;}</style></defs><g id="Слой_2" data-name="Слой 2"><g id="icons"><g class="cls-1"><path class="cls-2" d="M10.39,6.16V5.23h2.69a.61.61,0,0,0,.62-.6v-.5h.68V3.79H16V3H14.38V2.65H13.7V2.59a.61.61,0,0,0-.62-.6h-.25V1.45a.29.29,0,0,0-.29-.28c-.28,0-.83.32-.83.53V2H10.3V1.45H9.23V2h-7V1.61H1.74V1.33H1.39V1H.92V2H.62A.61.61,0,0,0,0,2.58V4.63a.61.61,0,0,0,.62.6H2.18A1.63,1.63,0,0,1,3.65,6.79C3.65,8.17,3,8.54,3,10.22c0,.87.63.87.63.87h.46V14h2V11.09H6.6v-4a1,1,0,0,0,.76.34H9.08A1.35,1.35,0,0,0,10.39,6.16Zm-3,.77a.54.54,0,0,1-.5-.44V5.23h.81c-.15,1.5.93,1.49.61,1s-.07-.94.24-1H9.85v.93c0,.67-.74.76-.79.77Zm8.2,3.93a.63.63,0,0,1-.56-.4.65.65,0,0,1,.12-.67c.06,0,.31-.31.31-.31l-.91-.91s-.25.24-.31.31a.63.63,0,0,1-.68.12.64.64,0,0,1-.38-.56V8H11.84v.44a.61.61,0,0,1-.39.56.63.63,0,0,1-.66-.12l-.31-.31-.92.91.31.31a.59.59,0,0,1,.12.68.61.61,0,0,1-.55.37H9v1.32h.44a.62.62,0,0,1,.56.39.61.61,0,0,1-.13.66l-.31.31.92.91s.25-.24.31-.31a.63.63,0,0,1,.68-.12.62.62,0,0,1,.37.56V15h1.31v-.44a.63.63,0,0,1,1.06-.44l.31.31.92-.91-.31-.31a.63.63,0,0,1,.43-1.06H16V10.86ZM12.5,12.79a1.29,1.29,0,1,1,1.29-1.29A1.29,1.29,0,0,1,12.5,12.79Z"></path></g><path class="cls-3" d="M10.39,5.16V4.23h2.69a.61.61,0,0,0,.62-.6v-.5h.68V2.79H16V2H14.38V1.65H13.7V1.59a.61.61,0,0,0-.62-.6h-.25V.45a.29.29,0,0,0-.29-.28c-.28,0-.83.32-.83.53V1H10.3V.45H9.23V1h-7V.61H1.74V.33H1.39V0H.92V1H.62A.61.61,0,0,0,0,1.58V3.63a.61.61,0,0,0,.62.6H2.18A1.63,1.63,0,0,1,3.65,5.79C3.65,7.17,3,7.54,3,9.22c0,.87.63.87.63.87h.46V13h2V10.09H6.6v-4a1,1,0,0,0,.76.34H9.08A1.35,1.35,0,0,0,10.39,5.16Zm-3,.77a.54.54,0,0,1-.5-.44V4.23h.81c-.15,1.5.93,1.49.61,1s-.07-.94.24-1H9.85v.93c0,.67-.74.76-.79.77Zm8.2,3.93a.63.63,0,0,1-.56-.4.65.65,0,0,1,.12-.67c.06,0,.31-.31.31-.31l-.91-.91s-.25.24-.31.31a.63.63,0,0,1-.68.12.64.64,0,0,1-.38-.56V7H11.84v.44a.61.61,0,0,1-.39.56.63.63,0,0,1-.66-.12l-.31-.31-.92.91.31.31a.59.59,0,0,1,.12.68.61.61,0,0,1-.55.37H9v1.32h.44a.62.62,0,0,1,.56.39.61.61,0,0,1-.13.66l-.31.31.92.91s.25-.24.31-.31a.63.63,0,0,1,.68-.12.62.62,0,0,1,.37.56V14h1.31v-.44a.63.63,0,0,1,1.06-.44l.31.31.92-.91-.31-.31a.63.63,0,0,1,.43-1.06H16V9.86ZM12.5,11.79a1.29,1.29,0,1,1,1.29-1.29A1.29,1.29,0,0,1,12.5,11.79Z"></path></g></g></svg>
+                    </span>
+                    </span>
+                    <span id="mods" class="xicon-span">Mods</span>
+                    </a>`;
+                return icon;
+            }
+
+            function addIcons() {
+                let target = '';
+                let ammoPage = false;
+                if (location.href.indexOf('sid=ammo') > -1) { // On ammo page, add mods
+                    ammoPage = true;
+                    target = $("#react-root").find("div[class^='titleContainer_']")[0];
+                } else if (location.href.indexOf('sid=itemsMods') > -1) { // Mods page, add ammo.
+                    target = document.querySelector("#top-page-links-list");
+                } else {
+                    return;
+                }
+
+                if (!target) return setTimeout(addIcons, 250);
+
+                if (target) {
+                    ammoPage ? $(target).after(getModsIcon()) : $(target).append(getAmmoIcon());
+                }
+            }
+        }
+
+    } // End function tornAmmoMods() {
+
     ///////////////////////////////////////////////////////////////////////////////////
     //
     // Tool tip functions, return the text to be displayed
@@ -5085,7 +6467,7 @@
     var general_intervalTimer = null;
     var general_configWindow = null;
 
-    // Adds the "Powered by: XedX" menu link
+    // Adds the "Powered by: XedX" menu link TBD: update tool tip style.
     function installConfigMenu() {
         if ($('#xedx-opts')[0]) return;
 
@@ -5107,6 +6489,11 @@
                 general_intervalTimer = setInterval(checkGeneralSaveButton, 2000);
             }
         });
+
+        // Add tool tip. Note - this style isn't so good for this tip....
+        // Too wide, should be centered.
+        addToolTipStyle();
+        displayToolTip(document.getElementById("xedx-opts"), "Click to configure!");
     }
 
     function initDebugOptions() {
@@ -5289,6 +6676,16 @@
         setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net",
                          tornDisableRefills, removeDisableRefills, generalToolTip, "misc");
 
+        // MATCH: *userlist* case-insensitive.
+        setGeneralCfgOpt("tornUserList", "Torn User List Extender",
+                         tornUserList, removeUserList, generalToolTip, "misc", true);
+
+        setGeneralCfgOpt("tornOverseasRank", "Torn Overseas Rank Indicator",
+                         tornOverseasRank, null, generalToolTip, "misc", true);
+
+        setGeneralCfgOpt("tornAmmoMods", "Torn Ammo & Mods Links",
+                         tornAmmoMods, null, generalToolTip, "misc", true, true);
+
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -5336,6 +6733,9 @@
 
         // Add the debug menu
         addDebugMenu();
+
+        // Add the cache menu
+        addCacheMenu();
 
         // Add customizable sidebar links table
         addCustLinksTable();
@@ -5475,6 +6875,48 @@
                 debug('[handleDbgOptClick] ev: ', ev);
                 debug('[handleDbgOptClick] checked: ', $("#" + ev.currentTarget.id).prop("checked"));
                 GM_setValue(ev.currentTarget.id,$("#" + ev.currentTarget.id).prop("checked"));
+            }
+        }
+
+        // Helper to build the debug opts menu. TBD: add opts to save values!!!!
+        function addCacheMenu() {
+            log('[addCacheMenu]');
+            let tbody = document.querySelector("#cache-opts-div > table > tbody");
+            // Add header
+            const tblHdr = `<tr id="cachetblhdr" class="xtblehdr xvisible open"><th>Enabled</th><th>Caching Option</th></tr>`;
+            $(tbody).append(tblHdr);
+
+            // Add rows
+            let cacheMins = GM_getValue("userlist-cache-time", 5);
+            let newRow = '<tr class="xvisible defbg">' +
+                '<td><input type="number" class="cache-opts" id="userlist-cache-time" name="user" min="1" max="300" value="' + cacheMins + '"/></td>' +
+                '<td>User List Max Cache Time, minutes (default 5)</td></tr>';
+            $(tbody).append(newRow);
+
+            cacheMins = GM_getValue("abroadrank-cache-time", 30);
+            newRow = '<tr class="xvisible defbg">' +
+                '<td><input type="number" class="cache-opts" id="abroadrank-cache-time" name="rank" min="1" max="300" value="' + cacheMins + '"/></td>' +
+                '<td>Overseas Rank Max Cache Time, minutes (default 30)</td></tr>';
+            $(tbody).append(newRow);
+
+            // Add footer
+            const expHdr = `<tr class="xexpand"><th colspan=2;>...click to expand</th></tr>`;
+            $(tbody).append(expHdr);
+
+            // Handler for any cache option change: set flag to implement 'on the other side'
+            $(".cache-opts").on('input', handleCacheOptChange);
+
+            // Default collapsed
+            optsHdrClick({currentTarget: document.querySelector("#cachetblhdr")});
+
+            // TBD: add opts to save values!!!!
+            function handleCacheOptChange(ev) {
+                log('[handleCacheOptChange]');
+                log('[handleCacheOptChange] id: ', ev.currentTarget.id);
+                log('[handleCacheOptChange] ev: ', ev);
+                log('[handleCacheOptChange] ' + $(ev.currentTarget).attr('name') + ' cache val: ',
+                      $("#" + ev.currentTarget.id).val());
+                GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
             }
         }
 
@@ -5643,9 +7085,8 @@
 
     // Fired when 'Save' is clicked - notifies the page script to re-read data
     // and change page as appropriate. Ideally, means the page won't need a refresh.
-    // For simplicity, may force a refresh for some script opts - such as the
-    // Customizabe Sidebar Links script, for now. Also creates the "Data Saved!"
-    // indicator.
+    // For simplicity, may force a refresh for some script opts. Also creates the
+    // "Data Saved!" indicator.
     function handleGenOptsSaveButton(ev) {
         log('[handleGenOptsSaveButton]');
 
@@ -5701,13 +7142,20 @@
     function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
     function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
     function isPointsPage() {return (location.href.indexOf("points.php") > -1)}
+    function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
+    function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") > -1)}
+    function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
     // instead of
     // promise.then(result => {<do something with success result>}, error => {<do something with error result>});
     function _a(result) {log('[SUCCESS] ' + result);}
-    function _b(error, opt=null) {log('[ERROR] ' + (opt ? '[' + opt + '] ' : '') + error);}
+    function _b(error) {
+        let wrongPage = error.toString().indexOf('wrong page') > -1 || // Suppress 'wrong page' errors for now. Change to resolve's?
+            error.toString().indexOf('not at home') > -1
+        if (!wrongPage) log('[ERROR] ' + error);
+    }
 
     // TBD: replace this:
     // if (opts_enabledScripts.latestAttacks.enabled) {tornLatestAttacksExtender().then(a => _a(a), b => _b(b));}
@@ -5735,7 +7183,11 @@
 
         if (opts_enabledScripts.tornRacingAlert.enabled) {tornRacingAlert().then(a => _a(a), b => _b(b));}
 
-        if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b, 'tornRacingCarOrder'));}
+        if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b,));}
+
+        if (opts_enabledScripts.tornOverseasRank.enabled) {tornOverseasRank().then(a => _a(a), b => _b(b));}
+
+
 
     }
 
@@ -5744,7 +7196,7 @@
         log('[handlePageComplete]');
 
         // Adds the link to the general options page.
-        // Currently, underneath the indicator of which server we're connecte to.
+        // Currently, underneath the indicator of which server we're connected to.
         installConfigMenu();
 
         if (opts_enabledScripts.crimeToolTips.enabled) {tornCrimeTooltips().then(a => _a(a), b => _b(b));}
@@ -5753,8 +7205,16 @@
 
         if (opts_enabledScripts.tornFacPageSearch.enabled) {tornFacPageSearch().then(a => _a(a), b => _b(b));}
 
+        if (isUserListPage()) {
+            if (opts_enabledScripts.tornUserList.enabled) {tornUserList().then(a => _a(a), b => _b(b));}
+        }
+
         if (isItemPage()) {
             if (opts_enabledScripts.tornItemHints.enabled) {tornItemHints().then(a => _a(a), b => _b(b));}
+        }
+
+        if (isAmmoPage() || isModsPage()) {
+            if (opts_enabledScripts.tornAmmoMods.enabled) {tornAmmoMods().then(a => _a(a), b => _b(b));}
         }
 
     }
