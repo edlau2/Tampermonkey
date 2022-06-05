@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -5109,6 +5109,14 @@
                                   '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
                                   '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
                               '</div></td>' +
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-showctry-opt" name="showctry" style="margin-bottom: 10px;">' +
+                                  '<label for="showctry"><span style="margin-left: 15px">Show Country</span></label>' +
+                              '</div></td>' +
+                              '<td class="xtdx"><div>' +
+                                  '<input type="checkbox" class="xcbx" id="xedx-ctryabroad-opt" name="ctryabroad" style="margin-bottom: 10px;">' +
+                                  '<label for="ctryabroad"><span style="margin-left: 15px">Only if abroad</span></label>' +
+                              '</div></td>' +
                               //'<td class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
                               //    '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
                               //    '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
@@ -5383,8 +5391,19 @@
                 let lifeCurr = cache_item.lifeCurr;
                 let lifeMax = cache_item.lifeMax;
                 let fullLife = (lifeCurr == lifeMax);
-
                 let numeric_rank = cache_item.numeric_rank;
+
+                if (isTravelling(li) && opts.opt_showctry) {
+                    if (cache_item.state == 'Abroad' || !opts.opt_ctryabroad) {
+                        let icon = li.querySelector("[id^='icon71___']");
+                        log('[userListExtender] found travel icon: ', icon);
+                        if (icon) {
+                            let country = getCountryFromStatus(cache_item.description);
+                            if (country) $(icon).replaceWith($(getAbroadFlag(country)));
+                        }
+                    }
+                }
+
                 if (validPointer(li)) {
                     let lvlNode = li.getElementsByClassName('level')[0];
                     let text = lvlNode.innerText;
@@ -5404,6 +5423,69 @@
                     }
                 } else {
                     debugger;
+                }
+            }
+
+            function getCountryFromStatus(desc) {
+                if (desc.indexOf("United Kingdom") > -1) return 'UK';
+                if (desc.indexOf("Mexico") > -1) return 'Mexico';
+                if (desc.indexOf("Argentina") > -1) return 'Argentina';
+                if (desc.indexOf("Canada") > -1) return 'Canada';
+                if (desc.indexOf("Cayman") > -1) return 'Caymans';
+                if (desc.indexOf("Switzerland") > -1) return 'Zurich';
+                if (desc.indexOf("Japan") > -1) return 'Japan';
+                if (desc.indexOf("China") > -1) return 'China';
+                if (desc.indexOf("UAE") > -1) return 'UAE'; // ???
+                if (desc.indexOf("Arab") > -1) return 'UAE'; // ???
+                if (desc.indexOf("South") > -1) return 'SA'; // ??
+                if (desc.indexOf("Africa") > -1) return 'SA'; // ??
+            }
+
+            // Images for country flags
+            function getAbroadFlag(country) {
+                if (country == 'UK') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
+                        country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
+                }
+                if (country == 'Mexico') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_mexico.svg"
+                        country="mexico" alt="Mexico" title="Mexico"></li>`;
+                }
+                if (country == 'Canada') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_canada.svg"
+                        country="canada" alt="Canada" title="Canada"></li>`;
+                }
+                if (country == 'Argentina') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_argentina.svg"
+                        country="argentina" alt="Argentina" title="Argentina"></li>`;
+                }
+                if (country == 'Hawaii') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_hawaii.svg"
+                        country="hawaii" alt="Hawaii" title="Hawaii"></li>`;
+                }
+                if (country == 'Caymans') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_cayman.svg"
+                        country="cayman_islands" alt="Cayman Islands" title="Cayman Islands"></li>`;
+                }
+                if (country == 'Zurich') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_switzerland.svg"
+                        country="switzerland" alt="Switzerland" title="Switzerland"></li>`;
+                }
+                if (country == 'Japan') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_japan.svg"
+                        country="japan" alt="Japan" title="Japan"></li>`;
+                }
+                if (country == 'China') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_china.svg"
+                        country="china" alt="China" title="China"></li>`;
+                }
+                if (country == 'UAE') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_uae.svg"
+                        country="uae" alt="UAE" title="UAE"></li>`;
+                }
+                if (country == 'SA') {
+                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_south_africa.svg"
+                        country="south_africa" alt="South Africa" title="South Africa"></li>`;
                 }
             }
 
@@ -5687,6 +5769,14 @@
                             opts.opt_hidehosp = this.checked;
                             debug('[userListExtender] Saved value for opts.opt_hidehosp');
                             break;
+                        case "xedx-showctry-opt":
+                            opts.opt_showctry = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_showctry');
+                            break;
+                        case "xedx-ctryabroad-opt":
+                            opts.opt_ctryabroad = this.checked;
+                            debug('[userListExtender] Saved value for opts.opt_ctryabroad');
+                            break;
                         case "xedx-disabled-opt":
                             opts.opt_disabled = this.checked;
                             opts.opt_disabled ? observerOFF() : observerON();
@@ -5761,6 +5851,8 @@
                     opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
                     opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
                     opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
+                    opts.opt_showctry = (typeof tmpOpts.opt_showctry !== undefined) ? tmpOpts.opt_showctry : true;
+                    opts.opt_ctryabroad = (typeof tmpOpts.opt_ctryabroad !== undefined) ? tmpOpts.opt_ctryabroad : true;
                     opts.opt_paused = (typeof tmpOpts.opt_paused !== undefined) ? tmpOpts.opt_paused : false;
                     //if (typeof tmpOpts.cacheMins !== undefined) opts.cacheMins = tmpOpts.cacheMins;
                     opts.cacheMins = GM_getValue("userlist-cache-time", 30); // So can be set by config page - may change that later
@@ -5792,6 +5884,8 @@
                     $("#xedx-showcaymans-opt")[0].checked = opts.opt_showcaymans;
                     $("#xedx-hidehosp-opt")[0].checked = opts.opt_hidehosp;
                     $("#xedx-disabled-opt")[0].checked = opts.opt_disabled;
+                    $("#xedx-showctry-opt")[0].checked = opts.opt_showctry;
+                    $("#xedx-ctryabroad-opt")[0].checked = opts.opt_ctryabroad;
                 } catch(e) {
                     log('[tornUserList] ERROR: ', e);
                 }
@@ -5841,6 +5935,8 @@
                 $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-showctry-opt")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-ctryabroad-opt")[0].addEventListener("click", handleOptsClick);
             }
 
             // Styles for UI elements
