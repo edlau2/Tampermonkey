@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -42,18 +42,24 @@
 // Torn Collapsible Sidebar - Makes custom links on the sidebar collapsible, whether added by me, TT, altercoes...
 // Torn Jail Stats - Adds basic jail stats to the Home page, jail busts and fails, bails and bail fees.
 // Torn Customizable Sidebar - Adds links to pages you commonly use to the sidebar.
-// Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features. (TBD: will add later)
+// Torn TT Filter - Tweaks the Torn Tools display to my liking, disabling some redundant features.
 // Torn Item Hints - Adds useful info onto the items page, so you don't have to expand the item.
-// Torn Museum Sets Helper - Helps determine when museum sets are complete in Item pages (TBD)
-// Torn Weapon Sort - Sorts weapons on the Items page by various criteria (TBD)
-// Torn Weapon Experience Tracker - Displays a weapon's WE on the Itms page. (TBD)
-// Torn Weapon Experience Spreadsheet - Creates a new expandable DIV on the Items page with Weapon Experience info in a table (TBD)
+// Torn Museum Sets Helper - Helps determine when museum sets are complete in Item pages
+// Torn Weapon Sort - Sorts weapons on the Items page by various criteria 
+// Torn Weapon Experience Tracker - Displays a weapon's WE on the Itms page. 
+// Torn Weapon Experience Spreadsheet - Creates a new expandable DIV on the Items page with Weapon Experience info in a table \
 // Torn See The Temps - Allows lingering temps to be visible before an attack
 // Torn Scroll On Attack - Modify the attack page to suit my needs (scrolls view upward)
 // Torn Holdem Score - Makes the poker 'score' visible on the poker page. (TBD)
-// Torn Stock Profits - Displays current stock profits for owned shares (TBD)
+// Torn Stock Profits - Displays current stock profits for owned shares
+// Torn Jail Scores - Displays the bust 'score', and collects data to calculate % chance of success (TBD)
+// Torn Fac Page Search - Adds custom search bar to search various fac pages, and *really* highlight matches
+// Torn Point Refill Safety Net - Disables the refill button if energy/nerve not empty (can be over-ridden)
+// Torn User List Extender - Adds rank to user lists, life left (highlighted if full), an country icon if travellng.
+// Torn Overseas Rank Indicator - Indicates rank on the abroad 'people' page, as well as if just landed, and life.
+// Torn Ammo & Mods Links - Adds a 'Mods' link to ammo page, and vice-versa.
 //
-// jail scores, fac page search, disable refills
+// Torn Bounty List Extender - TBD
 //
 
 //
@@ -4759,6 +4765,7 @@
 
                 if (location.href.indexOf('/tab=info') > -1) {
                     targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
+                    //document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body > li:nth-child(30) > div.table-cell.member.icons.membersCol___AQ21i > div > div.userWrap___vmatZ.flexCenter___dZEr7.textWrap___Pyv8H.flexCenter___dZEr7 > a > span")
                     if (!targetNode) {
                         debug('[installUI] targetNode not found, retrying...');
                         return setTimeout(function() {installUI(++retries)}, 500);
@@ -4841,8 +4848,10 @@
                             log('[handleSearchKeypress] removing green');
                         });
                         searchNode.querySelectorAll('[title^="' + handleSearchKeypress.lastSearch + '"]').forEach((el) => {
-                            $(el).addClass('xedx-green');
-                            log('[handleSearchKeypress] adding green');
+                            if (!$(el).hasClass('xedx-green')) {
+                                $(el).addClass('xedx-green');
+                                log('[handleSearchKeypress] adding green');
+                            }
                             handleSearchKeypress.lastElems.push(el);
                         });
                         let temp = handleSearchKeypress.lastSearch.slice(0, -1);
@@ -4881,8 +4890,10 @@
                 }
 
                 Array.from(list).forEach((el) => {
-                    debug('[handleSearchKeypress] adding green');
-                    $(el).addClass('xedx-green');
+                    if (!$(el).hasClass('xedx-green')) {
+                            $(el).addClass('xedx-green');
+                            log('[handleSearchKeypress] adding green');
+                        }
                     handleSearchKeypress.lastElems.push(el);
                 });
 
@@ -5137,6 +5148,8 @@
 
             // Global cache of ID->Rank associations, backed to storage.
             // rank_cache = [{ID: , numeric_rank:, name: , lifeCurr: , lifeMax: , state: , description: , access: , fromCache:}];
+            //
+            // Change this to: {[ID]: {cache_obj}, [ID]: {cache_obj}, ...}
             let rank_cache = [];
 
             function newCacheItem(ID, obj) {
@@ -6034,8 +6047,8 @@
         getSavedOpts();
         writeSavedOpts(); // Just write here for now, only need to save on change
 
+        //debugLoggingEnabled = true;
         let   autoRefreshId = 0;
-        const loggingEnabled = true;
         let   requestsPaused = false;
         const ulRootContainerName = 'travel-people';
         const ulRootClassName = 'users-list';
@@ -6045,19 +6058,18 @@
         let   observer = null;
 
         // Cache of ID->Rank associations
-        let rank_cache = [];
-        function newCacheItem(ID, rank, la, curr, max, state) {
-            return {ID: ID, numeric_rank: rank, la: la, lifeCurr: curr, lifeMax: max, state: state, access: new Date().getTime(), fromCache: false};
-        }
+        let rank_cache = {};
 
         function newCacheItem(ID, obj) {
-            let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-            debug("[tornOverseasRank] Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
-            let state = jsonResp.status.state;
-            let la = jsonResp.last_action.relative;
-            let lifec = jsonResp.life.current;
-            let lifem = jsonResp.life.maximum;
-            return {ID: ID, name: jsonResp.name, numeric_rank: numeric_rank, la: la, lifeCurr: lifec, lifeMax: lifem, state: state,
+            let numeric_rank = numericRankFromFullRank(obj.rank);
+            debug("[tornOverseasRank] Creating cache object: " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
+            let state = obj.status.state;
+            let la = obj.last_action.relative;
+            let lifec = obj.life.current;
+            let lifem = obj.life.maximum;
+
+            // ID not needed here, it's the key...but check to see if we access it.
+            return {ID: ID, name: obj.name, numeric_rank: numeric_rank, la: la, lifeCurr: lifec, lifeMax: lifem, state: state,
                     access: new Date().getTime(), fromCache: false};
         }
 
@@ -6100,10 +6112,8 @@
                 setInterval(function() {clearStorageCache();}, (0.5*opts.cacheMaxMs));
                 startObserver();
                 updateUserLevels('Ready State Complete!');
-                //buildUI();
 
                 resolve("[tornOverseasRank] startup complete!");
-                //reject("[tornOverseasRank] not yet implemented!");
             });
         }// End function _tornOverseasRank() {
 
@@ -6140,7 +6150,7 @@
             if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, opts.queueIntms);}
         }
 
-        // Pauses further requets to the Torn API for 'timeout' seconds
+        // Pauses further requests to the Torn API for 'timeout' seconds
         function pauseRequests(timeout) {
             if (!requestsPaused) {setTimeout(function(){
                 requestsPaused = false;
@@ -6163,18 +6173,8 @@
                 return handleError(responseText);
             }
             let li = msg.li;
-            /*
-            let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-            debug("[tornOverseasRank] Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
-            let state = jsonResp.status.state;
-            let la = jsonResp.last_action.relative;
-            let lifec = jsonResp.life.current;
-            let lifem = jsonResp.life.maximum;
-            let cacheObj = newCacheItem(ID, numeric_rank, la, lifec, lifem, state);
-            */
             let cacheObj = newCacheItem(ID, jsonResp);
-
-            rank_cache.push(cacheObj);
+            rank_cache[ID] = cacheObj;
             debug('[tornOverseasRank] Caching ID ' + ID + ' to storage.');
             writeCacheToStorage();
             if (validPointer(li)) {updateLiWithRank(li, cacheObj);}
@@ -6240,28 +6240,33 @@
         }
 
         // Find a rank from our cache, based on ID
+        // Note: this modifies the LI if a cached obj is found!
+        // Returns rank if found, 0 otherwise.
         function getCachedRankFromId(ID, li) {
             try {
-                for (let i=0; i<rank_cache.length; i++) {
-                    if (!rank_cache[i]) continue;
-                    if (rank_cache[i].ID == ID) {
-                        let cacheObj = rank_cache[i];
-                        debug("[tornOverseasRank] Returning cached rank: " + ID + "(" +  cacheObj.name + ") ==> " +  cacheObj.numeric_rank);
-                        updateLiWithRank(li, cacheObj);
+                let cacheObj = rank_cache[ID];
+                if (cacheObj) {
+                    debug('[tornOverseasRank] [getCachedRankFromId] ID: ', ID, ' rank_cache[ID]: ', rank_cache[ID]);
+                    debug("[tornOverseasRank] Returning cached rank: " + ID + " (" +  cacheObj.name + ") ==> " +  cacheObj.numeric_rank);
+                    cacheObj.fromCache = true;
+                    updateLiWithRank(li, cacheObj);
 
-                        let now = new Date().getTime();
-                        let accessed = cacheObj.access;
-                        let age = now - accessed;
-                        debug("[tornOverseasRank] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
-                        if (age > opts.cacheMaxMs) {
-                            debug('[tornOverseasRank] Cache entry for ID ' + ID + ' expired, deleting.');
-                            delete rank_cache.ID;
-                        }
-                        rank_cache[i].access = now;
-
+                    let now = new Date().getTime();
+                    let accessed = cacheObj.access;
+                    let age = now - accessed;
+                    debug("[tornOverseasRank] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+                    if (age > opts.cacheMaxMs) {
+                        debug('[tornOverseasRank] Cache entry for ID ' + ID + ' expired, deleting.');
+                        let rank = cacheObj.numeric_rank;
+                        delete rank_cache[ID];
                         writeCacheToStorage();
-                        return rank_cache[i].numeric_rank;
+                        return rank; // Use for now, will get again next time.
                     }
+                    rank_cache[ID].fromCache = true;
+                    rank_cache[ID].access = now;
+
+                    writeCacheToStorage();
+                    return rank_cache[ID].numeric_rank;
                 }
 
                 debug("[tornOverseasRank] didn't find " + name + ' [' + ID + "] in cache.");
@@ -6276,7 +6281,7 @@
             readCacheFromStorage();
             let now = new Date().getTime();
             let lastAccess = rank_cache.lastAccessed;
-            let arrayOfKeys = Object.key(rank_cache);
+            let arrayOfKeys = Object.keys(rank_cache);
             log('[tornOverseasRank] Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
                 'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
         }
@@ -6350,7 +6355,7 @@
                 }
 
                 let ID = idNode.getAttribute('href').split('=')[1];
-                if (!getCachedRankFromId(ID, li)) {
+                if (!getCachedRankFromId(ID, li)) { // This call write to the li if found.
                     let statusSel = li.querySelector('div.left-right-wrapper > div.right-side.right > span.status > span.t-green');
                     let nameSel = li.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name > img");
                     let name = validPointer(nameSel) ? nameSel.title : 'unknown';
