@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -5146,11 +5146,10 @@
                 return _xedx_main_div;
             }
 
-            // Global cache of ID->Rank associations, backed to storage.
-            // rank_cache = [{ID: , numeric_rank:, name: , lifeCurr: , lifeMax: , state: , description: , access: , fromCache:}];
+            // Global cache of ID->Rank associations, backed to storage. ID in object is moot, will remove later.
+            // rank_cache{ID: {ID: , numeric_rank:, name: , lifeCurr: , lifeMax: , state: , description: , access: , fromCache:}, ...};
             //
-            // Change this to: {[ID]: {cache_obj}, [ID]: {cache_obj}, ...}
-            let rank_cache = [];
+            let rank_cache = {};
 
             function newCacheItem(ID, obj) {
                 let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
@@ -5253,9 +5252,9 @@
                 let numeric_rank = numericRankFromFullRank(jsonResp.rank);
                 let cache_item = newCacheItem(ID, jsonResp);
                 debug("[userListExtender] Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
-                rank_cache.push(cache_item);
+                //rank_cache.push(cache_item);
+                rank_cache[ID] = cache_item;
                 debug('[userListExtender] Caching ID ' + ID + ' to storage.');
-                //GM_setValue(ID, cache_item); // cacheID(...)
                 writeCacheToStorage();
                 updateLiWithRank(li, cache_item);
             }
@@ -5300,33 +5299,30 @@
                         log('[userListExtender] **** Shouldn`t be here? *****');
                     }
 
-                    for (var i = 0; i < rank_cache.length; i++) {
-                        if (!rank_cache[i]) continue;
-                        if (rank_cache[i].ID == ID) {
-                            //let cacheObj = rank_cache[i];
-                            log("[userListExtender] Returning cached rank: " + ID + "(" +  rank_cache[i].name + ") ==> " +  rank_cache[i].numeric_rank);
-                            updateLiWithRank(li, rank_cache[i]);
+                    let cache_obj = rank_cache[ID];
+                    if (cache_obj) {
+                        log("[userListExtender] Returning cached rank: " + ID + "(" +  cache_obj.name + ") ==> " +  cache_obj.numeric_rank);
+                        updateLiWithRank(li, cache_obj);
 
-                            let now = new Date().getTime();
-                            let accessed = rank_cache[i].access;
-                            let age = now - accessed;
-                            debug("[userListExtender] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+                        let now = new Date().getTime();
+                        let accessed = cache_obj.access;
+                        let age = now - accessed;
+                        debug("[userListExtender] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
 
-                            if ((now - accessed) > opts.cacheMaxMs) {
-                                log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
-                                //GM_deleteValue(ID);
-                                let rank = rank_cache[i].numeric_rank;
-                                delete rank_cache[i];
-                                writeCacheToStorage();
-                                stats.cache_hits++;
-                                return rank;
-                            }
-
-                            rank_cache[i].access = now;
+                        if ((now - accessed) > opts.cacheMaxMs) {
+                            log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
+                            //GM_deleteValue(ID);
+                            let rank = cache_obj.numeric_rank;
+                            delete rank_cache[ID];
                             writeCacheToStorage();
                             stats.cache_hits++;
-                            return rank_cache[i].numeric_rank;
+                            return rank;
                         }
+
+                        cache_obj.access = now;
+                        writeCacheToStorage();
+                        stats.cache_hits++;
+                        return cache_obj.numeric_rank;
                     }
 
                     debug("[userListExtender] didn't find " + name + ' [' + ID + "] in cache.");
@@ -5452,6 +5448,9 @@
                 if (desc.indexOf("Arab") > -1) return 'UAE'; // ???
                 if (desc.indexOf("South") > -1) return 'SA'; // ??
                 if (desc.indexOf("Africa") > -1) return 'SA'; // ??
+                if (desc.indexOf("Hawaii") > -1) return 'Hawaii';
+
+                return null;
             }
 
             // Images for country flags
@@ -5555,6 +5554,7 @@
             }
 
             // Filter to cull out those we're not interested in, based callback info (not icons). Return TRUE if filtered.
+            // Note: 'ci' ==> 'Cache Item' (object in rank_cache)
             function filterUser(li, ci) {
                 try {
                     debug('[userListExtender] Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
@@ -5670,7 +5670,7 @@
 
                         // This returns TRUE if either a cached rank item is found, or it is filtered out.
                         // If neither of these cases is true, we query the Torn API, and then update the UI
-                        // according - we perform secondary filtering there.
+                        // accordingly - we perform secondary filtering there.
                         if (!getCachedRankFromId(ID, li)) {
                             setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
                                                                                  // to limit the 100 reqs/min errors
@@ -5680,11 +5680,22 @@
                 observerON();
             }
 
+            // document.querySelector(" li.user2745846 > div.expander.clearfix.torn-divider.divider-vertical > a.user.name > span")
             function fullNameFromLi(li) {
                 try {
                     let elems = li.getElementsByClassName('user name'); // debugging
-                    if (elems.length == 0) {return 0;}
-                    return elems[0].getAttribute("data-placeholder");
+                    if (elems.length == 0) {
+                        debug('[userListExtender] Unable to find user.name!');
+                        return 0;
+                    }
+                    let name = elems[0].getAttribute("data-placeholder");
+                    if (!name) { // Will happen if Honor Bars disabled
+                        debug('[userListExtender] Unable to find "data-placeholder"');
+                        elems = elems[0].getElementsByTagName('span');
+                        debug('[userListExtender] spans: ', elems);
+                        name = elems[0].innerText;
+                    }
+                    return name;
                 } catch(err) { // Should never hit this.
                     console.error(err);
                     debugger;
@@ -5840,9 +5851,10 @@
                 var output = 'Cached Users (' + rc.length + ', max age = ' + (opts.cacheMaxMs/1000) + ' secs)\n';
                 output += "Hits: " + stats.cache_hits + " Misses: " + stats.cache_misses + "\n\n";
 
-                for (let i = 0; i < rc.length; i++) {
-                    if (!rc[i] || !rc[i].name) continue;
-                    let cacheObj = rc[i];
+                let keys = Object.keys(rank_cache);
+                for (let i = 0; i < keys.length; i++) {
+                    if (!rc[keys[i]] || !rc[keys[i]].name) continue;
+                    let cacheObj = rc[keys[i]];
                     let age = (now - cacheObj.access)/1000; // seconds
                     output += 'Name: "' + cacheObj.name + '" Rank: ' + cacheObj.numeric_rank +
                         ' State: ' + cacheObj.state + ' Age: ' + age + ' secs.\n';
