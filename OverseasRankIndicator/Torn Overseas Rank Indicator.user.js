@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Overseas Rank Indicator
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.9
 // @description  Add rank to the the 'people' list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php?page=people*
@@ -23,18 +23,25 @@
 (function() {
     'use strict';
 
-    const displayRank = true;
-    const displayHealth = true;
-    const displayLastAction = true;
-    const autoRefreshSecs = 45; // If > 0, refresh the page every 'n' seconds.
-    var   autoRefreshId = 0;
+    var opts = {
+        displayRank: true,
+        displayHealth: true,
+        displayLastAction: true,
+        autoRefreshSecs: 45,
+        cacheMaxHours: 6,
+        cacheMaxSecs: 6 * 3600 * 1000,  //opts.cacheMaxHours in ms
+        queueIntms: 300, // Ms between popping queue item
+    }
 
+    opts.cacheMaxSecs = opts.cacheMaxHours * 3600 * 1000;  //opts.cacheMaxHours in ms
+
+    var   autoRefreshId = 0;
     const loggingEnabled = true;
     var   requestsPaused = false;
 
     // Cache 'lifetime', time to expire
-    const cacheMaxHours = 6;
-    const cacheMaxSecs = cacheMaxHours * 3600 * 1000  //cacheMaxHours in ms
+    //const cacheMaxHours = 6;
+    //const cacheMaxSecs = opts.cacheMaxHours * 3600 * 1000  //opts.cacheMaxHours in ms
     //const cacheMaxSecs = 3600 * 1000; //one hour in ms
     //const cacheMaxSecs = 1800 * 1000; // 30 min in ms
     //const cacheMaxSecs = 600 * 1000; // 10 min in ms
@@ -43,10 +50,10 @@
 
     const ulRootContainerName = 'travel-people';
     const ulRootClassName = 'users-list';
-    var targetNode = document.getElementsByClassName(ulRootContainerName /*contentRootName*/)[0];
     const config = { attributes: true, childList: true, subtree: true };
-    const callback = function(mutationsList, observer) {updateUserLevels('Mutation Observer!');};
-    var observer = null;
+    const callback = function(mutationsList, observer) {updateUserLevels('Mutation Observer!')};
+    let   targetNode = document.getElementsByClassName(ulRootContainerName)[0];
+    let   observer = null;
 
     const recoverableErrors = [5, // Too many requests
                                8, // IP Block
@@ -58,18 +65,16 @@
                  .xedx-bg {background-color: green}
     `);
 
-    // Global cache of ID->Rank associations
-    var rank_cache = [{ID: 0, numeric_rank: 0, access: 0}];
-    function newCacheItem(ID, rank, la, curr, max) {
-        return {ID: ID, numeric_rank: rank, la: la, lifec: curr, lifem: max, access: new Date().getTime(), fromCache: false};
+    // Cache of ID->Rank associations
+    let rank_cache = [];
+    function newCacheItem(ID, rank, la, curr, max, state) {
+        return {ID: ID, numeric_rank: rank, la: la, lifeCurr: curr, lifeMax: max, state: state, access: new Date().getTime(), fromCache: false};
     }
 
     // Queue of rank from ID requests, from the Torn API
-    const queueIntms = 300; // Ms between popping queue item
-    var queryQueue = []; // The queue
-    var queryQueueId = null; // ID for queue check interval
+    let queryQueue = []; // The queue
+    let queryQueueId = null; // ID for queue check interval
     function processQueryQueue() {if (!requestsPaused) processQueueMsg(queryQueue.pop());} // Pop message from queue and dispatch
-
     function processQueueMsg(msg) { // Process a queued message (request) for rank from ID
         if (!validPointer(msg)) return;
         let ID = msg.ID;
@@ -88,7 +93,7 @@
     // Query profile information based on ID. Places on a queue for later processing.
     // In case we are recalled before getting an answer, save the ID's we've already
     // sent requests for.
-    var sentIdQueue = [];
+    let sentIdQueue = [];
     function getRankFromId(ID, li, optMsg = null) {
         if (sentIdQueue.includes(ID)) {
             return;
@@ -97,7 +102,7 @@
         let msg = {ID: ID, li: li, optMsg: optMsg};
         sentIdQueue.push(ID);
         queryQueue.push(msg);
-        if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, queueIntms);}
+        if (!queryQueueId) {queryQueueId = setInterval(processQueryQueue, opts.queueIntms);}
     }
 
     // Pauses further requets to the Torn API for 'timeout' seconds
@@ -125,10 +130,17 @@
         let li = msg.li;
         let numeric_rank = numericRankFromFullRank(jsonResp.rank);
         log("Caching rank (mem): " + ID + " ==> " + numeric_rank + ' (cache depth = ' + rank_cache.length + ')');
-        let cacheObj = newCacheItem(ID, numeric_rank, jsonResp.last_action.relative, jsonResp.life.current, jsonResp.life.maximum);
+        let state = jsonResp.status.state;
+        let la = jsonResp.last_action.relative;
+        let lifec = jsonResp.life.current;
+        let lifem = jsonResp.life.maximum;
+        let cacheObj = newCacheItem(ID, numeric_rank, la, lifec, lifem, state);
+
+        // !!!!!!!!!
         rank_cache.push(cacheObj);
         log('Caching ID ' + ID + ' to storage.');
-        GM_setValue(ID, cacheObj);
+        //GM_setValue(ID, cacheObj);
+        writeCacheToStorage();
         if (validPointer(li)) {updateLiWithRank(li, cacheObj);}
     }
 
@@ -144,35 +156,59 @@
         }
         let numeric_rank = cacheObj.numeric_rank;
         let la = cacheObj.la;
-        let lifeCurr = cacheObj.lifec;
-        let lifeMax = cacheObj.lifem;
+        let lifeCurrurr = cacheObj.lifeCurr;
+        let lifeMaxax = cacheObj.lifeMax;
         let ul = li.querySelector("div.center-side-bottom.left > ul");
         let div = li.querySelector("div.center-side-bottom.left");
 
-        if (displayHealth) {
+        if (opts.displayHealth) {
             if (cacheObj.fromCache) {
-                $(div).append('<span class="xedx-cached"> ' + lifeCurr + '/' + lifeMax + '</span>');
+                $(div).append('<span class="xedx-cached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
             } else {
-                $(div).append('<span class="xedx-notcached"> ' + lifeCurr + '/' + lifeMax + '</span>');
+                $(div).append('<span class="xedx-notcached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
             }
         }
-        if (statusNode && displayLastAction) {
+        if (statusNode && opts.displayLastAction) {
             la = la.replace('minutes', 'min');
             la = la.replace('minute', 'min');
             la = la.replace('hours', 'hrs');
             statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
             statusNode.textContent = statusNode.textContent + ' ' + la;
         }
-        if (displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+        if (opts.displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
 
         observer.observe(targetNode, config);
     }
 
+    function setCacheAccess() {
+        let now = new Date().getTime();
+        rank_cache.lastAccessed = now;
+    }
+
+    function writeCacheToStorage() {
+        try {
+            setCacheAccess();
+            GM_setValue('overseasRank.rank_cache', JSON.stringify(rank_cache));
+        } catch(e) {
+            log('[overseasRank] ERROR: ', e);
+        }
+    }
+
+    function readCacheFromStorage() {
+        try {
+             rank_cache = JSON.parse(GM_getValue('overseasRank.rank_cache', JSON.stringify(rank_cache)));
+             return rank_cache;
+        } catch(e) {
+            log('[overseasRank] ERROR: ', e);
+        }
+    }
+
     // Find a rank from our cache, based on ID
     function getCachedRankFromId(ID, li) {
+        /*
         for (var i = 0; i < rank_cache.length; i++) {
             if (rank_cache[i].ID == ID) {
-                log("Returning mem cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
+                log("Returning cached rank: " + ID + " ==> " + rank_cache[i].numeric_rank);
                 updateLiWithRank(li, rank_cache[i]);
                 return rank_cache[i].numeric_rank;
             }
@@ -183,7 +219,7 @@
             let now = new Date().getTime();
             let accessed = cacheObj.access;
             GM_setValue('LastCacheAccess', now);
-            if ((now - accessed) > cacheMaxSecs) {
+            if ((now - accessed) > opts.cacheMaxSecs) {
                 log('Cache entry for ID ' + ID + ' expired, deleting.');
                 GM_deleteValue(ID);
             }
@@ -196,6 +232,35 @@
         }
         log("didn't find " + ID + " in cache. Cache has " + rank_cache.length + " items.");
         return 0; // Not found!
+        */
+
+        try {
+            for (let i=0; i<rank_cache.length; i++) {
+                if (!rank_cache[i]) continue;
+                if (rank_cache[i].ID == ID) {
+                    let cacheObj = rank_cache[i];
+                    debug("[userListExtender] Returning cached rank: " + ID + "(" +  cacheObj.name + ") ==> " +  cacheObj.numeric_rank);
+                    updateLiWithRank(li, cacheObj);
+
+                    let now = new Date().getTime();
+                    let accessed = cacheObj.access;
+                    if ((now - accessed) > opts.cacheMaxSecs) {
+                        log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
+                        //GM_deleteValue(ID);
+                        delete rank_cache.ID;
+                    }
+                    cacheObj.access = now;
+
+                    writeCacheToStorage();
+                    return cacheObj.numeric_rank;
+                }
+            }
+
+            debug("[userListExtender] didn't find " + name + ' [' + ID + "] in cache.");
+            return 0; // Not found!
+        } catch(e) {
+            log('[userListExtender] ERROR: ', e);
+        }
     }
 
     // Write out some cache stats
@@ -209,21 +274,27 @@
 
     // Function to scan our storage cache and clear old entries
     function clearStorageCache() {
+        readCacheFromStorage();
         let counter = 0;
         let idArray = [];
         let now = new Date().getTime();
-        let arrayOfKeys = GM_listValues();
-        GM_setValue('LastCacheAccess', now);
-        log("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + cacheMaxSecs/1000 + ' secs.');
+        let arrayOfKeys = Object.keys(rank_cache);
+        //let arrayOfKeys = GM_listValues();
+        //GM_setValue('LastCacheAccess', now);
+        log("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxSecs/1000 + ' secs.');
         for (let i = 0; i < arrayOfKeys.length; i++) {
-            let obj = GM_getValue(arrayOfKeys[i]);
-            if ((now - obj.access) > cacheMaxSecs) {idArray.push(arrayOfKeys[i]);}
+            //let obj = GM_getValue(arrayOfKeys[i]);
+            let obj = rank_cache[arrayOfKeys[i]];
+            if (!obj || !obj.access) continue;
+            if ((now - obj.access) > opts.cacheMaxSecs) {idArray.push(arrayOfKeys[i]);}
         }
         for (let i = 0; i < idArray.length; i++) {
             counter++;
             log('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
-            GM_deleteValue(idArray[i]);
+            //GM_deleteValue(idArray[i]);
+            delete rank_cache[idArray[i]];
         }
+        writeCacheToStorage();
         log('Finished clearing cache, removed ' + counter + ' object.');
     }
 
@@ -275,8 +346,8 @@
         log('Finished iterating ' + items.length + ' users, ' + rank_cache.length + ' cache entries.');
 
         // If configured, reload periodically
-        if (autoRefreshSecs) {
-            let interval = autoRefreshSecs*1000;
+        if (opts.autoRefreshSecs) {
+            let interval = opts.autoRefreshSecs*1000;
             setTimeout(refreshCB, interval);
         }
     }
@@ -296,7 +367,7 @@
     }
 
     function refreshCB() {
-        let interval = autoRefreshSecs*1000;
+        let interval = opts.autoRefreshSecs*1000;
         log('Auto-refreshing in ' + interval + ' secs');
         location.reload();
         setTimeout(refreshCB, interval);
@@ -320,13 +391,15 @@
     validateApiKey();
     versionCheck();
 
+    rank_cache = readCacheFromStorage();
+
     // Update on hashchange - doesn't seem to trigger, internal pagination instead.
     window.addEventListener('hashchange', function() {
         log('The hash has changed! new hash: ' + location.hash);
         updateUserLevels('Hash Change Detected!');}, false);
 
     // Check for expired cache entries at intervals, half max cache age.
-    setInterval(function() {clearStorageCache();}, (0.5*cacheMaxSecs));
+    setInterval(function() {clearStorageCache();}, (0.5*opts.cacheMaxSecs));
 
     // Start a mutation observer
     startObserver();
