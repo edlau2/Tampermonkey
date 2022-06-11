@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Sort Personal Stats
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  Sort selectable stats on the Persoanl Stats page.
+// @version      0.2
+// @description  Sort selectable stats on the Personal Stats page.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/personalstats.php*
+// @match        https://www.torn.com/personalstats.php*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -51,7 +51,9 @@
         observer.observe(targetNode, config);
     }
 
-    function sortDropdowns() {
+    var sorted = false; // TBD - fix this!
+    function sortDropdowns(mutationsList, observer) {
+        if (sorted) return;
         if (observer) observer.disconnect();
         const listItems = document.querySelector("#chartSection > div.content___nl0g8.chartContent___N7vZX > div.dropDowns___WV180 > ul").children;
         const listArray = Array.from(listItems);
@@ -61,8 +63,10 @@
             if (sortableList.length == 0) setTimeout(sortDropdowns, 50);
             tinysort(sortableList);
             log('Dropdown sorted.');
+            sorted = true;
         });
-        if (observer) observer.observe(targetNode, config);
+        setTimeout(function() {
+            if (observer) observer.observe(targetNode, config);}, 2000);
     }
 
     function handlePageLoaded() {
