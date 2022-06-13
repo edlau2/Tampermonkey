@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -5022,22 +5023,7 @@
         function _tornUserList() {
             log('[tornUserList]');
 
-            // Options
-            /*
-            let opts = {
-                opt_devmode: false,
-                opt_loggingEnabled: false, // Only affect debug logging, not regular
-                opt_hidefedded: true,
-                opt_hidefallen: true,
-                opt_hidetravel: true,
-                opt_showcaymans: false,
-                opt_hidehosp: true,
-                opt_disabled: false,
-                opt_paused: false,
-                cacheMins: GM_getValue("userlist-cache-time", 30), // Gets set from opts page, read separately
-                cacheMaxMs: (GM_getValue("userlist-cache-time", 30) * 60 * 1000), // Default
-            }
-            */
+            //debugLoggingEnabled = true; // TEMPORARY
 
             let opts = {};
             getSavedOptions(); // Could assign & declare in one shot here...
@@ -5047,12 +5033,25 @@
                 cache_misses: 0
             };
 
-            log('[userListExtender] options: ', opts);
+            debug('[userListExtender] options: ', opts);
 
             let   reqDelay = 10; //seconds to delay on error code 5 (too many req's)
             let   mainTargetNode = null;
             const mainConfig = { attributes: false, childList: true, subtree: true };
             const mainObserver = new MutationObserver(function() {updateUserLevels('mainObserver')});
+            let observing = false;
+
+            // Grr - with Honor Bars OFF, something odd happens - all my Torn API requests return same info.
+            // So, experiment: impose an x second delay.
+            let useQueryQueue = false;
+            let queryQueue = [];
+            function queryQueueChecker() {
+                let query = queryQueue.pop();
+                if (query) {
+                    xedx_TornUserQuery(query.ID, query.Query, query.CB, query.param);
+                }
+            }
+            if (useQueryQueue) setInterval(queryQueueChecker, 500);
 
             function xedx_main_div() {
                 const _xedx_main_div =
@@ -5078,9 +5077,9 @@
                   '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
                       '<br>' +
                       '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
-                      '<table style="margin-top: 10px; width: 500px;"><tbody>' +
-                          '<tr>' + // Row 1
-                              '<td class="xtdx" ><div>' +
+                      '<table style="margin-top: 10px; width: 550px; display: flex;"><tbody>' + // 500
+                          '<tr>' + // Row 1 // <tr style="display: flex;">
+                              '<td class="xtdx"><div>' +
                                   '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
                                   '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
                               '</div></td>' +
@@ -5089,7 +5088,11 @@
                                   '<label for="hidefallen"><span style="margin-left: 15px;">Hide Fallen</span></label>' +
                               '</div></td>' +
                               '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
+                              //'<td class="xtdx" id="viewcache"><div>' +
                                   '<button id="xedx-viewcache-btn" class = "button">View Cache</button>' +
+                              '</div></td>' +
+                              '<td class="xtdx" id="clearcache" style="display: inline-block;"><div>' +
+                                  '<button id="xedx-clearcache-btn" class = "button">Clear Cache</button>' +
                               '</div></td>' +
                           '</tr>' +
                           '<tr>' + // Row 2
@@ -5101,21 +5104,21 @@
                                   '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
                                   '<label for="disabled"><span style="margin-left: 15px;">Disable Script</span></label>' +
                               '</div></td>' +
-                              '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
+                              '<td class="xtdx" id="viewcache" style="display: inline-block;  colspan: 2;"><div>' +
                                   '<button id="xedx-refreshcache-btn" class = "button">Refresh</button>' +
                               '</div></td>' +
                           '</tr>' +
                           '<tr>' + // Row 3
-                              '<td class="xtdx"><div>' +
+                              '<td  class="xtdx"><div>' +
                                   '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
                                   '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
                               '</div></td>' +
-                              '<td class="xtdx" id="showcaymans" style="display: hide;"><div>' +
+                              '<td  class="xtdx" id="showcaymans" style="display: hide; colspan: 3;"><div>' +
                                   '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
                                   '<label for="showcaymans"><span style="margin-left: 15px">Caymans Only</span></label>' +
                               '</div></td>' +
-                          '<tr>' +
-                          '</tr>' + // Row 4
+                          '</tr>' +
+                          '<tr>' + // Row 4
                               '<td class="xtdx"><div>' +
                                   '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
                                   '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
@@ -5124,11 +5127,11 @@
                                   '<input type="checkbox" class="xcbx" id="xedx-showctry-opt" name="showctry" style="margin-bottom: 10px;">' +
                                   '<label for="showctry"><span style="margin-left: 15px">Show Country</span></label>' +
                               '</div></td>' +
-                              '<td class="xtdx"><div>' +
+                              '<td style="colspan: 2;" class="xtdx"><div>' +
                                   '<input type="checkbox" class="xcbx" id="xedx-ctryabroad-opt" name="ctryabroad" style="margin-bottom: 10px;">' +
                                   '<label for="ctryabroad"><span style="margin-left: 15px">Only if abroad</span></label>' +
                               '</div></td>' +
-                              //'<td class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
+                              //'<td style="colspan: 3;" class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
                               //    '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
                               //    '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
                               //'</div></td>' +
@@ -5137,7 +5140,7 @@
                       '<div id="xedx-stats" style="float: right; margin-top: 10px;">' +
                           '<span id="xedx-info-text" style="color: red; margin-right: 20px; margin-left: 20px;">' +
                           //'<span id="xedx-info-text" class="powered-by" style="margin-right: 20px; margin-left: 20px;">' +
-                          GM_info.script.name +
+                          //GM_info.script.name +
                           '</span>' +
                       '</div>' +
                       '<br>' +
@@ -5152,20 +5155,13 @@
             let rank_cache = {};
 
             function newCacheItem(ID, obj) {
+                debug('[userListExtender] newcacheItem, from: ', obj);
                 let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
                 let lifeMax = obj.life.maximum;  // ...
                 let rank = numericRankFromFullRank(obj.rank);
                 return {ID: ID, numeric_rank: rank, name: obj.name, lifeCurr: lifeCurr, lifeMax: lifeMax,
                         state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true};
             }
-
-            //let cacheMins = GM_getValue("userlist-cache-time", 30);
-            //let cacheMaxMs = cacheMins * 60 * 1000;
-            //const cacheMaxMs = 3600 * 1000; // one hour in ms
-            //const cacheMaxMs = 18000 * 1000; // 300 min (5 hrs) in ms
-            //const cacheMaxMs = 1800 * 1000; // 30 min in ms
-            //const cacheMaxMs = 180 * 1000; // 3 min in ms
-            //const cacheMaxMs = 60 * 1000; // 1 min in ms
 
             // TRUE if TornTools filtering is in play
             let ttInstalled = false;
@@ -5177,7 +5173,7 @@
             // Query profile information based on ID. Skip those we'd like to filter out.
             // We don't display if the class contains 'filter-hidden', added by TornTools,
             // or 'xedx_hidden', added here.
-            function getRankFromId(ID, li) {
+            async function getRankFromId(ID, li) {
                 debug('[userListExtender] getRankFromId: ID ' + ID + ' classList: ' + li.classList);
 
                 if (opts.opt_disabled) {
@@ -5206,20 +5202,61 @@
                     return true;
                 }
 
-                debug("[userListExtender] Querying Torn for rank, ID = " + ID);
-                xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+                debug("[userListExtender] TornAPI Querying Torn for rank, ID = " + ID);
+
+                // Experiment:
+                if (useQueryQueue) {
+                    queryQueue.push({ID: ID, Query: 'profile', CB: updateUserLevelsCB, param: li});
+                } else {
+                    xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+
+                    /*
+                    debug('[userListExtender] TornAPI call doQuery sync');
+                    let respText = await doQuery(ID, li);
+                    debug('[userListExtender] TornAPI call doQuery done');
+                    updateUserLevelsCB(respText, ID, li)
+                    */
+                }
             }
+
+            /*
+            function doQuery(ID, li) {
+                return new Promise((resolve, reject) => {
+                    let url = "https://api.torn.com/user/" + ID + "?selections=profile&key=" + api_key;
+                    debug('[userListExtender] [doQuery] TornAPI ID: ' + ID);
+                    GM_xmlhttpRequest({
+                        method:"POST",
+                        url:url,
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        onload: function(res) {
+                            let jsonResp = JSON.parse(res.responseText);
+                            debug('[userListExtender] [doQuery] TornAPI jsonResp: ', jsonResp);
+                            //updateUserLevelsCB(res.responseText, ID, li);
+                            resolve(res.responseText);
+                        },
+                        onerror: function(res) {
+                            //handleSysError(res);
+                            reject(res);
+                        }
+                    });
+                });
+            }
+            */
 
             //////////////////////////////////////////////////////////////////////
             // This callback create the cache used to store ID-rank associations
             // and updates the UI.
             //////////////////////////////////////////////////////////////////////
 
-            function updateUserLevelsCB(responseText, ID, li) {
-                var jsonResp = JSON.parse(responseText);
+            function updateUserLevelsCB(rt, ID, li) {
+                debug('[userListExtender] TornAPI updateUserLevelsCB ID: ', ID);
+                let jsonResp = JSON.parse(rt);
                 if (jsonResp.error) {
-                    debug('[userListExtender] updateUserLevelsCB: error:', jsonResp.error);
-                    if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                    debug('[userListExtender] updateUserLevelsCB: error:', localjsonResp.error);
+                    if (localjsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
                         if (isRanked(li)) { // Don't do again!
                             log('[userListExtender] ***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
                             return;
@@ -5235,12 +5272,25 @@
                         },
                         reqDelay * 1000);  // Turn back on in <delay> secs.
 
-                        $("#xedx-info-text")[0].innerText = "Error: " + jsonResp.error.error + "\n" + msg;
+                        $("#xedx-info-text")[0].innerText = "Error: " + localjsonResp.error.error + "\n" + msg;
                         debug('[userListExtender] ', msg);
                         opts.opt_paused = true;
                         return;
                     }
                     return handleError(responseText);
+                }
+                debug('[userListExtender] TornAPI updateUserLevelsCB jsonResp (' + ID + '): ', jsonResp);
+                //debug('[userListExtender] TornAPI updateUserLevelsCB li: ', li);
+
+                let liName = fullNameFromLi(li);
+                let objName = jsonResp.name;
+                if (liName && objName) {
+                    liName = liName.split(' ')[0];
+                    if (liName.trim().toLowerCase() != objName.trim().toLowerCase()) {
+                        log('[userListExtender] TornAPI ERROR: returned profile info does not match!');
+                        log('[userListExtender] TornAPI (error) liName: ', liName, ' objName: ', objName);
+                        return;
+                    }
                 }
 
                 $("#xedx-info-text")[0].innerText = 'Queried ID ' + ID;
@@ -5251,12 +5301,15 @@
 
                 let numeric_rank = numericRankFromFullRank(jsonResp.rank);
                 let cache_item = newCacheItem(ID, jsonResp);
-                debug("[userListExtender] Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
-                //rank_cache.push(cache_item);
+                debug("[userListExtender] TornAPI updateUserLevelsCB Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
                 rank_cache[ID] = cache_item;
-                debug('[userListExtender] Caching ID ' + ID + ' to storage.');
+                debug('[userListExtender] TornAPI updateUserLevelsCB Caching ID ' + ID + ' to storage.');
+                debug('[userListExtender] TornAPI updateUserLevelsCB obj: ', cache_item);
                 writeCacheToStorage();
+
+                let state = observerOFF();
                 updateLiWithRank(li, cache_item);
+                if (state) observerON();
             }
 
             //////////////////////////////////////////////////////////////////////
@@ -5269,6 +5322,7 @@
             }
 
             function writeCacheToStorage() {
+                debug('[userListExtender] writeCacheToStorage: len ', Object.keys(rank_cache).length);
                 try {
                     setCacheAccess();
                     GM_setValue('userListExtender.rank_cache', JSON.stringify(rank_cache));
@@ -5289,20 +5343,23 @@
             function getCachedRankFromId(ID, li) {
                 try {
                     let name = fullNameFromLi(li);
-                    log('[userListExtender] Looking for ' + name + + ' [' + ID + '] in cache...');
+                    debug('[userListExtender] Looking for ' + name + ' [' + ID + '] in cache...');
 
                     let isHosped = isInHosp(li);
                     let inFed = isFedded(li);
                     let travelling = isTravelling(li);
                     if (isHosped || inFed || travelling) {
-                        log('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
-                        log('[userListExtender] **** Shouldn`t be here? *****');
+                        debug('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
                     }
 
                     let cache_obj = rank_cache[ID];
+                    debug('[userListExtender] cache_obj for ID ', ID, ': ', cache_obj);
                     if (cache_obj) {
-                        log("[userListExtender] Returning cached rank: " + ID + "(" +  cache_obj.name + ") ==> " +  cache_obj.numeric_rank);
+                        debug("[userListExtender] Returning cached rank: " + ID + "(" +  cache_obj.name + ") ==> " +  cache_obj.numeric_rank);
+
+                        let state = observerOFF();
                         updateLiWithRank(li, cache_obj);
+                        if (state) observerON();
 
                         let now = new Date().getTime();
                         let accessed = cache_obj.access;
@@ -5343,6 +5400,14 @@
                     'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
             }
 
+            // Clear entire cache
+            function clearCache() {
+                debug('[userListExtender] [clearCache]');
+                rank_cache = {};
+                writeCacheToStorage();
+                debug('[userListExtender] cache cleared, len = ', rank_cache.length);
+            }
+
             // Function to scan our cache and clear old entries
             function clearStorageCache() {
                 try {
@@ -5354,7 +5419,7 @@
                     let arrayOfKeys = Object.keys(rank_cache);
                     //GM_setValue('LastCacheAccess', now);
                     rank_cache.lastAccessed = now;
-                    log("[userListExtender] Clearing cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
+                    debug("[userListExtender] Clearing cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
                     for (let i = 0; i < arrayOfKeys.length; i++) {
                         //let obj = GM_getValue(arrayOfKeys[i]);
                         let obj = rank_cache[arrayOfKeys[i]];
@@ -5362,12 +5427,12 @@
                     }
                     for (let i = 0; i < idArray.length; i++) {
                         counter++;
-                        log('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+                        debug('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
                         //GM_deleteValue(idArray[i]);
                         delete rank_cache[idArray[i]];
                     }
                     writeCacheToStorage();
-                    log('[userListExtender] Finished clearing cache, removed ' + counter + ' object.');
+                    debug('[userListExtender] Finished clearing cache, removed ' + counter + ' object.');
                 } catch(e) {
                     log('[userListExtender] ERROR: ', e);
                 }
@@ -5408,6 +5473,12 @@
                         log('[userListExtender] found travel icon: ', icon);
                         if (icon) {
                             let country = getCountryFromStatus(cache_item.description);
+
+                            debug('[userListExtender] country is ' + country);
+                            let flag = $(getAbroadFlag(country));
+                            debug('[userListExtender] flag is ' + flag);
+                            debug('[userListExtender] replacing in li: ', li);
+
                             if (country) $(icon).replaceWith($(getAbroadFlag(country)));
                         }
                     }
@@ -5627,7 +5698,7 @@
             // and the index of the <li> in the <ul>.
             //////////////////////////////////////////////////////////////////////
 
-            function updateUserLevels(display) {
+            async function updateUserLevels(display) {
                 debug('[userListExtender] updateUserLevels called by: ' + display);
 
                 if (opts.opt_disabled) {
@@ -5672,8 +5743,9 @@
                         // If neither of these cases is true, we query the Torn API, and then update the UI
                         // accordingly - we perform secondary filtering there.
                         if (!getCachedRankFromId(ID, li)) {
-                            setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
+                            //setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
                                                                                  // to limit the 100 reqs/min errors
+                            getRankFromId(ID, li);
                         }
                     }
                 }
@@ -5750,13 +5822,14 @@
                 debug('[userListExtender] UI installed.');
 
                 let node = document.getElementById("xedx-refreshcache-btn");
-                displayToolTip(node, "Not Yet Implemented!");
+                displayMiniToolTip(node, "Not Yet Implemented!");
             }
 
             // Handle the selected options
             function handleOptsClick() {
                 try {
                     let option = this.id;
+                    let doUpdate = true;
                     debug('[userListExtender] Handling checkbox change for ' + option);
                     switch (option) {
                         //case "xedx-loggingEnabled-opt":
@@ -5808,17 +5881,23 @@
                             debug('[userListExtender] Saved value for opts.opt_disabled');
                             break;
                         case "xedx-viewcache-btn":
+                            doUpdate = false;
                             displayCache();
                             break;
+                        case "xedx-clearcache-btn":
+                            doUpdate = false;
+                            clearCache();
+                            break;
                         case "xedx-refreshcache-btn":
+                            doUpdate = false;
                             debug('[userListExtender] Cache refresh not yet implemented!');
                             break;
                         default:
                             debug('[userListExtender] Checkbox ID not found!');
                     }
                     debug('[userListExtender] opts: ', opts);
-                    setSavedOptions();
-                    updateUserLevels('handleOptsClick');
+                    if (doUpdate) setSavedOptions();
+                    if (doUpdate) updateUserLevels('handleOptsClick');
                 } catch(e) {
                     log('[tornUserList] ERROR: ', e);
                 }
@@ -5830,12 +5909,14 @@
                     $('#showcaymans')[0].style.display = 'none';
                     //$('#loggingEnabled')[0].style.display = 'none';
                     $('#viewcache')[0].style.display = 'none';
+                    $('#clearcache')[0].style.display = 'none';
                     opts.opt_showcaymans = false;
                     //GM_setValue("opts.opt_showcaymans", opts.opt_showcaymans);
                 } else {
                     $('#showcaymans')[0].style.display = 'block';
                     //$('#loggingEnabled')[0].style.display = 'block';
-                    $('#viewcache')[0].style.display = 'block';
+                    $('#viewcache')[0].style.display = 'inline-block';
+                    $('#clearcache')[0].style.display = 'inline-block';
                 }
 
                 setSavedOptions();
@@ -5843,7 +5924,7 @@
 
             // Function to display cache contents
             function displayCache() {
-                debug('[userListExtender] displayCache');
+                debug('[userListExtender] [displayCache]');
                 readCacheFromStorage();
                 // var rank_cache = [{ID: 0, numeric_rank: 0, name: '', state: '', description: ''}];
                 let rc = rank_cache;
@@ -5856,7 +5937,7 @@
                     if (!rc[keys[i]] || !rc[keys[i]].name) continue;
                     let cacheObj = rc[keys[i]];
                     let age = (now - cacheObj.access)/1000; // seconds
-                    output += 'Name: "' + cacheObj.name + '" Rank: ' + cacheObj.numeric_rank +
+                    output += 'Name: "' + cacheObj.name + '" [' + keys[i] + '] Rank: ' + cacheObj.numeric_rank +
                         ' State: ' + cacheObj.state + ' Age: ' + age + ' secs.\n';
                 }
                 alert(output);
@@ -5960,6 +6041,7 @@
                 $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
+                $("#xedx-clearcache-btn")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-showctry-opt")[0].addEventListener("click", handleOptsClick);
                 $("#xedx-ctryabroad-opt")[0].addEventListener("click", handleOptsClick);
             }
@@ -5967,19 +6049,20 @@
             // Styles for UI elements
             function loadTableStyles() {
                 GM_addStyle(".xedx_hidden {display: none;}");
-                GM_addStyle(".xcbx {margin-left: 12px;}");
+                GM_addStyle(".xcbx {margin-left: 20px; margin-top: 5px;}");
                 if (darkMode()) {
                     GM_addStyle(".xtdx {color: white;}");
                     GM_addStyle(".button {" +
                           "border: solid 1px;" +
                           "color: black;" +
+                          "width: 82px;" +
                           "background-color: #c4c3c0;" +
                           "padding: 5;" +
                           "text-align: center;" +
                           "display: inline-block;" +
                           "cursor: pointer;" +
                           "border-radius: 4px;" +
-                          "margin-left: 50px;" +
+                          "margin-left: 20px;" +
                         "}");
 
                 } else {
@@ -6007,17 +6090,24 @@
             // Functions to log when we connect/disconnect main observer, for debugging
             function observerON() {
                 debug('[userListExtender] Turning observer ON');
-                if (validPointer(mainObserver)) {mainObserver.observe(mainTargetNode, mainConfig);}
+                if (validPointer(mainObserver)) {
+                    mainObserver.observe(mainTargetNode, mainConfig);
+                    observing = true;
+                }
             }
 
             function observerOFF() {
-                debug('[userListExtender] Turning observer OFF');
-                if (validPointer(mainObserver)) {mainObserver.disconnect();}
+                let currState = observing;
+                debug('[userListExtender] Turning observer OFF, is now: ', (currState ? 'ON' : 'OFF'));
+                if (validPointer(mainObserver)) {
+                    mainObserver.disconnect();
+                    observing = false;
+                }
+
+                return currState;
             }
 
             return new Promise((resolve, reject) => {
-                //if (abroad()) return reject('[tornDisableRefills] not at home!');
-
                 rank_cache = readCacheFromStorage();
 
                 // Check for expired cache entries at intervals, half max cache age.
@@ -6026,11 +6116,10 @@
                     clearStorageCache();}, (0.5*opts.cacheMaxMs));
 
                 mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
-                addDarkModeObserver();
+                addDarkModeObserver(); // I've forgotten why I do this.
                 buildUI();
                 observerON();
 
-                // If *already* loaded, go ahead...
                 if (document.readyState === 'complete') {
                     updateUserLevels('document.readyState');
                 }
@@ -6606,7 +6695,7 @@
         // Add tool tip. Note - this style isn't so good for this tip....
         // Too wide, should be centered.
         addToolTipStyle();
-        displayToolTip(document.getElementById("xedx-opts"), "Click to configure!");
+        displayMiniToolTip(document.getElementById("xedx-opts"), "Click to configure!");
     }
 
     function initDebugOptions() {
