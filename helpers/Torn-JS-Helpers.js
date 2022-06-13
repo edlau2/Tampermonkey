@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.31
+// @version     2.33
 // @license     MIT
 // ==/UserScript==
 
@@ -45,6 +45,18 @@ async function validateApiKey(type = null) {
 
 function getApiKey() {
     return api_key;
+}
+
+function getPlayerId() {
+    return $('script[secret]').attr("uid");
+}
+
+function getPlayerName() {
+    return $('script[secret]').attr("name");
+}
+
+function getPlayerFullName() {
+    return getPlayerName() + ' [' + getPlayerId() + ']';
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -97,6 +109,10 @@ function callOnContentComplete(callback) {
 }
 
 // Install an event listener for hash change notifications
+function callOnHashChange(callback) {
+    return installHashChangeHandler(callback);
+}
+
 function installHashChangeHandler(callback) {
     window.addEventListener('hashchange', function() {
     log('The hash has changed! new hash: ' + location.hash);
@@ -380,6 +396,24 @@ function addToolTipStyle() {
               "color: #FFF;" +
               "font-size: 1em;" +
               "}");
+
+    GM_addStyle(".tooltip4 {" +
+              "radius: 4px !important;" +
+              "background-color: #000000 !important;" +
+              "filter: alpha(opacity=80);" +
+              "opacity: 0.80;" +
+              "padding: 5px 20px;" +
+              "border: 2px solid gray;" +
+              "border-radius: 10px;" +
+              "width: auto;" +
+              "margin: 50px;" +
+              "text-align: left;" +
+              "font: bold 14px ;" +
+              "font-stretch: condensed;" +
+              "text-decoration: none;" +
+              "color: #FFF;" +
+              "font-size: 1em;" +
+              "}");
 }
 
 // Adds a tool tip to a node/element
@@ -394,6 +428,19 @@ function displayToolTip(node, text) {
         });
     })
 }
+
+function displayMiniToolTip(node, text) {
+    $(document).ready(function() {
+        $(node).attr("title", "original");
+        $(node).tooltip({
+            content: text,
+            classes: {
+                "ui-tooltip": "tooltip4"
+            }
+        });
+    })
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // Map textual rank names to numeric, via array index
@@ -461,7 +508,7 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
     let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
-    console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection);
+    console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection + ' ID: ' + ID);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -470,6 +517,7 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             'Accept': 'application/json'
         },
         onload: function(response) {
+            //console.debug('(JS-Helper) ' + GM_info.script.name + ' Response (ID=' + ID + '): ' + response.responseText);
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
