@@ -46,6 +46,7 @@
 
     $("#ivault").contents().find("#header-root").hide();
 
+    /*
     function hideHeader() {
         if (iFrame) {
             let header = $("#ivault").contents().find("#header-root");
@@ -54,16 +55,34 @@
             else
                 setTimeout(hideHeader, 250);
         }
+    }
+    */
 
-        // Can re-write, without variables, as:
-        /*
-        if (document.querySelector('#ivault')) { // Or, if ($('#ivault').length) {
-            if ($("#ivault").contents().find("#header-root").length)
-                $("#ivault").contents().find("#header-root").hide();
-            else
-                setTimeout(hideHeader, 250);
+    function checkIframeLoaded() {
+        // Get a handle to the iframe element
+        var iframe = document.getElementById('ivault');
+        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+        log('[checkIframeLoaded] iframe: ', iframe, ' doc: ', iframeDoc, ' readystate: ', (iframeDoc ? iframeDoc.readyState : 'unknown'));
+
+        if (iframeDoc && iframeDoc.readyState == 'complete' ) {
+            log('[checkIframeLoaded] complete!');
+            $("#ivault").contents().find("#header-root").hide(); // Hide stuff
+
+            let header = $("#ivault").contents().find("#header-root");
+            if (header.length) {
+                log('[checkIframeLoaded] header found!');
+                header.hide();
+            } else {
+                log('[checkIframeLoaded] header NOT found!');
+                return setTimeout(checkIframeLoaded, 250);
+            }
+
+            return;
         }
-        */
+
+        // If we are here, it is not loaded.
+        window.setTimeout(checkIframeLoaded, 250);
     }
 
     function handlePageLoad() {
@@ -76,10 +95,8 @@
             iFrame = document.querySelector('#ivault');
             log('[iFrame]: ', iFrame);
 
-            hideHeader();
-
-            // Not the best way to do this, just need time to make sure contents are loaded.
-            //setTimeout(function () {$("#ivault").contents().find("#header-root").hide()}, 500);
+            //hideHeader();
+            checkIframeLoaded();
         }
     }
 
