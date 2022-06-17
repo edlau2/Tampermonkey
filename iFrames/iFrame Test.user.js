@@ -39,23 +39,37 @@
     // Click OutSide to Hide iFrame
     $('body').click(function() {
         log('[body.click]');
-        //$('#ivault').hide(); // Changed from .iframes class to #ivault ID
+        $('#ivault').hide(); // Changed from .iframes class to #ivault ID
                              // Prob gonna have issues referencing individual things inside the frame
                              // Since they are same ID's, classes, etc - but in diff window
-
-        // Test hiding inner stuff
-        if (iFrame) {
-            $("#ivault").contents().find("#header-root").hide();
-        }
     });
+
+    $("#ivault").contents().find("#header-root").hide();
+
+    function hideHeader() {
+        if (iFrame) {
+            let header = $("#ivault").contents().find("#header-root");
+            if (header.length)
+                header.hide();
+            else
+                setTimeout(hideHeader, 250);
+        }
+    }
 
     function handlePageLoad() {
         // Vault iFrame
         if (window.top === window.self) {     // Run Script if the Focus is Main Window (Don't also put inside the iFrame!)
             log('Prepending iFrame');
             $('body').prepend(myFrame);
+
+            // Just for convenience, not really used
             iFrame = document.querySelector('#ivault');
             log('[iFrame]: ', iFrame);
+
+            hideHeader();
+
+            // Not the best way to do this, just need time to make sure contents are loaded.
+            //setTimeout(function () {$("#ivault").contents().find("#header-root").hide()}, 500);
         }
     }
 
