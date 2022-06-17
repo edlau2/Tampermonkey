@@ -54,6 +54,16 @@
             else
                 setTimeout(hideHeader, 250);
         }
+
+        // Can re-write, without variables, as:
+        /*
+        if (document.querySelector('#ivault')) { // Or, if ($('#ivault').length) {
+            if ($("#ivault").contents().find("#header-root").length)
+                $("#ivault").contents().find("#header-root").hide();
+            else
+                setTimeout(hideHeader, 250);
+        }
+        */
     }
 
     function handlePageLoad() {
