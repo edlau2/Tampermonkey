@@ -11,14 +11,12 @@ function checkIframeLoaded() {
     let c = $("#ivault").contents().find(".property-info-cont");
     let d = $("#ivault").contents().find(".content-title");
 
-    if ($(a).length && $(b).length && $(c).length && $(d).length) {
-        // Found them all, hide them all.
-        $(a).hide();
-        $(b).hide();
-        $(c).hide();
-        $(d).hide();
-        return;
-    } else {
+    if ($(a).length) $(a).hide();
+    if ($(b).length) $(b).hide();
+    if ($(c).length) $(c).hide();
+    if ($(d).length) $(d).hide();
+        
+    if (!$(a).length || !$(b).length || !$(c).length || !$(d).length) {
         window.setTimeout(checkIframeLoaded, 250);
     }
 }
