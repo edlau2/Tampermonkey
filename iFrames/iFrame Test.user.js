@@ -24,7 +24,8 @@
     const myFrame = "<iframe id='ivault' class='iframes' scrolling='no'" +
                     "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
                     "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
-                    "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>"
+                    "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
+    var iFrame = null;
 
 
     // MouseHover Money Value
@@ -38,9 +39,14 @@
     // Click OutSide to Hide iFrame
     $('body').click(function() {
         log('[body.click]');
-        $('#ivault').hide(); // Changed from .iframes class to #ivault ID
+        //$('#ivault').hide(); // Changed from .iframes class to #ivault ID
                              // Prob gonna have issues referencing individual things inside the frame
                              // Since they are same ID's, classes, etc - but in diff window
+
+        // Test hiding inner stuff
+        if (iFrame) {
+            $("#ivault").contents().find("#header-root").hide();
+        }
     });
 
     function handlePageLoad() {
@@ -48,6 +54,8 @@
         if (window.top === window.self) {     // Run Script if the Focus is Main Window (Don't also put inside the iFrame!)
             log('Prepending iFrame');
             $('body').prepend(myFrame);
+            iFrame = document.querySelector('#ivault');
+            log('[iFrame]: ', iFrame);
         }
     }
 
