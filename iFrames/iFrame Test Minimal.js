@@ -11,7 +11,9 @@ function checkIframeLoaded(firstCheck=false) {
 
     if (iframeDoc && iframeDoc.readyState == 'complete') {
         if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
-        $("#ivault").contents().find("#header-root").hide(); // Hide stuff, add more with commas
+        $("#ivault").contents().find("#header-root").hide(); // Hide stuff, add more with commas (?)
+        $("#ivault").contents().find(".property-info-cont").hide();
+        $("#ivault").contents().find(".content-title").hide();
         return;
     }
     window.setTimeout(checkIframeLoaded, 250); // If we are here, it is not loaded.
