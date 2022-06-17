@@ -21,6 +21,7 @@ function checkIframeLoaded() {
     } else {
         window.setTimeout(checkIframeLoaded, 250);
     }
+}
 
 if (window.top === window.self) {
     $('body').prepend("<iframe id='ivault' class='iframes' scrolling='no'" +
