@@ -58,25 +58,31 @@
     }
     */
 
-    function checkIframeLoaded() {
+    function checkIframeLoaded(firstCheck=false) {
         // Get a handle to the iframe element
         var iframe = document.getElementById('ivault');
         var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
         log('[checkIframeLoaded] iframe: ', iframe, ' doc: ', iframeDoc, ' readystate: ', (iframeDoc ? iframeDoc.readyState : 'unknown'));
 
-        if (iframeDoc && iframeDoc.readyState == 'complete' ) {
+        if (iframeDoc && iframeDoc.readyState == 'complete') {
             log('[checkIframeLoaded] complete!');
-            $("#ivault").contents().find("#header-root").hide(); // Hide stuff
+            if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
 
-            let header = $("#ivault").contents().find("#header-root");
-            if (header.length) {
-                log('[checkIframeLoaded] header found!');
-                header.hide();
-            } else {
-                log('[checkIframeLoaded] header NOT found!');
-                return setTimeout(checkIframeLoaded, 250);
-            }
+            //$("#ivault").contents().find("#header-root").hide(); // Hide stuff
+            //$("#ivault").contents().find(".logo").hide(); // Hide stuff
+            
+            let logo = $("#ivault").contents().find(".logo");
+            let propInfo = $("#ivault").contents().find(".property-info-cont");
+            let contTitle = $("#ivault").contents().find(".content-title");
+            
+            log('logo: ', logo);
+            log('propInfo: ', propInfo);
+            log('contTitle: ', contTitle);
+            
+            $(logo).hide();
+            $(propInfo).hide();
+            $(contTitle).hide();
 
             return;
         }
@@ -90,13 +96,15 @@
         if (window.top === window.self) {     // Run Script if the Focus is Main Window (Don't also put inside the iFrame!)
             log('Prepending iFrame');
             $('body').prepend(myFrame);
+            checkIframeLoaded(true);
+
 
             // Just for convenience, not really used
             iFrame = document.querySelector('#ivault');
             log('[iFrame]: ', iFrame);
 
             //hideHeader();
-            checkIframeLoaded();
+            //checkIframeLoaded();
         }
     }
 
