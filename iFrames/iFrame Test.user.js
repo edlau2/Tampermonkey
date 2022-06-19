@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         iFrame Test
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -23,45 +23,18 @@
 
     // Defines the iframe and contents we'd like to add. This happens to be the
     // 'ivault' frame, we can have as many as we like.
-    const myFrame = "<iframe id='ivault' class='iframes' scrolling='no'" +
-                    "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
-                    "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
-                    "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
-
-    // We can save this when created as an easy way to check for existence.
-    var iframe = null;
-
-    // Add the style to hide an element
-    GM_addStyle(`.myHideClass {display: none;}`);
-
-
-    // MouseHover Money Value. If the timeout (for the mouseenter) is interupted
-    // by the mouseleave, it cancels the fn to 'show'.
-    $('#user-money')
-    .mouseenter(function(){
-        log('[mouseenter]');
-        $(this).data('timeout',
-                     setTimeout(function() {$('#ivault ').show()}, 1000))
-    })
-    .mouseleave(function () {
-            clearTimeout($(this).data('timeout'));});
-
-
-    // Click OutSide to Hide iFrame. This would trigger anywhere in the body.
-    // Right now, all it does it hide the entire 'ivault' iframe.
-    $('body').click(function() {
-        log('[body.click]');
-        $('#ivault').hide(); // Changed from .iframes class to #ivault ID
-                             // Prob gonna have issues referencing individual things inside the frame
-                             // Since they are same ID's, classes, etc - but in diff window
-    });
+    const vaultFrameID = 'ivault';
+    const vaultFrame = "<iframe id='" + vaultFrameID + "' class='iframes' scrolling='no'" +
+                "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
+                "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
+                "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
 
     // Hide an element (adds the 'display: none;' CSS style)
     function hideElement(e) {
         if (!$(e).hasClass('myHideClass')) $(e).addClass('myHideClass');
     }
 
-    // Some of the following are examples, to show you how I kept refining things!!!!
+    /* Some of the following are examples, to show you how I kept refining things!!!!
 
     // This finds all elements, using the 'selector' selector,
     // and returns an iterable array of the elements. Note that
@@ -91,10 +64,10 @@
         }
         return retArray;
     }
+    */
 
     // Same as above, using the 'spread' operator
     function getFrameElements3(iFrameID, ...selectors) {
-        console.log('[getFrameElements3] selectors length: ', selectors.length);
         let retArray = [];
         for(let sel of selectors) {
             let arr = Array.from($(iFrameID).contents().find(sel));
@@ -109,11 +82,10 @@
         arr.forEach(e => hideElement(e));
     }
 
-
     // Once an iFrame is created, this will check the content, once the iFrame body itself
     // has been created, and selectively hide whatever is specified.
-    function checkIframeLoaded(firstCheck=false) {
-        // Get a handle to the iframe element
+    function checkIframeLoaded(id, firstCheck=false) {
+        let iframe = document.getElementById(id);
         if (!iframe) {
             log('ERROR: iFrame not yet created!');
             return;
@@ -126,44 +98,12 @@
             log('[checkIframeLoaded] complete!');
             if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
 
-            // Method one. Not very extendable.
-            //$("#ivault").contents().find("#header-root").hide(); // Hide stuff
-            //$("#ivault").contents().find(".info-msg-cont").hide();
-            //$("#ivault").contents().find(".property-info-cont").hide();
-            //$("#ivault").contents().find(".content-title").hide();
-
             debugger; // Uncomment to stop in the debugger
 
-            /* Way more extendable ...
-            let nodeArray = getFrameElements("#ivault", "#header-root"); // Test: hide by ID
-            nodeArray.forEach(e => hideElement(e));
 
-            nodeArray = getFrameElements("#ivault", "a"); // Test: hide by tag
-            nodeArray.forEach(e => hideElement(e));
-            */
-
-            // Now here's a different way, showing off even more power of sub functions. pass in an array of selectors.
-            // Can do all of the above in an easier format
-            /*
-            nodeArray = getFrameElements2("#ivault", [".info-msg-cont", ".property-info-cont", ".content-title"]); // Test: hide array of selectors
-            nodeArray.forEach(e => hideElement(e));
-            */
-
-            // Now, what you could also do if you really wanted to, is create this function:
-            // hideiVaultNodes(".info-msg-cont", ".property-info-cont", ".content-title");
-            // to do all of the above in one line.
-            // Hint: use the 'spread' syntax:
-            /*
-            function logArgs(...args) {
-                console.log(args.length)
-                for(let arg of args) {
-                    console.log(arg)
-                }
+            if (id == 'vaultFrameID') { // vault specific stuff
+                hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
             }
-            */
-
-            // Eh, what the hell - I'll just pull all that together,
-            hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
 
             return;
         }
@@ -172,22 +112,53 @@
         window.setTimeout(checkIframeLoaded, 250);
     }
 
-    function handlePageLoad() {
+    function loadiFrame(frame, id) {
         // Vault iFrame
         if (window.top === window.self) {     // Run Script if the Focus is Main Window (Don't also put inside the iFrame!)
             log('Prepending iFrame');
-            $('body').prepend(myFrame);
-            iframe = document.getElementById('ivault'); // save this so we know we've done this.
-            checkIframeLoaded(true);
+            $('body').prepend(frame);
+            //iframe = document.getElementById('ivault'); // save this so we know we've done this.
+            checkIframeLoaded(id, true);
         }
     }
 
+    function addHandlers() {
+        // MouseHover Money Value. If the timeout (for the mouseenter) is interupted
+        // by the mouseleave, it cancels the fn to 'show'.
+        $('#user-money')
+        .mouseenter(function(){
+            log('[mouseenter]');
+            $(this).data('timeout',
+                         setTimeout(function() {$('#ivault ').show()}, 1000))
+        })
+        .mouseleave(function () {
+                clearTimeout($(this).data('timeout'));});
+
+
+        // Click OutSide to Hide iFrame. This would trigger anywhere in the body.
+        // Right now, all it does it hide the entire 'ivault' iframe.
+        $('body').click(function() {
+            log('[body.click]');
+            $('#ivault').hide(); // Changed from .iframes class to #ivault ID
+                                 // Prob gonna have issues referencing individual things inside the frame
+                                 // Since they are same ID's, classes, etc - but in diff window
+        });
+    }
+
     //////////////////////////////////////////////////////////////////////
-    // Main.
+    // Main. This is where the script starts.
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
 
-    callOnContentLoaded(handlePageLoad);
+    // Add the style to hide an element
+    GM_addStyle(`.myHideClass {display: none;}`);
+
+    // Add click handlers
+    addHandlers();
+
+    // Add some iFrames...
+    loadiFrame(vaultFrame, vaultFrameID); // Do the vault iFrame ...
+    // loadiFrame(refillFrame, refillFrameID); // another one ...
 
 })();
