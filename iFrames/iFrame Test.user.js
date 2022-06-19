@@ -21,7 +21,7 @@
 (function() {
     'use strict';
 
-    // Defines the iframe and contents we'd like to add. THis happens to be the
+    // Defines the iframe and contents we'd like to add. This happens to be the
     // 'ivault' frame, we can have as many as we like.
     const myFrame = "<iframe id='ivault' class='iframes' scrolling='no'" +
                     "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
@@ -112,7 +112,8 @@
             //$("#ivault").contents().find(".property-info-cont").hide();
             //$("#ivault").contents().find(".content-title").hide();
 
-            debugger;
+            //debugger; // Uncomment to stop in the debugger
+
             let nodeArray = getFrameElements("#ivault", "#header-root"); // Test: hide by ID
             nodeArray.forEach(e => hideElement(e));
 
@@ -122,6 +123,10 @@
             // Now here's a different way, showing off even more power of sub functions. pass in an array of selectors.
             nodeArray = getFrameElements2("#ivault", [".info-msg-cont", ".property-info-cont", ".content-title"]); // Test: hide array of selectors
             nodeArray.forEach(e => hideElement(e));
+
+            // Now, what you could also do if you really wanted to, is create this function:
+            // hideiVaultNodes(".info-msg-cont", ".property-info-cont", ".content-title");
+            // to do all of the above in one line.
 
             return;
         }
