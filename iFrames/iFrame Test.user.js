@@ -61,6 +61,8 @@
         if (!$(e).hasClass('myHideClass')) $(e).addClass('myHideClass');
     }
 
+    // Some of the following are examples, to show you how I kept refining things!!!!
+
     // This finds all elements, using the 'selector' selector,
     // and returns an iterable array of the elements. Note that
     // a node list is live, whereas an arary is not.
@@ -90,6 +92,23 @@
         return retArray;
     }
 
+    // Same as above, using the 'spread' operator
+    function getFrameElements3(iFrameID, ...selectors) {
+        console.log('[getFrameElements3] selectors length: ', selectors.length);
+        let retArray = [];
+        for(let sel of selectors) {
+            let arr = Array.from($(iFrameID).contents().find(sel));
+            if (arr.length) retArray = [...retArray, ...arr];
+        }
+        return retArray;
+    }
+
+    // Now we could combine the above and hide also
+    function hideFrameElements3(iFrameID, ...selectors) {
+        let arr = getFrameElements3(iFrameID, ...selectors);
+        arr.forEach(e => hideElement(e));
+    }
+
 
     // Once an iFrame is created, this will check the content, once the iFrame body itself
     // has been created, and selectively hide whatever is specified.
@@ -107,22 +126,28 @@
             log('[checkIframeLoaded] complete!');
             if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
 
+            // Method one. Not very extendable.
             //$("#ivault").contents().find("#header-root").hide(); // Hide stuff
             //$("#ivault").contents().find(".info-msg-cont").hide();
             //$("#ivault").contents().find(".property-info-cont").hide();
             //$("#ivault").contents().find(".content-title").hide();
 
-            //debugger; // Uncomment to stop in the debugger
+            debugger; // Uncomment to stop in the debugger
 
+            /* Way more extendable ...
             let nodeArray = getFrameElements("#ivault", "#header-root"); // Test: hide by ID
             nodeArray.forEach(e => hideElement(e));
 
             nodeArray = getFrameElements("#ivault", "a"); // Test: hide by tag
             nodeArray.forEach(e => hideElement(e));
+            */
 
             // Now here's a different way, showing off even more power of sub functions. pass in an array of selectors.
+            // Can do all of the above in an easier format
+            /*
             nodeArray = getFrameElements2("#ivault", [".info-msg-cont", ".property-info-cont", ".content-title"]); // Test: hide array of selectors
             nodeArray.forEach(e => hideElement(e));
+            */
 
             // Now, what you could also do if you really wanted to, is create this function:
             // hideiVaultNodes(".info-msg-cont", ".property-info-cont", ".content-title");
@@ -136,6 +161,9 @@
                 }
             }
             */
+
+            // Eh, what the hell - I'll just pull all that together,
+            hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
 
             return;
         }
