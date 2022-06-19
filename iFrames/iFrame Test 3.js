@@ -18,8 +18,7 @@
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
 
-// Removing this anonymous function declaration, and the terminaing lines at the end, will let this run without TM or GM...
-// (function() {
+//(function() {
 //    'use strict';
 
     const log = function(...data) {console.log(...data)}
@@ -48,10 +47,16 @@
 
     // Same as above, using the 'spread' operator
     function getFrameElements3(iFrameID, ...selectors) {
+        log('[getFrameElements3] iFrameID: ', iFrameID);
+        log('[getFrameElements3] count selectors: ', selectors.length);
         let retArray = [];
         for(let sel of selectors) {
+            log('[getFrameElements3] finding sel ', sel);
             let arr = Array.from($("#" + iFrameID).contents().find(sel));
-            if (arr.length) retArray = [...retArray, ...arr];
+            if (arr.length) {
+                log('[getFrameElements3] found ', arr.length, ' "', sel, ' elements');
+                retArray = [...retArray, ...arr];
+            }
         }
         return retArray;
     }
@@ -59,6 +64,7 @@
     // Now we could combine the above and hide also
     function hideFrameElements3(iFrameID, ...selectors) {
         let arr = getFrameElements3(iFrameID, ...selectors);
+        log('[hideFrameElements3] found ' + arr.length + ' elements.');
         arr.forEach(e => hideElement(e));
     }
 
@@ -149,4 +155,4 @@
     loadiFrame(vaultFrame, vaultFrameID); // Do the vault iFrame ...
     // loadiFrame(refillFrame, refillFrameID); // another one ...
 
-// })();
+//})();
