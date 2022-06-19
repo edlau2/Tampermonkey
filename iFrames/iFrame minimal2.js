@@ -18,10 +18,10 @@ function hideElement(e) {
 
 // Same as above, using the 'spread' operator
 function getFrameElements3(iFrameID, ...selectors) {
-    console.log('[getFrameElements3] selectors length: ', selectors.length);
+    console.log('[getFrameElements3] id: ', iFrameID, ' selectors length: ', selectors.length);
     let retArray = [];
     for(let sel of selectors) {
-        let arr = Array.from($(iFrameID).contents().find(sel));
+        let arr = Array.from($('#' + iFrameID).contents().find(sel));
         if (arr.length) retArray = [...retArray, ...arr];
     }
     return retArray;
@@ -47,19 +47,19 @@ function checkIframeLoaded(id, firstCheck=false) {
 
     if (iframeDoc && iframeDoc.readyState == 'complete') {
         log('[checkIframeLoaded] complete!');
-        if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
+        if (firstCheck) return window.setTimeout(function(){checkIframeLoaded(id)}, 250); // Ignore first #document complete.
 
         //debugger; // Uncomment to stop in the debugger
         
         if (id == vaultFrameID) { // vault specific stuff
-            hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+            hideFrameElements3(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
         } // else if (id == 'some-other-id, maybe refills?') { ...
 
         return;
     }
 
     // If we are here, it is not loaded.
-    window.setTimeout(checkIframeLoaded, 250);
+    window.setTimeout(function(){checkIframeLoaded(id)}, 250);
 }
 
 function loadiFrame(frame, id) {
@@ -85,7 +85,10 @@ $('#user-money')
     .mouseenter(function(){
         log('[mouseenter]');
         $(this).data('timeout',
-            setTimeout(function() {$('#ivault ').show()}, 1000))
+            setTimeout(function() {
+              $('#ivault').show();
+              checkIframeLoaded(vaultFrameID, true);
+        }, 1000))
     })
     .mouseleave(function () {
         clearTimeout($(this).data('timeout'));});
