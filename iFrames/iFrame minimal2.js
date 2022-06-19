@@ -52,6 +52,7 @@ function checkIframeLoaded(id, firstCheck=false) {
         //debugger; // Uncomment to stop in the debugger
         
         if (id == vaultFrameID) { // vault specific stuff
+            // Prob be better here to define arrays of stuff to hide, and pass those. If you want to handle many iFrames.
             hideFrameElements3(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
         } // else if (id == 'some-other-id, maybe refills?') { ...
 
