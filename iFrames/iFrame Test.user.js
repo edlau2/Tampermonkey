@@ -127,6 +127,15 @@
             // Now, what you could also do if you really wanted to, is create this function:
             // hideiVaultNodes(".info-msg-cont", ".property-info-cont", ".content-title");
             // to do all of the above in one line.
+            // Hint: use the 'spread' syntax:
+            /*
+            function logArgs(...args) {
+                console.log(args.length)
+                for(let arg of args) {
+                    console.log(arg)
+                }
+            }
+            */
 
             return;
         }
