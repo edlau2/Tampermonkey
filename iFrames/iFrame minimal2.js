@@ -51,7 +51,7 @@ function checkIframeLoaded(id, firstCheck=false) {
 
         //debugger; // Uncomment to stop in the debugger
         
-        if (id == 'vaultFrameID') { // vault specific stuff
+        if (id == vaultFrameID) { // vault specific stuff
             hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
         } // else if (id == 'some-other-id, maybe refills?') { ...
 
