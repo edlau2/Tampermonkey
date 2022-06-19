@@ -70,7 +70,7 @@
     function getFrameElements3(iFrameID, ...selectors) {
         let retArray = [];
         for(let sel of selectors) {
-            let arr = Array.from($(iFrameID).contents().find(sel));
+            let arr = Array.from($("#" + iFrameID).contents().find(sel));
             if (arr.length) retArray = [...retArray, ...arr];
         }
         return retArray;
@@ -87,7 +87,7 @@
     function checkIframeLoaded(id, firstCheck=false) {
         let iframe = document.getElementById(id);
         if (!iframe) {
-            log('ERROR: iFrame not yet created!');
+            log('ERROR: iFrame not yet created! (id=' + id + ')');
             return;
         }
         var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -96,20 +96,20 @@
 
         if (iframeDoc && iframeDoc.readyState == 'complete') {
             log('[checkIframeLoaded] complete!');
-            if (firstCheck) return window.setTimeout(checkIframeLoaded, 250); // Ignore first #document complete.
+            if (firstCheck) return window.setTimeout(function(){checkIframeLoaded(id)}, 250); // Ignore first #document complete.
 
-            debugger; // Uncomment to stop in the debugger
+            //debugger; // Uncomment to stop in the debugger
 
-
-            if (id == 'vaultFrameID') { // vault specific stuff
-                hideFrameElements3("#ivault", ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+            if (id == vaultFrameID) { // vault specific stuff
+                log('[checkIframeLoaded] hiding stuff');
+                hideFrameElements3(vaultFrameID, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
             }
 
             return;
         }
 
         // If we are here, it is not loaded.
-        window.setTimeout(checkIframeLoaded, 250);
+        window.setTimeout(function(){checkIframeLoaded(id)}, 250);
     }
 
     function loadiFrame(frame, id) {
@@ -126,12 +126,17 @@
         // MouseHover Money Value. If the timeout (for the mouseenter) is interupted
         // by the mouseleave, it cancels the fn to 'show'.
         $('#user-money')
-        .mouseenter(function(){
+        .mouseenter(function () {
             log('[mouseenter]');
             $(this).data('timeout',
-                         setTimeout(function() {$('#ivault ').show()}, 1000))
+                setTimeout(function() {
+                log('[mouseenter]');
+                    $('#ivault').show();
+                    checkIframeLoaded(vaultFrameID, true); // Only checks the one iFrame!
+                }, 1000))
         })
         .mouseleave(function () {
+            log('[mouseleave]');
                 clearTimeout($(this).data('timeout'));});
 
 
