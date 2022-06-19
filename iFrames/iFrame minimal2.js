@@ -7,7 +7,7 @@ const vaultFrame = "<iframe id='" + vaultFrameID + "' class='iframes' scrolling=
                 "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
 
 // We can save this when created as an easy way to check for existence.
-var iframe = null;
+// var iframe = null;
 
 
 
