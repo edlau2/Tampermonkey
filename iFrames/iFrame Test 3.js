@@ -30,48 +30,24 @@
                 "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
                 "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
                 "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
-    
-    const refillFrameID = "irefill";
-    const refillFrame = "<iframe  id='" + refillFrameID + "' class='iframes' scrolling='no' src= 'https://www.torn.com/points.php'"
-            " style='display:none ; position:fixed ; width:825px ; height:385px ; left:34% ; top:15% ; z-index:9999 ; outline:2px solid #f50'" +
-            " </iframe> ";
 
-    // Hide an element (adds the 'display: none;' CSS style)
-    function hideElement(e) {
-        if (!$(e).hasClass('myHideClass')) $(e).addClass('myHideClass');
-    }
+    // Hide an element
+    function hideElement(e) {$(e).hide();}
 
-    function addGlobalStyle(css) {
-        log('[addGlobalStyle] adding css:');
-        log(css);
-        let head = document.getElementsByTagName('head')[0];
-        if (!head) {return;}
-        let style = document.createElement('style');
-        style.type = 'text/css';
-        style.innerHTML = css;
-        head.appendChild(style);
-        return style;
-    }
-
-    // Same as above, using the 'spread' operator
-    function getFrameElements3(iFrameID, ...selectors) {
-        log('[getFrameElements3] iFrameID: ', iFrameID);
-        log('[getFrameElements3] count selectors: ', selectors.length);
+    // Get a bunch of elements as one array of elements
+    function getiFrameElements(iFrameID, ...selectors) {
         let retArray = [];
         for(let sel of selectors) {
             log('[getFrameElements3] finding sel ', sel);
             let arr = Array.from($("#" + iFrameID).contents().find(sel));
-            if (arr.length) {
-                log('[getFrameElements3] found ', arr.length, ' "', sel, ' elements');
-                retArray = [...retArray, ...arr];
-            }
+            if (arr.length) {retArray = [...retArray, ...arr];}
         }
         return retArray;
     }
 
-    // Now we could combine the above and hide also
-    function hideFrameElements3(iFrameID, ...selectors) {
-        let arr = getFrameElements3(iFrameID, ...selectors);
+    // Hide a bunch of elements. Uses the above functions to do this.
+    function hideiFrameElements(iFrameID, ...selectors) {
+        let arr = getiFrameElements(iFrameID, ...selectors);
         log('[hideFrameElements3] found ' + arr.length + ' elements.');
         arr.forEach(e => hideElement(e));
     }
@@ -92,14 +68,9 @@
             log('[checkIframeLoaded] complete!');
             if (firstCheck) return window.setTimeout(function(){checkIframeLoaded(id)}, 250); // Ignore first #document complete.
 
-            //debugger; // Uncomment to stop in the debugger
-
             if (id == vaultFrameID) { // vault specific stuff
                 log('[checkIframeLoaded] hiding stuff for vault');
-                hideFrameElements3(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
-            } else if (id == refillFrameID) { // Refill frame specific stuff
-                log('[checkIframeLoaded] hiding stuff for refill');
-                hideFrameElements3(id, "#header-root", "#sidebarroot", "#chatRoot", ".points-list li:gt(2)", ".confirmation");
+                hideiFrameElements(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
             }
 
             return;
@@ -114,7 +85,6 @@
         if (window.top === window.self) {     // Run Script if the Focus is Main Window (Don't also put inside the iFrame!)
             log('Prepending iFrame');
             $('body').prepend(frame);
-            //iframe = document.getElementById('ivault'); // save this so we know we've done this.
             checkIframeLoaded(id, true);
         }
     }
@@ -137,7 +107,6 @@
             clearTimeout($(this).data('timeout'));
         });
 
-
         // Click OutSide to Hide iFrame. This would trigger anywhere in the body.
         // Right now, all it does it hide the entire 'ivault' iframe.
         $('body').click(function() {
@@ -152,13 +121,7 @@
     // Main. This is where the script starts.
     //////////////////////////////////////////////////////////////////////
 
-    //logScriptStart();
     console.log('Starting script "iFrame Test"...');
-
-    // Add the style to hide an element
-    //GM_addStyle(`.myHideClass {display: none;}`); // Replaced with my own...
-    let style = addGlobalStyle(`.myHideClass {display: none;}`);
-    log('Added style: ', style);
 
     // Add click handlers
     addHandlers();
