@@ -27,7 +27,7 @@
     // 'ivault' frame, we can have as many as we like.
     const vaultFrameID = 'ivault';
     const vaultFrame = "<iframe id='" + vaultFrameID + "' class='iframes' scrolling='no'" +
-                "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
+                "style='display:none; position:absolute; width:850px; height:326px;" + // left:34%; top:13%;" +
                 "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
                 "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
 
@@ -93,12 +93,14 @@
         // MouseHover Money Value. If the timeout (for the mouseenter) is interupted
         // by the mouseleave, it cancels the fn to 'show'.
         $('#user-money')
-        .mouseenter(function () {
+        .mouseenter(function (ev) {
             log('[mouseenter]');
             $(this).data('timeout',
                 setTimeout(function() {
-                log('[mouseenter]');
+                    log('[mouseenter]');
                     $('#ivault').show();
+                    $('#ivault').css('left', ev.clientX);
+                    $('#ivault').css('top', ev.clientY);
                     checkIframeLoaded(vaultFrameID, true); // Only checks the one iFrame!
                 }, 1000))
         })
