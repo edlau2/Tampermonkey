@@ -21,57 +21,55 @@
 (function() {
     'use strict';
 
+    const log = function(...data) {console.log('iFrameTest: ', ...data)}
+
     // Defines the iframe and contents we'd like to add. This happens to be the
     // 'ivault' frame, we can have as many as we like.
     const vaultFrameID = 'ivault';
     const vaultFrame = "<iframe id='" + vaultFrameID + "' class='iframes' scrolling='no'" +
-                "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
+                "style='display:none; position:absolute; width:850px; height:326px;" + // left:0%; top:0%;" +
                 "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
                 "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
 
+    const refillFrameID = "irefill";
+    const refillFrame = "<iframe  id='" + refillFrameID + "' class='iframes' scrolling='no' src= 'https://www.torn.com/points.php'"
+            " style='display:none ; position:fixed ; width:825px ; height:385px ; left:34% ; top:15% ; z-index:9999 ; outline:2px solid #f50'" +
+            " </iframe> ";
+    const refillHideList = ["#header-root", "#sidebarroot", "#chatRoot", ".points-list li:gt(2)", ".confirmation"];
+
     // Hide an element (adds the 'display: none;' CSS style)
-    function hideElement(e) {
+    function hideElement2(e) {
         if (!$(e).hasClass('myHideClass')) $(e).addClass('myHideClass');
     }
 
-    /* Some of the following are examples, to show you how I kept refining things!!!!
-
-    // This finds all elements, using the 'selector' selector,
-    // and returns an iterable array of the elements. Note that
-    // a node list is live, whereas an arary is not.
-    //
-    // This ONLY looks in the 'irefill' iFrame.
-    function getRefillFrameElements(selector) {
-        return  Array.from($('#irefill').contents().find(selector));
+    function hideElement(e) {
+        $(e).hide();
     }
 
-    // This finds all elements, using the 'selector' selector,
-    // and returns an iterable array of the elements. It will find
-    // all the requested elements, in the iFrame specified by the ID
-    // iFrameID. Provide this in the form '#id'
-    function getFrameElements(iFrameID, selector) {
-        return Array.from($(iFrameID).contents().find(selector));
+    function addGlobalStyle(css) {
+        log('[addGlobalStyle] adding css:');
+        log(css);
+        let head = document.getElementsByTagName('head')[0];
+        if (!head) {return;}
+        let style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = css;
+        head.appendChild(style);
+        return style;
     }
-
-    // Same as above, but second param is an array of selectors
-    function getFrameElements2(iFrameID, selectors) {
-        let retArray = [];
-        let sel = selectors.pop();
-        while (sel) {
-            let arr = Array.from($(iFrameID).contents().find(sel));
-            if (arr.length) retArray = [...retArray, ...arr];
-            sel = selectors.pop();
-        }
-        return retArray;
-    }
-    */
 
     // Same as above, using the 'spread' operator
     function getFrameElements3(iFrameID, ...selectors) {
+        log('[getFrameElements3] iFrameID: ', iFrameID);
+        log('[getFrameElements3] count selectors: ', selectors.length);
         let retArray = [];
         for(let sel of selectors) {
+            log('[getFrameElements3] finding sel ', sel);
             let arr = Array.from($("#" + iFrameID).contents().find(sel));
-            if (arr.length) retArray = [...retArray, ...arr];
+            if (arr.length) {
+                log('[getFrameElements3] found ', arr.length, ' "', sel, ' elements');
+                retArray = [...retArray, ...arr];
+            }
         }
         return retArray;
     }
@@ -79,6 +77,7 @@
     // Now we could combine the above and hide also
     function hideFrameElements3(iFrameID, ...selectors) {
         let arr = getFrameElements3(iFrameID, ...selectors);
+        log('[hideFrameElements3] found ' + arr.length + ' elements.');
         arr.forEach(e => hideElement(e));
     }
 
@@ -101,8 +100,11 @@
             //debugger; // Uncomment to stop in the debugger
 
             if (id == vaultFrameID) { // vault specific stuff
-                log('[checkIframeLoaded] hiding stuff');
-                hideFrameElements3(vaultFrameID, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+                log('[checkIframeLoaded] hiding stuff for vault');
+                hideFrameElements3(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+            } else if (id == refillFrameID) { // Refill frame specific stuff
+                log('[checkIframeLoaded] hiding stuff for refill');
+                hideFrameElements3(id, "#header-root", "#sidebarroot", "#chatRoot", ".points-list li:gt(2)", ".confirmation");
             }
 
             return;
@@ -126,18 +128,27 @@
         // MouseHover Money Value. If the timeout (for the mouseenter) is interupted
         // by the mouseleave, it cancels the fn to 'show'.
         $('#user-money')
-        .mouseenter(function () {
-            log('[mouseenter]');
+        .mouseenter(function (ev) {
+            log('[mouseenter] ev: ', ev);
             $(this).data('timeout',
                 setTimeout(function() {
-                log('[mouseenter]');
+                    log('[mouseenter]');
                     $('#ivault').show();
+                    log('setting left to: ', ev.clientX, ' top to: ', ev.clientY);
+                    $('#ivault').css('left', ev.clientX);
+                    $('#ivault').css('top', ev.clientY);
+
+                    //let style = $('#ivault').attr('style');
+                    //style += ';left: ' + ev.clientX + 'px; top: ' + ev.clientY + 'px;';
+                    //$('#ivault').attr('style', style);
+
                     checkIframeLoaded(vaultFrameID, true); // Only checks the one iFrame!
                 }, 1000))
         })
         .mouseleave(function () {
             log('[mouseleave]');
-                clearTimeout($(this).data('timeout'));});
+            clearTimeout($(this).data('timeout'));
+        });
 
 
         // Click OutSide to Hide iFrame. This would trigger anywhere in the body.
@@ -154,10 +165,13 @@
     // Main. This is where the script starts.
     //////////////////////////////////////////////////////////////////////
 
-    logScriptStart();
+    //logScriptStart();
+    console.log('Starting script "iFrame Test"...');
 
     // Add the style to hide an element
-    GM_addStyle(`.myHideClass {display: none;}`);
+    //GM_addStyle(`.myHideClass {display: none;}`); // Replaced with my own...
+    let style = addGlobalStyle(`.myHideClass {display: none;}`);
+    log('Added style: ', style);
 
     // Add click handlers
     addHandlers();
