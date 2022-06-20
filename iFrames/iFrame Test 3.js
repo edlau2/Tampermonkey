@@ -18,10 +18,10 @@
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
 
-//(function() {
-//    'use strict';
+(function() {
+    'use strict';
 
-    const log = function(...data) {console.log(...data)}
+    const log = function(...data) {console.log('iFrameTest: ', ...data)}
 
     // Defines the iframe and contents we'd like to add. This happens to be the
     // 'ivault' frame, we can have as many as we like.
@@ -37,12 +37,15 @@
     }
 
     function addGlobalStyle(css) {
+        log('[addGlobalStyle] adding css:');
+        log(css);
         let head = document.getElementsByTagName('head')[0];
         if (!head) {return;}
         let style = document.createElement('style');
         style.type = 'text/css';
         style.innerHTML = css;
         head.appendChild(style);
+        return style;
     }
 
     // Same as above, using the 'spread' operator
@@ -146,7 +149,8 @@
 
     // Add the style to hide an element
     //GM_addStyle(`.myHideClass {display: none;}`); // Replaced with my own...
-    addGlobalStyle(`.myHideClass {display: none;}`);
+    let style = addGlobalStyle(`.myHideClass {display: none;}`);
+    log('Added style: ', style);
 
     // Add click handlers
     addHandlers();
@@ -155,4 +159,4 @@
     loadiFrame(vaultFrame, vaultFrameID); // Do the vault iFrame ...
     // loadiFrame(refillFrame, refillFrameID); // another one ...
 
-//})();
+})();
