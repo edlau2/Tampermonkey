@@ -95,8 +95,11 @@
             //debugger; // Uncomment to stop in the debugger
 
             if (id == vaultFrameID) { // vault specific stuff
-                log('[checkIframeLoaded] hiding stuff');
-                hideFrameElements3(vaultFrameID, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+                log('[checkIframeLoaded] hiding stuff for vault');
+                hideFrameElements3(id, ".info-msg-cont", ".property-info-cont", ".content-title", "a", "#header-root");
+            } else if (id == refillFrameID) { // Refill frame specific stuff
+                log('[checkIframeLoaded] hiding stuff for refill');
+                hideFrameElements3(id, "#header-root", "#sidebarroot", "#chatRoot", ".points-list li:gt(2)", ".confirmation");
             }
 
             return;
