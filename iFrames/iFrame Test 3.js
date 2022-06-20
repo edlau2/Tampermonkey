@@ -30,6 +30,11 @@
                 "style='display:none; position:fixed; width:850px; height:326px; left:34%; top:13%;" +
                 "z-index:99; border:10px solid #1a0029 ; outline:1px solid #f50'" +
                 "src= 'https://www.torn.com/properties.php#/p=options&tab=vault' </iframe>";
+    
+    const refillFrameID = "irefill";
+    const refillFrame = "<iframe  id='" + refillFrameID + "' class='iframes' scrolling='no' src= 'https://www.torn.com/points.php'"
+            " style='display:none ; position:fixed ; width:825px ; height:385px ; left:34% ; top:15% ; z-index:9999 ; outline:2px solid #f50'" +
+            " </iframe> ";
 
     // Hide an element (adds the 'display: none;' CSS style)
     function hideElement(e) {
