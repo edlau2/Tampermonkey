@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -3748,6 +3748,7 @@
                     stockUL.setAttribute('style', 'height: auto;');
                     let owned = userStocksJSON.stocks[stockID].transactions;
                     let keys = Object.keys(owned);
+                    keys = keys.reverse();
                     for (let j = 0; j < keys.length; j++) {
                         let ownedLI = stockUL.querySelector("#ownedTab");
                         //console.log('ownedLI: ', ownedLI);
@@ -5849,7 +5850,7 @@
                             hideDevOpts(!opts.opt_devmode);
                             debug('[userListExtender] Saved value for opts.opt_devmode');
                             break;
-                        case "xedx-hidetravel-opt":
+                        case "xedx-hidetravel-opt": // If enabled, hide/gray out 'showctry' and 'ctryabroad' ?
                             opts.opt_hidetravel = this.checked;
                             debug('[userListExtender] Saved value for opts.opt_hidetravel');
                             break;
