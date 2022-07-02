@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -1669,8 +1670,8 @@
                 debug("[tornTTFilter] Hidding 'active' indicator");
                 $(ttIndicator).addClass('xhidden');
             } else {
-                debug("[tornTTFilter] not found - will check later.");
-                setTimeout(hideTtActiveIndicator, 500);
+                //debug("[tornTTFilter] not found - will check later.");
+                setTimeout(hideTtActiveIndicator, 1000);
             }
         }
 
@@ -3026,7 +3027,7 @@
 
     function tornWeSpreadsheet() {
 
-         // Will be table rows
+        // Will be table rows
         let fhRows = null;
         let weRows = null;
 
@@ -3121,12 +3122,14 @@
         }
 
         function addWeaponTypeToolTips() {
+            log('[tornWeSpreadsheet] addWeaponTypeToolTips');
             const typeIDs = ["machits", "rifhits", "piehits", "axehits", "smghits", "pishits",
                              "chahits", "grehits", "heahits", "shohits", "slahits", "h2hhits"];
 
             addToolTipStyle();
 
             for (let i=0; i<typeIDs.length; i++) {
+                debug('[tornWeSpreadsheet] displayTT for ', typeIDs[i]);
                 displayToolTip($("#" + typeIDs[i]), getToolTipText(typeIDs[i]));
             }
         }
@@ -3748,7 +3751,6 @@
                     stockUL.setAttribute('style', 'height: auto;');
                     let owned = userStocksJSON.stocks[stockID].transactions;
                     let keys = Object.keys(owned);
-                    keys = keys.reverse();
                     for (let j = 0; j < keys.length; j++) {
                         let ownedLI = stockUL.querySelector("#ownedTab");
                         //console.log('ownedLI: ', ownedLI);
@@ -5015,7 +5017,7 @@
     // Handlers for "Torn User List Extender" (called on page complete)
     //////////////////////////////////////////////////////////////////////////////////
 
-    // TBD: Add clear/refresh cache option !!!!
+    // TBD: Add clear/refresh cache option !!!! Also, doesn't work with honor bars off
     function tornUserList() {
 
         return _tornUserList();
@@ -5850,7 +5852,7 @@
                             hideDevOpts(!opts.opt_devmode);
                             debug('[userListExtender] Saved value for opts.opt_devmode');
                             break;
-                        case "xedx-hidetravel-opt": // If enabled, hide/gray out 'showctry' and 'ctryabroad' ?
+                        case "xedx-hidetravel-opt":
                             opts.opt_hidetravel = this.checked;
                             debug('[userListExtender] Saved value for opts.opt_hidetravel');
                             break;
@@ -5949,20 +5951,20 @@
                 try {
                     let tmpOpts = JSON.parse(GM_getValue('userListExtenderOpts', opts));
 
-                    opts.opt_devmode = (typeof tmpOpts.opt_devmode !== 'undefined') ? tmpOpts.opt_devmode : true;
-                    opts.opt_loggingEnabled = (typeof tmpOpts.opt_loggingEnabled !== 'undefined') ? tmpOpts.opt_loggingEnabled : false;
-                    opts.opt_hidefedded = (typeof tmpOpts.opt_hidefedded !== 'undefined') ? tmpOpts.opt_hidefedded : true;
-                    opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== 'undefined') ? tmpOpts.opt_hidefallen : true;
-                    opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== 'undefined') ? tmpOpts.opt_hidetravel : true;
-                    opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== 'undefined') ? tmpOpts.opt_showcaymans : false;
-                    opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== 'undefined') ? tmpOpts.opt_hidehosp : true;
-                    opts.opt_disabled = (typeof tmpOpts.opt_disabled !== 'undefined') ? tmpOpts.opt_disabled : false;
-                    opts.opt_showctry = (typeof tmpOpts.opt_showctry !== 'undefined') ? tmpOpts.opt_showctry : true;
-                    opts.opt_ctryabroad = (typeof tmpOpts.opt_ctryabroad !== 'undefined') ? tmpOpts.opt_ctryabroad : true;
-                    opts.opt_paused = (typeof tmpOpts.opt_paused !== 'undefined') ? tmpOpts.opt_paused : false;
-                    //if (typeof tmpOpts.cacheMins !== 'undefined') opts.cacheMins = tmpOpts.cacheMins;
+                    opts.opt_devmode = (typeof tmpOpts.opt_devmode !== undefined) ? tmpOpts.opt_devmode : true;
+                    opts.opt_loggingEnabled = (typeof tmpOpts.opt_loggingEnabled !== undefined) ? tmpOpts.opt_loggingEnabled : false;
+                    opts.opt_hidefedded = (typeof tmpOpts.opt_hidefedded !== undefined) ? tmpOpts.opt_hidefedded : true;
+                    opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== undefined) ? tmpOpts.opt_hidefallen : true;
+                    opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== undefined) ? tmpOpts.opt_hidetravel : true;
+                    opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
+                    opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
+                    opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
+                    opts.opt_showctry = (typeof tmpOpts.opt_showctry !== undefined) ? tmpOpts.opt_showctry : true;
+                    opts.opt_ctryabroad = (typeof tmpOpts.opt_ctryabroad !== undefined) ? tmpOpts.opt_ctryabroad : true;
+                    opts.opt_paused = (typeof tmpOpts.opt_paused !== undefined) ? tmpOpts.opt_paused : false;
+                    //if (typeof tmpOpts.cacheMins !== undefined) opts.cacheMins = tmpOpts.cacheMins;
                     opts.cacheMins = GM_getValue("userlist-cache-time", 30); // So can be set by config page - may change that later
-                    //if (typeof tmpOpts.cacheMaxMs !== 'undefined') opts.cacheMaxMs = tmpOpts.cacheMaxMs;
+                    //if (typeof tmpOpts.cacheMaxMs !== undefined) opts.cacheMaxMs = tmpOpts.cacheMaxMs;
                     opts.cacheMaxMs = opts.cacheMins * 60 * 1000;
                 } catch (e) {
                     log('[userListExtender] ERROR: ', e);
@@ -6143,6 +6145,7 @@
 
     // Note: auto-refresh won't work, timer isn't cleared when leaving page.
     // Will handleHashChange() catch it? And nee to turn back on....
+    // doesn't work with honor bars off
     function tornOverseasRank() {
         let opts = {};
         getSavedOpts();
@@ -6394,8 +6397,7 @@
             let idArray = [];
             let now = new Date().getTime();
             let arrayOfKeys = Object.keys(rank_cache);
-            debug("[tornOverseasRank] cacheMaxMs: ", opts.cacheMaxMs);
-            debug("[tornOverseasRank] Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
+            debug("Clearing storage cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
             for (let i = 0; i < arrayOfKeys.length; i++) {
                 let obj = rank_cache[arrayOfKeys[i]];
                 if (!obj || !obj.access) continue;
@@ -6413,14 +6415,14 @@
         function getSavedOpts() {
             try {
                 let tmpOpts = JSON.parse(GM_getValue('overseasRankOpts', JSON.stringify(opts)));
-                opts.displayRank = (typeof tmpOpts.displayRank != 'undefined') ? tmpOpts.displayRank : true;
-                opts.displayHealth = (typeof tmpOpts.displayHealth != 'undefined') ? tmpOpts.displayHealth : true;
-                opts.displayLastAction = (typeof tmpOpts.displayLastAction != 'undefined') ? tmpOpts.displayLastAction : true;
-                opts.autoRefreshSecs = (typeof tmpOpts.autoRefreshSecs != 'undefined') ? tmpOpts.autoRefreshSecs : 45;
-                opts.autoRefresh = (typeof tmpOpts.autoRefresh != 'undefined') ? tmpOpts.autoRefresh : true;
-                opts.cacheMaxHours = (typeof tmpOpts.cacheMaxHours != 'undefined') ? tmpOpts.cacheMaxHours : 6;
-                opts.cacheMaxMs = (typeof tmpOpts.cacheMaxMs != 'undefined') ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
-                opts.queueIntms = (typeof tmpOpts.queueIntms != 'undefined') ? tmpOpts.queueIntms : 300;
+                opts.displayRank = (typeof tmpOpts.displayRank !== undefined) ? tmpOpts.displayRank : true;
+                opts.displayHealth = (typeof tmpOpts.displayHealth !== undefined) ? tmpOpts.displayHealth : true;
+                opts.displayLastAction = (typeof tmpOpts.displayLastAction !== undefined) ? tmpOpts.displayLastAction : true;
+                opts.autoRefreshSecs = (typeof tmpOpts.autoRefreshSecs !== undefined) ? tmpOpts.autoRefreshSecs : 45;
+                opts.autoRefresh = (typeof tmpOpts.autoRefresh !== undefined) ? tmpOpts.autoRefresh : true;
+                opts.cacheMaxHours = (typeof tmpOpts.cacheMaxHours !== undefined) ? tmpOpts.cacheMaxHours : 6;
+                opts.cacheMaxMs = (typeof tmpOpts.cacheMaxMs !== undefined) ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
+                opts.queueIntms = (typeof tmpOpts.queueIntms !== undefined) ? tmpOpts.queueIntms : 300;
             } catch (e) {
                 log('[userListExtender] ERROR: ', e);
             }
@@ -6589,6 +6591,32 @@
         }
 
     } // End function tornAmmoMods() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Gym Gains" (called on API complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD!
+    function tornGymGains() {
+
+        return _tornAmmoMods();
+
+        function _tornGymGains() {
+            log('[tornGymGains]');
+
+            return new Promise((resolve, reject) => {
+                if (abroad()) return reject('[tornGymGains] not at home!');
+                if (!isGymPage()) return reject('[tornGymGains] wrong page!');
+
+                reject("[tornGymGains] not yet implemented!");
+            })
+        }
+
+    } // End function tornGymGains() {
+
+    function removeTornGymGains() {
+
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -6875,6 +6903,10 @@
         setGeneralCfgOpt("tornFacPageSearch", "Torn Fac Page Search",
                          tornFacPageSearch, removeFacPageSearch, generalToolTip, "faction");
 
+        // GYM: @match        https://www.torn.com/gym.php*
+        setGeneralCfgOpt("tornGymGains", "Torn Gym Gains",
+                         tornGymGains, removeTornGymGains, generalToolTip, "gym", false, false);
+
         // POINTS:  @match        https://www.torn.com/points.php*
         setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net",
                          tornDisableRefills, removeDisableRefills, generalToolTip, "misc");
@@ -6888,7 +6920,6 @@
 
         setGeneralCfgOpt("tornAmmoMods", "Torn Ammo & Mods Links",
                          tornAmmoMods, null, generalToolTip, "misc", true, true);
-
 
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
@@ -7014,6 +7045,8 @@
                 switch (category) {
                     case "items":
                         return "#DAA520"; // GoldenRod
+                    case "gym":
+                        return "#00FFFF"; // Cyan
                     case 'all':
                         return "#F0F8FF"; // AliceBlue
                     case 'home':
@@ -7445,6 +7478,10 @@
         if (opts_enabledScripts.tornWeTracker.enabled) {tornWeTracker().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.tornWeSpreadsheet.enabled) {tornWeSpreadsheet().then(a => _a(a), b => _b(b));}
+
+        if (isGymPage()) {
+            if (opts_enabledScripts.tornGymGains.enabled) {tornGymGains().then(a => _a(a), b => _b(b));}
+        }
 
     }
 
