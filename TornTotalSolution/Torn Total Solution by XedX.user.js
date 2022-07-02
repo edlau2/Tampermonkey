@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -7073,6 +7073,7 @@
             function genOptsClickHandler(ev) {
                 log('[genOptsClickHandler] taget: ', ev.target.name, ' enabled: ', ev.target.checked);
                 GM_setValue(ev.target.name, ev.target.checked);
+                setOptsModified();
             }
         }
 
@@ -7111,6 +7112,7 @@
                 debug('[handleDbgOptClick] ev: ', ev);
                 debug('[handleDbgOptClick] checked: ', $("#" + ev.currentTarget.id).prop("checked"));
                 GM_setValue(ev.currentTarget.id,$("#" + ev.currentTarget.id).prop("checked"));
+                setOptsModified();
             }
         }
 
@@ -7153,6 +7155,7 @@
                 log('[handleCacheOptChange] ' + $(ev.currentTarget).attr('name') + ' cache val: ',
                       $("#" + ev.currentTarget.id).val());
                 GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
+                setOptsModified();
             }
         }
 
@@ -7308,6 +7311,15 @@
         }
     }
 
+    // Function to set the 'Save' button state, green or red.
+    function setOptsModified(modified=true) {
+        if (modified) {
+            $('#xedx-button').removeClass('cr').addClass('cg');
+        } else {
+            $('#xedx-button').removeClass('cg').addClass('cr');
+        }
+    }
+
     function scrollTo(hash) {
         log('[handleGeneralConfigPage] scrollTo: ', hash);
         if (!hash) return;
@@ -7350,6 +7362,8 @@
         } else {
             $("#xedx-addl-links-div").attr("style", "display: none;");
         }
+
+        setOptsModified(false);
     }
 
     // Clears the "Data Saved!" indicator.
