@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.9
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -105,6 +105,11 @@
 
     initDebugOptions();
 
+    // Log for API calls
+    const maxApiCalls = 10;
+    var apiCallLog = {};
+    loadApiCallLog();
+
     // Configuration page URL's
     const configHost = "18.119.136.223:8080";
     const genConfigPath = "/TornTotalSolution/TTS-Opts.html";
@@ -130,6 +135,46 @@
                                9, // API disabled
                                ];
 
+    //class API_LOG {
+        //constructor() {this.loadApiCallLog()}
+
+        function loadApiCallLog() {
+            log('[loadApiCallLog]');
+            let rawData = GM_getValue("call_log", null);
+            apiCallLog = rawData ? JSON.parse(rawData) : {};
+            pruneApiCalLog();
+        }
+
+        function writeApiCallLog() {
+            log('[writeApiCallLog]');
+            pruneApiCalLog();
+            GM_setValue("call_log", JSON.stringify(apiCallLog));
+        }
+
+        function clearApiLog() {
+            apiCallLog = {};
+            writeApiCallLog();
+        }
+
+        function pruneApiCalLog() {
+            let keys = Object.keys(apiCallLog);
+            log('[pruneApiCalLog] length=', keys.length);
+            if (keys.length <= maxApiCalls) return;
+
+            for (let i=0; i<(keys.length - maxApiCalls); i++) {
+                debug('[pruneApiCalLog] deleting ', keys[i]);
+                delete apiCallLog[keys[i]];
+            }
+        }
+
+        function logApiCall(data) {
+            let timestamp = dateConverter(new Date(), "YYYY-MM-DD HH:MM:SS");
+            apiCallLog[timestamp.toString()] = data;
+            writeApiCallLog();
+            GM_setValue('call_log_updated', true);
+        }
+    //}
+
     //////////////////////////////////////////////////////////////////////
     // Styles used on config pages, make into external CSS?
     //////////////////////////////////////////////////////////////////////
@@ -150,6 +195,7 @@
     // Get data used for most of the handlers in here, in one call.
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
+        logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
         xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
     }
 
@@ -2045,6 +2091,7 @@
 
                 initStatics();
                 removeTTBlock();
+                logApiCall('market: pointsmarket');
                 xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
 
                 resolve("[tornMuseumSetHelper] startup complete!");
@@ -3054,6 +3101,7 @@
 
                 loadTableStyles();
 
+                logApiCall('torn: items');
                 xedx_TornTornQuery(null, 'items', tornQueryCB);
 
                 resolve("[tornWeSpreadsheet] startup complete!");
@@ -3693,6 +3741,7 @@
             return new Promise((resolve, reject) => {
                 if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('tornStockProfits wrong page!');
 
+                logApiCall('user: stocks');
                 xedx_TornUserQuery(null, 'stocks', userStocksCB);
 
                 resolve("[tornStockProfits] startup complete!");
@@ -3775,6 +3824,7 @@
             function reload() {
                 userStocksJSON = null;
                 tornStocksJSON = null;
+                logApiCall('user: stocks');
                 xedx_TornUserQuery(null, 'stocks', userStocksCB);
             }
 
@@ -4966,6 +5016,7 @@
                 if (abroad()) return reject('[tornDisableRefills] not at home!');
                 if (!isPointsPage()) return reject('tornDisableRefills wrong page!');
 
+                logApiCall('user: bars');
                 xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
 
                 resolve("[tornDisableRefills] startup complete!");
@@ -5200,7 +5251,8 @@
                         $("#xedx-info-text")[0].innerText = 'Requests paused, please wait.';
                     }
                     setTimeout(function(){
-                       xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
+                        logApiCall('user: profile');
+                        xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
                     return true;
                 }
 
@@ -5210,6 +5262,7 @@
                 if (useQueryQueue) {
                     queryQueue.push({ID: ID, Query: 'profile', CB: updateUserLevelsCB, param: li});
                 } else {
+                    logApiCall('user: profile');
                     xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
 
                     /*
@@ -5269,6 +5322,7 @@
                         setTimeout(function(){
                             $("#xedx-info-text")[0].innerText = "Restarting requests.";
                             opts.opt_paused = false;
+                            logApiCall('user: profile');
                             xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
                             debug('[userListExtender] Restarting requests.');
                         },
@@ -6194,6 +6248,7 @@
                 log("Requests pause, can't make request. Will retry later.");
                 return queryQueue.push(msg);
             }
+            logApiCall('user: profile');
             xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, msg);
         }
 
@@ -7093,6 +7148,9 @@
         // Add customizable sidebar links table
         addCustLinksTable();
 
+        // Add the API Calls table, for diagnostics
+        addApiCallsTable();
+
         // Install handlers
         $('#xedx-button').click(handleGenOptsSaveButton); // General 'Save' button handler
         $(".xtblehdr").on('click', optsHdrClick);
@@ -7275,6 +7333,66 @@
                       $("#" + ev.currentTarget.id).val());
                 GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
                 setOptsModified();
+            }
+        }
+
+        // Helper to build the table of API calls made,.
+        // GM_setValue('call_log_updated', true);
+        function addApiCallsTable() {
+            log('[addApiCallsTable]');
+            let tbody = document.querySelector("#api-usage-div > table > tbody");
+            // Add header
+            const tblHdr = `<tr id="apiCallstblhdr" class="xtblehdr xvisible open"><th colspan=2>API Calls</th></tr>`;
+            //const tblHdr = `<th id="apiCallstblhdr" class="xtblehdr xvisible open" colspan=2>API Calls</th>`;
+            $(tbody).append(tblHdr);
+
+            // Add footer
+            const expHdr = `<tr class="xexpand lastrow"><th colspan=2>...click to expand</th></tr>`;
+            //const expHdr = `<th class="xexpand" colspan=2>...click to expand</th>`;
+            $(tbody).append(expHdr);
+
+            // Add rows
+            addApiTableRows();
+
+            // Default collapsed
+            optsHdrClick({currentTarget: document.querySelector("#apiCallstblhdr")});
+
+            // Add handlers
+            $('#api-calls-clear').on('click', function() {clearApiLog(); clearApiTableRows()});
+
+            // Check for new calls every second
+            setInterval(checkApiTableChanged, 1000);
+
+            function checkApiTableChanged() {
+                let changed = GM_getValue('call_log_updated', false);
+                let visible = $('#apiCallstblhdr').hasClass('open');
+                log('[checkApiTableChanged] ', changed, visible);
+
+                if (changed && visible) refreshApiTableRows();
+            }
+
+            function refreshApiTableRows() {
+                log('[refreshApiTableRows]');
+                clearApiTableRows();
+                addApiTableRows();
+            }
+
+            function clearApiTableRows() {
+                log('[clearApiTableRows]');
+                $("#api-usage-body tr.bodyrow").remove();
+            }
+
+            function addApiTableRows() {
+                // Add rows
+                loadApiCallLog();
+                log('[addApiTableRows] log: ', apiCallLog);
+                let keys = Object.keys(apiCallLog);
+                for (let i=0; i<keys.length; i++) {
+                    let timestamp = keys[i];
+                    let call = apiCallLog[keys[i]];
+                    let newRow = '<tr class="xvisible defbg bodyrow"><td>' + timestamp + '</td><td>' + call + '</td></tr>';
+                    $("#api-usage-body tr.lastrow").before(newRow);
+                }
             }
         }
 
