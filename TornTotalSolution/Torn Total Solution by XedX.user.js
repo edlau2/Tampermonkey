@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      3.0
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -103,12 +103,12 @@
     // Options and global variables
     //////////////////////////////////////////////////////////////////////
 
-    initDebugOptions();
-
     // Log for API calls
-    const maxApiCalls = 10;
-    var apiCallLog = {};
+    var apiCallLog = {}; // Must be before initDebugOptions()!
+    var maxApiCalls = 10;
     loadApiCallLog();
+
+    initDebugOptions();
 
     // Configuration page URL's
     const configHost = "18.119.136.223:8080";
@@ -158,13 +158,14 @@
 
         function pruneApiCalLog() {
             let keys = Object.keys(apiCallLog);
-            log('[pruneApiCalLog] length=', keys.length);
+            log('[pruneApiCalLog] length=', keys.length, 'max: ', maxApiCalls);
             if (keys.length <= maxApiCalls) return;
 
             for (let i=0; i<(keys.length - maxApiCalls); i++) {
                 debug('[pruneApiCalLog] deleting ', keys[i]);
                 delete apiCallLog[keys[i]];
             }
+            GM_setValue('call_log_updated', true);
         }
 
         function logApiCall(data) {
@@ -172,6 +173,7 @@
             apiCallLog[timestamp.toString()] = data;
             writeApiCallLog();
             GM_setValue('call_log_updated', true);
+            log('[logApiCall] ', GM_getValue('call_log_updated'));
         }
     //}
 
@@ -6903,11 +6905,19 @@
         loggingEnabled = GM_getValue('dbgopts-logging', true);
         debugLoggingEnabled = GM_getValue('dbgopts-dbglogging', false);
 
+        let savedSize = maxApiCalls;
+        maxApiCalls = GM_getValue("api-call-log-size", maxApiCalls);
+        if (maxApiCalls != savedSize) {
+            pruneApiCalLog();
+        }
+
         GM_setValue('dbgopts-logging', loggingEnabled);
         GM_setValue('dbgopts-dbglogging', debugLoggingEnabled);
+        GM_setValue("api-call-log-size", maxApiCalls);
 
         log('[initDebugOptions] loggingEnabled: ', loggingEnabled);
         log('[initDebugOptions] debugLoggingEnabled: ', debugLoggingEnabled);
+        log('[initDebugOptions] maxApiCalls: ', maxApiCalls);
     }
 
     function checkGeneralSaveButton() {
@@ -7267,9 +7277,18 @@
                 '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
                 ' id="dbgopts-logging" ' + (GM_getValue("dbgopts-logging", true) ? 'checked' : '') + '/></td><td>Enable Logging</td></tr>';
             $(tbody).append(newRow);
+
             newRow = '<tr class="xvisible defbg">' +
                 '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
                 ' id="dbgopts-dbglogging" ' + (GM_getValue("dbgopts-dbglogging", false) ? 'checked' : '') + '/></td><td>Enable Debug Only Logging</td></tr>';
+            $(tbody).append(newRow);
+
+            let size = GM_getValue("api-call-log-size", maxApiCalls);
+            log('[addDebugMenu] api-call-log-size: ', size, maxApiCalls);
+            newRow = '<tr class="xvisible defbg">' +
+                '<td><input class="dbg-opt" type="number" id="api-call-log-size"' +
+                'name="api-call-log-size" min="1" max="200" value="' + size + '"/></td>' +
+                '<td>API Call Log Size (default 10)</td></tr>';
             $(tbody).append(newRow);
 
             // Add footer
@@ -7278,27 +7297,37 @@
 
             // Handler for any debug option change: set flag to implement 'on the other side'
             $(".dbg-clickable").on('click', handleDbgOptClick);
+            $(".dbg-opt").on('input', handleDbgOptSet);
 
             // Default collapsed
-            //$("#dbgtblhdr").click(); // Handler not installed yet!
             optsHdrClick({currentTarget: document.querySelector("#dbgtblhdr")});
 
-            // TBD: add opts to save values!!!!
             function handleDbgOptClick(ev) {
                 log('[handleDbgOptClick]');
                 debug('[handleDbgOptClick] ev: ', ev);
+                let size = $('#api-call-log-size').value;
                 debug('[handleDbgOptClick] checked: ', $("#" + ev.currentTarget.id).prop("checked"));
                 GM_setValue(ev.currentTarget.id,$("#" + ev.currentTarget.id).prop("checked"));
                 setOptsModified();
             }
+
+             function handleDbgOptSet(ev) {
+                 log('[handleDbgOptClick]');
+                 debug('[handleDbgOptClick] ev: ', ev);
+                 log('[handleDbgOptSet] ' + $(ev.currentTarget).attr('name') + ' value: ',
+                      $("#" + ev.currentTarget.id).val());
+                 GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
+                 setOptsModified();
+                 initDebugOptions();
+            }
         }
 
-        // Helper to build the debug opts menu. TBD: add opts to save values!!!!
+        // Helper to build the cache opts menu. TBD: add opts to save values!!!!
         function addCacheMenu() {
             log('[addCacheMenu]');
             let tbody = document.querySelector("#cache-opts-div > table > tbody");
             // Add header
-            const tblHdr = `<tr id="cachetblhdr" class="xtblehdr xvisible open"><th>Enabled</th><th>Caching Option</th></tr>`;
+            const tblHdr = '<tr id="cachetblhdr" class="xtblehdr xvisible open"><th>Value</th><th>Caching Option</th></tr>';
             $(tbody).append(tblHdr);
 
             // Add rows
