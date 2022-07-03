@@ -7368,7 +7368,10 @@
                 let visible = $('#apiCallstblhdr').hasClass('open');
                 log('[checkApiTableChanged] ', changed, visible);
 
-                if (changed && visible) refreshApiTableRows();
+                if (changed && visible) {
+                    refreshApiTableRows();
+                    GM_setValue('call_log_updated', false);
+                }
             }
 
             function refreshApiTableRows() {
