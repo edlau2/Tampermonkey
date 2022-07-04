@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.33
+// @version     2.34
 // @license     MIT
 // ==/UserScript==
 
@@ -314,6 +314,22 @@ function xidFromProfileURL(URL) {
         ID = URL.slice(n+4, n2); // Extract just the ID from the URL, between the '=' and '#'
     } else {
         ID = URL.slice(n+4);
+    }
+    return ID;
+}
+
+// Generic version of above, "ID=" must be preset.
+// More accurately, "XID=" must be present :-)
+// We need the XID; the trailing '#' may not be present.
+function idFromURL(URL) {
+    var n = URL.indexOf('ID='); // Find the 'ID=' token
+    if (n == -1) {return null;}
+    var n2 = URL.indexOf('#'); // Find the next '#' sign (may not exist)
+    var ID = 0;
+    if (n2 != -1) {
+        ID = URL.slice(n+3, n2); // Extract just the ID from the URL, between the '=' and '#'
+    } else {
+        ID = URL.slice(n+3);
     }
     return ID;
 }
