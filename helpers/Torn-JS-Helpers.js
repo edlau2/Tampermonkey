@@ -308,7 +308,7 @@ String.prototype.hashCode = function(){
 function xidFromProfileURL(URL) {
     var n = URL.indexOf('XID='); // Find the 'XID=' token
     if (n == -1) {return null;}
-    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
+    var n2 = URL.slice(n).indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
     var ID = 0;
     if (n2 != -1) {
         ID = URL.slice(n+4, n2); // Extract just the ID from the URL, between the '=' and '#'
@@ -324,7 +324,7 @@ function xidFromProfileURL(URL) {
 function idFromURL(URL) {
     var n = URL.indexOf('ID='); // Find the 'ID=' token
     if (n == -1) {return null;}
-    var n2 = URL.indexOf('#'); // Find the next '#' sign (may not exist)
+    var n2 = URL.slice(n).indexOf('#'); // Find the next '#' sign (may not exist)
     var ID = 0;
     if (n2 != -1) {
         ID = URL.slice(n+3, n2); // Extract just the ID from the URL, between the '=' and '#'
@@ -339,7 +339,7 @@ function idFromURL(URL) {
 function useridFromProfileURL(URL) {
     var n = URL.indexOf('userId='); // Find the 'userId=' token
     if (n == -1) {return null;}
-    var n2 = URL.indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
+    var n2 = URL.slice(n).indexOf('#'); // Find the '#' sign (removed in some patch, may not exist)
     var ID = 0;
     if (n2 != -1) {
         ID = URL.slice(n+7, n2); // Extract just the ID from the URL, between the '=' and '#'
