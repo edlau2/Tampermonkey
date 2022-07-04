@@ -56,6 +56,7 @@ getRandomInt(max)<br>
 validPointer(val, dbg = false)<br>
 String.prototype.hashCode()<br>
 xidFromProfileURL(URL)<br>
+idFromURL(URL)<br>
 useridFromProfileURL(URL)<br>
 numericRankFromFullRank(fullRank)<br>
 addToolTipStyle()<br>
