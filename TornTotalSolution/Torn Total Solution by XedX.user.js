@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.2
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -107,7 +107,6 @@
     var apiCallLog = {}; // Must be before initDebugOptions()!
     var maxApiCalls = 10;
     loadApiCallLog();
-
     initDebugOptions();
 
     // Configuration page URL's
@@ -124,8 +123,8 @@
     var attacks = null;
     var weArray = null;
     var fhArray = null;
-    var inventoryArray = null;
-    let itemsArray = null; // Array of all Torn items
+    var inventoryArray = null; // JSON Array of your inventory
+    let itemsArray = null; // JSON Array of all Torn items
 
     var userId = null;
     var userName = null;
@@ -144,18 +143,15 @@
             apiCallLog = rawData ? JSON.parse(rawData) : {};
             pruneApiCalLog();
         }
-
         function writeApiCallLog() {
             log('[writeApiCallLog]');
             pruneApiCalLog();
             GM_setValue("call_log", JSON.stringify(apiCallLog));
         }
-
         function clearApiLog() {
             apiCallLog = {};
             writeApiCallLog();
         }
-
         function pruneApiCalLog() {
             let keys = Object.keys(apiCallLog);
             log('[pruneApiCalLog] length=', keys.length, 'max: ', maxApiCalls);
@@ -167,7 +163,6 @@
             }
             GM_setValue('call_log_updated', true);
         }
-
         function logApiCall(data) {
             let timestamp = dateConverter(new Date(), "YYYY-MM-DD HH:MM:SS");
             apiCallLog[timestamp.toString()] = data;
@@ -235,6 +230,7 @@
     //////////////////////////////////////////////////////////////////////////////
 
     function tornLatestAttacksExtender() {
+        log('[tornLatestAttacksExtender]');
 
         const latest_attacks_config_div = getLatestAttacksCfgDiv();
         const latest_attacks_div = getLatestAttacksDiv();
@@ -243,22 +239,16 @@
             'date_format': GM_getValue('latest_attacks_date_format', "YYYY-MM-DD HH:MM:SS")
          };
 
-        return _tornLatestAttacksExtender();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornLatestAttacksExtender] not at home!');
+            if (!isIndexPage()) reject('[tornLatestAttacksExtender] wrong page!');
 
-        function _tornLatestAttacksExtender() {
-            log('[tornLatestAttacksExtender]');
-
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornLatestAttacksExtender] not at home!');
-                if (!isIndexPage()) reject('[tornLatestAttacksExtender] wrong page!');
-
-                let result = extendLatestAttacks();
-                if (result)
-                    return reject(result);
-                else
-                    return resolve("tornLatestAttacksExtender complete!");
-            });
-        }
+            let result = extendLatestAttacks();
+            if (result)
+                return reject(result);
+            else
+                return resolve("tornLatestAttacksExtender complete!");
+        });
 
         function extendLatestAttacks() {
             // Find first column
@@ -445,6 +435,7 @@
                            };
 
     function tornStatTracker() {
+        log('[tornStatTracker]');
 
         const stats_div = loadStatsDiv();
         const award_li = loadAwardLi();
@@ -454,32 +445,26 @@
         var stats_configWindow = null;
         var autoUpdateMinutes = 0; // Only sorta works, not sure why.
 
-        return _tornStatTracker();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornStatTracker] not at home!');
+            if (!isIndexPage()) reject('[tornStatTracker] wrong page!');
 
-        function _tornStatTracker() {
-            log('[tornStatTracker]');
+            initOptStats();
+            if (!optStats.length) autoUpdateMinutes = 0;
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornStatTracker] not at home!');
-                if (!isIndexPage()) reject('[tornStatTracker] wrong page!');
+            let result = buildStatsUI();
 
-                initOptStats();
-                if (!optStats.length) autoUpdateMinutes = 0;
+            if (autoUpdateMinutes) {
+                log('[tornStatTracker] updating every ' + autoUpdateMinutes + ' minute(s)');
+                stats_updateTimer = setInterval(function() {
+                    personalStatsQuery(updateStatsHandlerer)}, autoUpdateMinutes *60 * 1000);
+            }
 
-                let result = buildStatsUI();
-
-                if (autoUpdateMinutes) {
-                    log('[tornStatTracker] updating every ' + autoUpdateMinutes + ' minute(s)');
-                    stats_updateTimer = setInterval(function() {
-                        personalStatsQuery(updateStatsHandlerer)}, autoUpdateMinutes *60 * 1000);
-                }
-
-                if (result)
-                    return reject(result);
-                else
-                    return resolve("tornStatTracker complete!");
-            });
-        }
+            if (result)
+                return reject(result);
+            else
+                return resolve("tornStatTracker complete!");
+        });
 
         function updateStatsHandlerer(responseText, ID) {
             log('[updateStatsHandlerer]');
@@ -776,27 +761,22 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornDrugStats() {
+        log('[tornDrugStats]');
 
-        return _tornDrugStats();
+        let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
+        let extDivId = 'xedx-drugstats-ext-div';
+        let mainDiv = document.getElementById('column0');
 
-        function _tornDrugStats() {
-            log('[tornDrugStats]');
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornDrugStats] not at home!');
+            if (!isIndexPage()) reject('[tornDrugStats] wrong page!');
+            if (!validPointer(mainDiv)) return reject('[tornDrugStats] unable to locate main DIV! Consider launching later.');
+            $(mainDiv).append(extDiv); // could be $('#column0') ???
 
-            let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
-            let extDivId = 'xedx-drugstats-ext-div';
-            let mainDiv = document.getElementById('column0');
+            installDrugStats(personalStats);
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornDrugStats] not at home!');
-                if (!isIndexPage()) reject('[tornDrugStats] wrong page!');
-                if (!validPointer(mainDiv)) return reject('[tornDrugStats] unable to locate main DIV! Consider launching later.');
-                $(mainDiv).append(extDiv); // could be $('#column0') ???
-
-                installDrugStats(personalStats);
-
-                resolve('tornDrugStats complete!');
-            });
-        }
+            resolve('tornDrugStats complete!');
+        });
 
         function installDrugStats(stats) {
             let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
@@ -952,26 +932,21 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornJailStats() {
+        log('[tornJailStats]');
         const jailExtDivId = 'xedx-jailstats-ext-div';
 
-        return _tornJailStats();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornJailStats] not at home!');
+            if (!isIndexPage()) reject('[tornJailStats] wrong page!');
+            if (document.querySelector(jailExtDivId)) {resolve('tornJailStats complete!');} // Only do this once
 
-        function _tornJailStats() {
-            log('[tornJailStats]');
+            let mainDiv = document.getElementById('column0');
+            if (!validPointer(mainDiv)) {return reject('[tornJailStats] mainDiv nor found! Try calling later.');}
+            $(mainDiv).append(getJailStatsDiv());
+            populateJailDiv();
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornJailStats] not at home!');
-                if (!isIndexPage()) reject('[tornJailStats] wrong page!');
-                if (document.querySelector(jailExtDivId)) {resolve('tornJailStats complete!');} // Only do this once
-
-                let mainDiv = document.getElementById('column0');
-                if (!validPointer(mainDiv)) {return reject('[tornJailStats] mainDiv nor found! Try calling later.');}
-                $(mainDiv).append(getJailStatsDiv());
-                populateJailDiv();
-
-                resolve('tornJailStats complete!');
-            });
-        }
+            resolve('tornJailStats complete!');
+        });
 
         function getJailStatsDiv() {
             let result = '<div class="sortable-box t-blue-cont h" id="' + jailExtDivId + '">' +
@@ -1238,24 +1213,19 @@
     const opt_scIcons = {}; // key = {svgLink: "", color: '', strokeWidth: ""}
 
     function tornSidebarColors() {
+        log('[tornSidebarColors]');
 
-        return _tornSidebarColors();
+        return new Promise((resolve, reject) => {
+            init_opt_scIcons();
 
-        function _tornSidebarColors() {
-            log('[tornSidebarColors]');
+            let keys = Object.keys(opt_scIcons);
+            for (let i=0; i<keys.length; i++) {
+                let data = opt_scIcons[keys[i]];
+                colorIcon(data);
+            }
 
-            return new Promise((resolve, reject) => {
-                init_opt_scIcons();
-
-                let keys = Object.keys(opt_scIcons);
-                for (let i=0; i<keys.length; i++) {
-                    let data = opt_scIcons[keys[i]];
-                    colorIcon(data);
-                }
-
-                resolve("tornSidebarColors complete!");
-            });
-        }
+            resolve("tornSidebarColors complete!");
+        });
 
         function init_opt_scIcons() {
             const defStrokeWidth = '1';
@@ -1314,43 +1284,39 @@
     var custLinkClassNames = {};
 
     function tornCustomizableSidebar() {
+        log('[tornCustomizableSidebar]');
+
         let cs_caretState = 'fa-caret-down';
 
-        return _tornCustomizableSidebar();
+        GM_addStyle(".xedx-caret {" +
+                "padding-top:5px;" +
+                "padding-bottom:5px;" +
+                "padding-left:20px;" +
+                "padding-right:10px;" +
+                "}");
 
-        function _tornCustomizableSidebar() {
-            log('[tornCustomizableSidebar]');
+        installCollapsibleCaret();
+        installHashChangeHandler(installCollapsibleCaret);
 
-            GM_addStyle(".xedx-caret {" +
-                    "padding-top:5px;" +
-                    "padding-bottom:5px;" +
-                    "padding-left:20px;" +
-                    "padding-right:10px;" +
-                    "}");
-
-            installCollapsibleCaret();
-            installHashChangeHandler(installCollapsibleCaret);
-
-            return new Promise((resolve, reject) => {
-                initCustLinksObject();
-                initCustLinkClassNames();
-                let keys = Object.keys(custLinksOpts);
-                for (let i=0; i<keys.length; i++) {
-                    let key = keys[i];
-                    if (custLinksOpts[key].enabled) {
-                        debug('[tornCustomizableSidebar] Adding: ' + key.replaceAll('custlink-', ''));
-                        let node = buildCustLink(key, custLinksOpts[key]);
-                        let root = custLinkGetRoot(key);
-                        custLinkInsert(root, node, key);
-                    } else {
-                        debug('[tornCustomizableSidebar] Removing: ' + key.replaceAll('custlink-', ''));
-                        custLinkNodeRemove(key);
-                    }
+        return new Promise((resolve, reject) => {
+            initCustLinksObject();
+            initCustLinkClassNames();
+            let keys = Object.keys(custLinksOpts);
+            for (let i=0; i<keys.length; i++) {
+                let key = keys[i];
+                if (custLinksOpts[key].enabled) {
+                    debug('[tornCustomizableSidebar] Adding: ' + key.replaceAll('custlink-', ''));
+                    let node = buildCustLink(key, custLinksOpts[key]);
+                    let root = custLinkGetRoot(key);
+                    custLinkInsert(root, node, key);
+                } else {
+                    debug('[tornCustomizableSidebar] Removing: ' + key.replaceAll('custlink-', ''));
+                    custLinkNodeRemove(key);
                 }
+            }
 
-                resolve("tornCustomizableSidebar complete!");
-            });
-        }
+            resolve("tornCustomizableSidebar complete!");
+        });
 
         function initCustLinkClassNames() {
             if($('#nav-items').length){
@@ -1571,25 +1537,20 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornHideShowChat() {
+        log('[tornHideShowChat]');
 
         const hideChatDiv = getHideChatDiv();
 
-        return _tornHideShowChat();
+        return new Promise((resolve, reject) => {
+            if (!validPointer($("#chatRoot > div"))) { // Should never happen...
+            }
 
-        function _tornHideShowChat() {
-            log('[tornHideShowChat]');
+            appendHideShowChatDiv();
+            hideChat(GM_getValue('xedxHideChat', false));
+            disableTornToolsChatHide();
 
-            return new Promise((resolve, reject) => {
-                if (!validPointer($("#chatRoot > div"))) { // Should never happen...
-                }
-
-                appendHideShowChatDiv();
-                hideChat(GM_getValue('xedxHideChat', false));
-                disableTornToolsChatHide();
-
-                resolve("tornHideShowChat complete!");
-            });
-        }
+            resolve("tornHideShowChat complete!");
+        });
 
         function hideChat(hide) {
             log('[hideChat] ' + (hide ? "hiding chat icons." : "showing chat icons."));
@@ -1730,19 +1691,14 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornCrimeTooltips() {
+        log('[tornCrimeTooltips]');
 
-        return _tornCrimeTooltips();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornCrimeTooltips] not at home!');
 
-        function _tornCrimeTooltips() {
-            log('[tornCrimeTooltips]');
-
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornCrimeTooltips] not at home!');
-
-                addCriminalRecordToolTips();
-                resolve("tornCrimeTooltips complete!");
-            });
-        }
+            addCriminalRecordToolTips();
+            resolve("tornCrimeTooltips complete!");
+        });
 
         function addCriminalRecordToolTips() {
             let rootDiv = document.getElementsByClassName('cont-gray bottom-round criminal-record')[0];
@@ -1975,6 +1931,7 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornItemHints() {
+        log('[tornItemHints]');
 
         // Page names, spans, divs, mutation observer stuff, etc.
         const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
@@ -1988,16 +1945,10 @@
 
         let tih_modified = false;
 
-        return _tornItemHints();
-
-        function _tornItemHints() {
-             log('[tornItemHints]');
-
-            return new Promise((resolve, reject) => {
-                installHints();
-                resolve("[tornItemHints] complete!");
-            });
-        }
+        return new Promise((resolve, reject) => {
+            installHints();
+            resolve("[tornItemHints] complete!");
+        });
 
         function installHints() {
             let tmpPageName = getCurrentPageName();
@@ -2067,6 +2018,8 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornMuseumSetHelper() {
+        log('[tornMuseumSetHelper]');
+
         const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
         const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
         const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
@@ -2082,23 +2035,17 @@
 
         const pawnShopPays = 45000;
 
-        return _tornMuseumSetHelper();
+        return new Promise((resolve, reject) => {
+            if (location.href.indexOf("item.php") < 0) return reject('tornMuseumSetHelper wrong page!');
+            if (abroad()) return reject('tornMuseumSetHelper not at home!');
 
-        function _tornMuseumSetHelper() {
-             log('[tornMuseumSetHelper]');
+            initStatics();
+            removeTTBlock();
+            logApiCall('market: pointsmarket');
+            xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
 
-            return new Promise((resolve, reject) => {
-                if (location.href.indexOf("item.php") < 0) return reject('tornMuseumSetHelper wrong page!');
-                if (abroad()) return reject('tornMuseumSetHelper not at home!');
-
-                initStatics();
-                removeTTBlock();
-                logApiCall('market: pointsmarket');
-                xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
-
-                resolve("[tornMuseumSetHelper] startup complete!");
-            });
-        }
+            resolve("[tornMuseumSetHelper] startup complete!");
+        });
 
         function initStatics() {
             if (typeof tornMuseumSetHelper.pointsPriceUnitCost == 'undefined') {
@@ -2564,39 +2511,34 @@
     //////////////////////////////////////////////////////////////////////
 
     function tornWeaponSort() {
+        log('[tornWeaponSort]');
 
-        return _tornWeaponSort();
+        return new Promise((resolve, reject) => {
 
-        function _tornWeaponSort() {
-             log('[tornWeaponSort]');
+            initStatics();
 
-            return new Promise((resolve, reject) => {
+            if (location.href.indexOf("item.php") < 0) return reject('tornWeaponSort wrong page!');
+            if (abroad()) return reject('tornWeaponSort not at home!');
 
-                initStatics();
+            GM_addStyle(`.xedx-ctrls {margin: 10px;}`);
 
-                if (location.href.indexOf("item.php") < 0) return reject('tornWeaponSort wrong page!');
-                if (abroad()) return reject('tornWeaponSort not at home!');
+            installUI();
 
-                GM_addStyle(`.xedx-ctrls {margin: 10px;}`);
+            if (tornWeaponSort.pageObserver == null) { // Watch for active page changes.
+                tornWeaponSort.pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
+                var callback = function(mutationsList, observer) {
+                    log('[tornWeaponSort] Observer triggered - page change!');
+                    tornWeaponSort.lastSortOrder = 'Default';
+                    sortPage(true);
+                };
+                tornWeaponSort.pageObserver = new MutationObserver(callback);
+                observeOn();
+            }
 
-                installUI();
+            sortPage();
 
-                if (tornWeaponSort.pageObserver == null) { // Watch for active page changes.
-                    tornWeaponSort.pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
-                    var callback = function(mutationsList, observer) {
-                        log('[tornWeaponSort] Observer triggered - page change!');
-                        tornWeaponSort.lastSortOrder = 'Default';
-                        sortPage(true);
-                    };
-                    tornWeaponSort.pageObserver = new MutationObserver(callback);
-                    observeOn();
-                }
-
-                sortPage();
-
-                resolve("[tornWeaponSort] startup complete!");
-            });
-        }
+            resolve("[tornWeaponSort] startup complete!");
+        });
 
         // Function to sort the page
         function sortPage(pageChange = false) {
@@ -2901,170 +2843,165 @@
     ////////////////////////////////////////////////////////////////////////////////
 
     function tornWeTracker() {
+         log('[tornWeTracker]');
 
-        return _tornWeTracker();
+        // Selectors
+        const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
+        const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
 
-        function _tornWeTracker() {
-             log('[tornWeTracker]');
+        // Global vars
+        let pageName = ''; // Items page we are on
+        let pageDiv = null;
+        let pageObserver = null; // Mutation observer for the page
+        let observing = false; // Observer is active
+        const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
 
-            // Selectors
-            const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
-            const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
+        return new Promise((resolve, reject) => {
+            if (location.href.indexOf("item.php") < 0) return reject('tornWeTracker wrong page!');
+            if (abroad()) return reject('tornWeTracker not at home!');
 
-            // Global vars
-            let pageName = ''; // Items page we are on
-            let pageDiv = null;
-            let pageObserver = null; // Mutation observer for the page
-            let observing = false; // Observer is active
-            const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
+            modifyPage(weArray);
 
-            return new Promise((resolve, reject) => {
-                if (location.href.indexOf("item.php") < 0) return reject('tornWeTracker wrong page!');
-                if (abroad()) return reject('tornWeTracker not at home!');
+            resolve("[tornWeTracker] complete!");
+        });
 
-                modifyPage(weArray);
+        // Write out WE onto the page
+        function modifyPage(array, pageChange = false) {
+            if (pageObserver == null) { // Watch for active page changes.
+                pageDiv = document.querySelector(pageDivSelector);
+                var callback = function(mutationsList, observer) {
+                    log('[tornWeTracker] Observer triggered - page change!');
+                    log('[tornWeTracker] Setting onload function.');
+                    modifyPage(weArray, true);
+                };
+                pageObserver = new MutationObserver(callback);
+            }
 
-                resolve("[tornWeTracker] complete!");
-            });
+            let lastPage = pageName;
+            pageName = getPageName();
+            debug('[tornWeTracker] modifyPage: pageName = "' + pageName + '" pageChange = "' + pageChange + '"');
+            if ((lastPage != '') && (pageName.indexOf(lastPage) == -1) && (pageChange == false)) {
+                debug('[tornWeTracker] Went from page "' + lastPage + '" to "' + pageName +'"');
+            } else if (array && pageChange) {
+                debug('[tornWeTracker] pageChange (observer): ' + lastPage + ' --> ' + pageName);
+            } else if (array == null) {
+                debug('[tornWeTracker] pageChange (timeout): ' + lastPage + ' --> ' + pageName);
+                array = weArray;
+            }
+            let itemUL = null;
 
-            // Write out WE onto the page
-            function modifyPage(array, pageChange = false) {
-                if (pageObserver == null) { // Watch for active page changes.
-                    pageDiv = document.querySelector(pageDivSelector);
-                    var callback = function(mutationsList, observer) {
-                        log('[tornWeTracker] Observer triggered - page change!');
-                        log('[tornWeTracker] Setting onload function.');
-                        modifyPage(weArray, true);
-                    };
-                    pageObserver = new MutationObserver(callback);
-                }
-
-                let lastPage = pageName;
-                pageName = getPageName();
-                debug('[tornWeTracker] modifyPage: pageName = "' + pageName + '" pageChange = "' + pageChange + '"');
-                if ((lastPage != '') && (pageName.indexOf(lastPage) == -1) && (pageChange == false)) {
-                    debug('[tornWeTracker] Went from page "' + lastPage + '" to "' + pageName +'"');
-                } else if (array && pageChange) {
-                    debug('[tornWeTracker] pageChange (observer): ' + lastPage + ' --> ' + pageName);
-                } else if (array == null) {
-                    debug('[tornWeTracker] pageChange (timeout): ' + lastPage + ' --> ' + pageName);
-                    array = weArray;
-                }
-                let itemUL = null;
-
-                if (pageName == 'Primary') {
-                    itemUL = $("#primary-items")[0];
-                } else if (pageName == 'Secondary') {
-                    itemUL = $("#secondary-items")[0];
-                } else if (pageName == 'Melee') {
-                    itemUL = $("#melee-items")[0];
-                } else if (pageName == 'Temporary') {
-                    itemUL = $("#temporary-items")[0];
-                } else {
-                    observeOn();
-                    return; // Not on a weapons page
-                }
-
-                let items = itemUL.getElementsByTagName("li");
-                let itemLen = items.length;
-                debug(pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
-                if (itemLen <= 1) { // Not fully loaded: come back later
-                    setTimeout(function(){ modifyPage(null, true); }, 500);
-                    return;
-                }
-
-                observeOff(); // Don't call ourselves while editing.
-
-                debug('[tornWeTracker] modifyPage scanning <li>s');
-                for (let i = 0; i < items.length; ++i) {
-                    let itemLi = items[i]; // <li> selector
-                    let itemID = itemLi.getAttribute('data-item');
-                    if (itemID == null) {continue;} // Not an item
-                    let category = itemLi.getAttribute('data-category');
-                    if (category == null) {continue;} // Child elem.
-
-                    debug('[tornWeTracker] Item ID: ' + itemID + ' Category: ' + category);
-
-                    let nameSel = itemLi.querySelector('div.title-wrap > div > span.name-wrap > span.name');
-                    if (!validPointer(nameSel)) {continue;} // Child elem.
-                    let name = nameSel.innerHTML;
-                    debug('[tornWeTracker] Name: ' + name);
-
-                    let item = getItemByItemID(array, Number(itemID));
-                    let WE = 0;
-                    if (validPointer(item)) {
-                        WE = item.exp;
-                        //log('Weapon Exp.: ' + WE);
-                    } else {
-                        //log('Assuming 0 WE.');
-                    }
-
-                    let bonusUL = itemLi.querySelector('div.cont-wrap > div.bonuses.left > ul');
-                    let ttPriceSel = bonusUL.querySelector('li.bonus.left.tt-item-price');
-                    if (validPointer(ttPriceSel)) {ttPriceSel.remove();}
-                    let weSel = bonusUL.querySelector('li.left.we');
-                    if (validPointer(weSel)) {weSel.remove();}
-                    bonusUL.prepend(buildExpLi(itemLi, WE));
-
-
-                } // End 'for' loop. iterating LI's
-
+            if (pageName == 'Primary') {
+                itemUL = $("#primary-items")[0];
+            } else if (pageName == 'Secondary') {
+                itemUL = $("#secondary-items")[0];
+            } else if (pageName == 'Melee') {
+                itemUL = $("#melee-items")[0];
+            } else if (pageName == 'Temporary') {
+                itemUL = $("#temporary-items")[0];
+            } else {
                 observeOn();
+                return; // Not on a weapons page
             }
 
-            //////////////////////////////////////////////////////////////////////
-            // Helpers
-            //////////////////////////////////////////////////////////////////////
-
-            // Get 1st object for item ID
-            // @param data - data array to search
-            // @param itemID - ID to look for
-            // @return first JSON object with matching ID
-            function getItemByItemID(data, itemID) {
-                let objs = getItemsByItemID(data, itemID);
-                return objs[0];
+            let items = itemUL.getElementsByTagName("li");
+            let itemLen = items.length;
+            debug(pageName + ' Items length: ' + itemUL.getElementsByTagName("li").length);
+            if (itemLen <= 1) { // Not fully loaded: come back later
+                setTimeout(function(){ modifyPage(null, true); }, 500);
+                return;
             }
 
-            // Helper for above, get array of objects that match requested ID
-            function getItemsByItemID(data, itemID) {
-                return data.filter(
-                    function(data){ return data.itemID == itemID }
-                );
-            }
+            observeOff(); // Don't call ourselves while editing.
 
-            // Build an <li> to display the WE
-            function buildExpLi(itemLi, WE) {
-                let newLi = document.createElement("li");
-                newLi.className = 'we left';
-                let weSpan = document.createElement('span')
-                weSpan.innerHTML = WE + '%';
-                newLi.appendChild(weSpan);
-                return newLi;
-            }
+            debug('[tornWeTracker] modifyPage scanning <li>s');
+            for (let i = 0; i < items.length; ++i) {
+                let itemLi = items[i]; // <li> selector
+                let itemID = itemLi.getAttribute('data-item');
+                if (itemID == null) {continue;} // Not an item
+                let category = itemLi.getAttribute('data-category');
+                if (category == null) {continue;} // Child elem.
 
-            // Returns the page name of current page
-            function getPageName() {
-                let pageSpan = document.querySelector(pageSpanSelector);
-                let pageName = pageSpan.innerText;
-                debug("[tornWeTracker] On page '" + pageName + "'");
-                return pageName;
-            }
+                debug('[tornWeTracker] Item ID: ' + itemID + ' Category: ' + category);
 
-            // Helpers to turn on and off the observer
-            function observeOff() {
-                if (observing && pageObserver) {
-                    pageObserver.disconnect();
-                    debug('[tornWeTracker] disconnected observer.');
-                    observing = false;
+                let nameSel = itemLi.querySelector('div.title-wrap > div > span.name-wrap > span.name');
+                if (!validPointer(nameSel)) {continue;} // Child elem.
+                let name = nameSel.innerHTML;
+                debug('[tornWeTracker] Name: ' + name);
+
+                let item = getItemByItemID(array, Number(itemID));
+                let WE = 0;
+                if (validPointer(item)) {
+                    WE = item.exp;
+                    //log('Weapon Exp.: ' + WE);
+                } else {
+                    //log('Assuming 0 WE.');
                 }
-            }
 
-            function observeOn() {
-                if (pageObserver) {
-                    pageObserver.observe(pageDiv, observerConfig);
-                    debug('[tornWeTracker] observing page.');
-                    observing = true;
-                }
+                let bonusUL = itemLi.querySelector('div.cont-wrap > div.bonuses.left > ul');
+                let ttPriceSel = bonusUL.querySelector('li.bonus.left.tt-item-price');
+                if (validPointer(ttPriceSel)) {ttPriceSel.remove();}
+                let weSel = bonusUL.querySelector('li.left.we');
+                if (validPointer(weSel)) {weSel.remove();}
+                bonusUL.prepend(buildExpLi(itemLi, WE));
+
+
+            } // End 'for' loop. iterating LI's
+
+            observeOn();
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Helpers
+        //////////////////////////////////////////////////////////////////////
+
+        // Get 1st object for item ID
+        // @param data - data array to search
+        // @param itemID - ID to look for
+        // @return first JSON object with matching ID
+        function getItemByItemID(data, itemID) {
+            let objs = getItemsByItemID(data, itemID);
+            return objs[0];
+        }
+
+        // Helper for above, get array of objects that match requested ID
+        function getItemsByItemID(data, itemID) {
+            return data.filter(
+                function(data){ return data.itemID == itemID }
+            );
+        }
+
+        // Build an <li> to display the WE
+        function buildExpLi(itemLi, WE) {
+            let newLi = document.createElement("li");
+            newLi.className = 'we left';
+            let weSpan = document.createElement('span')
+            weSpan.innerHTML = WE + '%';
+            newLi.appendChild(weSpan);
+            return newLi;
+        }
+
+        // Returns the page name of current page
+        function getPageName() {
+            let pageSpan = document.querySelector(pageSpanSelector);
+            let pageName = pageSpan.innerText;
+            debug("[tornWeTracker] On page '" + pageName + "'");
+            return pageName;
+        }
+
+        // Helpers to turn on and off the observer
+        function observeOff() {
+            if (observing && pageObserver) {
+                pageObserver.disconnect();
+                debug('[tornWeTracker] disconnected observer.');
+                observing = false;
+            }
+        }
+
+        function observeOn() {
+            if (pageObserver) {
+                pageObserver.observe(pageDiv, observerConfig);
+                debug('[tornWeTracker] observing page.');
+                observing = true;
             }
         }
 
@@ -3075,6 +3012,7 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornWeSpreadsheet() {
+        log('[tornWeSpreadsheet]');
 
         // Will be table rows
         let fhRows = null;
@@ -3092,23 +3030,17 @@
         let meleeArray = [];
         let temporaryArray = [];
 
-        return _tornWeSpreadsheet();
+        return new Promise((resolve, reject) => {
+            if (location.href.indexOf("item.php") < 0) return reject('tornWeSpreadsheet wrong page!');
+            if (abroad()) return reject('tornWeSpreadsheet not at home!');
 
-        function _tornWeSpreadsheet() {
-             log('[tornWeSpreadsheet]');
+            loadTableStyles();
 
-            return new Promise((resolve, reject) => {
-                if (location.href.indexOf("item.php") < 0) return reject('tornWeSpreadsheet wrong page!');
-                if (abroad()) return reject('tornWeSpreadsheet not at home!');
+            logApiCall('torn: items');
+            xedx_TornTornQuery(null, 'items', tornQueryCB);
 
-                loadTableStyles();
-
-                logApiCall('torn: items');
-                xedx_TornTornQuery(null, 'items', tornQueryCB);
-
-                resolve("[tornWeSpreadsheet] startup complete!");
-            });
-        }
+            resolve("[tornWeSpreadsheet] startup complete!");
+        });
 
         function tornQueryCB(responseText, ID, param) {
             debug('[tornWeSpreadsheet] Torn items query callback.');
@@ -3702,21 +3634,16 @@
 
     // TBD !!!
     function tornHoldemScore() {
+        log('[tornHoldemScore]');
 
-        return _tornHoldemScore();
+        return new Promise((resolve, reject) => {
+            if (location.href.indexOf("loader.php?sid=holdem") < 0) return reject('tornHoldemScore wrong page!');
+            if (abroad()) return reject('tornHoldemScore not at home!');
 
-        function _tornHoldemScore() {
-             log('[tornHoldemScore]');
+            reject('[tornHoldemScore] not yet implemented!');
 
-            return new Promise((resolve, reject) => {
-                if (location.href.indexOf("loader.php?sid=holdem") < 0) return reject('tornHoldemScore wrong page!');
-                if (abroad()) return reject('tornHoldemScore not at home!');
-
-                reject('[tornHoldemScore] not yet implemented!');
-
-                //resolve("[tornHoldemScore] complete!");
-            });
-        }
+            //resolve("[tornHoldemScore] complete!");
+        });
     } // End function tornHoldemScore() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -3724,6 +3651,7 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornStockProfits() {
+        log('[tornStockProfits]');
 
         let observer = null;
         let userStocksJSON = null;
@@ -3735,101 +3663,94 @@
         const stockNameFromID = function(ID){return tornStocksJSON.stocks[ID].name;};
         const stockPriceFromID = function(ID){return tornStocksJSON.stocks[ID].current_price;};
 
-        return _tornStockProfits();
+        return new Promise((resolve, reject) => {
+            if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('tornStockProfits wrong page!');
 
-        function _tornStockProfits() {
-            log('[tornStockProfits]');
+            logApiCall('user: stocks');
+            xedx_TornUserQuery(null, 'stocks', userStocksCB);
 
-            return new Promise((resolve, reject) => {
-                if (location.href.indexOf("page.php?sid=stocks") < 0) return reject('tornStockProfits wrong page!');
+            resolve("[tornStockProfits] startup complete!");
+        });
 
-                logApiCall('user: stocks');
-                xedx_TornUserQuery(null, 'stocks', userStocksCB);
+        // Callbacks for our Torn API calls.
+        function userStocksCB(responseText, ID, param) {
+            log('[tornStockProfits] userStocksCB');
+            userStocksJSON = JSON.parse(responseText);
+            if (userStocksJSON.error) {return handleError(responseText);}
+            xedx_TornTornQuery(null, 'stocks', tornStocksCB);
+        }
 
-                resolve("[tornStockProfits] startup complete!");
-            });
+        function tornStocksCB(responseText, ID, param) {
+            log('[tornStockProfits] tornStocksCB');
+            tornStocksJSON = JSON.parse(responseText);
+            if (tornStocksJSON.error) {return handleError(responseText);}
+            modifyPage();
+        }
 
-            // Callbacks for our Torn API calls.
-            function userStocksCB(responseText, ID, param) {
-                log('[tornStockProfits] userStocksCB');
-                userStocksJSON = JSON.parse(responseText);
-                if (userStocksJSON.error) {return handleError(responseText);}
-                xedx_TornTornQuery(null, 'stocks', tornStocksCB);
+        function highlightReadyStocks() {
+            log('[tornStockProfits] [highlightReadyStocks]');
+            var objects = $(".Ready___Y6Stk");
+            log('objects: ', objects);
+            for (let i=0; i<objects.length; i++) {
+                let obj = objects[i];
+                if (obj.textContent == 'Ready for collection') {
+                    log('[tornStockProfits] Stock is ready!!');
+                    if (!$(obj).hasClass('highlight-active')) $(obj).addClass('highlight-active');
+                }
             }
+        }
 
-            function tornStocksCB(responseText, ID, param) {
-                log('[tornStockProfits] tornStocksCB');
-                tornStocksJSON = JSON.parse(responseText);
-                if (tornStocksJSON.error) {return handleError(responseText);}
-                modifyPage();
-            }
+        // Called when page loaded.
+        function modifyPage() {
+            if (observer) observer.disconnect();
 
-            function highlightReadyStocks() {
-                log('[tornStockProfits] [highlightReadyStocks]');
-                var objects = $(".Ready___Y6Stk");
-                log('objects: ', objects);
-                for (let i=0; i<objects.length; i++) {
-                    let obj = objects[i];
-                    if (obj.textContent == 'Ready for collection') {
-                        log('[tornStockProfits] Stock is ready!!');
-                        if (!$(obj).hasClass('highlight-active')) $(obj).addClass('highlight-active');
-                    }
+            // -- prep work --
+            var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
+            if (!mainStocksUL) return setTimeout(modifyPage, 250); // Check should not be needed
+
+            var stocksList = mainStocksUL.getElementsByTagName('ul');
+            if (stocksList.length < 2) return setTimeout(modifyPage, 250); // Check should not be needed
+
+            // -- Now we're all good to go. --
+            for (let i = 0; i < stocksList.length; i++) {
+                let stockUL = stocksList[i];
+                let stockID = stockUL.id;
+                if (!stockID) continue; // Expanded stock column
+                let stockName = stockNameFromID(stockID);
+                let stockPrice = stockPriceFromID(stockID);
+                //log('Stock ' + i + ' ID = ' + stockID);
+                if (!userStocksJSON.stocks[stockID]) { // Un-owned
+                    continue;
+                }
+                stockUL.setAttribute('style', 'height: auto;');
+                let owned = userStocksJSON.stocks[stockID].transactions;
+                let keys = Object.keys(owned);
+                for (let j = 0; j < keys.length; j++) {
+                    let ownedLI = stockUL.querySelector("#ownedTab");
+                    //console.log('ownedLI: ', ownedLI);
+                    let ownedShares = owned[keys[j]].shares;
+                    let boughtPrice = owned[keys[j]].bought_price;
+                    let profit = (stockPrice - boughtPrice) * ownedShares; // Gross profit
+                    let fee = stockPrice * ownedShares * .001;
+                    profit = profit - fee; // -.1% fee.
+                    if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
+                    if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
                 }
             }
 
-            // Called when page loaded.
-            function modifyPage() {
-                if (observer) observer.disconnect();
+            highlightReadyStocks();
 
-                // -- prep work --
-                var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
-                if (!mainStocksUL) return setTimeout(modifyPage, 250); // Check should not be needed
+            // Now set up an observer, as the prices update now and again.
+            if (!observer) observer = new MutationObserver(reload);
+            observer.observe(mainStocksUL, {attributes: true, characterData: true});
+        }
 
-                var stocksList = mainStocksUL.getElementsByTagName('ul');
-                if (stocksList.length < 2) return setTimeout(modifyPage, 250); // Check should not be needed
-
-                // -- Now we're all good to go. --
-                for (let i = 0; i < stocksList.length; i++) {
-                    let stockUL = stocksList[i];
-                    let stockID = stockUL.id;
-                    if (!stockID) continue; // Expanded stock column
-                    let stockName = stockNameFromID(stockID);
-                    let stockPrice = stockPriceFromID(stockID);
-                    //log('Stock ' + i + ' ID = ' + stockID);
-                    if (!userStocksJSON.stocks[stockID]) { // Un-owned
-                        continue;
-                    }
-                    stockUL.setAttribute('style', 'height: auto;');
-                    let owned = userStocksJSON.stocks[stockID].transactions;
-                    let keys = Object.keys(owned);
-                    for (let j = 0; j < keys.length; j++) {
-                        let ownedLI = stockUL.querySelector("#ownedTab");
-                        //console.log('ownedLI: ', ownedLI);
-                        let ownedShares = owned[keys[j]].shares;
-                        let boughtPrice = owned[keys[j]].bought_price;
-                        let profit = (stockPrice - boughtPrice) * ownedShares; // Gross profit
-                        let fee = stockPrice * ownedShares * .001;
-                        profit = profit - fee; // -.1% fee.
-                        if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
-                        if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
-                    }
-                }
-
-                highlightReadyStocks();
-
-                // Now set up an observer, as the prices update now and again.
-                if (!observer) observer = new MutationObserver(reload);
-                observer.observe(mainStocksUL, {attributes: true, characterData: true});
-            }
-
-            // Reload after stock prices change
-            function reload() {
-                userStocksJSON = null;
-                tornStocksJSON = null;
-                logApiCall('user: stocks');
-                xedx_TornUserQuery(null, 'stocks', userStocksCB);
-            }
-
+        // Reload after stock prices change
+        function reload() {
+            userStocksJSON = null;
+            tornStocksJSON = null;
+            logApiCall('user: stocks');
+            xedx_TornUserQuery(null, 'stocks', userStocksCB);
         }
     } // End function tornStockProfits() {
 
@@ -3839,65 +3760,60 @@
 
     var racingAlertTimer = null;
     function tornRacingAlert() {
+        log('[tornRacingAlert]');
+        var animatedIcons = true; // TRUE to flash the red icon
 
-        return _tornRacingAlert();
+        const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
+        const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+        const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
-        function _tornRacingAlert() {
-            log('[tornRacingAlert]');
-            var animatedIcons = true; // TRUE to flash the red icon
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornRacingAlert] not at home!');
+            racingAlertTimer = setInterval(addRaceIcon, 10000); // Check every 10 secs
+            resolve("[tornRacingAlert] complete!");
+        });
 
-            const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
-            const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
-            const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+        function hasStockRaceIcons() {
+            let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
+            //debug('[hasStockRaceIcons] result: ', result);
+            //debug('Icon 17: ', document.getElementById("icon17-sidebar"));
+            //debug('Icon 18: ', document.getElementById("icon18-sidebar"));
+            return result;
+        }
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornRacingAlert] not at home!');
-                racingAlertTimer = setInterval(addRaceIcon, 10000); // Check every 10 secs
-                resolve("[tornRacingAlert] complete!");
-            });
+        function addRaceIcon() {
+            let existingRaceIcon = document.getElementById("xedx-race-icon");
 
-            function hasStockRaceIcons() {
-                let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
-                //debug('[hasStockRaceIcons] result: ', result);
-                //debug('Icon 17: ', document.getElementById("icon17-sidebar"));
-                //debug('Icon 18: ', document.getElementById("icon18-sidebar"));
-                return result;
+            let redIcon = document.getElementById("icon18-sidebar");
+            if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
+                $(redIcon.parentNode).addClass('highlight-active');
             }
 
-            function addRaceIcon() {
-                let existingRaceIcon = document.getElementById("xedx-race-icon");
-
-                let redIcon = document.getElementById("icon18-sidebar");
-                if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
-                    $(redIcon.parentNode).addClass('highlight-active');
-                }
-
-                if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
-                    if (existingRaceIcon) {
-                        $(existingRaceIcon).remove();
-                    }
-                    return;
-                }
-
+            if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
                 if (existingRaceIcon) {
-                    if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
-                    return;
+                    $(existingRaceIcon).remove();
                 }
-
-                //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
-                let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
-                if (!iconArea /*&& devMode*/) {
-                    log('[addRaceIcon] Can`t find icon area!');
-                }
-
-                // TBD: possibly add sidebar link.
-                // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
-
-                // Add our icon
-                $(iconArea).append(raceIconRed);
-                existingRaceIcon = document.getElementById("xedx-race-icon");
-                if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
+                return;
             }
+
+            if (existingRaceIcon) {
+                if (animatedIcons && !$(existingRaceIcon).hasClass('highlight-active')) $(existingRaceIcon).addClass('highlight-active');
+                return;
+            }
+
+            //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
+            let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
+            if (!iconArea /*&& devMode*/) {
+                log('[addRaceIcon] Can`t find icon area!');
+            }
+
+            // TBD: possibly add sidebar link.
+            // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
+
+            // Add our icon
+            $(iconArea).append(raceIconRed);
+            existingRaceIcon = document.getElementById("xedx-race-icon");
+            if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
         }
     } // End function tornRacingAlert() {
 
@@ -3916,6 +3832,7 @@
     // Don't recall why...
 
     function tornRacingCarOrder() {
+        log('[tornRacingCarOrder]');
 
         //////////////////////////////////////////////////////////////////////
         // Global to this function
@@ -3946,26 +3863,20 @@
         };
         var observer = new MutationObserver(callback);
 
-        return _tornRacingCarOrder();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornRacingCarOrder] not at home!');
+            if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingCarOrder wrong page!');
 
-        function _tornRacingCarOrder() {
-            log('[tornRacingCarOrder]');
+            loadStyles();
+            startCarOrderScript();
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornRacingCarOrder] not at home!');
-                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingCarOrder wrong page!');
+            resolve("[tornRacingCarOrder] startup complete!");
+        });
 
-                loadStyles();
-                startCarOrderScript();
-
-                resolve("[tornRacingCarOrder] startup complete!");
-            });
-
-            function startCarOrderScript() {
-                if (!targetNode) targetNode = document.getElementById('racingMainContainer');
-                if (!targetNode) return setTimeout(startCarOrderScript, 250);
-                observerOn();
-            }
+        function startCarOrderScript() {
+            if (!targetNode) targetNode = document.getElementById('racingMainContainer');
+            if (!targetNode) return setTimeout(startCarOrderScript, 250);
+            observerOn();
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -4470,37 +4381,31 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornRacingStyles() {
+        log('[tornRacingStyles]');
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornRacingStyles] not at home!');
+            if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingStyles wrong page!');
 
-        return _tornRacingStyles();
+            const user_id = document.cookie.match('(^|;)\\s*uid\\s*=\\s*([^;]+)')?.pop() || '';
+            GM_addStyle(`
+                .d .racing-main-wrap .car-selected-wrap #drivers-scrollbar#drivers-scrollbar {
+                    max-height: 328px!important;
+                }
+            `);
 
-        function _tornRacingStyles() {
-             log('[tornRacingStyles]');
+            GM_addStyle(`
+                #leaderBoard {
+                  padding-top: 32px;
+                  position: relative;
+                }
+                #lbr-${user_id} {
+                  position: absolute;
+                  width: 100%;
+                  top: 0;
+            }`);
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornRacingStyles] not at home!');
-                if (location.href.indexOf("loader.php?sid=racing") < 0) return reject('tornRacingStyles wrong page!');
-
-                const user_id = document.cookie.match('(^|;)\\s*uid\\s*=\\s*([^;]+)')?.pop() || '';
-                GM_addStyle(`
-                    .d .racing-main-wrap .car-selected-wrap #drivers-scrollbar#drivers-scrollbar {
-                        max-height: 328px!important;
-                    }
-                `);
-
-                GM_addStyle(`
-                    #leaderBoard {
-                      padding-top: 32px;
-                      position: relative;
-                    }
-                    #lbr-${user_id} {
-                      position: absolute;
-                      width: 100%;
-                      top: 0;
-                }`);
-
-                resolve("[tornRacingStyles] complete!");
-            });
-        }
+            resolve("[tornRacingStyles] complete!");
+        });
     } // End function tornRacingStyles() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -4711,61 +4616,55 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornBazaarAddButton() {
+         log('[tornBazaarAddButton]');
 
-        return _tornBazaarAddButton();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornBazaarAddButton] not at home!');
+            if (!isBazaarPage()) return reject('tornBazaarAddButton wrong page!');
 
-        // Need error handling!
-        function _tornBazaarAddButton() {
-             log('[tornBazaarAddButton]');
-
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornBazaarAddButton] not at home!');
-                if (!isBazaarPage()) return reject('tornBazaarAddButton wrong page!');
-
-                $(window).on('hashchange', function() {
-                    debug('[tornBazaarAddButton] handle hash change.');
-                    installTheButton();
-                });
-
-                installTheButton(0);
-
-                resolve("[tornBazaarAddButton] complete!");
+            $(window).on('hashchange', function() {
+                debug('[tornBazaarAddButton] handle hash change.');
+                installTheButton();
             });
 
-            function isHidden(el) {return (el.offsetParent === null)}
+            installTheButton(0);
 
-            function installTheButton(retries=0) {
-                const addBtnDiv = getAddBtnDiv();
-                if (document.getElementById('xedx-add-btn')) document.getElementById('xedx-add-btn').remove();
-                let hash = window.location.hash;
-                let substrings = ['manage', 'personalize', 'add', 'userid'];
-                if (substrings.some(v => hash.includes(v))) return;
-                let targetNode = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz > " +
-                                                    "div.topSection___OilHR > div.titleContainer___LJY0N");
-                if (!targetNode)
-                    targetNode = document.querySelector("#bazaarRoot > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY > " +
-                                       "div.topSection___OilHR > div.titleContainer___LJY0N");
-                if (!targetNode && retries++ < 10) {
-                    return setTimeout(function() {installTheButton(retries)}, 50);
-                }
-                if (!location.href.includes('userid=')) {
-                    $(targetNode).append(addBtnDiv);
-                }
-            }
+            resolve("[tornBazaarAddButton] complete!");
+        });
 
-            function getAddBtnDiv() {
-                return '<a id="xedx-add-btn" to="#/add" role="button" aria-labelledby="add-items" href="#/add" ' +
-                    "style='float: right;' " +
-                    'class="linkContainer___AOKtu inRow___uFQ4S greyLineV___mY84h link-container-ItemsAdd" ' +
-                    'i-data="i_687_11_101_33"><span class="iconContainer___q3CES linkIconContainer___IqlVh">' +
-                    '<svg xmlns="http://www.w3.org/2000/svg" class="default___qrLNi svgIcon___gFpTP" ' +
-                    'filter="url(#top_svg_icon)" fill="#777" stroke="transparent" stroke-width="1" ' +
-                    'width="17" height="16" viewBox="0 0 16.67 17">' +
-                    '<path d="M2,8.14A4.09,4.09,0,0,1,3,8a4,4,0,0,1,3.38,6.13l3,1.68V8.59L2,4.31ZM16,' +
-                    '4.23,8.51,0,6.45,1.16,13.7,5.43ZM5.11,1.92,2.79,3.23,10,7.43l2.33-1.27Zm5.56,6.66V16l6-3.42V5.36ZM3,' +
-                    '9a3,3,0,1,0,3,3A3,3,0,0,0,3,9Zm1.67,3.33H3.33v1.34H2.67V12.33H1.33v-.66H2.67V10.33h.66v1.34H4.67Z">' +
-                    '</path></svg></span><span class="linkTitle___QYMn6">Add items</span></a>';
+        function isHidden(el) {return (el.offsetParent === null)}
+
+        function installTheButton(retries=0) {
+            const addBtnDiv = getAddBtnDiv();
+            if (document.getElementById('xedx-add-btn')) document.getElementById('xedx-add-btn').remove();
+            let hash = window.location.hash;
+            let substrings = ['manage', 'personalize', 'add', 'userid'];
+            if (substrings.some(v => hash.includes(v))) return;
+            let targetNode = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz > " +
+                                                "div.topSection___OilHR > div.titleContainer___LJY0N");
+            if (!targetNode)
+                targetNode = document.querySelector("#bazaarRoot > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY > " +
+                                   "div.topSection___OilHR > div.titleContainer___LJY0N");
+            if (!targetNode && retries++ < 10) {
+                return setTimeout(function() {installTheButton(retries)}, 50);
             }
+            if (!location.href.includes('userid=')) {
+                $(targetNode).append(addBtnDiv);
+            }
+        }
+
+        function getAddBtnDiv() {
+            return '<a id="xedx-add-btn" to="#/add" role="button" aria-labelledby="add-items" href="#/add" ' +
+                "style='float: right;' " +
+                'class="linkContainer___AOKtu inRow___uFQ4S greyLineV___mY84h link-container-ItemsAdd" ' +
+                'i-data="i_687_11_101_33"><span class="iconContainer___q3CES linkIconContainer___IqlVh">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" class="default___qrLNi svgIcon___gFpTP" ' +
+                'filter="url(#top_svg_icon)" fill="#777" stroke="transparent" stroke-width="1" ' +
+                'width="17" height="16" viewBox="0 0 16.67 17">' +
+                '<path d="M2,8.14A4.09,4.09,0,0,1,3,8a4,4,0,0,1,3.38,6.13l3,1.68V8.59L2,4.31ZM16,' +
+                '4.23,8.51,0,6.45,1.16,13.7,5.43ZM5.11,1.92,2.79,3.23,10,7.43l2.33-1.27Zm5.56,6.66V16l6-3.42V5.36ZM3,' +
+                '9a3,3,0,1,0,3,3A3,3,0,0,0,3,9Zm1.67,3.33H3.33v1.34H2.67V12.33H1.33v-.66H2.67V10.33h.66v1.34H4.67Z">' +
+                '</path></svg></span><span class="linkTitle___QYMn6">Add items</span></a>';
         }
 
     } // End function tornBazaarAddButton() {
@@ -4774,200 +4673,196 @@
 
     //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Fac Page Search" (called at page complete)
+    // Doesn't work if Honor Bars are disabled!
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornFacPageSearch() {
+        log('[tornFacPageSearch]');
 
-        return _tornFacPageSearch();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornFacPageSearch] not at home!');
+            if (!isFactionPage()) return reject('tornFacPageSearch wrong page!');
 
-        function _tornFacPageSearch() {
-            log('[tornFacPageSearch]');
+             GM_addStyle(`
+                .xedx-bdr {border: solid 1px red;}
+                .xedx-green {background: lime;
+                             -webkit-animation: highlight-active 1s linear 0s infinite normal;
+                             animation: highlight-active 1s linear 0s infinite normal;}
+            `);
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornFacPageSearch] not at home!');
-                if (!isFactionPage()) return reject('tornFacPageSearch wrong page!');
+            installHashChangeHandler(facSearchHashHandler);
 
-                 GM_addStyle(`
-                    .xedx-bdr {border: solid 1px red;}
-                    .xedx-green {background: lime;
-                                 -webkit-animation: highlight-active 1s linear 0s infinite normal;
-                                 animation: highlight-active 1s linear 0s infinite normal;}
-                `);
+            installUI(0);
 
-                installHashChangeHandler(facSearchHashHandler);
+            resolve("[tornFacPageSearch] started!");
+        });
 
-                installUI(0);
+        function installUI(retries=0) {
+            log('[installUI]');
+            const searchDiv = getFacSearchDiv();
 
-                resolve("[tornFacPageSearch] started!");
-            });
+            if (retries > 5) {
+                debug('[installUI] too many retires: aborting');
+                return;
+            }
 
-            function installUI(retries=0) {
-                log('[installUI]');
-                const searchDiv = getFacSearchDiv();
+            $("#xedx-search").remove();
+            let targetNode = document.querySelector("#factions > ul");
+            if (!targetNode) {
+                debug('[installUI] targetNode not found retrying...');
+                return setTimeout(function() {installUI(++retries)}, 500);
+            }
+            log('[installUI] primary target found:', targetNode);
 
-                if (retries > 5) {
-                    debug('[installUI] too many retires: aborting');
-                    return;
-                }
-
-                $("#xedx-search").remove();
-                let targetNode = document.querySelector("#factions > ul");
+            if (location.href.indexOf('/tab=info') > -1) {
+                targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
+                //document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body > li:nth-child(30) > div.table-cell.member.icons.membersCol___AQ21i > div > div.userWrap___vmatZ.flexCenter___dZEr7.textWrap___Pyv8H.flexCenter___dZEr7 > a > span")
                 if (!targetNode) {
-                    debug('[installUI] targetNode not found retrying...');
+                    debug('[installUI] targetNode not found, retrying...');
                     return setTimeout(function() {installUI(++retries)}, 500);
                 }
-                log('[installUI] primary target found:', targetNode);
 
-                if (location.href.indexOf('/tab=info') > -1) {
-                    targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
-                    //document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body > li:nth-child(30) > div.table-cell.member.icons.membersCol___AQ21i > div > div.userWrap___vmatZ.flexCenter___dZEr7.textWrap___Pyv8H.flexCenter___dZEr7 > a > span")
-                    if (!targetNode) {
-                        debug('[installUI] targetNode not found, retrying...');
-                        return setTimeout(function() {installUI(++retries)}, 500);
-                    }
+                debug('[installUI] inserting search div before: ', targetNode);
+                $(targetNode).before(searchDiv);
 
-                    debug('[installUI] inserting search div before: ', targetNode);
-                    $(targetNode).before(searchDiv);
+                debug('[installUI] new div: ', document.querySelector("#xedx-search"));
 
-                    debug('[installUI] new div: ', document.querySelector("#xedx-search"));
-
-                    $("#search").on("keypress", handleSearchKeypress);
-                    $("#search").on("keydown", handleSearchKeypress); // For backspace only
-                } else if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
-                    //targetNode = document.querySelector("#faction-controls");
-                    if (!targetNode) {
-                        debug('[installUI] targetNode not found, retrying...');
-                        return setTimeout(function() {installUI(++retries)}, 500);
-                    }
-
-                    debug('[installUI] inserting search div after: ', targetNode);
-                    $(targetNode).append(searchDiv);
-
-                    debug('[installUI] new div: ', document.querySelector("#xedx-search"));
-
-                    $("#search").on("keypress", handleSearchKeypress);
-                    $("#search").on("keydown", handleSearchKeypress); // For backspace only
-                } else {
-                    debug('[installUI] [tornFacPageSearch] missing selectors or hash, retrying (attempt #' + (retries+1));
+                $("#search").on("keypress", handleSearchKeypress);
+                $("#search").on("keydown", handleSearchKeypress); // For backspace only
+            } else if (document.querySelector('#option-give-to-user') || document.querySelector('#option-pay-day')) {
+                //targetNode = document.querySelector("#faction-controls");
+                if (!targetNode) {
+                    debug('[installUI] targetNode not found, retrying...');
                     return setTimeout(function() {installUI(++retries)}, 500);
                 }
+
+                debug('[installUI] inserting search div after: ', targetNode);
+                $(targetNode).append(searchDiv);
+
+                debug('[installUI] new div: ', document.querySelector("#xedx-search"));
+
+                $("#search").on("keypress", handleSearchKeypress);
+                $("#search").on("keydown", handleSearchKeypress); // For backspace only
+            } else {
+                debug('[installUI] [tornFacPageSearch] missing selectors or hash, retrying (attempt #' + (retries+1));
+                return setTimeout(function() {installUI(++retries)}, 500);
+            }
+        }
+
+        function facSearchHashHandler() {
+            $("#xedx-search").remove();
+            if (location.hash.indexOf('give-to-user') > -1 ||
+                location.hash.indexOf('pay-day') > -1 ||
+                location.href.indexOf('tab=info') > -1 ||
+                location.href.indexOf('tab=controls') > -1) {
+                installUI(0)
+            }
+        }
+
+        // Handle key presses in the search area -
+        function handleSearchKeypress(e) {
+            // Sneaky way to make static 'class' vars, use the fn as a class.
+            if ( typeof handleSearchKeypress.lastElems == 'undefined' ) {
+                debug('[handleSearchKeypress] intializing lastElems!');
+                handleSearchKeypress.lastElems = [];
+                handleSearchKeypress.currSearch = '';
+                handleSearchKeypress.lastSearch = '';
             }
 
-            function facSearchHashHandler() {
-                $("#xedx-search").remove();
-                if (location.hash.indexOf('give-to-user') > -1 ||
-                    location.hash.indexOf('pay-day') > -1 ||
-                    location.href.indexOf('tab=info') > -1 ||
-                    location.href.indexOf('tab=controls') > -1) {
-                    installUI(0)
-                }
+            let memberList = location.href.indexOf('/tab=info') > -1;
+
+            debug('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
+            debug('[handleSearchKeypress] ==> ', e.key);
+            let target = e.target;
+
+            let searchNode = '';
+            if (memberList) {
+                searchNode = $(`[class^="searchWrap_"]`);
+            } else {
+                searchNode = document.querySelector("#faction-controls");
             }
 
-            // Handle key presses in the search area -
-            function handleSearchKeypress(e) {
-                // Sneaky way to make static 'class' vars, use the fn as a class.
-                if ( typeof handleSearchKeypress.lastElems == 'undefined' ) {
-                    debug('[handleSearchKeypress] intializing lastElems!');
-                    handleSearchKeypress.lastElems = [];
-                    handleSearchKeypress.currSearch = '';
-                    handleSearchKeypress.lastSearch = '';
-                }
+            // Special case, handled on keydown and backspace.
+            if (e.type == 'keydown') {
+                if (e.key == 'Backspace') {
+                    log('[handleSearchKeypress] Backspace: last: ', handleSearchKeypress.lastSearch, ' curr: ', handleSearchKeypress.currSearch);
+                    log('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
+                    handleSearchKeypress.lastElems.forEach(el => {
+                        log('[handleSearchKeypress] removing green');
+                        $(el).removeClass('xedx-green');
+                    });
 
-                let memberList = location.href.indexOf('/tab=info') > -1;
-
-                debug('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
-                debug('[handleSearchKeypress] ==> ', e.key);
-                let target = e.target;
-
-                let searchNode = '';
-                if (memberList) {
-                    searchNode = $(`[class^="searchWrap_"]`);
-                } else {
-                    searchNode = document.querySelector("#faction-controls");
-                }
-
-                // Special case, handled on keydown and backspace.
-                if (e.type == 'keydown') {
-                    if (e.key == 'Backspace') {
-                        log('[handleSearchKeypress] Backspace: last: ', handleSearchKeypress.lastSearch, ' curr: ', handleSearchKeypress.currSearch);
-                        log('[handleSearchKeypress] [lastElems]: ', handleSearchKeypress.lastElems);
-                        handleSearchKeypress.lastElems.forEach(el => {
-                            log('[handleSearchKeypress] removing green');
-                            $(el).removeClass('xedx-green');
-                        });
-
-                        // Need diff query for some pages. Text content of class [searchText^
-                        // Under class searchWrap^, and case sensitive.
-                        searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]').forEach((el) => {
-                            $(el).removeClass('xedx-green');
-                            log('[handleSearchKeypress] removing green');
-                        });
-                        searchNode.querySelectorAll('[title^="' + handleSearchKeypress.lastSearch + '"]').forEach((el) => {
-                            if (!$(el).hasClass('xedx-green')) {
-                                $(el).addClass('xedx-green');
-                                log('[handleSearchKeypress] adding green');
-                            }
-                            handleSearchKeypress.lastElems.push(el);
-                        });
-                        let temp = handleSearchKeypress.lastSearch.slice(0, -1);
-                        handleSearchKeypress.currSearch = handleSearchKeypress.lastSearch;
-                        handleSearchKeypress.lastSearch = temp;
-                    }
-
-                    let count = $(".xedx-green").length;
-                    debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
-                    $("#xmatches").html(count ? "  (" + count + " matches)" : "");
-
-                    return;
-                }
-
-                handleSearchKeypress.lastSearch = $(target)[0].value;
-                handleSearchKeypress.currSearch = $(target)[0].value + e.key;
-
-                // Remove previous highlights
-                handleSearchKeypress.lastElems.forEach(el => {
-                    debug('[handleSearchKeypress] removing green');
-                    $(el).removeClass('xedx-green');
-                });
-                handleSearchKeypress.lastElems.length = 0;
-
-                // Add new ones (this is the search!)
-                debug('[handleSearchKeypress] matching: ', handleSearchKeypress.currSearch);
-                let list = memberList ?
-                    searchNode.filter(":contains(" + handleSearchKeypress.currSearch + ")") :
-                    searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]');
-
-                // TBD: Scroll to first match! This does not seem to work at all,
-                // or in some cases removes what scrolls out...
-                if (false && list[0]) {
-                    debug('[handleSearchKeypress] scroll to: ', list[0]);
-                    list[0].scrollIntoView();
-                }
-
-                Array.from(list).forEach((el) => {
-                    if (!$(el).hasClass('xedx-green')) {
+                    // Need diff query for some pages. Text content of class [searchText^
+                    // Under class searchWrap^, and case sensitive.
+                    searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]').forEach((el) => {
+                        $(el).removeClass('xedx-green');
+                        log('[handleSearchKeypress] removing green');
+                    });
+                    searchNode.querySelectorAll('[title^="' + handleSearchKeypress.lastSearch + '"]').forEach((el) => {
+                        if (!$(el).hasClass('xedx-green')) {
                             $(el).addClass('xedx-green');
                             log('[handleSearchKeypress] adding green');
                         }
-                    handleSearchKeypress.lastElems.push(el);
-                });
+                        handleSearchKeypress.lastElems.push(el);
+                    });
+                    let temp = handleSearchKeypress.lastSearch.slice(0, -1);
+                    handleSearchKeypress.currSearch = handleSearchKeypress.lastSearch;
+                    handleSearchKeypress.lastSearch = temp;
+                }
 
                 let count = $(".xedx-green").length;
                 debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
                 $("#xmatches").html(count ? "  (" + count + " matches)" : "");
+
+                return;
             }
 
-            function getFacSearchDiv() {
-                return `<div id="xedx-search">
-                    <hr class="delimiter-999 m-top10">
-                    <div>
-                        <label for="search">Search:</label>
-                        <input type="text" id="search" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
-                        <span class="powered-by">Powered by XedX</span>
-                        <span id="xmatches"></span>
-                    </div>
-                </div>`;
+            handleSearchKeypress.lastSearch = $(target)[0].value;
+            handleSearchKeypress.currSearch = $(target)[0].value + e.key;
+
+            // Remove previous highlights
+            handleSearchKeypress.lastElems.forEach(el => {
+                debug('[handleSearchKeypress] removing green');
+                $(el).removeClass('xedx-green');
+            });
+            handleSearchKeypress.lastElems.length = 0;
+
+            // Add new ones (this is the search!)
+            debug('[handleSearchKeypress] matching: ', handleSearchKeypress.currSearch);
+            let list = memberList ?
+                searchNode.filter(":contains(" + handleSearchKeypress.currSearch + ")") :
+                searchNode.querySelectorAll('[title^="' + handleSearchKeypress.currSearch + '"]');
+
+            // TBD: Scroll to first match! This does not seem to work at all,
+            // or in some cases removes what scrolls out...
+            if (false && list[0]) {
+                debug('[handleSearchKeypress] scroll to: ', list[0]);
+                list[0].scrollIntoView();
             }
+
+            Array.from(list).forEach((el) => {
+                if (!$(el).hasClass('xedx-green')) {
+                        $(el).addClass('xedx-green');
+                        log('[handleSearchKeypress] adding green');
+                    }
+                handleSearchKeypress.lastElems.push(el);
+            });
+
+            let count = $(".xedx-green").length;
+            debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
+            $("#xmatches").html(count ? "  (" + count + " matches)" : "");
+        }
+
+        function getFacSearchDiv() {
+            return `<div id="xedx-search">
+                <hr class="delimiter-999 m-top10">
+                <div>
+                    <label for="search">Search:</label>
+                    <input type="text" id="search" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
+                    <span class="powered-by">Powered by XedX</span>
+                    <span id="xmatches"></span>
+                </div>
+            </div>`;
         }
 
     } // End function tornFacPageSearch() {
@@ -4983,21 +4878,16 @@
 
     // TBD !!!
     function tornJailScores() {
+         log('[tornJailScores]');
 
-        return _tornJailScores();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornJailScores] not at home!');
+            if (!isJailPage()) return reject('tornJailScores wrong page!');
 
-        function _tornJailScores() {
-             log('[tornJailScores]');
+            reject('[tornJailScores] not yet implemented!');
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornJailScores] not at home!');
-                if (!isJailPage()) return reject('tornJailScores wrong page!');
-
-                reject('[tornJailScores] not yet implemented!');
-
-                //resolve("[tornJailScores] complete!");
-            });
-        }
+            //resolve("[tornJailScores] complete!");
+        });
     } // End function tornJailScores() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -5005,62 +4895,57 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornDisableRefills() {
+        log('[tornDisableRefills]');
 
-        return _tornDisableRefills();
+        const safetyNet = '<input class="xedx-ctrls" type="checkbox" id="refill_confirm" name="refill_confirm" value="refill_confirm" checked>' +
+                        '<label for="refill_confirm">  Safety Net! Note that clicking the title bar will bypass the safety net.</label>';
 
-        function _tornDisableRefills() {
-            log('[tornDisableRefills]');
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornDisableRefills] not at home!');
+            if (!isPointsPage()) return reject('tornDisableRefills wrong page!');
 
-            const safetyNet = '<input class="xedx-ctrls" type="checkbox" id="refill_confirm" name="refill_confirm" value="refill_confirm" checked>' +
-                            '<label for="refill_confirm">  Safety Net! Note that clicking the title bar will bypass the safety net.</label>';
+            logApiCall('user: bars');
+            xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornDisableRefills] not at home!');
-                if (!isPointsPage()) return reject('tornDisableRefills wrong page!');
+            resolve("[tornDisableRefills] startup complete!");
+        });
 
-                logApiCall('user: bars');
-                xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
+        function onCheckboxClicked() {
+            let ckBox = document.querySelector("#refill_confirm");
+            tornDisableRefills.safetyOn = ckBox.checked;
+            GM_setValue('refills_checkbox', ckBox.checked);
+        }
 
-                resolve("[tornDisableRefills] startup complete!");
-            });
-
-            function onCheckboxClicked() {
-                let ckBox = document.querySelector("#refill_confirm");
-                tornDisableRefills.safetyOn = ckBox.checked;
-                GM_setValue('refills_checkbox', ckBox.checked);
+        function onRefillClick(e) {
+            let target = e.target;
+            var parent = e.target.parentElement;
+            if (!tornDisableRefills.safetyOn) return;
+            if (target.classList[1] == undefined) {
+                if ((parent.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                if ((parent.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+            } else {
+                if ((target.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                if ((target.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
             }
+        }
 
-            function onRefillClick(e) {
-                let target = e.target;
-                var parent = e.target.parentElement;
-                if (!tornDisableRefills.safetyOn) return;
-                if (target.classList[1] == undefined) {
-                    if ((parent.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
-                    if ((parent.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
-                } else {
-                    if ((target.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
-                    if ((target.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
-                }
+        function refillsUserQueryCB(responseText, id, param) {
+            if (typeof tornDisableRefills.jsonResp == 'undefined' ) {
+                tornDisableRefills.jsonResp = null;
+                tornDisableRefills.safetyOn = false;
             }
+            tornDisableRefills.jsonResp = JSON.parse(responseText);
+            if (tornDisableRefills.jsonResp.error) {return handleApiError(responseText);}
 
-            function refillsUserQueryCB(responseText, id, param) {
-                if (typeof tornDisableRefills.jsonResp == 'undefined' ) {
-                    tornDisableRefills.jsonResp = null;
-                    tornDisableRefills.safetyOn = false;
-                }
-                tornDisableRefills.jsonResp = JSON.parse(responseText);
-                if (tornDisableRefills.jsonResp.error) {return handleApiError(responseText);}
+            let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content-title");
+            if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
+            $(titleBar).append(safetyNet);
 
-                let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content-title");
-                if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
-                $(titleBar).append(safetyNet);
+            let ckBox = document.querySelector("#refill_confirm");
+            ckBox.addEventListener("click", onCheckboxClicked);
+            ckBox.checked = tornDisableRefills.safetyOn = GM_getValue('refills_checkbox', true);
 
-                let ckBox = document.querySelector("#refill_confirm");
-                ckBox.addEventListener("click", onCheckboxClicked);
-                ckBox.checked = tornDisableRefills.safetyOn = GM_getValue('refills_checkbox', true);
-
-                document.querySelector("#mainContainer > div.content-wrapper > ul").addEventListener('click', onRefillClick, {capture: true}, true);
-            }
+            document.querySelector("#mainContainer > div.content-wrapper > ul").addEventListener('click', onRefillClick, {capture: true}, true);
         }
     } // End function tornDisableRefills() {
 
@@ -5068,1126 +4953,1059 @@
 
     //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn User List Extender" (called on page complete)
+    // Doesn't work if Honor Bars are disabled!
     //////////////////////////////////////////////////////////////////////////////////
 
     // TBD: Add clear/refresh cache option !!!! Also, doesn't work with honor bars off
     function tornUserList() {
+        log('[tornUserList]');
 
-        return _tornUserList();
+        //debugLoggingEnabled = true; // TEMPORARY
 
-        function _tornUserList() {
-            log('[tornUserList]');
+        let opts = {};
+        getSavedOptions();
+        let stats = {
+            cache_hits: 0,
+            cache_misses: 0
+        };
 
-            //debugLoggingEnabled = true; // TEMPORARY
+        debug('[userListExtender] options: ', opts);
 
-            let opts = {};
-            getSavedOptions(); // Could assign & declare in one shot here...
+        let   reqDelay = 10; //seconds to delay on error code 5 (too many req's)
+        let   mainTargetNode = null;
+        const mainConfig = { attributes: false, childList: true, subtree: true };
+        const mainObserver = new MutationObserver(function() {updateUserLevels('mainObserver')});
+        let observing = false;
+        function xedx_main_div() {
+            const _xedx_main_div =
+              '<div class="t-blue-cont h" id="xedx-main-div">' +
 
-            let stats = {
-                cache_hits: 0,
-                cache_misses: 0
-            };
+                  // Header and title.
+                  '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
+                      "<span>Advanced Search by XedX</span>" +
 
-            debug('[userListExtender] options: ', opts);
-
-            let   reqDelay = 10; //seconds to delay on error code 5 (too many req's)
-            let   mainTargetNode = null;
-            const mainConfig = { attributes: false, childList: true, subtree: true };
-            const mainObserver = new MutationObserver(function() {updateUserLevels('mainObserver')});
-            let observing = false;
-
-            // Grr - with Honor Bars OFF, something odd happens - all my Torn API requests return same info.
-            // So, experiment: impose an x second delay.
-            let useQueryQueue = false;
-            let queryQueue = [];
-            function queryQueueChecker() {
-                let query = queryQueue.pop();
-                if (query) {
-                    xedx_TornUserQuery(query.ID, query.Query, query.CB, query.param);
-                }
-            }
-            if (useQueryQueue) setInterval(queryQueueChecker, 500);
-
-            function xedx_main_div() {
-                const _xedx_main_div =
-                  '<div class="t-blue-cont h" id="xedx-main-div">' +
-
-                      // Header and title.
-                      '<div id="xedx-header-div" class="title main-title title-black top-round active" role="table" aria-level="5">' +
-                          "<span>Advanced Search by XedX</span>" +
-
-                          // This displays the active/inactive status - active when data array is populated.
-                          '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px; color: green;">' +
-                              '<span>Active</span>' +
-                          '</div>' +
-
-                          // This displays the [hide] | [show] link
-                          '<div class="right" style="margin-right: 10px">' +
-                              '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
-                          '</div>' +
+                      // This displays the active/inactive status - active when data array is populated.
+                      '<div id="xedx-active-light" style="float: left; margin-right: 10px; margin-left: 10px; color: green;">' +
+                          '<span>Active</span>' +
                       '</div>' +
 
-                  // This is the content that we want to hide when '[hide] | [show]' is clicked.
-                  // '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: hide";>' +
-                  '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
-                      '<br>' +
-                      '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
-                      '<table style="margin-top: 10px; width: 550px; display: flex;"><tbody>' + // 500
-                          '<tr>' + // Row 1 // <tr style="display: flex;">
-                              '<td class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
-                                  '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
-                              '</div></td>' +
-                              '<td class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-hidefallen-opt" name="hidefallen">' +
-                                  '<label for="hidefallen"><span style="margin-left: 15px;">Hide Fallen</span></label>' +
-                              '</div></td>' +
-                              '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
-                              //'<td class="xtdx" id="viewcache"><div>' +
-                                  '<button id="xedx-viewcache-btn" class = "button">View Cache</button>' +
-                              '</div></td>' +
-                              '<td class="xtdx" id="clearcache" style="display: inline-block;"><div>' +
-                                  '<button id="xedx-clearcache-btn" class = "button">Clear Cache</button>' +
-                              '</div></td>' +
-                          '</tr>' +
-                          '<tr>' + // Row 2
-                              '<td class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded"">' +
-                                  '<label for="hidefedded"><span style="margin-left: 15px">Hide Fedded</span></label>' +
-                              '</div></td>' +
-                              '<td class="xtdx""><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
-                                  '<label for="disabled"><span style="margin-left: 15px;">Disable Script</span></label>' +
-                              '</div></td>' +
-                              '<td class="xtdx" id="viewcache" style="display: inline-block;  colspan: 2;"><div>' +
-                                  '<button id="xedx-refreshcache-btn" class = "button">Refresh</button>' +
-                              '</div></td>' +
-                          '</tr>' +
-                          '<tr>' + // Row 3
-                              '<td  class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
-                                  '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
-                              '</div></td>' +
-                              '<td  class="xtdx" id="showcaymans" style="display: hide; colspan: 3;"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
-                                  '<label for="showcaymans"><span style="margin-left: 15px">Caymans Only</span></label>' +
-                              '</div></td>' +
-                          '</tr>' +
-                          '<tr>' + // Row 4
-                              '<td class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
-                                  '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
-                              '</div></td>' +
-                              '<td class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-showctry-opt" name="showctry" style="margin-bottom: 10px;">' +
-                                  '<label for="showctry"><span style="margin-left: 15px">Show Country</span></label>' +
-                              '</div></td>' +
-                              '<td style="colspan: 2;" class="xtdx"><div>' +
-                                  '<input type="checkbox" class="xcbx" id="xedx-ctryabroad-opt" name="ctryabroad" style="margin-bottom: 10px;">' +
-                                  '<label for="ctryabroad"><span style="margin-left: 15px">Only if abroad</span></label>' +
-                              '</div></td>' +
-                              //'<td style="colspan: 3;" class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
-                              //    '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
-                              //    '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
-                              //'</div></td>' +
-                          '</tr>' +
-                      '</tbody></table>' +
-                      '<div id="xedx-stats" style="float: right; margin-top: 10px;">' +
-                          '<span id="xedx-info-text" style="color: red; margin-right: 20px; margin-left: 20px;">' +
-                          //'<span id="xedx-info-text" class="powered-by" style="margin-right: 20px; margin-left: 20px;">' +
-                          //GM_info.script.name +
-                          '</span>' +
+                      // This displays the [hide] | [show] link
+                      '<div class="right" style="margin-right: 10px">' +
+                          '<a role="button" id="xedx-show-hide-btn" class="t-blue show-hide">[hide]</a>' +
                       '</div>' +
-                      '<br>' +
-                  '</div>'; // End _xedx_main_div
+                  '</div>' +
 
-                return _xedx_main_div;
+              // This is the content that we want to hide when '[hide] | [show]' is clicked.
+              // '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto display: hide";>' +
+              '<div id="xedx-content-div" class="cont-gray bottom-round" style="height: auto; overflow: auto; display: flex";>' +
+                  '<br>' +
+                  '<span style="text-align: left; margin-left: 10px; margin-top: 10px;">Options:</span>' +
+                  '<table style="margin-top: 10px; width: 550px; display: flex;"><tbody>' + // 500
+                      '<tr>' + // Row 1 // <tr style="display: flex;">
+                          '<td class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-devmode-opt" name="devmode">' +
+                              '<label for="devmode"><span style="margin-left: 15px;">Development Mode</span></label>' +
+                          '</div></td>' +
+                          '<td class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidefallen-opt" name="hidefallen">' +
+                              '<label for="hidefallen"><span style="margin-left: 15px;">Hide Fallen</span></label>' +
+                          '</div></td>' +
+                          '<td class="xtdx" id="viewcache" style="display: inline-block;"><div>' +
+                          //'<td class="xtdx" id="viewcache"><div>' +
+                              '<button id="xedx-viewcache-btn" class = "button">View Cache</button>' +
+                          '</div></td>' +
+                          '<td class="xtdx" id="clearcache" style="display: inline-block;"><div>' +
+                              '<button id="xedx-clearcache-btn" class = "button">Clear Cache</button>' +
+                          '</div></td>' +
+                      '</tr>' +
+                      '<tr>' + // Row 2
+                          '<td class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded"">' +
+                              '<label for="hidefedded"><span style="margin-left: 15px">Hide Fedded</span></label>' +
+                          '</div></td>' +
+                          '<td class="xtdx""><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-disabled-opt" name="disabled">' +
+                              '<label for="disabled"><span style="margin-left: 15px;">Disable Script</span></label>' +
+                          '</div></td>' +
+                          '<td class="xtdx" id="viewcache" style="display: inline-block;  colspan: 2;"><div>' +
+                              '<button id="xedx-refreshcache-btn" class = "button">Refresh</button>' +
+                          '</div></td>' +
+                      '</tr>' +
+                      '<tr>' + // Row 3
+                          '<td  class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
+                              '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
+                          '</div></td>' +
+                          '<td  class="xtdx" id="showcaymans" style="display: hide; colspan: 3;"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
+                              '<label for="showcaymans"><span style="margin-left: 15px">Caymans Only</span></label>' +
+                          '</div></td>' +
+                      '</tr>' +
+                      '<tr>' + // Row 4
+                          '<td class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidehosp-opt" name="hidehosp" style="margin-bottom: 10px;">' +
+                              '<label for="hidehosp"><span style="margin-left: 15px">Hide Hospitalized</span></label>' +
+                          '</div></td>' +
+                          '<td class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-showctry-opt" name="showctry" style="margin-bottom: 10px;">' +
+                              '<label for="showctry"><span style="margin-left: 15px">Show Country</span></label>' +
+                          '</div></td>' +
+                          '<td style="colspan: 2;" class="xtdx"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-ctryabroad-opt" name="ctryabroad" style="margin-bottom: 10px;">' +
+                              '<label for="ctryabroad"><span style="margin-left: 15px">Only if abroad</span></label>' +
+                          '</div></td>' +
+                          //'<td style="colspan: 3;" class="xtdx" id="loggingEnabled" style="display: block;"><div>' +
+                          //    '<input type="checkbox" class="xcbx" id="xedx-loggingEnabled-opt" name="loggingEnabled"">' +
+                          //    '<label for="loggingEnabled"><span style="margin-left: 15px;">Debug Logging Enabled</span></label>' +
+                          //'</div></td>' +
+                      '</tr>' +
+                  '</tbody></table>' +
+                  '<div id="xedx-stats" style="float: right; margin-top: 10px;">' +
+                      '<span id="xedx-info-text" style="color: red; margin-right: 20px; margin-left: 20px;">' +
+                      //'<span id="xedx-info-text" class="powered-by" style="margin-right: 20px; margin-left: 20px;">' +
+                      //GM_info.script.name +
+                      '</span>' +
+                  '</div>' +
+                  '<br>' +
+              '</div>'; // End _xedx_main_div
+
+            return _xedx_main_div;
+        }
+        let rank_cache = {};
+        let ttInstalled = false;
+
+        return new Promise((resolve, reject) => {
+            rank_cache = readCacheFromStorage();
+
+            // Check for expired cache entries at intervals, half max cache age.
+            setInterval(function() {
+                debug('[userListExtender] **** Performing interval driven cache clearing ****');
+                clearStorageCache();}, (0.5*opts.cacheMaxMs));
+
+            mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
+            addDarkModeObserver(); // I've forgotten why I do this.
+            buildUI();
+            observerON();
+
+            if (document.readyState === 'complete') {
+                updateUserLevels('document.readyState');
             }
 
-            // Global cache of ID->Rank associations, backed to storage. ID in object is moot, will remove later.
-            // rank_cache{ID: {ID: , numeric_rank:, name: , lifeCurr: , lifeMax: , state: , description: , access: , fromCache:}, ...};
-            //
-            let rank_cache = {};
+            resolve("[tornUserList] startup complete!");
+        })
 
-            function newCacheItem(ID, obj) {
-                debug('[userListExtender] newcacheItem, from: ', obj);
-                let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
-                let lifeMax = obj.life.maximum;  // ...
-                let rank = numericRankFromFullRank(obj.rank);
-                return {ID: ID, numeric_rank: rank, name: obj.name, lifeCurr: lifeCurr, lifeMax: lifeMax,
-                        state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true};
+        function newCacheItem(ID, obj) {
+            debug('[userListExtender] newcacheItem, from: ', obj);
+            let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
+            let lifeMax = obj.life.maximum;  // ...
+            let rank = numericRankFromFullRank(obj.rank);
+            return {ID: ID, numeric_rank: rank, name: obj.name, lifeCurr: lifeCurr, lifeMax: lifeMax,
+                    state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true};
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Query profile information based on ID
+        //////////////////////////////////////////////////////////////////////
+
+        // Query profile information based on ID. Skip those we'd like to filter out.
+        // We don't display if the class contains 'filter-hidden', added by TornTools,
+        // or 'xedx_hidden', added here.
+        async function getRankFromId(ID, li) {
+            debug('[userListExtender] getRankFromId: ID ' + ID + ' classList: ' + li.classList);
+
+            if (opts.opt_disabled) {
+                debug('[userListExtender] Script disabled - ignoring.');
+                return true;
             }
 
-            // TRUE if TornTools filtering is in play
-            let ttInstalled = false;
+            if (li.classList.contains('filter-hidden') || li.classList.contains('xedx_hidden')) {
+                log('[userListExtender] Skipping ' + ID + ': hidden.');
+                return true;
+            }
 
-            //////////////////////////////////////////////////////////////////////
-            // Query profile information based on ID
-            //////////////////////////////////////////////////////////////////////
+            if (isRanked(li)) { // Don't do again!
+                debug('[userListExtender] ***** getRankFromId: rank already present! *****');
+                debug('[userListExtender] ***** Should not be here!!! *****');
+                return true;
+            }
 
-            // Query profile information based on ID. Skip those we'd like to filter out.
-            // We don't display if the class contains 'filter-hidden', added by TornTools,
-            // or 'xedx_hidden', added here.
-            async function getRankFromId(ID, li) {
-                debug('[userListExtender] getRankFromId: ID ' + ID + ' classList: ' + li.classList);
-
-                if (opts.opt_disabled) {
-                    debug('[userListExtender] Script disabled - ignoring.');
-                    return true;
+            if (opts.opt_paused) {
+                debug('[userListExtender] Script paused - requeuing. (' + $("#xedx-info-text")[0].innerText + ')');
+                if (!$("#xedx-info-text")[0].innerText) {
+                    $("#xedx-info-text")[0].innerText = 'Requests paused, please wait.';
                 }
-
-                if (li.classList.contains('filter-hidden') || li.classList.contains('xedx_hidden')) {
-                    log('[userListExtender] Skipping ' + ID + ': hidden.');
-                    return true;
-                }
-
-                if (isRanked(li)) { // Don't do again!
-                    debug('[userListExtender] ***** getRankFromId: rank already present! *****');
-                    debug('[userListExtender] ***** Should not be here!!! *****');
-                    return true;
-                }
-
-                if (opts.opt_paused) {
-                    debug('[userListExtender] Script paused - requeuing. (' + $("#xedx-info-text")[0].innerText + ')');
-                    if (!$("#xedx-info-text")[0].innerText) {
-                        $("#xedx-info-text")[0].innerText = 'Requests paused, please wait.';
-                    }
-                    setTimeout(function(){
-                        logApiCall('user: profile');
-                        xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
-                    return true;
-                }
-
-                debug("[userListExtender] TornAPI Querying Torn for rank, ID = " + ID);
-
-                // Experiment:
-                if (useQueryQueue) {
-                    queryQueue.push({ID: ID, Query: 'profile', CB: updateUserLevelsCB, param: li});
-                } else {
+                setTimeout(function(){
                     logApiCall('user: profile');
-                    xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
-
-                    /*
-                    debug('[userListExtender] TornAPI call doQuery sync');
-                    let respText = await doQuery(ID, li);
-                    debug('[userListExtender] TornAPI call doQuery done');
-                    updateUserLevelsCB(respText, ID, li)
-                    */
-                }
+                    xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);}, reqDelay * 1000);
+                return true;
             }
 
-            /*
-            function doQuery(ID, li) {
-                return new Promise((resolve, reject) => {
-                    let url = "https://api.torn.com/user/" + ID + "?selections=profile&key=" + api_key;
-                    debug('[userListExtender] [doQuery] TornAPI ID: ' + ID);
-                    GM_xmlhttpRequest({
-                        method:"POST",
-                        url:url,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Accept': 'application/json'
-                        },
-                        onload: function(res) {
-                            let jsonResp = JSON.parse(res.responseText);
-                            debug('[userListExtender] [doQuery] TornAPI jsonResp: ', jsonResp);
-                            //updateUserLevelsCB(res.responseText, ID, li);
-                            resolve(res.responseText);
-                        },
-                        onerror: function(res) {
-                            //handleSysError(res);
-                            reject(res);
-                        }
-                    });
-                });
-            }
-            */
+            debug("[userListExtender] TornAPI Querying Torn for rank, ID = " + ID);
+            logApiCall('user: profile');
+            xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+        }
 
-            //////////////////////////////////////////////////////////////////////
-            // This callback create the cache used to store ID-rank associations
-            // and updates the UI.
-            //////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////
+        // This callback create the cache used to store ID-rank associations
+        // and updates the UI.
+        //////////////////////////////////////////////////////////////////////
 
-            function updateUserLevelsCB(rt, ID, li) {
-                debug('[userListExtender] TornAPI updateUserLevelsCB ID: ', ID);
-                let jsonResp = JSON.parse(rt);
-                if (jsonResp.error) {
-                    debug('[userListExtender] updateUserLevelsCB: error:', localjsonResp.error);
-                    if (localjsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
-                        if (isRanked(li)) { // Don't do again!
-                            log('[userListExtender] ***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
-                            return;
-                        }
-                        let name = fullNameFromLi(li);
-                        let msg = "Delaying request for " + reqDelay + " seconds.";
-                        debug('[userListExtender] updateUserLevelsCB requeuing ' + name);
-                        setTimeout(function(){
-                            $("#xedx-info-text")[0].innerText = "Restarting requests.";
-                            opts.opt_paused = false;
-                            logApiCall('user: profile');
-                            xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
-                            debug('[userListExtender] Restarting requests.');
-                        },
-                        reqDelay * 1000);  // Turn back on in <delay> secs.
-
-                        $("#xedx-info-text")[0].innerText = "Error: " + localjsonResp.error.error + "\n" + msg;
-                        debug('[userListExtender] ', msg);
-                        opts.opt_paused = true;
+        function updateUserLevelsCB(rt, ID, li) {
+            debug('[userListExtender] TornAPI updateUserLevelsCB ID: ', ID);
+            let jsonResp = JSON.parse(rt);
+            if (jsonResp.error) {
+                debug('[userListExtender] updateUserLevelsCB: error:', localjsonResp.error);
+                if (localjsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                    if (isRanked(li)) { // Don't do again!
+                        log('[userListExtender] ***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
                         return;
                     }
-                    return handleError(responseText);
-                }
-                debug('[userListExtender] TornAPI updateUserLevelsCB jsonResp (' + ID + '): ', jsonResp);
-                //debug('[userListExtender] TornAPI updateUserLevelsCB li: ', li);
-
-                let liName = fullNameFromLi(li);
-                let objName = jsonResp.name;
-                if (liName && objName) {
-                    liName = liName.split(' ')[0];
-                    if (liName.trim().toLowerCase() != objName.trim().toLowerCase()) {
-                        log('[userListExtender] TornAPI ERROR: returned profile info does not match!');
-                        log('[userListExtender] TornAPI (error) liName: ', liName, ' objName: ', objName);
-                        return;
-                    }
-                }
-
-                $("#xedx-info-text")[0].innerText = 'Queried ID ' + ID;
-                setTimeout(function(){$("#xedx-info-text")[0].innerText = opts.opt_paused ? 'Requests paused, please wait.' : '';}, 5000);
-
-                let lifeCurr = jsonResp.life.current; // Can't use these (?), will be invalid if cached.
-                let lifeMax = jsonResp.life.maximum;  // ...
-
-                let numeric_rank = numericRankFromFullRank(jsonResp.rank);
-                let cache_item = newCacheItem(ID, jsonResp);
-                debug("[userListExtender] TornAPI updateUserLevelsCB Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
-                rank_cache[ID] = cache_item;
-                debug('[userListExtender] TornAPI updateUserLevelsCB Caching ID ' + ID + ' to storage.');
-                debug('[userListExtender] TornAPI updateUserLevelsCB obj: ', cache_item);
-                writeCacheToStorage();
-
-                let state = observerOFF();
-                updateLiWithRank(li, cache_item);
-                if (state) observerON();
-            }
-
-            //////////////////////////////////////////////////////////////////////
-            // Find a rank from our cache, based on ID
-            //////////////////////////////////////////////////////////////////////
-
-            function setCacheAccess() {
-                let now = new Date().getTime();
-                rank_cache.lastAccessed = now;
-            }
-
-            function writeCacheToStorage() {
-                debug('[userListExtender] writeCacheToStorage: len ', Object.keys(rank_cache).length);
-                try {
-                    setCacheAccess();
-                    GM_setValue('userListExtender.rank_cache', JSON.stringify(rank_cache));
-                } catch(e) {
-                    log('[userListExtender] ERROR: ', e);
-                }
-            }
-
-            function readCacheFromStorage() {
-                try {
-                     rank_cache = JSON.parse(GM_getValue('userListExtender.rank_cache', JSON.stringify(rank_cache)));
-                     return rank_cache;
-                } catch(e) {
-                    log('[userListExtender] ERROR: ', e);
-                }
-            }
-
-            function getCachedRankFromId(ID, li) {
-                try {
                     let name = fullNameFromLi(li);
-                    debug('[userListExtender] Looking for ' + name + ' [' + ID + '] in cache...');
+                    let msg = "Delaying request for " + reqDelay + " seconds.";
+                    debug('[userListExtender] updateUserLevelsCB requeuing ' + name);
+                    setTimeout(function(){
+                        $("#xedx-info-text")[0].innerText = "Restarting requests.";
+                        opts.opt_paused = false;
+                        logApiCall('user: profile');
+                        xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+                        debug('[userListExtender] Restarting requests.');
+                    },
+                    reqDelay * 1000);  // Turn back on in <delay> secs.
 
-                    let isHosped = isInHosp(li);
-                    let inFed = isFedded(li);
-                    let travelling = isTravelling(li);
-                    if (isHosped || inFed || travelling) {
-                        debug('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
-                    }
+                    $("#xedx-info-text")[0].innerText = "Error: " + localjsonResp.error.error + "\n" + msg;
+                    debug('[userListExtender] ', msg);
+                    opts.opt_paused = true;
+                    return;
+                }
+                return handleError(responseText);
+            }
+            debug('[userListExtender] TornAPI updateUserLevelsCB jsonResp (' + ID + '): ', jsonResp);
+            //debug('[userListExtender] TornAPI updateUserLevelsCB li: ', li);
 
-                    let cache_obj = rank_cache[ID];
-                    debug('[userListExtender] cache_obj for ID ', ID, ': ', cache_obj);
-                    if (cache_obj) {
-                        debug("[userListExtender] Returning cached rank: " + ID + "(" +  cache_obj.name + ") ==> " +  cache_obj.numeric_rank);
+            let liName = fullNameFromLi(li);
+            let objName = jsonResp.name;
+            if (liName && objName) {
+                liName = liName.split(' ')[0];
+                if (liName.trim().toLowerCase() != objName.trim().toLowerCase()) {
+                    log('[userListExtender] TornAPI ERROR: returned profile info does not match!');
+                    log('[userListExtender] TornAPI (error) liName: ', liName, ' objName: ', objName);
+                    return;
+                }
+            }
 
-                        let state = observerOFF();
-                        updateLiWithRank(li, cache_obj);
-                        if (state) observerON();
+            $("#xedx-info-text")[0].innerText = 'Queried ID ' + ID;
+            setTimeout(function(){$("#xedx-info-text")[0].innerText = opts.opt_paused ? 'Requests paused, please wait.' : '';}, 5000);
 
-                        let now = new Date().getTime();
-                        let accessed = cache_obj.access;
-                        let age = now - accessed;
-                        debug("[userListExtender] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+            let lifeCurr = jsonResp.life.current; // Can't use these (?), will be invalid if cached.
+            let lifeMax = jsonResp.life.maximum;  // ...
 
-                        if ((now - accessed) > opts.cacheMaxMs) {
-                            log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
-                            //GM_deleteValue(ID);
-                            let rank = cache_obj.numeric_rank;
-                            delete rank_cache[ID];
-                            writeCacheToStorage();
-                            stats.cache_hits++;
-                            return rank;
-                        }
+            let numeric_rank = numericRankFromFullRank(jsonResp.rank);
+            let cache_item = newCacheItem(ID, jsonResp);
+            debug("[userListExtender] TornAPI updateUserLevelsCB Caching rank: " + ID + " (" + cache_item.name + ") ==> " + cache_item.numeric_rank);
+            rank_cache[ID] = cache_item;
+            debug('[userListExtender] TornAPI updateUserLevelsCB Caching ID ' + ID + ' to storage.');
+            debug('[userListExtender] TornAPI updateUserLevelsCB obj: ', cache_item);
+            writeCacheToStorage();
 
-                        cache_obj.access = now;
+            let state = observerOFF();
+            updateLiWithRank(li, cache_item);
+            if (state) observerON();
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Find a rank from our cache, based on ID
+        //////////////////////////////////////////////////////////////////////
+
+        function setCacheAccess() {
+            let now = new Date().getTime();
+            rank_cache.lastAccessed = now;
+        }
+
+        function writeCacheToStorage() {
+            debug('[userListExtender] writeCacheToStorage: len ', Object.keys(rank_cache).length);
+            try {
+                setCacheAccess();
+                GM_setValue('userListExtender.rank_cache', JSON.stringify(rank_cache));
+            } catch(e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+        }
+
+        function readCacheFromStorage() {
+            try {
+                 rank_cache = JSON.parse(GM_getValue('userListExtender.rank_cache', JSON.stringify(rank_cache)));
+                 return rank_cache;
+            } catch(e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+        }
+
+        function getCachedRankFromId(ID, li) {
+            try {
+                let name = fullNameFromLi(li);
+                debug('[userListExtender] Looking for ' + name + ' [' + ID + '] in cache...');
+
+                let isHosped = isInHosp(li);
+                let inFed = isFedded(li);
+                let travelling = isTravelling(li);
+                if (isHosped || inFed || travelling) {
+                    debug('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + inFed + ' IsTravelling: ' + travelling);
+                }
+
+                let cache_obj = rank_cache[ID];
+                debug('[userListExtender] cache_obj for ID ', ID, ': ', cache_obj);
+                if (cache_obj) {
+                    debug("[userListExtender] Returning cached rank: " + ID + "(" +  cache_obj.name + ") ==> " +  cache_obj.numeric_rank);
+
+                    let state = observerOFF();
+                    updateLiWithRank(li, cache_obj);
+                    if (state) observerON();
+
+                    let now = new Date().getTime();
+                    let accessed = cache_obj.access;
+                    let age = now - accessed;
+                    debug("[userListExtender] age: " + (age/1000) + " max: " + (opts.cacheMaxMs/1000) + " secs)");
+
+                    if ((now - accessed) > opts.cacheMaxMs) {
+                        log('[userListExtender] Cache entry for ID ' + ID + ' expired, deleting.');
+                        //GM_deleteValue(ID);
+                        let rank = cache_obj.numeric_rank;
+                        delete rank_cache[ID];
                         writeCacheToStorage();
                         stats.cache_hits++;
-                        return cache_obj.numeric_rank;
+                        return rank;
                     }
 
-                    debug("[userListExtender] didn't find " + name + ' [' + ID + "] in cache.");
-                    stats.cache_misses++;
-                    return 0; // Not found!
-                } catch(e) {
-                    log('[userListExtender] ERROR: ', e);
-                }
-            }
-
-            // Write out some cache stats
-            function writeCacheStats() {
-                readCacheFromStorage();
-                let now = new Date().getTime();
-                let lastAccess = rank_cache.lastAccessed;
-                let arrayOfKeys = Object.keys(rank_cache);
-                log('[userListExtender] Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
-                    'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
-            }
-
-            // Clear entire cache
-            function clearCache() {
-                debug('[userListExtender] [clearCache]');
-                rank_cache = {};
-                writeCacheToStorage();
-                debug('[userListExtender] cache cleared, len = ', rank_cache.length);
-            }
-
-            // Function to scan our cache and clear old entries
-            function clearStorageCache() {
-                try {
-                    readCacheFromStorage();
-                    let counter = 0;
-                    let idArray = [];
-                    let now = new Date().getTime();
-                    //let arrayOfKeys = GM_listValues();
-                    let arrayOfKeys = Object.keys(rank_cache);
-                    //GM_setValue('LastCacheAccess', now);
-                    rank_cache.lastAccessed = now;
-                    debug("[userListExtender] Clearing cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
-                    for (let i = 0; i < arrayOfKeys.length; i++) {
-                        //let obj = GM_getValue(arrayOfKeys[i]);
-                        let obj = rank_cache[arrayOfKeys[i]];
-                        if (obj && obj.access && (now - obj.access) > opts.cacheMaxMs) {idArray.push(arrayOfKeys[i]);}
-                    }
-                    for (let i = 0; i < idArray.length; i++) {
-                        counter++;
-                        debug('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
-                        //GM_deleteValue(idArray[i]);
-                        delete rank_cache[idArray[i]];
-                    }
+                    cache_obj.access = now;
                     writeCacheToStorage();
-                    debug('[userListExtender] Finished clearing cache, removed ' + counter + ' object.');
-                } catch(e) {
-                    log('[userListExtender] ERROR: ', e);
+                    stats.cache_hits++;
+                    return cache_obj.numeric_rank;
                 }
+
+                debug("[userListExtender] didn't find " + name + ' [' + ID + "] in cache.");
+                stats.cache_misses++;
+                return 0; // Not found!
+            } catch(e) {
+                log('[userListExtender] ERROR: ', e);
             }
+        }
 
-            //////////////////////////////////////////////////////////////////////
-            // This actually updates the UI - it finds the rank associated
-            // with an ID from our cache and updates.
-            //////////////////////////////////////////////////////////////////////
+        // Write out some cache stats
+        function writeCacheStats() {
+            readCacheFromStorage();
+            let now = new Date().getTime();
+            let lastAccess = rank_cache.lastAccessed;
+            let arrayOfKeys = Object.keys(rank_cache);
+            log('[userListExtender] Cache stats:\nNow: ' + now + '\nLast Access: ' + lastAccess +
+                'Cache Age: ' + (now - lastAccess)/1000 + ' seconds.\nItem Count: ' + arrayOfKeys.length - 1);
+        }
 
-            // Write to the UI
-            function updateLiWithRank(li, cache_item) {
-                // Run through our filter
-                li.classList.remove('xedx_hidden');
+        // Clear entire cache
+        function clearCache() {
+            debug('[userListExtender] [clearCache]');
+            rank_cache = {};
+            writeCacheToStorage();
+            debug('[userListExtender] cache cleared, len = ', rank_cache.length);
+        }
 
-                if (opts.opt_disabled) return;
-
-                if (!cache_item) {
-                    debug('[userListExtender] Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item);
-                    return;
-                }
-
-                if (filterUser(li, cache_item)) {
-                    debug('[userListExtender] Filtered ' + cache_item.name);
-                    li.classList.add('xedx_hidden');
-                    return;
-                }
-
-                let jsonResp = cache_item.jsonResp;
-                let lifeCurr = cache_item.lifeCurr;
-                let lifeMax = cache_item.lifeMax;
-                let fullLife = (lifeCurr == lifeMax);
-                let numeric_rank = cache_item.numeric_rank;
-
-                if (isTravelling(li) && opts.opt_showctry) {
-                    if (cache_item.state == 'Abroad' || !opts.opt_ctryabroad) {
-                        let icon = li.querySelector("[id^='icon71___']");
-                        log('[userListExtender] found travel icon: ', icon);
-                        if (icon) {
-                            let country = getCountryFromStatus(cache_item.description);
-
-                            debug('[userListExtender] country is ' + country);
-                            let flag = $(getAbroadFlag(country));
-                            debug('[userListExtender] flag is ' + flag);
-                            debug('[userListExtender] replacing in li: ', li);
-
-                            if (country) $(icon).replaceWith($(getAbroadFlag(country)));
-                        }
-                    }
-                }
-
-                if (validPointer(li)) {
-                    let lvlNode = li.getElementsByClassName('level')[0];
-                    let text = lvlNode.innerText;
-                    if (text.indexOf("/") != -1) { // Don't do again!
-                        debug('[userListExtender] ***** Rank already present!! *****');
-                        return;
-                    }
-
-                    // Not filtered: add rank.
-                    if (!lifeMax || !lifeCurr) {
-                        lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
-                    } else {
-                        lvlNode.parentNode.setAttribute('style', 'width: 60%;');
-                        lvlNode.setAttribute('style', 'width: 25%; color: ' + (fullLife ? 'limegreen;' : 'red;'));
-                        lvlNode.nextElementSibling.setAttribute('style', 'width: 50%;');
-                        lvlNode.innerText = '[' + lifeCurr + '/' + lifeMax + '] ' + text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
-                    }
-                } else {
-                    debugger;
-                }
-            }
-
-            function getCountryFromStatus(desc) {
-                if (desc.indexOf("United Kingdom") > -1) return 'UK';
-                if (desc.indexOf("Mexico") > -1) return 'Mexico';
-                if (desc.indexOf("Argentina") > -1) return 'Argentina';
-                if (desc.indexOf("Canada") > -1) return 'Canada';
-                if (desc.indexOf("Cayman") > -1) return 'Caymans';
-                if (desc.indexOf("Switzerland") > -1) return 'Zurich';
-                if (desc.indexOf("Japan") > -1) return 'Japan';
-                if (desc.indexOf("China") > -1) return 'China';
-                if (desc.indexOf("UAE") > -1) return 'UAE'; // ???
-                if (desc.indexOf("Arab") > -1) return 'UAE'; // ???
-                if (desc.indexOf("South") > -1) return 'SA'; // ??
-                if (desc.indexOf("Africa") > -1) return 'SA'; // ??
-                if (desc.indexOf("Hawaii") > -1) return 'Hawaii';
-
-                return null;
-            }
-
-            // Images for country flags
-            function getAbroadFlag(country) {
-                if (country == 'UK') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
-                        country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
-                }
-                if (country == 'Mexico') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_mexico.svg"
-                        country="mexico" alt="Mexico" title="Mexico"></li>`;
-                }
-                if (country == 'Canada') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_canada.svg"
-                        country="canada" alt="Canada" title="Canada"></li>`;
-                }
-                if (country == 'Argentina') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_argentina.svg"
-                        country="argentina" alt="Argentina" title="Argentina"></li>`;
-                }
-                if (country == 'Hawaii') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_hawaii.svg"
-                        country="hawaii" alt="Hawaii" title="Hawaii"></li>`;
-                }
-                if (country == 'Caymans') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_cayman.svg"
-                        country="cayman_islands" alt="Cayman Islands" title="Cayman Islands"></li>`;
-                }
-                if (country == 'Zurich') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_switzerland.svg"
-                        country="switzerland" alt="Switzerland" title="Switzerland"></li>`;
-                }
-                if (country == 'Japan') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_japan.svg"
-                        country="japan" alt="Japan" title="Japan"></li>`;
-                }
-                if (country == 'China') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_china.svg"
-                        country="china" alt="China" title="China"></li>`;
-                }
-                if (country == 'UAE') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_uae.svg"
-                        country="uae" alt="UAE" title="UAE"></li>`;
-                }
-                if (country == 'SA') {
-                    return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_south_africa.svg"
-                        country="south_africa" alt="South Africa" title="South Africa"></li>`;
-                }
-            }
-
-            // Diagnostic aids, will be used elsewhere later
-            function isInHosp(li) {
-                return (li.querySelector("[id^='icon15___']")) ? true : false;
-            }
-            function isFedded(li) {
-                return (li.querySelector("[id^='icon70___']")) ? true : false;
-            }
-            function isFallen(li) {
-                return (li.querySelector("[id^='icon77___']")) ? true : false;
-            }
-            function isTravelling(li) {
-                return (li.querySelector("[id^='icon71___']")) ? true : false;
-            }
-
-            function isRanked(li) {
-                let lvlNode = li.getElementsByClassName('level')[0];
-                let lvlText = lvlNode.innerText;
-                if (lvlText.indexOf("/") != -1) { // Don't do again!
-                    debug('[userListExtender] ***** isRanked: rank already present! *****');
-                    return true;
-                }
-                return false;
-            }
-
-            // Pre-filter - just based on icons in the li
-            // If filtered, return TRUE
-            function preFilter(li) {
-                let ID = idFromLi(li);
-                let name = fullNameFromLi(li);
-
-                log("[userListExtender] Pre-filtering " + name + ' [' + ID + ']');
-
-                if (opts.opt_hidehosp && isInHosp(li)) {
-                    log('[userListExtender] ***** preFilter: in hospital! (' + name + + ' [' + ID + '])');
-                    return true;
-                }
-                if (opts.opt_hidefedded && isFedded(li)) {
-                    log('[userListExtender] ***** preFilter: fedded! (' + name + + ' [' + ID + '])');
-                    return true;
-                }
-                if (opts.opt_hidefallen && isFallen(li)) {
-                    log('[userListExtender] ***** preFilter: fallen! (' + name + + ' [' + ID + '])');
-                    return true;
-                }
-                if (opts.opt_hidetravel && isTravelling(li)) {
-                    log('[userListExtender] ***** preFilter: travelling! (' + name + + ' [' + ID + '])');
-                    return true;
-                }
-
-                return false;
-            }
-
-            // Filter to cull out those we're not interested in, based callback info (not icons). Return TRUE if filtered.
-            // Note: 'ci' ==> 'Cache Item' (object in rank_cache)
-            function filterUser(li, ci) {
-                try {
-                    debug('[userListExtender] Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
-                    if (opts.opt_showcaymans && ci.state != 'Traveling') {
-                        debug('[userListExtender] Filtered - Caymans only, but either not returning or not Caymans');
-                        debug('[userListExtender] State = ' + ci.state);
-                        return true;
-                    }
-
-                    let isHosped = isInHosp(li);
-                    let infed = isFedded(li);
-                    let fallen = isFallen(li);
-                    let travelling = isTravelling(li);
-                    if (isHosped || infed || travelling) {
-                        log('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + infed + ' IsTravelling: ' + travelling);
-                        log('[userListExtender] **** Shouldn`t be here? *****');
-                    }
-
-                    switch (ci.state) {
-                        case 'Hospital':
-                            if (opts.opt_hidehosp) {
-                                if (isHosped) log('**** Shouldn`t be here? *****');
-                                debug('[userListExtender] ***** Filtered - in hosp.');
-                                return true;
-                            }
-                            break;
-                        case 'Federal':
-                            if (opts.opt_hidefedded) {
-                                if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
-                                debug('[userListExtender] ***** Filtered - fedded.');
-                                return true;
-                            }
-                            break;
-                        case 'Fallen':
-                            if (opts.opt_hidefallen) {
-                                if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
-                                debug('[userListExtender] ***** Filtered - fallen.');
-                                return true;
-                            }
-                            break;
-                        case 'Abroad':
-                        case 'Traveling':
-                            if (opts.opt_hidetravel) {
-                                if (travelling) log('[userListExtender] **** Shouldn`t be here? *****');
-                                debug('[userListExtender] ***** Filtered - traveling.');
-                                return true;
-                            }
-                            if (opts.opt_showcaymans) {
-                                if (ci.description.indexOf('Cayman') != -1) {
-                                    if (ci.description.indexOf('Returning') != -1) {
-                                        debug('[userListExtender] ******Returning from Caymans! Not filtered!');
-                                        return false;
-                                    }
-                                }
-                                debug('[userListExtender] Filtered - caymans only, but either not returning or not Caymans');
-                                return true;
-                            }
-                            break;
-                        default:
-                            return false;
-                    }
-                    return false;
-                } catch(e) {
-                    log('[tornUserList] ERROR: ', e);
-                }
-            }
-
-            //////////////////////////////////////////////////////////////////////
-            // This prepares to update the UI by locating level, user ID
-            // and the index of the <li> in the <ul>.
-            //////////////////////////////////////////////////////////////////////
-
-            async function updateUserLevels(display) {
-                debug('[userListExtender] updateUserLevels called by: ' + display);
-
-                if (opts.opt_disabled) {
-                    debug('[userListExtender] Script disabled - not processing.');
-                    return;
-                }
-
-                // See if TornTools filtering is in play.
-                let ttPlayerFilter = document.querySelector("#tt-player-filter");
-                if (validPointer(ttPlayerFilter)) {
-                    debug('[userListExtender] TornTools filter detected!');
-                    ttInstalled = true;
-                    }
-
-                // Get the <UL>, list of all users.
-                let elemList = document.getElementsByClassName('user-info-list-wrap bottom-round cont-gray');
-                let items = elemList[0].getElementsByTagName("li");
-                if (items.length <= 1) {return;} // DOM not fully loaded, observer will recall us.
-
-                observerOFF();
-                for (var i = 0; i < items.length; ++i) {
-                    let li = items[i], ID = 0;
-                    if ((ID = idFromLi(li)) != 0) {
-
-                        if (isRanked(li)) { // Don't do again!
-                            debug('[userListExtender] ***** updateUserLevels: rank already present, ignoring *****');
-                            continue;
-                        }
-
-                        // NOTE: Filter here first, before secondary filter, which
-                        // requires stuff from a stats query. We can filter based on icons in the li.
-                        // Just need to add the filter class, will be caught in getRankFromId()
-                        // and ignored. The secondary filter, which uses data from the Torn API
-                        // call, is called from updateLiWithRank().
-                        if (preFilter(li)) {
-                            li.classList.add('xedx_hidden');
-                            debug('[userListExtender] pre-filtered: ignoring.');
-                            continue;
-                        }
-
-                        // This returns TRUE if either a cached rank item is found, or it is filtered out.
-                        // If neither of these cases is true, we query the Torn API, and then update the UI
-                        // accordingly - we perform secondary filtering there.
-                        if (!getCachedRankFromId(ID, li)) {
-                            //setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
-                                                                                 // to limit the 100 reqs/min errors
-                            getRankFromId(ID, li);
-                        }
-                    }
-                }
-                observerON();
-            }
-
-            // document.querySelector(" li.user2745846 > div.expander.clearfix.torn-divider.divider-vertical > a.user.name > span")
-            function fullNameFromLi(li) {
-                try {
-                    let elems = li.getElementsByClassName('user name'); // debugging
-                    if (elems.length == 0) {
-                        debug('[userListExtender] Unable to find user.name!');
-                        return 0;
-                    }
-                    let name = elems[0].getAttribute("data-placeholder");
-                    if (!name) { // Will happen if Honor Bars disabled
-                        debug('[userListExtender] Unable to find "data-placeholder"');
-                        elems = elems[0].getElementsByTagName('span');
-                        debug('[userListExtender] spans: ', elems);
-                        name = elems[0].innerText;
-                    }
-                    return name;
-                } catch(err) { // Should never hit this.
-                    console.error(err);
-                    debugger;
-                    return 0;
-                }
-            }
-
-            // Helper for above
-            function idFromLi(li) {
-                try {
-                    let elems = li.getElementsByClassName('user name'); // debugging
-                    if (elems.length == 0) {return 0;}
-                    return elems[0].getAttribute("href").split("=")[1];
-                } catch(err) { // Should never hit this.
-                    console.error(err);
-                    debugger;
-                    return 0;
-                }
-            }
-
-            // Disable the script
-            function disableScript(disabled=true) {
-                opts.opt_disabled = disabled;
-                GM_setValue("opts.opt_disabled", opts.opt_disabled);
-                $("#xedx-disabled-opt")[0].checked = disabled;
-                indicateActive();
-            }
-
-            //////////////////////////////////////////////////////////////////////
-            // UI related stuff, namely options
-            //////////////////////////////////////////////////////////////////////
-
-            // Build the main UI
-            function buildUI() {
-                getSavedOptions();
-                if (validPointer(document.getElementById('xedx-main-div'))) {
-                    debug('[userListExtender] UI already installed!');
-                    return;
-                }
-
-                let parentDiv = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
-                if (!validPointer(parent)) {setTimeout(buildUI, 500);}
-
-                loadTableStyles();
-                $(separator).insertBefore(parentDiv);
-                $(xedx_main_div()).insertBefore(parentDiv);
-
-                installHandlers();
-                setDefaultCheckboxes();
-                hideDevOpts(!opts.opt_devmode);
-                indicateActive();
-                debug('[userListExtender] UI installed.');
-
-                let node = document.getElementById("xedx-refreshcache-btn");
-                displayMiniToolTip(node, "Not Yet Implemented!");
-            }
-
-            // Handle the selected options
-            function handleOptsClick() {
-                try {
-                    let option = this.id;
-                    let doUpdate = true;
-                    debug('[userListExtender] Handling checkbox change for ' + option);
-                    switch (option) {
-                        //case "xedx-loggingEnabled-opt":
-                        //    opts.opt_loggingEnabled = this.checked;
-                        //    debugLoggingEnabled = opts.opt_loggingEnabled;
-                        //    debug('[userListExtender] Saved value for opts.opt_loggingEnabled');
-                        //    break;
-                        case "xedx-hidefedded-opt":
-                            opts.opt_hidefedded = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_hidefedded');
-                            break;
-                        case "xedx-hidefallen-opt":
-                            opts.opt_hidefallen = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_hidefallen');
-                            break;
-                        case "xedx-devmode-opt":
-                            opts.opt_devmode = this.checked;
-                            hideDevOpts(!opts.opt_devmode);
-                            debug('[userListExtender] Saved value for opts.opt_devmode');
-                            break;
-                        case "xedx-hidetravel-opt":
-                            opts.opt_hidetravel = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_hidetravel');
-                            break;
-                        case "xedx-showcaymans-opt":
-                            opts.opt_showcaymans = this.checked;
-                            if (opts.opt_showcaymans) {
-                                $('#xedx-hidetravel-opt').prop("checked", false);
-                                opts.opt_hidetravel = false;
-                            }
-                            debug('[userListExtender] Saved value for opts.opt_showcaymans');
-                            break;
-                        case "xedx-hidehosp-opt":
-                            opts.opt_hidehosp = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_hidehosp');
-                            break;
-                        case "xedx-showctry-opt":
-                            opts.opt_showctry = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_showctry');
-                            break;
-                        case "xedx-ctryabroad-opt":
-                            opts.opt_ctryabroad = this.checked;
-                            debug('[userListExtender] Saved value for opts.opt_ctryabroad');
-                            break;
-                        case "xedx-disabled-opt":
-                            opts.opt_disabled = this.checked;
-                            opts.opt_disabled ? observerOFF() : observerON();
-                            indicateActive();
-                            debug('[userListExtender] Saved value for opts.opt_disabled');
-                            break;
-                        case "xedx-viewcache-btn":
-                            doUpdate = false;
-                            displayCache();
-                            break;
-                        case "xedx-clearcache-btn":
-                            doUpdate = false;
-                            clearCache();
-                            break;
-                        case "xedx-refreshcache-btn":
-                            doUpdate = false;
-                            debug('[userListExtender] Cache refresh not yet implemented!');
-                            break;
-                        default:
-                            debug('[userListExtender] Checkbox ID not found!');
-                    }
-                    debug('[userListExtender] opts: ', opts);
-                    if (doUpdate) setSavedOptions();
-                    if (doUpdate) updateUserLevels('handleOptsClick');
-                } catch(e) {
-                    log('[tornUserList] ERROR: ', e);
-                }
-            }
-
-            // Function to enable/diable dev mode options
-            function hideDevOpts(hide = true) {
-                if (hide) {
-                    $('#showcaymans')[0].style.display = 'none';
-                    //$('#loggingEnabled')[0].style.display = 'none';
-                    $('#viewcache')[0].style.display = 'none';
-                    $('#clearcache')[0].style.display = 'none';
-                    opts.opt_showcaymans = false;
-                    //GM_setValue("opts.opt_showcaymans", opts.opt_showcaymans);
-                } else {
-                    $('#showcaymans')[0].style.display = 'block';
-                    //$('#loggingEnabled')[0].style.display = 'block';
-                    $('#viewcache')[0].style.display = 'inline-block';
-                    $('#clearcache')[0].style.display = 'inline-block';
-                }
-
-                setSavedOptions();
-            }
-
-            // Function to display cache contents
-            function displayCache() {
-                debug('[userListExtender] [displayCache]');
+        // Function to scan our cache and clear old entries
+        function clearStorageCache() {
+            try {
                 readCacheFromStorage();
-                // var rank_cache = [{ID: 0, numeric_rank: 0, name: '', state: '', description: ''}];
-                let rc = rank_cache;
+                let counter = 0;
+                let idArray = [];
                 let now = new Date().getTime();
-                var output = 'Cached Users (' + rc.length + ', max age = ' + (opts.cacheMaxMs/1000) + ' secs)\n';
-                output += "Hits: " + stats.cache_hits + " Misses: " + stats.cache_misses + "\n\n";
-
-                let keys = Object.keys(rank_cache);
-                for (let i = 0; i < keys.length; i++) {
-                    if (!rc[keys[i]] || !rc[keys[i]].name) continue;
-                    let cacheObj = rc[keys[i]];
-                    let age = (now - cacheObj.access)/1000; // seconds
-                    output += 'Name: "' + cacheObj.name + '" [' + keys[i] + '] Rank: ' + cacheObj.numeric_rank +
-                        ' State: ' + cacheObj.state + ' Age: ' + age + ' secs.\n';
+                //let arrayOfKeys = GM_listValues();
+                let arrayOfKeys = Object.keys(rank_cache);
+                //GM_setValue('LastCacheAccess', now);
+                rank_cache.lastAccessed = now;
+                debug("[userListExtender] Clearing cache, 'timenow' = " + now + ' Cache lifespan: ' + opts.cacheMaxMs/1000 + ' secs.');
+                for (let i = 0; i < arrayOfKeys.length; i++) {
+                    //let obj = GM_getValue(arrayOfKeys[i]);
+                    let obj = rank_cache[arrayOfKeys[i]];
+                    if (obj && obj.access && (now - obj.access) > opts.cacheMaxMs) {idArray.push(arrayOfKeys[i]);}
                 }
-                alert(output);
-            }
-
-            // Read saved options values
-            function getSavedOptions() {
-                log('[userListExtender] Getting saved options.');
-                try {
-                    let tmpOpts = JSON.parse(GM_getValue('userListExtenderOpts', opts));
-
-                    opts.opt_devmode = (typeof tmpOpts.opt_devmode !== undefined) ? tmpOpts.opt_devmode : true;
-                    opts.opt_loggingEnabled = (typeof tmpOpts.opt_loggingEnabled !== undefined) ? tmpOpts.opt_loggingEnabled : false;
-                    opts.opt_hidefedded = (typeof tmpOpts.opt_hidefedded !== undefined) ? tmpOpts.opt_hidefedded : true;
-                    opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== undefined) ? tmpOpts.opt_hidefallen : true;
-                    opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== undefined) ? tmpOpts.opt_hidetravel : true;
-                    opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
-                    opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
-                    opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
-                    opts.opt_showctry = (typeof tmpOpts.opt_showctry !== undefined) ? tmpOpts.opt_showctry : true;
-                    opts.opt_ctryabroad = (typeof tmpOpts.opt_ctryabroad !== undefined) ? tmpOpts.opt_ctryabroad : true;
-                    opts.opt_paused = (typeof tmpOpts.opt_paused !== undefined) ? tmpOpts.opt_paused : false;
-                    //if (typeof tmpOpts.cacheMins !== undefined) opts.cacheMins = tmpOpts.cacheMins;
-                    opts.cacheMins = GM_getValue("userlist-cache-time", 30); // So can be set by config page - may change that later
-                    //if (typeof tmpOpts.cacheMaxMs !== undefined) opts.cacheMaxMs = tmpOpts.cacheMaxMs;
-                    opts.cacheMaxMs = opts.cacheMins * 60 * 1000;
-                } catch (e) {
-                    log('[userListExtender] ERROR: ', e);
+                for (let i = 0; i < idArray.length; i++) {
+                    counter++;
+                    debug('Cache entry for ID ' + idArray[i] + ' expired, deleting.');
+                    //GM_deleteValue(idArray[i]);
+                    delete rank_cache[idArray[i]];
                 }
+                writeCacheToStorage();
+                debug('[userListExtender] Finished clearing cache, removed ' + counter + ' object.');
+            } catch(e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+        }
 
-                return opts;
+        //////////////////////////////////////////////////////////////////////
+        // This actually updates the UI - it finds the rank associated
+        // with an ID from our cache and updates.
+        //////////////////////////////////////////////////////////////////////
+
+        // Write to the UI
+        function updateLiWithRank(li, cache_item) {
+            // Run through our filter
+            li.classList.remove('xedx_hidden');
+
+            if (opts.opt_disabled) return;
+
+            if (!cache_item) {
+                debug('[userListExtender] Invalid params - not filtering: li=' + li + ' cache_item: ' + cache_item);
+                return;
             }
 
-            // Write saved options values
-            function setSavedOptions() {
-                GM_setValue('userListExtenderOpts', JSON.stringify(opts));
+            if (filterUser(li, cache_item)) {
+                debug('[userListExtender] Filtered ' + cache_item.name);
+                li.classList.add('xedx_hidden');
+                return;
             }
 
-            // Check checkboxes to default.
-            function setDefaultCheckboxes() {
-                try {
-                    log('[userListExtender] Setting default state of checkboxes.');
-                    debug('[userListExtender] opts: ', opts);
-                    opts = getSavedOptions();
-                    //$("#xedx-loggingEnabled-opt")[0].checked = opts.opt_loggingEnabled;
-                    $("#xedx-devmode-opt")[0].checked = opts.opt_devmode;
-                    $("#xedx-hidefedded-opt")[0].checked = opts.opt_hidefedded;
-                    $("#xedx-hidefallen-opt")[0].checked = opts.opt_hidefallen;
-                    $("#xedx-hidetravel-opt")[0].checked = opts.opt_hidetravel;
-                    $("#xedx-showcaymans-opt")[0].checked = opts.opt_showcaymans;
-                    $("#xedx-hidehosp-opt")[0].checked = opts.opt_hidehosp;
-                    $("#xedx-disabled-opt")[0].checked = opts.opt_disabled;
-                    $("#xedx-showctry-opt")[0].checked = opts.opt_showctry;
-                    $("#xedx-ctryabroad-opt")[0].checked = opts.opt_ctryabroad;
-                } catch(e) {
-                    log('[tornUserList] ERROR: ', e);
-                }
-            }
+            let jsonResp = cache_item.jsonResp;
+            let lifeCurr = cache_item.lifeCurr;
+            let lifeMax = cache_item.lifeMax;
+            let fullLife = (lifeCurr == lifeMax);
+            let numeric_rank = cache_item.numeric_rank;
 
-            // Show/hide opts page
-            function hideOpts(hide=true) {
-                debug('[userListExtender] ' + (hide ? "hiding " : "showing ") + "options page.");
-                $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
-                document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'flex';
-            }
+            if (isTravelling(li) && opts.opt_showctry) {
+                if (cache_item.state == 'Abroad' || !opts.opt_ctryabroad) {
+                    let icon = li.querySelector("[id^='icon71___']");
+                    log('[userListExtender] found travel icon: ', icon);
+                    if (icon) {
+                        let country = getCountryFromStatus(cache_item.description);
 
-            // Toggle active/inactive status
-            function indicateActive() {
-                try {
-                    debug('[userListExtender] Toggling active status: ' + (opts.opt_disabled ? 'active' : 'disabled'));
-                    if (validPointer($('#xedx-active-light')[0])) {
-                        var str = `[${opts.opt_disabled ? 'Disabled' : 'Active'}]`;
-                        $('#xedx-active-light').text(str);
-                        $('#xedx-active-light')[0].style.color = opts.opt_disabled ? "red" : "green";
-                        opts.opt_disabled ? observerOFF() : observerON();
-                    } else {
-                        debug('[userListExtender] Active indicator not found!');
+                        debug('[userListExtender] country is ' + country);
+                        let flag = $(getAbroadFlag(country));
+                        debug('[userListExtender] flag is ' + flag);
+                        debug('[userListExtender] replacing in li: ', li);
+
+                        if (country) $(icon).replaceWith($(getAbroadFlag(country)));
                     }
-                } catch(e) {
-                    log('[userListExtender] ERROR: ', e);
                 }
             }
 
-            // Add button handler(s).
-            function installHandlers() {
-                // Show/Hide options link
-                const savedHide = GM_getValue('xedxHideOpts', false);
-                hideOpts(savedHide);
-                $('#xedx-show-hide-btn').on('click', function () {
-                    const hide = $('#xedx-show-hide-btn').text() == '[hide]';
-                    GM_setValue('xedxHideOpts', hide);
-                    hideOpts(hide);
-                });
+            if (validPointer(li)) {
+                let lvlNode = li.getElementsByClassName('level')[0];
+                let text = lvlNode.innerText;
+                if (text.indexOf("/") != -1) { // Don't do again!
+                    debug('[userListExtender] ***** Rank already present!! *****');
+                    return;
+                }
 
-                // Options checkboxes
-                //$("#xedx-loggingEnabled-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-hidefedded-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-hidetravel-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-showcaymans-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-clearcache-btn")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-showctry-opt")[0].addEventListener("click", handleOptsClick);
-                $("#xedx-ctryabroad-opt")[0].addEventListener("click", handleOptsClick);
-            }
-
-            // Styles for UI elements
-            function loadTableStyles() {
-                GM_addStyle(".xedx_hidden {display: none;}");
-                GM_addStyle(".xcbx {margin-left: 20px; margin-top: 5px;}");
-                if (darkMode()) {
-                    GM_addStyle(".xtdx {color: white;}");
-                    GM_addStyle(".button {" +
-                          "border: solid 1px;" +
-                          "color: black;" +
-                          "width: 82px;" +
-                          "background-color: #c4c3c0;" +
-                          "padding: 5;" +
-                          "text-align: center;" +
-                          "display: inline-block;" +
-                          "cursor: pointer;" +
-                          "border-radius: 4px;" +
-                          "margin-left: 20px;" +
-                        "}");
-
+                // Not filtered: add rank.
+                if (!lifeMax || !lifeCurr) {
+                    lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
                 } else {
-                    GM_addStyle(".xtdx {color: black;}");
-                    GM_addStyle(".button {" +
-                          "border: solid 1px;" +
-                          "color: black;" +
-                          "background-color: #c4c3c0;" +
-                          "padding: 5;" +
-                          "text-align: center;" +
-                          "display: inline-block;" +
-                          "cursor: pointer;" +
-                          "border-radius: 4px;" +
-                          "margin-left: 50px;" +
-                        "}");
+                    lvlNode.parentNode.setAttribute('style', 'width: 60%;');
+                    lvlNode.setAttribute('style', 'width: 25%; color: ' + (fullLife ? 'limegreen;' : 'red;'));
+                    lvlNode.nextElementSibling.setAttribute('style', 'width: 50%;');
+                    lvlNode.innerText = '[' + lifeCurr + '/' + lifeMax + '] ' + text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
                 }
+            } else {
+                debugger;
+            }
+        }
+
+        function getCountryFromStatus(desc) {
+            if (desc.indexOf("United Kingdom") > -1) return 'UK';
+            if (desc.indexOf("Mexico") > -1) return 'Mexico';
+            if (desc.indexOf("Argentina") > -1) return 'Argentina';
+            if (desc.indexOf("Canada") > -1) return 'Canada';
+            if (desc.indexOf("Cayman") > -1) return 'Caymans';
+            if (desc.indexOf("Switzerland") > -1) return 'Zurich';
+            if (desc.indexOf("Japan") > -1) return 'Japan';
+            if (desc.indexOf("China") > -1) return 'China';
+            if (desc.indexOf("UAE") > -1) return 'UAE'; // ???
+            if (desc.indexOf("Arab") > -1) return 'UAE'; // ???
+            if (desc.indexOf("South") > -1) return 'SA'; // ??
+            if (desc.indexOf("Africa") > -1) return 'SA'; // ??
+            if (desc.indexOf("Hawaii") > -1) return 'Hawaii';
+
+            return null;
+        }
+
+        // Images for country flags
+        function getAbroadFlag(country) {
+            if (country == 'UK') {
+                return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
+                    country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
+            }
+            if (country == 'Mexico') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_mexico.svg"
+                    country="mexico" alt="Mexico" title="Mexico"></li>`;
+            }
+            if (country == 'Canada') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_canada.svg"
+                    country="canada" alt="Canada" title="Canada"></li>`;
+            }
+            if (country == 'Argentina') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_argentina.svg"
+                    country="argentina" alt="Argentina" title="Argentina"></li>`;
+            }
+            if (country == 'Hawaii') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_hawaii.svg"
+                    country="hawaii" alt="Hawaii" title="Hawaii"></li>`;
+            }
+            if (country == 'Caymans') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_cayman.svg"
+                    country="cayman_islands" alt="Cayman Islands" title="Cayman Islands"></li>`;
+            }
+            if (country == 'Zurich') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_switzerland.svg"
+                    country="switzerland" alt="Switzerland" title="Switzerland"></li>`;
+            }
+            if (country == 'Japan') {
+                return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_japan.svg"
+                    country="japan" alt="Japan" title="Japan"></li>`;
+            }
+            if (country == 'China') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_china.svg"
+                    country="china" alt="China" title="China"></li>`;
+            }
+            if (country == 'UAE') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_uae.svg"
+                    country="uae" alt="UAE" title="UAE"></li>`;
+            }
+            if (country == 'SA') {
+                return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_south_africa.svg"
+                    country="south_africa" alt="South Africa" title="South Africa"></li>`;
+            }
+        }
+
+        // Diagnostic aids, will be used elsewhere later
+        function isInHosp(li) {
+            return (li.querySelector("[id^='icon15___']")) ? true : false;
+        }
+        function isFedded(li) {
+            return (li.querySelector("[id^='icon70___']")) ? true : false;
+        }
+        function isFallen(li) {
+            return (li.querySelector("[id^='icon77___']")) ? true : false;
+        }
+        function isTravelling(li) {
+            return (li.querySelector("[id^='icon71___']")) ? true : false;
+        }
+
+        function isRanked(li) {
+            let lvlNode = li.getElementsByClassName('level')[0];
+            let lvlText = lvlNode.innerText;
+            if (lvlText.indexOf("/") != -1) { // Don't do again!
+                debug('[userListExtender] ***** isRanked: rank already present! *****');
+                return true;
+            }
+            return false;
+        }
+
+        // Pre-filter - just based on icons in the li
+        // If filtered, return TRUE
+        function preFilter(li) {
+            let ID = idFromLi(li);
+            let name = fullNameFromLi(li);
+
+            log("[userListExtender] Pre-filtering " + name + ' [' + ID + ']');
+
+            if (opts.opt_hidehosp && isInHosp(li)) {
+                log('[userListExtender] ***** preFilter: in hospital! (' + name + + ' [' + ID + '])');
+                return true;
+            }
+            if (opts.opt_hidefedded && isFedded(li)) {
+                log('[userListExtender] ***** preFilter: fedded! (' + name + + ' [' + ID + '])');
+                return true;
+            }
+            if (opts.opt_hidefallen && isFallen(li)) {
+                log('[userListExtender] ***** preFilter: fallen! (' + name + + ' [' + ID + '])');
+                return true;
+            }
+            if (opts.opt_hidetravel && isTravelling(li)) {
+                log('[userListExtender] ***** preFilter: travelling! (' + name + + ' [' + ID + '])');
+                return true;
             }
 
-            // Adds an observer to handle changes from dark mode to light
-            function addDarkModeObserver() {
-                var dmObserver = new MutationObserver(function() {loadTableStyles();});
-                dmObserver.observe($('body')[0], {attributes: true, childList: false, subtree: false});
-            }
+            return false;
+        }
 
-            // Functions to log when we connect/disconnect main observer, for debugging
-            function observerON() {
-                debug('[userListExtender] Turning observer ON');
-                if (validPointer(mainObserver)) {
-                    mainObserver.observe(mainTargetNode, mainConfig);
-                    observing = true;
-                }
-            }
-
-            function observerOFF() {
-                let currState = observing;
-                debug('[userListExtender] Turning observer OFF, is now: ', (currState ? 'ON' : 'OFF'));
-                if (validPointer(mainObserver)) {
-                    mainObserver.disconnect();
-                    observing = false;
+        // Filter to cull out those we're not interested in, based callback info (not icons). Return TRUE if filtered.
+        // Note: 'ci' ==> 'Cache Item' (object in rank_cache)
+        function filterUser(li, ci) {
+            try {
+                debug('[userListExtender] Filtering ' + ci.name + ' Rank: ' + ci.numeric_rank + ' State: ' + ci.state + ' Desc: ' + ci.description);
+                if (opts.opt_showcaymans && ci.state != 'Traveling') {
+                    debug('[userListExtender] Filtered - Caymans only, but either not returning or not Caymans');
+                    debug('[userListExtender] State = ' + ci.state);
+                    return true;
                 }
 
-                return currState;
-            }
-
-            return new Promise((resolve, reject) => {
-                rank_cache = readCacheFromStorage();
-
-                // Check for expired cache entries at intervals, half max cache age.
-                setInterval(function() {
-                    debug('[userListExtender] **** Performing interval driven cache clearing ****');
-                    clearStorageCache();}, (0.5*opts.cacheMaxMs));
-
-                mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
-                addDarkModeObserver(); // I've forgotten why I do this.
-                buildUI();
-                observerON();
-
-                if (document.readyState === 'complete') {
-                    updateUserLevels('document.readyState');
+                let isHosped = isInHosp(li);
+                let infed = isFedded(li);
+                let fallen = isFallen(li);
+                let travelling = isTravelling(li);
+                if (isHosped || infed || travelling) {
+                    log('[userListExtender] Hosp: ' + isHosped + ' Fedded: ' + infed + ' IsTravelling: ' + travelling);
+                    log('[userListExtender] **** Shouldn`t be here? *****');
                 }
 
-                resolve("[tornUserList] startup complete!");
+                switch (ci.state) {
+                    case 'Hospital':
+                        if (opts.opt_hidehosp) {
+                            if (isHosped) log('**** Shouldn`t be here? *****');
+                            debug('[userListExtender] ***** Filtered - in hosp.');
+                            return true;
+                        }
+                        break;
+                    case 'Federal':
+                        if (opts.opt_hidefedded) {
+                            if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
+                            debug('[userListExtender] ***** Filtered - fedded.');
+                            return true;
+                        }
+                        break;
+                    case 'Fallen':
+                        if (opts.opt_hidefallen) {
+                            if (infed) log('[userListExtender] **** Shouldn`t be here? *****');
+                            debug('[userListExtender] ***** Filtered - fallen.');
+                            return true;
+                        }
+                        break;
+                    case 'Abroad':
+                    case 'Traveling':
+                        if (opts.opt_hidetravel) {
+                            if (travelling) log('[userListExtender] **** Shouldn`t be here? *****');
+                            debug('[userListExtender] ***** Filtered - traveling.');
+                            return true;
+                        }
+                        if (opts.opt_showcaymans) {
+                            if (ci.description.indexOf('Cayman') != -1) {
+                                if (ci.description.indexOf('Returning') != -1) {
+                                    debug('[userListExtender] ******Returning from Caymans! Not filtered!');
+                                    return false;
+                                }
+                            }
+                            debug('[userListExtender] Filtered - caymans only, but either not returning or not Caymans');
+                            return true;
+                        }
+                        break;
+                    default:
+                        return false;
+                }
+                return false;
+            } catch(e) {
+                log('[tornUserList] ERROR: ', e);
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // This prepares to update the UI by locating level, user ID
+        // and the index of the <li> in the <ul>.
+        //////////////////////////////////////////////////////////////////////
+
+        async function updateUserLevels(display) {
+            debug('[userListExtender] updateUserLevels called by: ' + display);
+
+            if (opts.opt_disabled) {
+                debug('[userListExtender] Script disabled - not processing.');
+                return;
+            }
+
+            // See if TornTools filtering is in play.
+            let ttPlayerFilter = document.querySelector("#tt-player-filter");
+            if (validPointer(ttPlayerFilter)) {
+                debug('[userListExtender] TornTools filter detected!');
+                ttInstalled = true;
+                }
+
+            // Get the <UL>, list of all users.
+            let elemList = document.getElementsByClassName('user-info-list-wrap bottom-round cont-gray');
+            let items = elemList[0].getElementsByTagName("li");
+            if (items.length <= 1) {return;} // DOM not fully loaded, observer will recall us.
+
+            observerOFF();
+            for (var i = 0; i < items.length; ++i) {
+                let li = items[i], ID = 0;
+                if ((ID = idFromLi(li)) != 0) {
+
+                    if (isRanked(li)) { // Don't do again!
+                        debug('[userListExtender] ***** updateUserLevels: rank already present, ignoring *****');
+                        continue;
+                    }
+
+                    // NOTE: Filter here first, before secondary filter, which
+                    // requires stuff from a stats query. We can filter based on icons in the li.
+                    // Just need to add the filter class, will be caught in getRankFromId()
+                    // and ignored. The secondary filter, which uses data from the Torn API
+                    // call, is called from updateLiWithRank().
+                    if (preFilter(li)) {
+                        li.classList.add('xedx_hidden');
+                        debug('[userListExtender] pre-filtered: ignoring.');
+                        continue;
+                    }
+
+                    // This returns TRUE if either a cached rank item is found, or it is filtered out.
+                    // If neither of these cases is true, we query the Torn API, and then update the UI
+                    // accordingly - we perform secondary filtering there.
+                    if (!getCachedRankFromId(ID, li)) {
+                        //setTimeout(function(){getRankFromId(ID, li);}, 500); // Updates UI. Do this in .5 sec intervals
+                                                                             // to limit the 100 reqs/min errors
+                        getRankFromId(ID, li);
+                    }
+                }
+            }
+            observerON();
+        }
+
+        // document.querySelector(" li.user2745846 > div.expander.clearfix.torn-divider.divider-vertical > a.user.name > span")
+        function fullNameFromLi(li) {
+            try {
+                let elems = li.getElementsByClassName('user name'); // debugging
+                if (elems.length == 0) {
+                    debug('[userListExtender] Unable to find user.name!');
+                    return 0;
+                }
+                let name = elems[0].getAttribute("data-placeholder");
+                if (!name) { // Will happen if Honor Bars disabled
+                    debug('[userListExtender] Unable to find "data-placeholder"');
+                    elems = elems[0].getElementsByTagName('span');
+                    debug('[userListExtender] spans: ', elems);
+                    name = elems[0].innerText;
+                }
+                return name;
+            } catch(err) { // Should never hit this.
+                console.error(err);
+                debugger;
+                return 0;
+            }
+        }
+
+        // Helper for above
+        function idFromLi(li) {
+            try {
+                let elems = li.getElementsByClassName('user name'); // debugging
+                if (elems.length == 0) {return 0;}
+                return elems[0].getAttribute("href").split("=")[1];
+            } catch(err) { // Should never hit this.
+                console.error(err);
+                debugger;
+                return 0;
+            }
+        }
+
+        // Disable the script
+        function disableScript(disabled=true) {
+            opts.opt_disabled = disabled;
+            GM_setValue("opts.opt_disabled", opts.opt_disabled);
+            $("#xedx-disabled-opt")[0].checked = disabled;
+            indicateActive();
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // UI related stuff, namely options
+        //////////////////////////////////////////////////////////////////////
+
+        // Build the main UI
+        function buildUI() {
+            getSavedOptions();
+            if (validPointer(document.getElementById('xedx-main-div'))) {
+                debug('[userListExtender] UI already installed!');
+                return;
+            }
+
+            let parentDiv = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
+            if (!validPointer(parent)) {setTimeout(buildUI, 500);}
+
+            loadTableStyles();
+            $(separator).insertBefore(parentDiv);
+            $(xedx_main_div()).insertBefore(parentDiv);
+
+            installHandlers();
+            setDefaultCheckboxes();
+            hideDevOpts(!opts.opt_devmode);
+            indicateActive();
+            debug('[userListExtender] UI installed.');
+
+            let node = document.getElementById("xedx-refreshcache-btn");
+            displayMiniToolTip(node, "Not Yet Implemented!");
+        }
+
+        // Handle the selected options
+        function handleOptsClick() {
+            try {
+                let option = this.id;
+                let doUpdate = true;
+                debug('[userListExtender] Handling checkbox change for ' + option);
+                switch (option) {
+                    //case "xedx-loggingEnabled-opt":
+                    //    opts.opt_loggingEnabled = this.checked;
+                    //    debugLoggingEnabled = opts.opt_loggingEnabled;
+                    //    debug('[userListExtender] Saved value for opts.opt_loggingEnabled');
+                    //    break;
+                    case "xedx-hidefedded-opt":
+                        opts.opt_hidefedded = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_hidefedded');
+                        break;
+                    case "xedx-hidefallen-opt":
+                        opts.opt_hidefallen = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_hidefallen');
+                        break;
+                    case "xedx-devmode-opt":
+                        opts.opt_devmode = this.checked;
+                        hideDevOpts(!opts.opt_devmode);
+                        debug('[userListExtender] Saved value for opts.opt_devmode');
+                        break;
+                    case "xedx-hidetravel-opt":
+                        opts.opt_hidetravel = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_hidetravel');
+                        break;
+                    case "xedx-showcaymans-opt":
+                        opts.opt_showcaymans = this.checked;
+                        if (opts.opt_showcaymans) {
+                            $('#xedx-hidetravel-opt').prop("checked", false);
+                            opts.opt_hidetravel = false;
+                        }
+                        debug('[userListExtender] Saved value for opts.opt_showcaymans');
+                        break;
+                    case "xedx-hidehosp-opt":
+                        opts.opt_hidehosp = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_hidehosp');
+                        break;
+                    case "xedx-showctry-opt":
+                        opts.opt_showctry = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_showctry');
+                        break;
+                    case "xedx-ctryabroad-opt":
+                        opts.opt_ctryabroad = this.checked;
+                        debug('[userListExtender] Saved value for opts.opt_ctryabroad');
+                        break;
+                    case "xedx-disabled-opt":
+                        opts.opt_disabled = this.checked;
+                        opts.opt_disabled ? observerOFF() : observerON();
+                        indicateActive();
+                        debug('[userListExtender] Saved value for opts.opt_disabled');
+                        break;
+                    case "xedx-viewcache-btn":
+                        doUpdate = false;
+                        displayCache();
+                        break;
+                    case "xedx-clearcache-btn":
+                        doUpdate = false;
+                        clearCache();
+                        break;
+                    case "xedx-refreshcache-btn":
+                        doUpdate = false;
+                        debug('[userListExtender] Cache refresh not yet implemented!');
+                        break;
+                    default:
+                        debug('[userListExtender] Checkbox ID not found!');
+                }
+                debug('[userListExtender] opts: ', opts);
+                if (doUpdate) setSavedOptions();
+                if (doUpdate) updateUserLevels('handleOptsClick');
+            } catch(e) {
+                log('[tornUserList] ERROR: ', e);
+            }
+        }
+
+        // Function to enable/diable dev mode options
+        function hideDevOpts(hide = true) {
+            if (hide) {
+                $('#showcaymans')[0].style.display = 'none';
+                //$('#loggingEnabled')[0].style.display = 'none';
+                $('#viewcache')[0].style.display = 'none';
+                $('#clearcache')[0].style.display = 'none';
+                opts.opt_showcaymans = false;
+                //GM_setValue("opts.opt_showcaymans", opts.opt_showcaymans);
+            } else {
+                $('#showcaymans')[0].style.display = 'block';
+                //$('#loggingEnabled')[0].style.display = 'block';
+                $('#viewcache')[0].style.display = 'inline-block';
+                $('#clearcache')[0].style.display = 'inline-block';
+            }
+
+            setSavedOptions();
+        }
+
+        // Function to display cache contents
+        function displayCache() {
+            debug('[userListExtender] [displayCache]');
+            readCacheFromStorage();
+            // var rank_cache = [{ID: 0, numeric_rank: 0, name: '', state: '', description: ''}];
+            let rc = rank_cache;
+            let now = new Date().getTime();
+            var output = 'Cached Users (' + rc.length + ', max age = ' + (opts.cacheMaxMs/1000) + ' secs)\n';
+            output += "Hits: " + stats.cache_hits + " Misses: " + stats.cache_misses + "\n\n";
+
+            let keys = Object.keys(rank_cache);
+            for (let i = 0; i < keys.length; i++) {
+                if (!rc[keys[i]] || !rc[keys[i]].name) continue;
+                let cacheObj = rc[keys[i]];
+                let age = (now - cacheObj.access)/1000; // seconds
+                output += 'Name: "' + cacheObj.name + '" [' + keys[i] + '] Rank: ' + cacheObj.numeric_rank +
+                    ' State: ' + cacheObj.state + ' Age: ' + age + ' secs.\n';
+            }
+            alert(output);
+        }
+
+        // Read saved options values
+        function getSavedOptions() {
+            log('[userListExtender] Getting saved options.');
+            try {
+                let tmpOpts = JSON.parse(GM_getValue('userListExtenderOpts', opts));
+
+                opts.opt_devmode = (typeof tmpOpts.opt_devmode !== undefined) ? tmpOpts.opt_devmode : true;
+                opts.opt_loggingEnabled = (typeof tmpOpts.opt_loggingEnabled !== undefined) ? tmpOpts.opt_loggingEnabled : false;
+                opts.opt_hidefedded = (typeof tmpOpts.opt_hidefedded !== undefined) ? tmpOpts.opt_hidefedded : true;
+                opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== undefined) ? tmpOpts.opt_hidefallen : true;
+                opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== undefined) ? tmpOpts.opt_hidetravel : true;
+                opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
+                opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
+                opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
+                opts.opt_showctry = (typeof tmpOpts.opt_showctry !== undefined) ? tmpOpts.opt_showctry : true;
+                opts.opt_ctryabroad = (typeof tmpOpts.opt_ctryabroad !== undefined) ? tmpOpts.opt_ctryabroad : true;
+                opts.opt_paused = (typeof tmpOpts.opt_paused !== undefined) ? tmpOpts.opt_paused : false;
+                //if (typeof tmpOpts.cacheMins !== undefined) opts.cacheMins = tmpOpts.cacheMins;
+                opts.cacheMins = GM_getValue("userlist-cache-time", 30); // So can be set by config page - may change that later
+                //if (typeof tmpOpts.cacheMaxMs !== undefined) opts.cacheMaxMs = tmpOpts.cacheMaxMs;
+                opts.cacheMaxMs = opts.cacheMins * 60 * 1000;
+            } catch (e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+
+            return opts;
+        }
+
+        // Write saved options values
+        function setSavedOptions() {
+            GM_setValue('userListExtenderOpts', JSON.stringify(opts));
+        }
+
+        // Check checkboxes to default.
+        function setDefaultCheckboxes() {
+            try {
+                log('[userListExtender] Setting default state of checkboxes.');
+                debug('[userListExtender] opts: ', opts);
+                opts = getSavedOptions();
+                //$("#xedx-loggingEnabled-opt")[0].checked = opts.opt_loggingEnabled;
+                $("#xedx-devmode-opt")[0].checked = opts.opt_devmode;
+                $("#xedx-hidefedded-opt")[0].checked = opts.opt_hidefedded;
+                $("#xedx-hidefallen-opt")[0].checked = opts.opt_hidefallen;
+                $("#xedx-hidetravel-opt")[0].checked = opts.opt_hidetravel;
+                $("#xedx-showcaymans-opt")[0].checked = opts.opt_showcaymans;
+                $("#xedx-hidehosp-opt")[0].checked = opts.opt_hidehosp;
+                $("#xedx-disabled-opt")[0].checked = opts.opt_disabled;
+                $("#xedx-showctry-opt")[0].checked = opts.opt_showctry;
+                $("#xedx-ctryabroad-opt")[0].checked = opts.opt_ctryabroad;
+            } catch(e) {
+                log('[tornUserList] ERROR: ', e);
+            }
+        }
+
+        // Show/hide opts page
+        function hideOpts(hide=true) {
+            debug('[userListExtender] ' + (hide ? "hiding " : "showing ") + "options page.");
+            $('#xedx-show-hide-btn').text(`[${hide ? 'show' : 'hide'}]`);
+            document.querySelector("#xedx-content-div").style.display = hide ? 'none' : 'flex';
+        }
+
+        // Toggle active/inactive status
+        function indicateActive() {
+            try {
+                debug('[userListExtender] Toggling active status: ' + (opts.opt_disabled ? 'active' : 'disabled'));
+                if (validPointer($('#xedx-active-light')[0])) {
+                    var str = `[${opts.opt_disabled ? 'Disabled' : 'Active'}]`;
+                    $('#xedx-active-light').text(str);
+                    $('#xedx-active-light')[0].style.color = opts.opt_disabled ? "red" : "green";
+                    opts.opt_disabled ? observerOFF() : observerON();
+                } else {
+                    debug('[userListExtender] Active indicator not found!');
+                }
+            } catch(e) {
+                log('[userListExtender] ERROR: ', e);
+            }
+        }
+
+        // Add button handler(s).
+        function installHandlers() {
+            // Show/Hide options link
+            const savedHide = GM_getValue('xedxHideOpts', false);
+            hideOpts(savedHide);
+            $('#xedx-show-hide-btn').on('click', function () {
+                const hide = $('#xedx-show-hide-btn').text() == '[hide]';
+                GM_setValue('xedxHideOpts', hide);
+                hideOpts(hide);
             });
 
-        } // End function _tornUserList() {
+            // Options checkboxes
+            //$("#xedx-loggingEnabled-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-devmode-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-hidefedded-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-hidetravel-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-showcaymans-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-clearcache-btn")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-showctry-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-ctryabroad-opt")[0].addEventListener("click", handleOptsClick);
+        }
 
+        // Styles for UI elements
+        function loadTableStyles() {
+            GM_addStyle(".xedx_hidden {display: none;}");
+            GM_addStyle(".xcbx {margin-left: 20px; margin-top: 5px;}");
+            if (darkMode()) {
+                GM_addStyle(".xtdx {color: white;}");
+                GM_addStyle(".button {" +
+                      "border: solid 1px;" +
+                      "color: black;" +
+                      "width: 82px;" +
+                      "background-color: #c4c3c0;" +
+                      "padding: 5;" +
+                      "text-align: center;" +
+                      "display: inline-block;" +
+                      "cursor: pointer;" +
+                      "border-radius: 4px;" +
+                      "margin-left: 20px;" +
+                    "}");
 
+            } else {
+                GM_addStyle(".xtdx {color: black;}");
+                GM_addStyle(".button {" +
+                      "border: solid 1px;" +
+                      "color: black;" +
+                      "background-color: #c4c3c0;" +
+                      "padding: 5;" +
+                      "text-align: center;" +
+                      "display: inline-block;" +
+                      "cursor: pointer;" +
+                      "border-radius: 4px;" +
+                      "margin-left: 50px;" +
+                    "}");
+            }
+        }
+
+        // Adds an observer to handle changes from dark mode to light
+        function addDarkModeObserver() {
+            var dmObserver = new MutationObserver(function() {loadTableStyles();});
+            dmObserver.observe($('body')[0], {attributes: true, childList: false, subtree: false});
+        }
+
+        // Functions to log when we connect/disconnect main observer, for debugging
+        function observerON() {
+            debug('[userListExtender] Turning observer ON');
+            if (validPointer(mainObserver)) {
+                mainObserver.observe(mainTargetNode, mainConfig);
+                observing = true;
+            }
+        }
+
+        function observerOFF() {
+            let currState = observing;
+            debug('[userListExtender] Turning observer OFF, is now: ', (currState ? 'ON' : 'OFF'));
+            if (validPointer(mainObserver)) {
+                mainObserver.disconnect();
+                observing = false;
+            }
+
+            return currState;
+        }
     } // End function tornUserList() {
 
     function removeUserList() {
@@ -6197,6 +6015,7 @@
 
      //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Overseas Rank" (called on page load)
+    // Doesn't work if Honor Bars are disabled!
     //////////////////////////////////////////////////////////////////////////////////
 
     // Note: auto-refresh won't work, timer isn't cleared when leaving page.
@@ -6583,10 +6402,6 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function tornAmmoMods() {
-
-        return _tornAmmoMods();
-
-        function _tornAmmoMods() {
             log('[tornAmmoMods]');
 
             return new Promise((resolve, reject) => {
@@ -6645,7 +6460,6 @@
                     ammoPage ? $(target).after(getModsIcon()) : $(target).append(getAmmoIcon());
                 }
             }
-        }
 
     } // End function tornAmmoMods() {
 
@@ -6655,19 +6469,14 @@
 
     // TBD!
     function tornGymGains() {
+        log('[tornGymGains]');
 
-        return _tornGymGains();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornGymGains] not at home!');
+            if (!isGymPage()) return reject('[tornGymGains] wrong page!');
 
-        function _tornGymGains() {
-            log('[tornGymGains]');
-
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornGymGains] not at home!');
-                if (!isGymPage()) return reject('[tornGymGains] wrong page!');
-
-                reject("[tornGymGains] not yet implemented!");
-            })
-        }
+            reject("[tornGymGains] not yet implemented!");
+        });
 
     } // End function tornGymGains() {
 
@@ -6676,121 +6485,268 @@
     }
 
     //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Company Employees" (called on API complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornCompanyEmployees() {
+        log('[tornCompanyEmployees]');
+        const COMPANY_CACHE = {};
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornCompanyEmployees] not at home!');
+            if (!isJobsPage()) return reject('[tornCompanyEmployees] wrong page!');
+
+            GM_addStyle(`
+                .capacity {display: inline-block; float: right; margin-right: 10px;}
+                .capacity-green {display: inline-block; float: right; margin-right: 10px; color: limegreen;}
+                `);
+
+            installHashChangeHandler(hashChangeHandler);
+
+            function getCompanyProfile(e) {
+                debug('[getCompanyProfile] hash: ', e.hash);
+                let ID = idFromURL(e.hash);
+                debug('[getCompanyProfile] ID: ', ID);
+                if (!ID) {
+                    debug('[getCompanyProfile] ID not found!');
+                    return;
+                }
+                let parentUL = e.parentNode.parentNode;
+
+                if (COMPANY_CACHE[ID]) {
+                    debug('[getCompanyProfile] using cached ID: ', COMPANY_CACHE[ID]);
+                    modifyPageLi(parentUL, COMPANY_CACHE[ID]);
+                } else {
+                    xedx_TornCompanyQuery(ID, 'profile', getCompanyProfileCB, parentUL);
+                }
+            }
+
+            function getCompanyProfileCB(responseText, ID, parentUL) {
+                let _jsonResp = JSON.parse(responseText);
+                if (_jsonResp.error) {return handleError(responseText);}
+                let company = _jsonResp.company;
+                let hired = company.employees_hired;
+                let capacity = company.employees_capacity;
+                let name = company.name; // Just for logging
+                let cacheEntry = {'hired': hired, 'capacity': capacity, 'name': name};
+
+                modifyPageLi(parentUL, cacheEntry);
+                COMPANY_CACHE[ID] = cacheEntry;
+            }
+
+            function modifyPageLi(parentUL, cacheEntry) {
+                let hired = cacheEntry.hired;
+                let capacity = cacheEntry.capacity;
+                let name = cacheEntry.name;
+                let nameLi = $(parentUL).find("li.company.t-overflow")[0];
+                if (!$(nameLi).find("li.capacity").length && !$(nameLi).find("li.capacity-green").length) {
+                    let addlText = ' (' + hired + '/' + capacity + ')';
+                    $(nameLi).append('<li class="' + (hired < capacity ? 'capacity-green' : 'capacity') +'">' + addlText + '</li>');
+                }
+            }
+
+            function hashChangeHandler() {
+                debug('[getCompanyProfileCB] hashChangeHandler');
+                debug('[getCompanyProfileCB] readystate: ', document.readyState);
+                setTimeout(companyEmployeesFunc, 1000);
+            }
+
+            function companyEmployeesFunc() {
+                debug('[companyEmployeesFunc] handlePageLoad');
+                let companies = $(".view-icon");
+                if (!companies.length) setTimeout(handlePageLoad, 500);
+                Array.from(companies).forEach(e => getCompanyProfile(e));
+            }
+
+            companyEmployeesFunc();
+
+            resolve("[tornCompanyEmployees] startup complete!");
+        })
+
+    } // End function tornCompanyEmployees() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Bounty List Extender" (called on page complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // TBD!
+    function tornBountyListExtender() {
+        log('[tornBountyListExtender]');
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornBountyListExtender] not at home!');
+
+            reject('[tornBountyListExtender] not yet implemented!');
+            //resolve("[tornBountyListExtender] startup complete!");
+        })
+
+    } // End function tornBountyListExtender() {
+
+    //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Criminal Record Details" (called on page complete)
     //////////////////////////////////////////////////////////////////////////////////
 
-    /*
-    Borrowed from:
-        @name                Alteracoes
-        @author              magno
-    */
-
     function tornCrimeDetails() {
+        /* Borrowed from:
+            @name                Alteracoes
+            @author              magno */
+        log('[tornCrimeDetails]');
 
-        return _tornCrimeDetails();
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornCrimeDetails] not at home!');
 
-        function _tornCrimeDetails() {
-            log('[tornCrimeDetails]');
+            let arrayThefts = [[1000, 'Sneak&nbsp;Thief'], [2500, 'Prowler'], [5000, 'Safe&nbsp;Cracker'], [7500, 'Marauder'], [10000, 'Cat&nbsp;Burgler'], [12500, 'Pilferer'], [15000, 'Desperado'], [17500, 'Rustler'], [20000, 'Pick-Pocket'], [22500, 'Vandal'], [25000, 'Kleptomaniac']];
+            let arrayVirus = [[500, 'Ub3rn00b&nbsp;Hacker'], [1000, 'N00b&nbsp;Hacker'], [1500, '1337n00b&nbsp;Hacker'],
+                              [2000, 'Ph34r3dn00b&nbsp;Hacker'], [2500, 'Ph34r3d&nbsp;Hacker'], [3000, 'Ph343d1337&nbsp;Hacker'],
+                              [3500, 'Ub3rph34r3d&nbsp;Hacker'], [4000, 'Ub3r&nbsp;Hacker'], [4500, '1337&nbsp;Hacker'],
+                              [5000, 'Ub3r1337&nbsp;Hacker'], [5500, 'Key&nbsp;Puncher'], [6000, 'Script&nbsp;Kid'], [7000, 'Geek Speak'], [8000, 'Techie'], [9000, 'Cyber Punk'], [10000, 'Programmer']];
+            let arrayMurder = [[1000, 'Beginner&nbsp;Assassin'], [2000, 'Novice&nbsp;Assassin'], [3000, 'Competent&nbsp;Assassin'],
+                               [4000, 'Elite&nbsp;Assassin'], [5000, 'Deadly&nbsp;Assassin'], [6000, 'Lethal&nbsp;Assassin'], [7000, 'Fatal&nbsp;Assassin'], [8000, 'Trigger&nbsp;Assassin'], [9000, 'Hit&nbsp;Man'], [10000, 'Executioner']];
+            let arrayDrugs = [[250, 'Drug&nbsp;Pusher'], [500, 'Drug&nbsp;Runner'], [1000, 'Drug&nbsp;Dealer'],
+                              [2000, 'Drug&nbsp;Lord'], [4000, 'Candy Man'], [6000, 'Connection'], [8000, 'King Pin'], [10000, 'Supplier']];
+            let arrayFraud = [[300, 'Fake'], [600, 'Counterfeit'], [900, 'Pretender'], [1200, 'Clandestine'],
+                              [1500, 'Imposter'], [2000, 'Pseudo'], [2500, 'Imitation'],
+                              [3000, 'Simulated'], [3500, 'Hoax'], [4000, 'Faux'],
+                              [5000, 'Poser'], [6000, 'Deception'], [7000, 'Phony'], [8000, 'Parody'], [9000, 'Travesty'], [10000, 'Pyro']];
+            let arrayGTA = [[200, 'Gone&nbsp;In&nbsp;300&nbsp;Seconds'], [400, 'Gone&nbsp;In&nbsp;240&nbsp;Seconds'], [600, 'Gone&nbsp;In&nbsp;180&nbsp;Seconds'],
+                            [800, 'Gone&nbsp;In&nbsp;120&nbsp;Seconds'], [1000, 'Gone&nbsp;In&nbsp;60&nbsp;Seconds'], [1200, 'Gone&nbsp;In&nbsp;30&nbsp;Seconds'],
+                            [1500, 'Gone&nbsp;In&nbsp;45&nbsp;Seconds'], [2000, 'Gone&nbsp;In&nbsp;15&nbsp;Seconds'], [2500, 'Booster'],
+                            [3000, 'Joy&nbsp;Rider'], [3500, 'Super&nbsp;Booster'], [4000, 'Master&nbsp;Carjacker'],
+                            [4500, 'Slim&nbsp;Jim'], [5000, 'Novice&nbsp;Joy&nbsp;Rider'], [5500, 'Novice&nbsp;Slim&nbsp;Jim'],
+                            [6000, 'Professional&nbsp;Joy&nbsp;Rider'], [6500, 'Professional&nbsp;Booster'], [7000, 'Professional&nbsp;Slim&nbsp;Jim'],
+                            [8000, 'Master&nbsp;Joy&nbsp;Rider'], [9000, 'Master Booster'], [10000, 'Master Slim Jim']];
 
-            return new Promise((resolve, reject) => {
-                if (abroad()) return reject('[tornCrimeDetails] not at home!');
+            let arrayIllegal = [[5000,'Civil&nbsp;Offence']];
+            let arrayOther = [[5000,'Find&nbsp;A&nbsp;Penny,&nbsp;Pick&nbsp;It&nbsp;Up']];
 
-                let arrayThefts = [[1000, 'Sneak&nbsp;Thief'], [2500, 'Prowler'], [5000, 'Safe&nbsp;Cracker'], [7500, 'Marauder'], [10000, 'Cat&nbsp;Burgler'], [12500, 'Pilferer'], [15000, 'Desperado'], [17500, 'Rustler'], [20000, 'Pick-Pocket'], [22500, 'Vandal'], [25000, 'Kleptomaniac']];
-                let arrayVirus = [[500, 'Ub3rn00b&nbsp;Hacker'], [1000, 'N00b&nbsp;Hacker'], [1500, '1337n00b&nbsp;Hacker'],
-                                  [2000, 'Ph34r3dn00b&nbsp;Hacker'], [2500, 'Ph34r3d&nbsp;Hacker'], [3000, 'Ph343d1337&nbsp;Hacker'],
-                                  [3500, 'Ub3rph34r3d&nbsp;Hacker'], [4000, 'Ub3r&nbsp;Hacker'], [4500, '1337&nbsp;Hacker'],
-                                  [5000, 'Ub3r1337&nbsp;Hacker'], [5500, 'Key&nbsp;Puncher'], [6000, 'Script&nbsp;Kid'], [7000, 'Geek Speak'], [8000, 'Techie'], [9000, 'Cyber Punk'], [10000, 'Programmer']];
-                let arrayMurder = [[1000, 'Beginner&nbsp;Assassin'], [2000, 'Novice&nbsp;Assassin'], [3000, 'Competent&nbsp;Assassin'],
-                                   [4000, 'Elite&nbsp;Assassin'], [5000, 'Deadly&nbsp;Assassin'], [6000, 'Lethal&nbsp;Assassin'], [7000, 'Fatal&nbsp;Assassin'], [8000, 'Trigger&nbsp;Assassin'], [9000, 'Hit&nbsp;Man'], [10000, 'Executioner']];
-                let arrayDrugs = [[250, 'Drug&nbsp;Pusher'], [500, 'Drug&nbsp;Runner'], [1000, 'Drug&nbsp;Dealer'],
-                                  [2000, 'Drug&nbsp;Lord'], [4000, 'Candy Man'], [6000, 'Connection'], [8000, 'King Pin'], [10000, 'Supplier']];
-                let arrayFraud = [[300, 'Fake'], [600, 'Counterfeit'], [900, 'Pretender'], [1200, 'Clandestine'],
-                                  [1500, 'Imposter'], [2000, 'Pseudo'], [2500, 'Imitation'],
-                                  [3000, 'Simulated'], [3500, 'Hoax'], [4000, 'Faux'],
-                                  [5000, 'Poser'], [6000, 'Deception'], [7000, 'Phony'], [8000, 'Parody'], [9000, 'Travesty'], [10000, 'Pyro']];
-                let arrayGTA = [[200, 'Gone&nbsp;In&nbsp;300&nbsp;Seconds'], [400, 'Gone&nbsp;In&nbsp;240&nbsp;Seconds'], [600, 'Gone&nbsp;In&nbsp;180&nbsp;Seconds'],
-                                [800, 'Gone&nbsp;In&nbsp;120&nbsp;Seconds'], [1000, 'Gone&nbsp;In&nbsp;60&nbsp;Seconds'], [1200, 'Gone&nbsp;In&nbsp;30&nbsp;Seconds'],
-                                [1500, 'Gone&nbsp;In&nbsp;45&nbsp;Seconds'], [2000, 'Gone&nbsp;In&nbsp;15&nbsp;Seconds'], [2500, 'Booster'],
-                                [3000, 'Joy&nbsp;Rider'], [3500, 'Super&nbsp;Booster'], [4000, 'Master&nbsp;Carjacker'],
-                                [4500, 'Slim&nbsp;Jim'], [5000, 'Novice&nbsp;Joy&nbsp;Rider'], [5500, 'Novice&nbsp;Slim&nbsp;Jim'],
-                                [6000, 'Professional&nbsp;Joy&nbsp;Rider'], [6500, 'Professional&nbsp;Booster'], [7000, 'Professional&nbsp;Slim&nbsp;Jim'],
-                                [8000, 'Master&nbsp;Joy&nbsp;Rider'], [9000, 'Master Booster'], [10000, 'Master Slim Jim']];
+            GM_addStyle(`
+                .fr60 {float: right; width:60px;}
+                .cdata {font-style:italic; float:right; width:75px; text-align:left}
+                .block {display:block;overflow:hidden;}
+                .boldred {font-weight:bold; color:red; width:35px; float:right; text-align:left;}
+            `);
 
-                let arrayIllegal = [[5000,'Civil&nbsp;Offence']];
-                let arrayOther = [[5000,'Find&nbsp;A&nbsp;Penny,&nbsp;Pick&nbsp;It&nbsp;Up']];
+        $("div[id^=item]:has(>div.title-black:contains('Criminal Record'))" ).find('li').each(
+            function(item){
+                let arr = null;
+                let type = $(this).children(":first").text().trim();
+                let desc = $(this).children(":last").text();
+                let n = desc.replace(',','');
 
-                GM_addStyle(`
-                    .fr60 {float: right; width:60px;}
-                    .cdata {font-style:italic; float:right; width:75px; text-align:left}
-                    .block {display:block;overflow:hidden;}
-                    .boldred {font-weight:bold; color:red; width:35px; float:right; text-align:left;}
-                `);
+                switch(type){
+                    case 'Other':
+                        type += ' (nerve: 2)';
+                        arr = arrayOther;
+                        break;
+                    case 'Illegal products':
+                        type = 'Illegal products (nerve: 3, 16)';
+                        arr = arrayIllegal;
+                        break;
+                    case 'Theft':
+                        type += ' (nerve: 4, 5, 6, 7, 15)';
+                        arr = arrayThefts;
+                        break;
+                    case 'Computer crimes':
+                        type += ' (nerve: 9, 18)';
+                        arr = arrayVirus;
+                        break;
+                    case 'Murder':
+                        type += ' (nerve: 10)';
+                        arr = arrayMurder;
+                        break;
+                    case 'Drug deals':
+                        type += ' (nerve: 8)';
+                        arr = arrayDrugs;
+                        break;
+                    case 'Fraud crimes':
+                        type = 'Fraud (nerve: 11, 13, 14, 17)';
+                        arr = arrayFraud;
+                        break;
+                    case 'Auto theft':
+                        type += ' (nerve: 12)';
+                        arr = arrayGTA;
+                        break;
+                }
+                $(this).children(":first").text(type);
 
-            $("div[id^=item]:has(>div.title-black:contains('Criminal Record'))" ).find('li').each(
-                function(item){
-                    let arr = null;
-                    let type = $(this).children(":first").text().trim();
-                    let desc = $(this).children(":last").text();
-                    let n = desc.replace(',','');
-
-                    switch(type){
-                        case 'Other':
-                            type += ' (nerve: 2)';
-                            arr = arrayOther;
-                            break;
-                        case 'Illegal products':
-                            type = 'Illegal products (nerve: 3, 16)';
-                            arr = arrayIllegal;
-                            break;
-                        case 'Theft':
-                            type += ' (nerve: 4, 5, 6, 7, 15)';
-                            arr = arrayThefts;
-                            break;
-                        case 'Computer crimes':
-                            type += ' (nerve: 9, 18)';
-                            arr = arrayVirus;
-                            break;
-                        case 'Murder':
-                            type += ' (nerve: 10)';
-                            arr = arrayMurder;
-                            break;
-                        case 'Drug deals':
-                            type += ' (nerve: 8)';
-                            arr = arrayDrugs;
-                            break;
-                        case 'Fraud crimes':
-                            type = 'Fraud (nerve: 11, 13, 14, 17)';
-                            arr = arrayFraud;
-                            break;
-                        case 'Auto theft':
-                            type += ' (nerve: 12)';
-                            arr = arrayGTA;
-                            break;
+                if (arr != null) {
+                    var mink = -1;
+                    for (var k=0; k<arr.length; ++k) {
+                        if ((mink == -1) && (arr[k][0] > n)) mink = k;
                     }
-                    $(this).children(":first").text(type);
-
-                    if (arr != null) {
-                        var mink = -1;
-                        for (var k=0; k<arr.length; ++k) {
-                            if ((mink == -1) && (arr[k][0] > n)) mink = k;
-                        }
-                        if (mink >= 0) {
-                            desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
-                                   '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
-                            $(this).children(":last").html(desc);
-                            $(this).children(":last").attr('title', desc);
-                        }else{
-                            $(this).children(":last").css("color","green");
-                            $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
-                        }
+                    if (mink >= 0) {
+                        desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
+                               '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
+                        $(this).children(":last").html(desc);
+                        $(this).children(":last").attr('title', desc);
+                    }else{
+                        $(this).children(":last").css("color","green");
+                        $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
                     }
-                });
+                }
+            });
 
-                resolve("[tornCrimeDetails] startup complete!");
-            })
-        }
+            resolve("[tornCrimeDetails] startup complete!");
+        })
 
     } // End function tornCrimeDetails() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Travel Alerts" (called on API complete, for inventory)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornTravelAlerts() {
+        log('[tornTravelAlerts]');
+
+        const alertDiv = `<div id="xedx-alert-div" class="xedx-alert-div">
+                             <span class="xedx-salert">Don't forget cash and a Macana!</span>
+                         </div>`;
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornTravelAlerts] not at home!');
+            if (!isTravelPage()) return reject('[tornTravelAlerts] not at Travel Agency!');
+
+            GM_addStyle( `.xedx-alert-div {display: flex; flex-direction: column;}
+                          .xedx-salert {color: red; font-size: 18px; margin-left: 260px; width: 300px;
+                                        font-weight: bold; margin-top: 10px; margin-bottom: 10px; text-align: center;}`);
+            addAlerts();
+
+            //reject('[tornTravelAlerts] not yet implemented!');
+            resolve("[tornTravelAlerts] startup complete!");
+        })
+
+        function addAlerts() {
+            log('[tornTravelAlerts] addAlerts');
+            let node = document.querySelector("#tab4-2 > div.travel-map");
+            if (!node) return setTimout(addAlerts, 250);
+
+            $(node).after(alertDiv);
+
+            let weapons = inventoryArray.filter(e => {return (e.type == 'Primary' || e.type == 'Secondary' || e.type == 'Melee') && (e.equipped > 0)});
+            let armor = inventoryArray.filter(e => {return (e.type == 'Defensive') && (e.equipped > 0)});
+            debug('[tornTravelAlerts] weapons: ', weapons, ' armor: ', armor);
+            if (!weapons.length || !armor.length) {
+                $(".xedx-salert").after("<span class='xedx-salert' style='margin-top: 0px;'>You seem to be kinda naked!</span>");
+            }
+        }
+
+    } // End function tornTravelAlerts() {
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Script Template" (called on ???)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornScriptTemplate() {
+        log('[tornScriptTemplate]');
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornScriptTemplate] not at home!');
+
+            reject('[tornScriptTemplate] not yet implemented!');
+            //resolve("[tornScriptTemplate] startup complete!");
+        })
+
+    } // End function tornScriptTemplate() {
 
     ///////////////////////////////////////////////////////////////////////////////////
     //
@@ -6852,6 +6808,10 @@
         return "This hides various Torn Tools features that I find redundant or annoying." + CRLF +
             "It hides the 'TornTools Active' icon on the lower left, the 'last active' status on " +
             "various fac pages, and the Bat Stats estimates showing up underneath users on various pages.";
+    }
+
+    function travelAlertTt() {
+        return "This simply warns you on the travel page to carry some $$ and stealth weapons.";
     }
 
     ///////////////////////////////////////////////////////////////////////////////////
@@ -7105,6 +7065,12 @@
         setGeneralCfgOpt("tornAmmoMods", "Torn Ammo & Mods Links",
                          tornAmmoMods, null, generalToolTip, "misc", true, true);
 
+        setGeneralCfgOpt("tornCompanyEmployees", "Torn Company Employees",
+                         tornCompanyEmployees, null, generalToolTip, "misc", true, true);
+
+        setGeneralCfgOpt("tornTravelAlerts", "Torn Travel Alerts",
+                         tornTravelAlerts, null, travelAlertTt, "misc", true, true);
+
         debug('[updateKnownScripts] opts_enabledScripts: ', opts_enabledScripts);
     }
 
@@ -7269,7 +7235,7 @@
             log('[addDebugMenu]');
             let tbody = document.querySelector("#debug-opts-div > table > tbody");
             // Add header
-            const tblHdr = `<tr id="dbgtblhdr" class="xtblehdr xvisible open"><th>Enabled</th><th>Debug Option</th></tr>`;
+            const tblHdr = '<tr id="dbgtblhdr" class="xtblehdr xvisible open"><th>Value</th><th>Debug Option</th></tr>';
             $(tbody).append(tblHdr);
 
             // Add rows
@@ -7664,6 +7630,8 @@
     function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
     function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") > -1)}
     function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
+    function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
+    function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
 
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
@@ -7705,9 +7673,6 @@
         if (opts_enabledScripts.tornRacingCarOrder.enabled) {tornRacingCarOrder().then(a => _a(a), b => _b(b,));}
 
         if (opts_enabledScripts.tornOverseasRank.enabled) {tornOverseasRank().then(a => _a(a), b => _b(b));}
-
-
-
     }
 
     // And some need to wait until the page is complete. (readystatecomplete)
@@ -7739,6 +7704,9 @@
             if (opts_enabledScripts.tornAmmoMods.enabled) {tornAmmoMods().then(a => _a(a), b => _b(b));}
         }
 
+        if (isJobsPage()) {
+            if (opts_enabledScripts.tornCompanyEmployees.enabled) {tornCompanyEmployees().then(a => _a(a), b => _b(b));}
+        }
     }
 
     // And others after data from the API has been received.
@@ -7767,6 +7735,10 @@
 
         if (isGymPage()) {
             if (opts_enabledScripts.tornGymGains.enabled) {tornGymGains().then(a => _a(a), b => _b(b));}
+        }
+
+        if (isTravelPage()) {
+            if (opts_enabledScripts.tornTravelAlerts.enabled) {tornTravelAlerts().then(a => _a(a), b => _b(b));}
         }
 
     }
