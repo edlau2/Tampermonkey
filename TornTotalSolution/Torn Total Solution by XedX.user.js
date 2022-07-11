@@ -48,7 +48,7 @@
 // Torn Museum Sets Helper - Helps determine when museum sets are complete in Item pages
 // Torn Weapon Sort - Sorts weapons on the Items page by various criteria 
 // Torn Weapon Experience Tracker - Displays a weapon's WE on the Itms page. 
-// Torn Weapon Experience Spreadsheet - Creates a new expandable DIV on the Items page with Weapon Experience info in a table \
+// Torn Weapon Experience Spreadsheet - Creates a new expandable DIV on the Items page with Weapon Experience info in a table
 // Torn See The Temps - Allows lingering temps to be visible before an attack
 // Torn Scroll On Attack - Modify the attack page to suit my needs (scrolls view upward)
 // Torn Holdem Score - Makes the poker 'score' visible on the poker page. (TBD)
@@ -59,6 +59,9 @@
 // Torn User List Extender - Adds rank to user lists, life left (highlighted if full), an country icon if travellng.
 // Torn Overseas Rank Indicator - Indicates rank on the abroad 'people' page, as well as if just landed, and life.
 // Torn Ammo & Mods Links - Adds a 'Mods' link to ammo page, and vice-versa.
+// Torn Crime Details - Displays detailed info about your criminal record, on the home apge
+// Torn Travl Alerts - Warns you to remember cash and a stealthy weapon, and lets you know if you're naked
+// Torn Company Employees - Displayed the number of employees a company has, on the Job Listings page.
 //
 // Torn Bounty List Extender - TBD
 //
@@ -6733,6 +6736,30 @@
     } // End function tornTravelAlerts() {
 
     //////////////////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Home Page Alerts" (called on load complete)
+    //////////////////////////////////////////////////////////////////////////////////
+
+    function tornHomepageLinks() {
+        log('[tornHomepageLinks]');
+
+        return new Promise((resolve, reject) => {
+            if (abroad()) return reject('[tornHomepageLinks] not at home!');
+
+            $("#user-money").on('click', function() {
+                location.href = "https://www.torn.com/properties.php#/p=options&tab=vault";
+            });
+
+            $("#user-money").attr('style', 'cursor: pointer;');
+
+            //reject('[tornHomepageLinks] not yet implemented!');
+            resolve("[tornHomepageLinks] startup complete!");
+        })
+
+    } // End function tornHomepageLinks() {
+
+    function removeHomePageLinks() {$("#user-money").off('click');}
+
+    //////////////////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Script Template" (called on ???)
     //////////////////////////////////////////////////////////////////////////////////
 
@@ -6989,6 +7016,9 @@
                          tornJailStats, removeJailStats, jailStatsTt, "home");
         setGeneralCfgOpt("sidebarColors", "Torn Sidebar Colors",
                          tornSidebarColors, removeSidebarColors, sidebarColorTt, 'all');
+        setGeneralCfgOpt("tornHomepageLinks", "Torn Home Page Links",
+                         tornHomepageLinks, removeHomePageLinks, generalToolTip, 'all');
+
         setGeneralCfgOpt("hideShowChat", "Torn Hide-Show Chat Icons",
                          tornHideShowChat, removeHideShowChat, hideShowChatTt, 'all');
 
@@ -7658,6 +7688,8 @@
 
         if (opts_enabledScripts.customizableSidebar.enabled) {tornCustomizableSidebar().then(a => _a(a), b => _b(b));}
 
+        if (opts_enabledScripts.tornHomepageLinks.enabled) {tornHomepageLinks().then(a => _a(a), b => _b(b));}
+
         if (opts_enabledScripts.sidebarColors.enabled) {tornSidebarColors().then(a => _a(a), b => _b(b));}
 
         if (opts_enabledScripts.hideShowChat.enabled) {tornHideShowChat().then(a => _a(a), b => _b(b));}
@@ -7813,7 +7845,8 @@
     // Separate URL just for the General script config page.
     } else if (urlNohash == tornTotalSolutionCfgURL) {
         handleGeneralConfigPage()
-    // Every thing else - called for every Torn page.
+    // Every thing else - the real scripts - called for every Torn page.
+    // Filtered in the callback by actual page.
     } else {
         // Start of by collecting stats we need. Callback triggers handleApiComplete()
         // That, in turn, calls any functions requiring an API call.
