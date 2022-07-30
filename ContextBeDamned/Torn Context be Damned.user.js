@@ -4,7 +4,7 @@
 // @version      0.1
 // @description  try to take over the world!
 // @author       xedx [2100735]
-// @include      https://contextbedamned.com/torn.php
+// @match        https://contextbedamned.com/torn.php
 // @connect      api.torn.com
 // @require      http://code.jquery.com/jquery-3.5.1.min.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -156,7 +156,12 @@
 
         // Pre-fill the input field with my API key
         let input = document.querySelector("body > form > p:nth-child(1) > input[type=text]");
-        input.value = getApiKey();
+        if (!input) input = document.querySelector("#content > form > p:nth-child(1) > input[type=text]")
+        try {
+            input.value = getApiKey();
+        } catch (e) {
+            log("ERROR setting API key!");
+        }
 
         // See if on either of the 'Stocks' pages. These highlights stock I currently own, and show what I need for the next tier.
 
@@ -164,8 +169,13 @@
         let table = document.querySelector("#nextStocksTable");
         if (table) {
             let legendTable = document.querySelector("body > table:nth-child(7) > tbody");
+            if (!legendTable) legendTable = document.querySelector("#content > table:nth-child(6) > tbody")
+            let legend = document.querySelector("#content > table:nth-child(6)");
+            if (legend) table.setAttribute('style', 'mergin-bottom: 20px;');
+
             if (colorCode) {
                 let firstTableRow = document.querySelector("body > table:nth-child(7) > tbody > tr:nth-child(1) > td");
+                if (!firstTableRow) firstTableRow = document.querySelector("#content > table:nth-child(6) > tbody > tr > td");
                 firstTableRow.textContent = `Stocks in Lime Green are stocks you own, and can afford more with cash-on-hand and in vault`;
                 $(legendTable).append(`<tr class="owned"><td>Stocks in Light Blue are owned stocks`);
                 $(legendTable).append(`<tr class="partial-and-afford"><td>Stocks in Yellow are stocks you own part of a block and can afford the rest of the block`);
