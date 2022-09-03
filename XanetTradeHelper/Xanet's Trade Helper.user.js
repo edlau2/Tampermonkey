@@ -33,7 +33,7 @@
     loggingEnabled = true;           // Declared in Torn-JS-helpers, true to log to console, false otherwise
     debugLoggingEnabled = true;      // Declared in Torn-JS-helpers, turn of to disable debug() output
 
-    const uiDelay = 500;             // Delay, in ms, before loading the mini UI. Needed is the script runs too quickly.
+    const uiDelay = 500;             // Delay, in ms, before loading the mini UI. Needed if the script runs too quickly.
 
     var autoUpload = true;           // true to auto-upload when we have data - for pricing info.
     var dispItemInfo = false;        // true to display alert on missing items or 0 price, also on success.
