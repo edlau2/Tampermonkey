@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.8';
+const UTILITIES_VERSION_INTERNAL = '2.7';
 const defSSID = '1QvFInWMcSiAk_cYNEFwDMRjT8qxXqPhJSgPOCrqyzVg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -18,31 +18,11 @@ var itemUpdateRan = false;
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
-  /*
   let ss = important_getSSID();
   console.log(getVersion());
   loadScriptOptions(ss);
-  */
   syncPriceCalcWithSheet26(ss);
   // checkForUpdates();
-}
-
-function setup() {
-  let ss = important_getSSID();
-  console.log(getVersion());
-
-  loadScriptOptions(ss);
-  log('Options loaded.');
-
-  syncPriceCalcWithSheet26(ss);
-  log('Price calc synced with Sheet26');
-
-  // checkForUpdates();
-  checkInstalledTriggers();
-  log('Triggers all set.');
-
-  sortPriceCalc();
-  log('Proce Calc sorted.')
 }
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
@@ -162,6 +142,7 @@ function loadScriptOptions(ss) {
   opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
   opts.awhKey = optsSheet(ss).getRange("B24").getValue();
   opts.opt_getItemBids = optsSheet(ss).getRange("B25").getValue();
+  opts.opt_suppressAdvErrs = optsSheet(ss).getRange("B26").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
@@ -217,83 +198,6 @@ function important_getSSID() {
 function deleteSSID() {
   SCRIPT_PROP.deleteProperty("key");
   console.log('Deleted saved SSID');
-}
-
-// See if the 3 required triggers exist.
-// If not, add them.
-//   fn up2, time-driven, day, midnight TCT
-//   fn batchAPI, time-driven, minutes, every 1 minute
-//   fn checkSheet10, time-driven, minutes, every 5 minutes
-function checkInstalledTriggers() {
-  if (!isInstalledTrigger("up2")) {
-    startPeriodicTrigger("up2");
-  }
-  if (!isInstalledTrigger("batchAPI")) {
-    startPeriodicTrigger("batchAPI");
-  }
-  if (!isInstalledTrigger("checkSheet10")) {
-    startPeriodicTrigger("checkSheet10");
-  }
-}
-
-function isInstalledTrigger(funcName) {
-  let allTriggers = ScriptApp.getProjectTriggers();
-  for (let i=0; i < allTriggers.length; i++) {
-    console.log('trigger #' + i + ' > ID: ', allTriggers[i].getUniqueId(), 
-                ' Handler: ', allTriggers[i].getHandlerFunction());
-    if (allTriggers[i].getHandlerFunction() === funcName) {
-      log('Timer installed for ' + funcName);
-      return true;
-    }
-  }
-
-  log('Timer NOT installed for ' + funcName);
-  return false;
-}
-
-// Helper: create a periodic (ever timeMins minutes) trigger
-function startPeriodicTrigger(someFunc) {
-  log('Creating time-based trigger for ' + someFunc);
-  //deleteFunctionTriggers(someFunc);
-  let trigger = null;
-
-  switch (someFunc) {
-    case 'up2':
-        trigger = ScriptApp.newTrigger(someFunc)
-          .timeBased()
-          .atHour(23)
-          .inTimezone("GMT")
-          .everyDays(1) // Frequency is required if you are using atHour() or nearMinute()
-          .create();
-        break;
-    case 'batchAPI':
-        trigger = ScriptApp.newTrigger(someFunc)
-          .timeBased()
-          .everyMinutes(1)
-          .create();
-        break;
-    case 'checkSheet10':
-        trigger = ScriptApp.newTrigger(someFunc)
-          .timeBased()
-          .everyMinutes(5)
-          .create();
-        break;
-    case 'awhMain':
-        trigger = ScriptApp.newTrigger(someFunc)
-          .timeBased()
-          .everyMinutes(15)
-          .create();
-          break;
-    default: 
-        log('Don`t know how to install a trigger for "' + someFunc + '"');
-  }
-
-  if (trigger) {
-    log('Trigger created: ', trigger);
-  } else {
-    log('Failed to install trigger for ' + someFunc);
-  }
-  return trigger;
 }
 
 // Find any duplicate names in 'price calc' and highlight
