@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -196,12 +196,16 @@
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
         logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
-        xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
+        xedx_TornUserQueryDbg(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
     }
 
     // Callback for above
     function personalStatsQueryCB(responseText, ID) {
-        log('[personalStatsQueryCB]');
+        log('[personalStatsQueryCB] response: ', responseText);
+        if (responseText == undefined) {
+            log('[personalStatsQueryCB] unknown error, no response!');
+            return;
+        }
         let _jsonResp = JSON.parse(responseText);
         if (_jsonResp.error) {return handleError(responseText);}
 
