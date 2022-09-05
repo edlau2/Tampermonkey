@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @match        https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -79,11 +80,15 @@
     // Get data used to calc bat stats and get NW via the Torn API
     function personalStatsQuery(ID) {
         log('Calling xedx_TornUserQuery');
-        xedx_TornUserQuery(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
+        xedx_TornUserQueryDbg(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
     }
 
     // Callback for above
     function personalStatsQueryCB(responseText, ID) {
+        if (responseText == undefined) {
+            log("Error queryig user stats - no result!");
+            return;
+        }
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleError(responseText);}
 
@@ -109,7 +114,10 @@
         addNumericRank(userRank);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////
     // Function to highlight life: green if full, red otherwise
+    //////////////////////////////////////////////////////////////////////////////////
+
     function doLifeHighlighting() {
         log('[doLifeHighlighting]');
         let liSpan = document.querySelector(/*"#profileroot > div > div > div > div:nth-child(5) >"*/
@@ -124,6 +132,12 @@
             liSpan.setAttribute('style', 'color: #d83500;');
 
     }
+
+    //////////////////////////////////////////////////////////////////////////////////
+    //
+    // Bat Stat stuff
+    //
+    //////////////////////////////////////////////////////////////////////////////////
 
     // If a spy exists, parse it into a JSON jsonSpy object,
     // which contains the same data as rank trigger bat stat
@@ -379,6 +393,7 @@
     ////////////////////////////////////////////////////////////////////
 
     function getEstimatedBatStats(userNW, userCrimes, userLvl, userRank) {
+        log('[getEstimatedBatStats]');
         let trLevel = 0, trCrime = 0, trNetworth = 0;
         for (let l in levelTriggers) {if (levelTriggers[l] <= userLvl) trLevel++;}
         for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
@@ -387,9 +402,9 @@
         let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
 
-        log('Stat estimator: statLevel = ' + statLevel + ' Estimated = ' + ((estimated && estimated.estimate) ? estimated.estimate : 0));
-        log('Stat estimator: Level: ' + userLvl + ' Crimes: ' + userCrimes + ' NW: ' + userNW + ' Rank: ' + userRank);
-        log('Stat estimator: trLevel: ' + trLevel + ' trCrimes: ' + trCrime + ' trNW: ' + trNetworth);
+        log('Stat estimator: statLevel = ', statLevel, ' Estimated = ', ((estimated && estimated.estimate) ? estimated.estimate : 0));
+        log('Stat estimator: Level: ', userLvl + ' Crimes: ', userCrimes, ' NW: ', userNW, ' Rank: ', userRank);
+        log('Stat estimator: trLevel: ', trLevel, ' trCrimes: ', trCrime, ' trNW: ', trNetworth);
         if (!estimated) {
             if (userLvl < 76) {
                 estimated = {estimate: "Unknown, maybe level holding?", low: 0, high: 0};
