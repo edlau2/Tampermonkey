@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.34
+// @version     2.35
 // @license     MIT
 // ==/UserScript==
 
@@ -500,24 +500,48 @@ function xedx_TornUserQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('user', ID, selection, callback, param);
 }
 
+function xedx_TornUserQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('user', ID, selection, callback, param);
+}
+
 function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('property', ID, selection, callback, param);
+}
+
+function xedx_TornPropertyQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('property', ID, selection, callback, param);
 }
 
 function xedx_TornFactionQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('faction', ID, selection, callback, param);
 }
 
+function xedx_TornFactionQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('faction', ID, selection, callback, param);
+}
+
 function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('company', ID, selection, callback, param);
+}
+
+function xedx_TornCompanyQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('company', ID, selection, callback, param);
 }
 
 function xedx_TornMarketQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('market', ID, selection, callback, param);
 }
 
+function xedx_TornMarketQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('market', ID, selection, callback, param);
+}
+
 function xedx_TornTornQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('torn', ID, selection, callback, param);
+}
+
+function xedx_TornTornQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('torn', ID, selection, callback, param);
 }
 
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
@@ -545,6 +569,38 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
         },
         ontimeout: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
+            handleSysError(response);
+        }
+    });
+}
+
+function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) {
+    if (ID == null) ID = '';
+    let comment = GM_info.script.name.replace('Torn', 'XedX');
+    let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
+    console.log('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection + ' ID: ' + ID);
+    let details = GM_xmlhttpRequest({
+        method:"POST",
+        url:url,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+        },
+        onload: function(response) {
+            console.log('(JS-Helper) ' + GM_info.script.name + ' Response: ', response);
+            console.log('(JS-Helper) ' + GM_info.script.name + ' Response Text (ID=' + ID + '): ' + response.responseText);
+            callback(response.responseText, ID, param);
+        },
+        onerror: function(response) {
+            console.log('(JS-Helper) ' + GM_info.script.name + ' Error Response: ', response);
+            handleSysError(response);
+        },
+        onabort: function(response) {
+            console.log('(JS-Helper) ' + GM_info.script.name + ': onabort response: ', response);
+            handleSysError(response);
+        },
+        ontimeout: function(response) {
+            console.log('(JS-Helper) ' + GM_info.script.name +': ontimeout response: ', response);
             handleSysError(response);
         }
     });
