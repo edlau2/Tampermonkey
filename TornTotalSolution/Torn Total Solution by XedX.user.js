@@ -7,8 +7,8 @@
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
-// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
