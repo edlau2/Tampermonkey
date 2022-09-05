@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -2124,7 +2124,7 @@
         function buildNewLi(id, name) {
             // LI and DIVs to insert for set count, items needed, items required
             const newLi =
-                '<li class="">' +
+                '<li class="" data-item="replaceID">' +
                     '<div class="thumbnail-wrap" tabindex="0">' +
                         '<div class="thumbnail">' +
                             '<img class="torn-item item-plate" data-size="medium" src="/images/items/replaceID/large.png"' +
@@ -2141,9 +2141,9 @@
                                 '</div>' +
                             '</span>' +
                             '<span class="name-wrap">'+
-                                '<span class="qty bold d-hide"> x0</span>'+
+                                '<span class="qty bold d-hide"> x0 </span>'+
                                 '<span class="name">replaceName</span>'+
-                                '<span class="qty bold t-hide"> x0</span>'+
+                                '<span class="qty bold t-hide"> x0 </span>'+
                             '</span>'+
                         '</div>'+
                     '</div>' +
@@ -2181,7 +2181,7 @@
             insertAfter(tornMuseumSetHelper.xedxSepNode, mainItemsDiv);
             insertAfter(tornMuseumSetHelper.xedxHdrNode.nextSibling, tornMuseumSetHelper.xedxSepNode);
 
-            // Add LI's for each missing item - TBD
+            // Add LI's for each missing item
             debug('Going to add ' + setArray.length + ' items.');
             for (let i = 0; i < setArray.length; i++) {
                 let item = setArray[i];
@@ -2380,6 +2380,9 @@
                 if (!fullFlowerSets) {
                     removeFullSetHdr();
                     addMissingItems(ulDiv, flowersInSet); // Verify this...
+                    liList = $('#xedx-required-items > li');
+                    hints = fillHints(liList, flowerHints);
+                    debug('[tornMuseumSetHelper] Added hints to ' + hints + ' items.');
                 } else {
                     removeAdditionalItemsList();
                     displayFullSetHdr(fullFlowerSets, flowersPtsPerSet);
@@ -2398,14 +2401,20 @@
                 let hints = fillHints(liList, plushieHints);
                 debug('[tornMuseumSetHelper] Added hints to ' + hints + ' items.');
 
-                // Add LI's for missing items
+                // Add LI's for missing items - add hints, too!
                 if (!fullPlushieSets) {
                     removeFullSetHdr();
                     addMissingItems(ulDiv, plushiesInSet);
+                    liList = $('#xedx-required-items > li');
+                    hints = fillHints(liList, plushieHints);
+                    debug('[tornMuseumSetHelper] Added hints to ' + hints + ' items.');
                 } else {
                     removeAdditionalItemsList();
                     displayFullSetHdr(fullPlushieSets, plushiesPtsPerSet);
                 }
+
+
+
             } else if (tornMuseumSetHelper.pageName == 'Artifacts') {
                 // TBD -
                 //
@@ -4845,13 +4854,15 @@
 
             Array.from(list).forEach((el) => {
                 if (!$(el).hasClass('xedx-green')) {
-                        $(el).addClass('xedx-green');
+                        /*if ($(el).is("span"))*/ $(el).addClass('xedx-green');
+                        log(el);
                         log('[handleSearchKeypress] adding green');
                     }
                 handleSearchKeypress.lastElems.push(el);
             });
 
             let count = $(".xedx-green").length;
+            log('All green: ', $(".xedx-green"));
             debug ('[handleSearchKeypress] found ' + count + ' matches (setting innerHTML)');
             $("#xmatches").html(count ? "  (" + count + " matches)" : "");
         }
