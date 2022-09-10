@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -199,8 +199,15 @@
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-            let newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+            let newLi;
+            if (DEV_MODE) {
+                newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
+            } else {
+                newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+                        '<span class="title bold"> Score <span>:</span></span>' + scoreStr + '</span>';
+            }
+
             $(wrapper.children[1]).next().css('width', '200px');
             $(wrapper.children[1]).after(newLi);
 
