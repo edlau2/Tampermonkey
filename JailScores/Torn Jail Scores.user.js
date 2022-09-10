@@ -379,16 +379,6 @@
     // Start a mutation observer to run on page changes
     //////////////////////////////////////////////////////////////////////
 
-    const observerOn = function () {
-        debug('[observerOn]');
-        if (observer) observer.observe(targetNode, config);
-    }
-
-    const observerOff = function () {
-        debug('[observerOff]');
-        if (observer) observer.disconnect();
-    }
-
     var intervalId = null;
     const observerCallback = function(mutationsList, observer) {
             debug('Observer CB');
@@ -448,6 +438,16 @@
         observer = new MutationObserver(observerCallback);
         log('Starting mutation observer: ', targetNode);
         observerOn();
+    }
+
+    const observerOn = function () {
+        debug('[observerOn]');
+        if (observer) observer.observe(targetNode, config);
+    }
+
+    const observerOff = function () {
+        debug('[observerOff]');
+        if (observer) observer.disconnect();
     }
 
     function handleSaveButton() {
