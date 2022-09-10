@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.35
+// @version     2.36
 // @license     MIT
 // ==/UserScript==
 
@@ -587,8 +587,8 @@ function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) 
             'Accept': 'application/json'
         },
         onload: function(response) {
-            console.log('(JS-Helper) ' + GM_info.script.name + ' Response: ', response);
-            console.log('(JS-Helper) ' + GM_info.script.name + ' Response Text (ID=' + ID + '): ' + response.responseText);
+            //console.log('(JS-Helper) ' + GM_info.script.name + ' Response: ', response);
+            //console.log('(JS-Helper) ' + GM_info.script.name + ' Response Text (ID=' + ID + '): ' + response.responseText);
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
