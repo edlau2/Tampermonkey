@@ -26,7 +26,7 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = true;
+    const DEV_MODE = false;
 
     debugLoggingEnabled = false;
     loggingEnabled = true;
@@ -509,7 +509,10 @@
     installObserver();
 
     // Start by kicking off a few API calls.
-    queryPastBusts();
+    if (DEV_MODE)
+        queryPastBusts();
+    else
+        personalStatsQuery();
 
 })();
 
