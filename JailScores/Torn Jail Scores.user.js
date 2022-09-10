@@ -26,7 +26,7 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = false;
+    const DEV_MODE = true;
 
     debugLoggingEnabled = false;
     loggingEnabled = true;
@@ -497,7 +497,7 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    validateApiKey('FULL');
+    validateApiKey(DEV_MODE ? 'FULL' : 'LIMITED');
     versionCheck();
 
     addStyles();
@@ -509,10 +509,11 @@
     installObserver();
 
     // Start by kicking off a few API calls.
-    if (DEV_MODE)
+    if (DEV_MODE) {
         queryPastBusts();
-    else
+    } else {
         personalStatsQuery();
+    }
 
 })();
 
