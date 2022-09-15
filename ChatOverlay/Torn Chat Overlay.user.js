@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat Overlay
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -61,7 +61,7 @@
     debugLoggingEnabled = devMode;
 
     // Globals for an observer
-    const targetNode = document.querySelector("#chatRoot");
+    var targetNode = document.querySelector("#chatRoot");
 
     const chatOverlay = '<textarea name="xedx-chatbox2" autocomplete="off" maxlength="840" ' +
                             'style="width: 179.4px; height: 51px;">' + // Will be over-written with target style
@@ -112,6 +112,7 @@
                     }
                     `);
     }
+
     function initEmojiCollection() {
         let collection = {
           trigger: ':',
@@ -211,6 +212,7 @@
             {key: "facepalm", value: "facepalm", code: '\u{1F926}'},
             {key: "zany_face", value: "zany_face", code: '\u{1F92A}'},
             {key: "shrug", value: "shrug", code: '\u{1F937}'},
+            {key: "egg", value: "egg", code: '\u{1F95A}'},
             {key: "smiling_face_with_3_hearts", value: "smiling_face_with_3_hearts", code: '\u{1F970}'},
             {key: "shushing_face", value: "shushing_face", code: '\u{1F92B}'},
 
@@ -355,7 +357,7 @@
         const discordEmojiRegex = /(:)[A-z0-9 _/~\.\=\-\+]+(:)/gi; // Matches between ':'
 
         // Testing code
-        if (devMode && messageText.indexOf('emojitest') > -1) {
+        if (/* devMode && */ messageText.indexOf('!emojitest') > -1) {
             let outMsg = 'Supported emojis: \r\n';
             log('emojitest: ', emojiArray);
             for (let i=0; i < emojiArray.length; i++) {
@@ -573,13 +575,17 @@
 
     // Handle new nodes as they're added and removed.
     function processAddedNodes(nodeList, target) {
-        debug('[processAddedNodes]');
+        if (target && target.tagName != 'SPAN') {
+            debug('[processAddedNodes]');
+        }
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
             let ia = target ? target.querySelectorAll("div[class ^= '_chat-box-input']")[0] : null;
             let ta = ia ? ia.querySelector("div > textarea") : null;
 
-            debug('target: ', target, ' ia: ', ia, ' ta: ', ta);
+            if (target && target.tagName != 'SPAN') {
+                debug('target: ', target, ' ia: ', ia, ' ta: ', ta);
+            }
 
             if (ta) addChatOverlay(ta);
             let iconNode = target ? target.getElementsByClassName('icon_chat_inactive')[0] : null;
@@ -592,7 +598,7 @@
     }
 
     function processRemovedNodes(nodeList, target) {
-        debug('[processRemovedNodes]');
+        //debug('[processRemovedNodes]');
         observer.disconnect();
         for (let i=0; i < nodeList.length; i++) {
             //debug('Target node ', target, ' being removed!');
@@ -607,12 +613,14 @@
 
     // Handle target mutations.
     const observerCallback = function(mutationsList, observer) {
-        debug('[observerCallback]');
+        //scrollOpenChats();
         let nodeList = null;
         for(const mutation of mutationsList) {
             if (mutation.type === 'childList') {
                 let target = mutation.target;
-                debug('[childList] target: ', target);
+                if (target && target.tagName != 'SPAN') {
+                    debug('[childList] target: ', target);
+                }
 
                 nodeList = mutation.addedNodes;
                 if (nodeList) processAddedNodes(nodeList, target);
@@ -622,7 +630,15 @@
         }
     };
 
+    function scrollOpenChats() {
+        let viewports = $("div[class ^= '_viewport_'");
+        log('CHATBOXES viewports: ', viewports);
+
+        Array.from(viewports).forEach(e => $(e).animate({ scrollTop: $(e).height() }, "slow"));
+    }
+
     function handlePageLoad() {
+        debug('[handlePageLoad] ==>');
         let chatNodes = targetNode.querySelectorAll("textarea[class ^= '_chat-box-textarea']");
 
         debug('Found ' + chatNodes.length + ' existing open chat boxes');
@@ -630,6 +646,7 @@
             addChatOverlay(chatNodes[i]);
         }
 
+        if (!targetNode) targetNode = document.querySelector("#chatRoot");
         if (!observer) observer = new MutationObserver(observerCallback);
         observer.observe(targetNode, config);
     }
@@ -641,7 +658,9 @@
     logScriptStart();
     versionCheck();
     addStyles();
+
     callOnContentLoaded(handlePageLoad);
+    //callOnContentComplete(scrollOpenChats);
 
 })();
 
