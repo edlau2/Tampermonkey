@@ -271,6 +271,6 @@ Borrowed from:
     logScriptStart();
     versionCheck();
     addStyles();
-    callOnContentComplete(handlePageLoad);
+    callOnContentLoaded(handlePageLoad);
 
 })();
