@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Criminal Record Details
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -59,13 +59,154 @@ Borrowed from:
         `);
     }
 
+    function fixupCrimeLi(item){
+        let arr = null;
+        let type = $(this).children(":first").text().trim();
+        let desc = $(this).children(":last").text();
+        let n = desc.replace(',','');
+
+        log('Cehcking item: ', item);
+
+        switch(type){
+            case 'Other':
+                type += ' (nerve: 2)';
+                arr = arrayOther;
+                break;
+            case 'Illegal products':
+                type = 'Illegal products (nerve: 3, 16)';
+                arr = arrayIllegal;
+                break;
+            case 'Theft':
+                type += ' (nerve: 4, 5, 6, 7, 15)';
+                arr = arrayThefts;
+                break;
+            case 'Computer crimes':
+                type += ' (nerve: 9, 18)';
+                arr = arrayVirus;
+                break;
+            case 'Murder':
+                type += ' (nerve: 10)';
+                arr = arrayMurder;
+                break;
+            case 'Drug deals':
+                type += ' (nerve: 8)';
+                arr = arrayDrugs;
+                break;
+            case 'Fraud crimes':
+                type = 'Fraud (nerve: 11, 13, 14, 17)';
+                arr = arrayFraud;
+                break;
+            case 'Auto theft':
+                type += ' (nerve: 12)';
+                arr = arrayGTA;
+                break;
+        }
+        $(this).children(":first").text(type);
+
+        if (arr != null) {
+            var mink = -1;
+            for (var k=0; k<arr.length; ++k) {
+                if ((mink == -1) && (arr[k][0] > n)) mink = k;
+            }
+            if (mink >= 0) {
+                desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
+                       '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
+                $(this).children(":last").html(desc);
+                $(this).children(":last").attr('title', desc);
+            }else{
+                $(this).children(":last").css("color","green");
+                $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
+            }
+        }
+    }
+
     function handlePageLoad() {
-        $("div[id^=item]:has(>div.title-black:contains('Criminal Record'))" ).find('li').each(
+        log('==>[handlePageLoad]');
+        let rootNode = $("div[id^=item]:has(>div.title-black:contains('Criminal Record'))");
+        log("Root node: ", rootNode);
+        //$("div[id^=item]:has(>div.title-black:contains('Criminal Record'))" ).find('li').each(
+        if (!rootNode.length) {
+            log("Empty root node, will try another...");
+            rootNode = $("#item10961667 > div.bottom-round > div > ul");
+            log("Root node: ", rootNode);
+        }
+
+        if (rootNode.length) {
+            //$(rootNode).find('li').each(item => fixupCrimeLi(item));
+            $(rootNode).find('li').each(
+                 function(item){
+                let arr = null;
+                let type = $(this).children(":first").text().trim();
+                let desc = $(this).children(":last").text();
+                let n = desc.replace(',','');
+
+                log('Cehcking item: ', item);
+
+                switch(type){
+                    case 'Other':
+                        type += ' (nerve: 2)';
+                        arr = arrayOther;
+                        break;
+                    case 'Illegal products':
+                        type = 'Illegal products (nerve: 3, 16)';
+                        arr = arrayIllegal;
+                        break;
+                    case 'Theft':
+                        type += ' (nerve: 4, 5, 6, 7, 15)';
+                        arr = arrayThefts;
+                        break;
+                    case 'Computer crimes':
+                        type += ' (nerve: 9, 18)';
+                        arr = arrayVirus;
+                        break;
+                    case 'Murder':
+                        type += ' (nerve: 10)';
+                        arr = arrayMurder;
+                        break;
+                    case 'Drug deals':
+                        type += ' (nerve: 8)';
+                        arr = arrayDrugs;
+                        break;
+                    case 'Fraud crimes':
+                        type = 'Fraud (nerve: 11, 13, 14, 17)';
+                        arr = arrayFraud;
+                        break;
+                    case 'Auto theft':
+                        type += ' (nerve: 12)';
+                        arr = arrayGTA;
+                        break;
+                }
+                $(this).children(":first").text(type);
+
+                if (arr != null) {
+                    var mink = -1;
+                    for (var k=0; k<arr.length; ++k) {
+                        if ((mink == -1) && (arr[k][0] > n)) mink = k;
+                    }
+                    if (mink >= 0) {
+                        desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
+                               '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
+                        $(this).children(":last").html(desc);
+                        $(this).children(":last").attr('title', desc);
+                    }else{
+                        $(this).children(":last").css("color","green");
+                        $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
+                    }
+                }
+            }
+            );
+        } else {
+            log("Can't find root node - page html changed?");
+        }
+
+        $("#xxx-item10961667 > div.bottom-round > div > ul").find('li').each(
             function(item){
                 let arr = null;
                 let type = $(this).children(":first").text().trim();
                 let desc = $(this).children(":last").text();
                 let n = desc.replace(',','');
+
+                log('Cehcking item: ', item);
 
                 switch(type){
                     case 'Other':
@@ -120,6 +261,7 @@ Borrowed from:
                 }
             }
         );
+        log('<==[handlePageLoad]');
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -127,9 +269,8 @@ Borrowed from:
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    //validateApiKey();
     versionCheck();
     addStyles();
-    callOnContentLoaded(handlePageLoad);
+    callOnContentComplete(handlePageLoad);
 
 })();
