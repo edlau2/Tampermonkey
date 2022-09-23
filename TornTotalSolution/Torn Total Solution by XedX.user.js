@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      3.5
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1942,9 +1942,17 @@
 
         // Page names, spans, divs, mutation observer stuff, etc.
         const observerConfig = { attributes: true, characterData: true, subtree: true, childList: true };
+
+        //
+        // TBD - check this once the API is working again!!!!
+        //
+        // document.querySelector("#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items. > div.title-black.top-round.scroll-dark > span.items-name")
+        //
         const pageSpanSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black > span.items-name";
-        const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items > div.title-black";
-        const pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
+        const pageDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.items-wrap.primary-items"; // > div.title-black";
+        //const pageDiv = document.querySelector(tornWeaponSort.pageDivSelector);
+        const pageDiv = document.querySelector(pageDivSelector);
+
         const mainItemsDivSelector = "#mainContainer > div.content-wrapper > div.main-items-cont-wrap";
         let pageName = null;
         let pageSpan = null;
@@ -1983,6 +1991,8 @@
                 if (liList.length <= 1) {setTimeout(installHints, 1000); return;}
                 let hints = fillHints(liList, temporaryHints);
                 log('Added hints to ' + hints + ' items.');
+            } else {
+                log('"' + pageName + '" did not match anything!');
             }
 
             // Watch for active page changes.
