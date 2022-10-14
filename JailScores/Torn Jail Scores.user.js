@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -161,7 +161,7 @@
         if (items.length <= 1) {return setTimeout(addJailScores, 250);}
 
         // Header
-        let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > div.users-list-title.title-black");
+        let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > div.users-list-title.title-black");
         let levelNode = titleBar.querySelector("span.level");
         debug('Title Bar: ', titleBar, ' Score: ', document.querySelector("#score"));
         if (!document.querySelector("#score")) {
@@ -258,7 +258,7 @@
     // Sort jail list, by 'sel' (time, level, or score) and attr
     function sortPage(sel, attr, ord) {
         log('[sortPage]');
-        let jailList = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul");
+        let jailList = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         let matches = $(jailList).children("li");
         tinysort(matches, {selector: sel, attr: attr, order: ord});
     }
@@ -436,12 +436,12 @@
                     }
                 }
             }
-            targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul")
+            targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul")
             observerOn();
         };
 
     function installObserver() {
-        targetNode = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.userlist-wrapper > ul");
+        targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         observer = new MutationObserver(observerCallback);
         log('Starting mutation observer: ', targetNode);
         observerOn();
@@ -479,7 +479,7 @@
         let btn = document.getElementById("xedx-save-btn");
         if (btn) return;
 
-        let parent = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.msg-info-wrap > div > div > div > div");
+        let parent = document.querySelector("#mainContainer > div.content-wrapper > div.msg-info-wrap > div > div > div > div");
         $(parent).append(saveBtnDiv);
         $("#xedx-save-btn").on('click', handleSaveButton);
     }
