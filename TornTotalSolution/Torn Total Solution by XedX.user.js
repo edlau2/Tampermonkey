@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.5
+// @version      3.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -490,9 +490,14 @@
         }
 
         function buildStatsUI(update=false) {
-            let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 >" +
+            //let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper.m-left20 >" +
+            //                                               " div.content.m-top10 > div.sortable-list.left.ui-sortable");
+            //let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
+
+            let targetDivRoot = document.querySelector("#mainContainer > div.content-wrapper >" +
                                                            " div.content.m-top10 > div.sortable-list.left.ui-sortable");
-            let divList = $("#mainContainer > div.content-wrapper.m-left20 > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
+            let divList = $("#mainContainer > div.content-wrapper > div.content.m-top10 > div.sortable-list.left.ui-sortable > div");
+
             let targetDiv = divList[3];
             debug('[tornStatTracker] targetDivRoot: ', targetDivRoot, ' divList: ', divList, ' targetDiv: ', targetDiv);
             if (!targetDiv) return '[tornStatTracker] targetDiv not found! Consider starting later.';
@@ -4965,7 +4970,7 @@
             tornDisableRefills.jsonResp = JSON.parse(responseText);
             if (tornDisableRefills.jsonResp.error) {return handleApiError(responseText);}
 
-            let titleBar = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.content-title");
+            let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
             if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
             $(titleBar).append(safetyNet);
 
@@ -6131,7 +6136,8 @@
                            (opts.autoRefresh ? ' checked ': '') + ` />
                            <span style="color: red;"> Auto Refresh? </span>
                        </div>`;
-            let target = document.querySelector("#mainContainer > div.content-wrapper.m-left20 > div.travel-people.revive-people");
+
+            let target = document.querySelector("#mainContainer > div.content-wrapper > div.travel-people.revive-people");
             $(target).before(div);
 
             // TBD: if went from off to on, set timer. Or just set, if now on.
@@ -7829,9 +7835,15 @@
     //
     //////////////////////////////////////////////////////////////////////
 
+    let leftAlign = true;
+
     logScriptStart();
     validateApiKey();
     versionCheck();
+
+    // Align Torn to the left
+    // Make an option at some point
+    if (leftAlign) $("#mainContainer").attr("style", "display: flex; justify-content: left;");
 
     addStyles();
 
@@ -7842,6 +7854,7 @@
 
     // Scripts to execute immediately can go here
     if (isAttackPage()) {
+        if (leftAlign) $(".content").attr("style", "display: flex; justify-content: left;");
         if (opts_enabledScripts.tornSeeTheTemps.enabled) {tornSeeTheTemps().then(a => _a(a), b => _b(b));}
         if (opts_enabledScripts.tornScrollOnAttack.enabled) {tornScrollOnAttack().then(a => _a(a), b => _b(b));}
     }
