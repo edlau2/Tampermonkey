@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Bat Stat Saver
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Saves fight result info to est bat stats server
 // @author       xedx [2100735]
 // @include      https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -220,7 +220,7 @@
             return;
         }
 
-        let result = buildResult(lastAttackJSON, g_opponent, /*g_opponent.level, g_opponent.lastaction, g_tornStatSpy,*/ 'outbound');
+        let result = buildResult(lastAttackJSON, g_opponent, 'outbound');
 
         // Send to server. Don't bother if FF == 1.00, may be too low or attacker is a recruit.
         // if FF = 1.00, and respect > 0, use 1.01 as FF...
@@ -324,6 +324,11 @@
     // Check the status of the fight periodically, once it appears, the fight is over, one way or another.
     function checkRes() {
         let sel = document.querySelector("#defender > div.playerArea___W1SRh > div.modal___EfpxI.defender___vDcLc > div > div > div.title___VHuxs");
+        if (!sel) {
+            sel = document.querySelector("#defender > div.playerArea___W1SRh > div.playerWindow___Brr9z > " +
+                                         "div.modal___EfpxI.defender___vDcLc > div > div > div.title___VHuxs");
+        }
+        log("checkRes: sel = ", sel);
         if (sel) {
             let result = sel.innerText;
             if (result) {
@@ -336,6 +341,11 @@
                 // Add a staus indicator to header div
                 let titleBar = document.querySelector("#react-root > div > div.appHeaderAttackWrap___OHuE_ > " +
                                               "div > div.topSection___OilHR > div.titleContainer___LJY0N"); // > h4");
+                if (!titleBar) {
+                    titleBar = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY " +
+                                       " > div.topSection___OilHR > div.titleContainer___LJY0N");
+                }
+                log("*** TITLEBAR: *** ", titleBar);
                 // Note: container is flex, so 2nd span centers the first.
                 $(titleBar).append('<span id="xedx-status" style="color: red; font-size: 18px;">&nbsp</span>' +
                                    '<span>&nbsp</span>');
