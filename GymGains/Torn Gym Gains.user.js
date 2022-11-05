@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @match        https://www.torn.com/gym.php
@@ -260,13 +260,14 @@
     }
 
     function populateGymGainsDiv(responseText, id=null, unused=null) {
+        log('[populateGymGainsDiv]');
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {return handleApiError(responseText);}
 
         const ul = document.getElementById('gym-gains-list');
         resetGains(ul);
         const category = ['property_perks', 'education_perks', 'company_perks', 'faction_perks', 'book_perks', 'job_perks'];
-        const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks'];
+        const categoryName = ['Property Perks', 'Education Perks', 'Company Perks', 'Faction Perks', 'Book Perks', 'Job Perks'];
         for (let i=0; i<category.length; i++) { // Iterate object's arrays
             let arr = jsonResp[category[i]];
             debug('[populateGymGainsDiv] category: ', category[i], ' array: ', arr);
@@ -324,6 +325,7 @@
     //////////////////////////////////////////////////////////////////////
 
     function fillSummaryDiv(content) {
+        log('[fillSummaryDiv]');
         content.setAttribute('style', 'text-align: center; vertical-align: middle; line-height: 24px;');
         let attr = ['Strength', 'Defense', 'Speed', 'Dexterity'];
         $(content).empty();
@@ -346,6 +348,7 @@
 
     // Handler for 'queryGymDetails()', called by 'queryGymInfo()'
     function fillGymDetailsDiv(responseText, unused_id, active_gym) {
+        log('[fillGymDetailsDiv]: ', active_gym);
         let span1id = 'xedx-summary-s1';
         let span2id = 'xedx-summary-s2';
         let contentId = 'xedx-gymsum-contid';
