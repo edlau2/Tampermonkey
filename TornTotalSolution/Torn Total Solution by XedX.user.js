@@ -3429,11 +3429,10 @@
 
         // Helper to build and color-code an individual cell for WE
         function buildWeCell(weItem) {
-            let itemObj = getInventoryById(weItem.itemID);
+            let itemObjs = getInventoryById(weItem.itemID);
             let color = (weItem.exp == 100) ? 'xtdx-green' :
                 (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
-            //if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
-            if (validPointer(itemObj) && itemObj.filter(i => i.equipped)) {color = 'xtdx-yellow';}
+            if (itemObjs.length && itemObjs.filter(i => i.equipped).length) {color = 'xtdx-yellow';}
 
             let output = '<td class="xtdx ' + color + '">' +
                 '<span style="float:left">' + weItem.name +
@@ -3505,7 +3504,8 @@
         // Helper to get inventory object by ID
         function getInventoryById(itemID) {
             let itemObjs = inventoryArray.filter(item => item.ID == itemID);
-            return itemObjs[0];
+            //return itemObjs[0];
+            return itemObjs;
         }
 
         // Helper to toggle body div on arrow click
