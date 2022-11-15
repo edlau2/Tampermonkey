@@ -535,7 +535,8 @@
         let itemObj = getInventoryById(weItem.itemID);
         let color = (weItem.exp == 100) ? 'xtdx-green' :
             (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
-        if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
+        //if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
+        if (validPointer(itemObj) && itemObj.filter(i => i.equipped)) {color = 'xtdx-yellow';}
 
         let output = '<td class="xtdx ' + color + '">' +
             '<span style="float:left">' + weItem.name +
