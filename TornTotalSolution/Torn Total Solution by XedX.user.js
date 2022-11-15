@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      3.7
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -3432,7 +3432,8 @@
             let itemObj = getInventoryById(weItem.itemID);
             let color = (weItem.exp == 100) ? 'xtdx-green' :
                 (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
-            if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
+            //if (validPointer(itemObj) ? itemObj.equipped : false) {color = 'xtdx-yellow';}
+            if (validPointer(itemObj) && itemObj.filter(i => i.equipped)) {color = 'xtdx-yellow';}
 
             let output = '<td class="xtdx ' + color + '">' +
                 '<span style="float:left">' + weItem.name +
