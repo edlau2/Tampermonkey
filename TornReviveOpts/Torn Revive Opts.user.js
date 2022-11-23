@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Revive Opts
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  try to take over the world!
 // @author       xedx [2100735]
-// @match        https://www.torn.com/index.php
+// @match        https://www.torn.com/*
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
@@ -115,6 +115,11 @@
         pageLoaded = true;
 
         log("Inserting rev element, revivable=", revivable);
+
+        if ($("#nav-home").length < 1) {
+            log("Not on page with sidebar!");
+            return;
+        }
 
         $("#nav-home").after(revElemNoOne);
         $("#xedx-revive").attr("style", "display: none");  // Hack!
