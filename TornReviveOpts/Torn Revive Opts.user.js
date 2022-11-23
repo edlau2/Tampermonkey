@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Revive Opts
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -96,10 +96,13 @@
         });
     }
 
+    // area-desktop___Gy9J0
+    GM_addStyle(`.xedx-area-desktop {display: inline-block; float: none; margin-left: 5px; vertical-align: middle;}`);
+
     var revElemNoOne =
         `<div class="area-desktop___Gy9J0" style="display: block" id="xedx-revive">
         <a aria-labelledby="revive-availability" class="revive-availability-btn t-clear h c-pointer m-icon line-h24 last revive-option-nobody" href="#" title="Nobody can revive you." i-data="i_735_25_79_26" aria-describedby="ui-tooltip-2 ui-tooltip-3">
-            <span class="icon-wrap svg-icon-wrap">
+            <span class="icon-wrap svg-icon-wrap" style="margin-left: 0px !important;">
                 <span class="link-icon-svg revive-availability ">
                     <svg id="xedx-svg" xmlns="http://www.w3.org/2000/svg" width="18" height="14.72" viewBox="0 0 18 14.72">
                         <path id="path1" d="M16.2,9.36a.87.87,0,0,0-.66.42l-1.07,2L13.14,8a.71.71,0,0,0-.66-.5.86.86,0,0,0-.74.41L10.83,10,9.43,1.59C9.35,1.26,9,.93,8.68,1a.81.81,0,0,0-.74.58L6.7,11.43l-1-5.29a.69.69,0,0,0-.66-.58A.67.67,0,0,0,4.3,6L2.65,9.44H0v1.49H3.06a.73.73,0,0,0,.66-.41L4.63,8.7l1.49,7.44a.79.79,0,0,0,.74.58h0a.78.78,0,0,0,.74-.66L8.84,6.39l1.08,6.36a.68.68,0,0,0,.66.58.77.77,0,0,0,.74-.41l1.16-2.65,1.24,3.64a.72.72,0,0,0,.66.5.89.89,0,0,0,.75-.42l1.65-3.14H20V9.37Z" fill="#fff" opacity="0.35"></path>
@@ -107,11 +110,12 @@
                     </svg>
                 </span>
             </span>
-            <span id="revive-availability">Nobody</span>
+            <span id="revive-availability" style="margin-left: 5px !important;">Nobody</span>
         </a></div>`;
 
     function handlePageLoad() {
         if (revivable == -1) return;
+        if (location.href.indexOf("hospitalview") > -1) return;
         pageLoaded = true;
 
         log("Inserting rev element, revivable=", revivable);
