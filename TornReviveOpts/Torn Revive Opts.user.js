@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Revive Opts
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -49,9 +49,16 @@
     }
 
     function clickHandler(e) {
+        let internal = (typeof e === 'string');
         log("Click handler, e is ", e);
-        e.preventDefault();
-        let $btn = $(this);
+        let $btn = null;
+        if (!internal) {
+            e.preventDefault();
+        $btn = $(this);
+        } else {
+            $btn = $('.revive-availability-btn');
+        }
+        log("$btn: ", $btn);
         $btn.closest('.content-wrapper').tooltip('close');
         ajaxWrapper({
             url: '/hospitalview.php',
@@ -61,6 +68,7 @@
             },
             oncomplete: function(res) {
                 log("Response: ", res);
+                log("Response, e: ", e);
                 let response = JSON.parse(res.responseText);
                 let newClass = response.class.split(' ').pop();
                 let messageColor = '';
@@ -89,6 +97,16 @@
                 $btn.addClass(newClass).attr('title', response.description).find('#revive-availability').text(response.title)
                 informationMessageTemplateIn($('#info-msg-wrapper').empty(), false, false, messageColor);
                 $('#info-msg-wrapper').find('.msg').html(response.description);
+
+                if (e == "internal-1")
+                    clickHandler("internal-2");
+                else if (e == "internal-2")
+                    clickHandler("internal-3");
+                else if (e == "internal-3") {
+                    log("Ensure we set correct text/color here!");
+                    log("class: ", newClass, " color: ". messageColor);
+                    $("#xedx-revive").attr("style", "display: block");
+                }
             },
             onerror: function(err) {
                 log("Error: ", err);
@@ -130,11 +148,8 @@
         $('.revive-availability-btn').click(clickHandler);
 
         // Hack!
-        let e = $('.revive-availability-btn');
-        e.click();
-        e.click();
-        e.click();
-        setTimeout(function(){$("#xedx-revive").attr("style", "display: block");}, 750);
+        //let e = $('.revive-availability-btn');
+        clickHandler("internal-1");
     }
 
     //////////////////////////////////////////////////////////////////////
