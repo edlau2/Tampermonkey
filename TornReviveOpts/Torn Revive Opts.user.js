@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Revive Opts
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -50,7 +50,7 @@
 
     function clickHandler(e) {
         let internal = (typeof e === 'string');
-        dugeb("Click handler, e is ", e);
+        debug("Click handler, e is ", e);
         let $btn = null;
         if (!internal) {
             e.preventDefault();
@@ -146,7 +146,7 @@
         let BadURLs = ["holdem"];
         let badUrlFound = false;
         BadURLs.forEach (function(e) {
-            debug("Checking " + e + " in '" + location.href + "'");
+            //debug("Checking " + e + " in '" + location.href + "'");
             if (location.href.indexOf(e) > -1) {
                 log("Not displaying on the ", e, " page");
                 badUrlFound = true;
