@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Revive Opts
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -21,9 +21,9 @@
 (function() {
     'use strict';
 
-    GM_addStyle('.xedx-red: {color: red;}');
-    GM_addStyle('.xedx-gree: {color: limegreen;}');
-    GM_addStyle('.xedx-orange: {color: orange;}');
+    //GM_addStyle('.xedx-red: {color: red;}');
+    //GM_addStyle('.xedx-green: {color: limegreen;}');
+    //GM_addStyle('.xedx-orange: {color: orange;}');
 
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
@@ -50,7 +50,7 @@
 
     function clickHandler(e) {
         let internal = (typeof e === 'string');
-        log("Click handler, e is ", e);
+        dugeb("Click handler, e is ", e);
         let $btn = null;
         if (!internal) {
             e.preventDefault();
@@ -69,42 +69,48 @@
             oncomplete: function(res) {
                 log("Response: ", res);
                 log("Response, e: ", e);
-                let response = JSON.parse(res.responseText);
-                let newClass = response.class.split(' ').pop();
-                let messageColor = '';
-                log("Response, newClass: ", newClass);
-                switch (newClass) {
-                case ('revive-option-everyone'):
-                    messageColor = 'green';
-                    //newClass = newClass + ' ' + 'xedx-green';
-                    $btn.attr("style", "color: limegreen;");
-                    break;
-                case ('revive-option-friends'):
-                    messageColor = 'orange';
-                    //newClass = newClass + ' ' + 'xedx-orange';
-                    $btn.attr("style", "color: orange;");
-                    break;
-                case ('revive-option-nobody'):
-                    messageColor = 'red';
-                    //newClass = newClass + ' ' + 'xedx-red';
-                    $btn.attr("style", "color: red;")
-                    break;
+                let response = null;
+                try {
+                    response = JSON.parse(res.responseText);
+                } catch (e) {
+                    log("Error parsing JSON! ", e);
                 }
-                log("Message Color: ", messageColor);
-                $btn.removeClass(function(index, className) {
-                    return (className.match(/(^|\s)revive-option-\S+/g) || []).join(' ');
-                });
-                $btn.addClass(newClass).attr('title', response.description).find('#revive-availability').text(response.title)
-                informationMessageTemplateIn($('#info-msg-wrapper').empty(), false, false, messageColor);
-                $('#info-msg-wrapper').find('.msg').html(response.description);
+                let newClass = '';
+                let messageColor = '';
+                if (response) {
+                    newClass = response.class.split(' ').pop();
+                    messageColor = '';
+                    log("Response, newClass: ", newClass);
+                    switch (newClass) {
+                    case ('revive-option-everyone'):
+                        messageColor = 'green';
+                        $btn.attr("style", "color: limegreen;");
+                        break;
+                    case ('revive-option-friends'):
+                        messageColor = 'orange';
+                        $btn.attr("style", "color: orange;");
+                        break;
+                    case ('revive-option-nobody'):
+                        messageColor = 'red';
+                        $btn.attr("style", "color: red;")
+                        break;
+                    }
+                    log("Message Color: ", messageColor);
+                    $btn.removeClass(function(index, className) {
+                        return (className.match(/(^|\s)revive-option-\S+/g) || []).join(' ');
+                    });
+                    $btn.addClass(newClass).attr('title', response.description).find('#revive-availability').text(response.title)
+                    informationMessageTemplateIn($('#info-msg-wrapper').empty(), false, false, messageColor);
+                    $('#info-msg-wrapper').find('.msg').html(response.description);
+                }
 
                 if (e == "internal-1")
                     clickHandler("internal-2");
                 else if (e == "internal-2")
                     clickHandler("internal-3");
                 else if (e == "internal-3") {
-                    log("Ensure we set correct text/color here!");
-                    log("class: ", newClass, " color: ". messageColor);
+                    //log("Ensure we set correct text/color here!");
+                    //log("class: ", newClass, " color: ". messageColor);
                     $("#xedx-revive").attr("style", "display: block");
                 }
             },
@@ -114,7 +120,6 @@
         });
     }
 
-    // area-desktop___Gy9J0
     GM_addStyle(`.xedx-area-desktop {display: inline-block; float: none; margin-left: 5px; vertical-align: middle;}`);
 
     var revElemNoOne =
@@ -132,9 +137,22 @@
         </a></div>`;
 
     function handlePageLoad() {
+        pageLoaded = true;
+
         if (revivable == -1) return;
         if (location.href.indexOf("hospitalview") > -1) return;
-        pageLoaded = true;
+
+        // Doesn't work on some pages = such as the poker page.
+        let BadURLs = ["holdem"];
+        let badUrlFound = false;
+        BadURLs.forEach (function(e) {
+            debug("Checking " + e + " in '" + location.href + "'");
+            if (location.href.indexOf(e) > -1) {
+                log("Not displaying on the ", e, " page");
+                badUrlFound = true;
+            }
+        });
+        if (badUrlFound) return;
 
         log("Inserting rev element, revivable=", revivable);
 
