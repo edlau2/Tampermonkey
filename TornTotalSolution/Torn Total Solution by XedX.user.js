@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.7
+// @version      3.8
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -201,7 +201,7 @@
 
     // Callback for above
     function personalStatsQueryCB(responseText, ID) {
-        log('[personalStatsQueryCB] response: ', responseText);
+        //log('[personalStatsQueryCB] response: ', responseText);
         if (responseText == undefined) {
             log('[personalStatsQueryCB] unknown error, no response!');
             return;
@@ -2727,7 +2727,7 @@
         }
 
         function installUI() {
-            debug('[tornWeaponSort] installUI');
+            debug('[installUI] tornWeaponSort');
             let parent = document.querySelector("#mainContainer > div.content-wrapper > div.main-items-cont-wrap > div.equipped-items-wrap");
             if (!parent) return setTimeout(installUI, 50);
             if (!document.querySelector("xedx-weapon-sort")) {
@@ -4730,11 +4730,14 @@
         });
 
         function installUI(retries=0) {
-            log('[installUI]');
+            if (!retries)
+                log('[installUI] tornFacPageSearch ');
+            else
+                log('[installUI] tornFacPageSearch ' +  ("retry # " + retries));
             const searchDiv = getFacSearchDiv();
 
             if (retries > 5) {
-                debug('[installUI] too many retires: aborting');
+                debug('[installUI] too many retries: aborting');
                 return;
             }
 
@@ -7836,7 +7839,7 @@
     //
     //////////////////////////////////////////////////////////////////////
 
-    let leftAlign = true;
+    let leftAlign = false;
 
     logScriptStart();
     validateApiKey();
