@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Archer's IIR Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Save IIR data to disk
 // @author       xedx [2100735]
 // @match        https://www.insolvencydirect.bis.gov.uk/*
@@ -24,7 +24,7 @@
 
     var gPaused = GM_getValue("paused", false);
 
-    let firstLetterToSearchFor = 'h';
+    let firstLetterToSearchFor = 'j';
     let lastLetterToSearchFor = 'z'; // Normally would be "Z"!
 
     const homePageURL = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRMasterPage.asp";
@@ -49,6 +49,13 @@
     const searchingDiv =
           `<br><div>
               <h2><span class="xedx-wait-span cred">Search started ... please wait, be patient!</span></h2>
+              <button id="xedx-stop-btn" class="xedx-btn">Stop</button>
+           </div>`;
+
+    const searchContinuesDiv =
+          `<br><div>
+              <h2><span class="xedx-wait-span cred">Search continuing onto next page ... please wait, be patient!</span></h2>
+              <button id="xedx-stop-btn" class="xedx-btn">Stop</button>
            </div>`;
 
     const recoveringDiv =
@@ -118,7 +125,8 @@
         }
 
         if (searching && !searchOver) {
-            let newLtr = GM_getValue("lastSearch", lastLetterToSearchFor);
+            //let newLtr = GM_getValue("lastSearch", lastLetterToSearchFor);
+            let newLtr = GM_getValue("_newLtr", "a");
             log("newLtr: ", newLtr);
 
             log("Continuing search for '" + newLtr + "'");
@@ -161,13 +169,21 @@
             return true;
         }
 
-        log("processCurrentPageResults returned FALSE, all done!");
+        log("processCurrentPageResults returned FALSE,....");
+        log("lastLtr: ", lastLtr, "last to look for: ", lastLetterToSearchFor);
+
+        alert("Search continuing, maybe...");
+        //debugger;
 
         // Need to go back to the search page, and search again.
         if (lastLtr != 'z' && lastLtr != lastLetterToSearchFor.toLowerCase()) {
             let nextLtr = nextChar(lastLtr);
-            GM_setValue("lastSearch", nextLtr);
+            GM_setValue("lastSearch", lastLtr);
             log("Going onto nextLtr: ", nextLtr);
+            GM_setValue("_newLtr", nextLtr);
+            GM_setValue("searching", true);
+            GM_setValue("processing", false);
+            GM_setValue("continuing", true);
             //alert("Going onto next search: " + nextLtr);
 
             // Search!
@@ -272,15 +288,21 @@
         GM_setValue("retries", 0);
 
         // Page we're on now ("page >>1<< of X" -> currPage == 1)
-        let currPageSel = document.querySelector("#mainbody > font:nth-child(18) > strong");
-        if (!currPageSel)
-            currPageSel = document.querySelector("#mainbody > font:nth-child(19) > strong");
+        let index = 18;
+        let currPageSel = document.querySelector("#mainbody > font:nth-child(" + index + ") > strong");
+        if (!currPageSel) {
+            index++;
+            currPageSel = document.querySelector("#mainbody > font:nth-child(" + index + ") > strong");
+        }
         let currPage = currPageSel ? currPageSel.textContent : "unknown";
 
         // Total pages ("Page X of >>253<<" -> resPages == 253)
-        let pagesSel = document.querySelector("#mainbody > font:nth-child(19) > strong");
-        if (!pagesSel)
+        index++;
+        let pagesSel = document.querySelector("#mainbody > font:nth-child(" + index + ") > strong");
+        if (!pagesSel) {
+            index++;
             pagesSel = document.querySelector("#mainbody > font:nth-child(20) > strong");
+        }
         let resPages = pagesSel ? pagesSel.textContent : "unknown";
 
         // Total result count ("Your search returned 18775 records." -> resCount == 18775)
@@ -369,8 +391,9 @@
             GM_setValue("lastPageClick", nextPage);
 
             // Go to the next page
-            log("Clicking the link for page " + lastLtr + nextPage + "!!!");
+            log("Clicking the link for page [" + lastLtr + "]" + nextPage + "!!!");
             window.location.href = pageURL;
+            GM_setValue("_nextURL", pageURL);
 
             // Indicate there are more pages to process
             return true; // Processing more pages
@@ -424,6 +447,13 @@
         }
     }
 
+    function handleStopButton() {
+        GM_setValue("redirected", false);
+        GM_setValue("searching", false);
+        GM_setValue("processing", false);
+        GM_setValue("searchOver", true);
+    }
+
     // Called on page load
     function handlePageLoad() {
         //debugger;
@@ -450,6 +480,7 @@
         // This is wrong ... to support recovery....
         if (currURL == homePageURL && !recovering && GM_getValue("searchOver", true)) { // Clear all state variables
             log("Clearing state");
+            GM_setValue("continuing", false);
             GM_setValue("redirected", false);
             GM_setValue("searching", false);
             GM_setValue("processing", false);
@@ -484,7 +515,12 @@
             }
 
             if (searching) {
-                useUI = searchingDiv; //duringSearchUI;
+                if (GM_getValue("continuing", false))
+                    useUI = searchContinuesDiv;
+                else
+                    useUI = searchingDiv; //duringSearchUI;
+
+                GM_setValue("continuing", false);
                 log("Changing UI to 'searching...'");
             }
 
@@ -504,9 +540,9 @@
                 // TEMPORARY - cleared if not already in recovery mode, above!
                 //
                 GM_setValue("lastLtr", "This is unused!"); // accidentally got trashed...
-                //GM_setValue("processPage", 499);
-                //GM_setValue("lastPageClick", 499);
-                GM_setValue("lastSearch", "h");
+                GM_setValue("processPage", 193);
+                GM_setValue("lastPageClick", 193);
+                GM_setValue("lastSearch", "i");
                 GM_setValue("processing", true);
                 GM_setValue("retries", 0);
                 GM_setValue("searching", false);
@@ -516,6 +552,7 @@
                 GM_setValue("recover", true);
                 location.reload();
             });
+            $("#xedx-stop-btn").on('click', handleStopButton);
             $("#xedx-atop-btn").on('click', function() {
                 GM_setValue("redirected", false);
                 GM_setValue("searching", false);
@@ -543,7 +580,8 @@
         log("Paused? ", gPaused);
         if (gPaused) {
             $("#xedx-det-text").text("Paused!");
-            setTimeout(processCurrentPageResults, 5000);
+            //setTimeout(processCurrentPageResults, 5000);
+            setTimeout(handleNextResult, 5000);
         }
 
         //GM_setValue("redirected", false);
@@ -558,8 +596,11 @@
         }
 
         if (processing) {
-            processCurrentPageResults();
+            //processCurrentPageResults();
+            handleNextResult();
         }
+
+        log("[handlePageLoad] EXITING!!!");
     }
 
 
@@ -642,7 +683,7 @@
                         <tr><td><span id="xedx-det-text" class="xedx-wait-span cblue">Each page takes about 10 seconds to load.</span></td></tr>
                         <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
                         <td><tr><button id="xedx-pause-btn" class="xedx-btn">Pause</button></td></tr>
-                        <td><tr><button id="xedx-atop-btn" class="xedx-btn">Stop</button></td></tr></tbody></table></center>
+                        <td><tr><button id="xedx-stop-btn" class="xedx-btn">Stop</button></td></tr></tbody></table></center>
                 </td></tr>
             </tbody>
         </table>`;
