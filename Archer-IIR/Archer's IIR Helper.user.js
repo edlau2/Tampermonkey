@@ -35,7 +35,24 @@
     var topNavTarget = document.querySelector("#topnav");
 
     // UI elements
+
+    const tblHdr =
+      `<table width="100%" cellspacing="0" cellpadding="0">
+        <tbody>
+            <tr><td style="color: white;" align="center" bgcolor="blue">
+                <b><span id="xedx-tbl-title">Archer's IIR Helper</span></b>
+            </td></tr>
+            <tr><td id="xedx-tbl-body" style="padding: 5px; border: 1px solid blue;" class="xedx-show">
+                <center><table><tbody><center>`;
+
+    const tblFtr =
+                   `</tbody></table></center>
+                </td></tr>
+            </tbody>
+        </table>`;
+
     const mainPageUI = GetMainPageUI();
+    const processingDiv = GetProcessingUI();
 
     const searchPageUI =
           `<br>
@@ -63,8 +80,8 @@
               <h2><span class="xedx-wait-span cred">Recovery started ... please wait, be patient!</span></h2>
            </div>`;
 
-    const processingDiv = GetProcessingUI();
 
+    // Returns TRUE if clicked a button or went to new page
     function onBtnClickGo() {
         log("[onBtnClickGo]");
 
@@ -72,6 +89,7 @@
         let searching = GM_getValue("searching", false);
         let searchOver = GM_getValue("searchOver", false);
         let processing = GM_getValue("processing", false);
+        let continuing = GM_getValue("continuing", false);
         let currURL = location.href;
         let resultsPage = currURL.toLowerCase().indexOf(resultsPageURLPrefix.toLowerCase()) > -1;
 
@@ -81,6 +99,7 @@
         log("Search over? ", searchOver);
         log("Processing? ", processing);
         log("Results page? ", resultsPage);
+        log("Continuing? ", continuing);
 
         // Reset vars as appropriate
         GM_setValue("redirected", false);
@@ -89,7 +108,7 @@
             window.location.href = nameSearchURL;
             GM_setValue("redirected", true);
             GM_setValue("searching", false);
-            return;
+            return false;
         }
 
         log("After redirect check.");
@@ -110,7 +129,7 @@
 
             $("#mainbody > form").addClass("xedx-hidden");
             $("#mainbody > form").insertAfter(searchingDiv);
-            return;
+            return true;
         }
 
         // Check for a results page.
@@ -121,7 +140,7 @@
             let processing = GM_getValue("processing", false);
             let msg = ("More page results? " + morePages + " still processing? " + processing);
             log(msg);
-            return;
+            return false;
         }
 
         if (searching && !searchOver) {
@@ -132,18 +151,22 @@
             log("Continuing search for '" + newLtr + "'");
             //alert("Continuing search for '" + newLtr + "'");
 
+            log("val input: ", $("#surnamesearch"));
+            log("Button: ", $("#btnSubmit"));
+
             // Search again!
             $("#surnamesearch").val(newLtr);
             $("#btnSubmit").click();
             $("#mainbody > form").addClass("xedx-hidden");
             $("#mainbody > form").insertAfter(searchingDiv);
 
-            return;
+            return true;
         }
 
         // All done?
         GM_setValue("searching", false);
         log("All done??? searching: " + searching + " processing: " + processing);
+        return false;
     }
 
     function nextChar(c) {
@@ -153,8 +176,9 @@
     function handleNextResult(inRecovery=false) {
         log("[handleNextResult]");
 
+        GM_setValue("continuing", false);
+
         let lastLtr = GM_getValue("lastSearch", lastLetterToSearchFor).toLowerCase();
-        log("[handleNextResult]");
         log("lastLtr: ", lastLtr);
 
         let processPage = GM_getValue("processPage", 1);
@@ -520,7 +544,7 @@
                 else
                     useUI = searchingDiv; //duringSearchUI;
 
-                GM_setValue("continuing", false);
+                //GM_setValue("continuing", false);
                 log("Changing UI to 'searching...'");
             }
 
@@ -587,12 +611,12 @@
         //GM_setValue("redirected", false);
         if (redirected && !searching && !processing) {
             log("Redirected...start search");
-            onBtnClickGo(true);
+            if (onBtnClickGo(true)) return;
         }
 
         if (searching && !searchOver) {
             log("Continuing search...");
-            onBtnClickGo(true);
+            if (onBtnClickGo(true)) return;
         }
 
         if (processing) {
@@ -620,86 +644,98 @@
     //////////////////////////////////////////////////////////////////////
 
     function GetMainPageUI() {
-        let u =    // TBD: Add an "Enabled" checkbox
-        `
-          <table width="100%" cellspacing="0" cellpadding="0">
-            <tbody>
-                <tr><td style="color: white;" align="center" bgcolor="blue">
-                    <b><span id="xedx-tbl-title">Archer's IIR Helper</span></b>
-                </td></tr>
-                <tr><td id="xedx-tbl-body" style="padding: 5px; border: 1px solid blue;" class="xedx-show">
-                    <center><table><tbody>
-                        <td><tr><button id="xedx-go-btn" class="xedx-btn">Start Searching</button></td></tr>
-                        <td><tr><button id="xedx-test-btn" class="xedx-btn">Save All</button></td></tr>
-                        <td><tr><button id="xedx-recover-btn" class="xedx-btn">Start Recovery</button></td></tr>
-                        <tr><td style="text-align: center" colspan="13">Save any page individually:</td></tr>
-                        <tr>
-                            <td><button class="xedx-btn">A</button></td>
-                            <td><button class="xedx-btn">B</button></td>
-                            <td><button class="xedx-btn">C</button></td>
-                            <td><button class="xedx-btn">D</button></td>
-                            <td><button class="xedx-btn">E</button></td>
-                            <td><button class="xedx-btn">F</button></td>
-                            <td><button class="xedx-btn">G</button></td>
-                            <td><button class="xedx-btn">H</button></td>
-                            <td><button class="xedx-btn">I</button></td>
-                            <td><button class="xedx-btn">J</button></td>
-                            <td><button class="xedx-btn">K</button></td>
-                            <td><button class="xedx-btn">L</button></td>
-                            <td><button class="xedx-btn">M</button></td>
-                        </tr>
-                        <tr>
-                            <td><button class="xedx-btn">N</button></td>
-                            <td><button class="xedx-btn">O</button></td>
-                            <td><button class="xedx-btn">P</button></td>
-                            <td><button class="xedx-btn">Q</button></td>
-                            <td><button class="xedx-btn">R</button></td>
-                            <td><button class="xedx-btn">S</button></td>
-                            <td><button class="xedx-btn">T</button></td>
-                            <td><button class="xedx-btn">U</button></td>
-                            <td><button class="xedx-btn">V</button></td>
-                            <td><button class="xedx-btn">W</button></td>
-                            <td><button class="xedx-btn">X</button></td>
-                            <td><button class="xedx-btn">Y</button></td>
-                            <td><button class="xedx-btn">Z</button></td>
-                        </tr>
-                    </tbody></table></center>
-                </td></tr>
-            </tbody>
-        </table>`;
+        let u = tblHdr + // TBD: Add an "Enabled" checkbox
+           `<td><tr><button id="xedx-go-btn" class="xedx-btn">Start Searching</button></td></tr>
+            <td><tr><button id="xedx-test-btn" class="xedx-btn">Save All</button></td></tr>
+            <td><tr><button id="xedx-recover-btn" class="xedx-btn">Start Recovery</button></td></tr>
+            <tr><td style="text-align: center" colspan="13">Save any page individually:</td></tr>
+            <tr>
+                <td><button class="xedx-btn">A</button></td>
+                <td><button class="xedx-btn">B</button></td>
+                <td><button class="xedx-btn">C</button></td>
+                <td><button class="xedx-btn">D</button></td>
+                <td><button class="xedx-btn">E</button></td>
+                <td><button class="xedx-btn">F</button></td>
+                <td><button class="xedx-btn">G</button></td>
+                <td><button class="xedx-btn">H</button></td>
+                <td><button class="xedx-btn">I</button></td>
+                <td><button class="xedx-btn">J</button></td>
+                <td><button class="xedx-btn">K</button></td>
+                <td><button class="xedx-btn">L</button></td>
+                <td><button class="xedx-btn">M</button></td>
+            </tr>
+            <tr>
+                <td><button class="xedx-btn">N</button></td>
+                <td><button class="xedx-btn">O</button></td>
+                <td><button class="xedx-btn">P</button></td>
+                <td><button class="xedx-btn">Q</button></td>
+                <td><button class="xedx-btn">R</button></td>
+                <td><button class="xedx-btn">S</button></td>
+                <td><button class="xedx-btn">T</button></td>
+                <td><button class="xedx-btn">U</button></td>
+                <td><button class="xedx-btn">V</button></td>
+                <td><button class="xedx-btn">W</button></td>
+                <td><button class="xedx-btn">X</button></td>
+                <td><button class="xedx-btn">Y</button></td>
+                <td><button class="xedx-btn">Z</button></td>
+            </tr>` + tblFtr;
 
         return u;
     }
 
     function GetProcessingUI() {
-        let u =
+        let u = tblHdr +
+            /*
            `<table width="100%" cellspacing="0" cellpadding="0">
             <tbody>
                 <tr><td style="color: white;" align="center" bgcolor="blue">
                     <b><span id="xedx-tbl-title">Archer's IIR Helper</span></b>
                 </td></tr>
-                <tr><td id="xedx-tbl-body" style="padding: 5px; border: 1px solid blue;" class="xedx-show">
-                    <center><table><tbody>
-                        <tr><td><span id="xedx-det-text" class="xedx-wait-span cblue">Each page takes about 10 seconds to load.</span></td></tr>
-                        <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
-                        <td><tr><button id="xedx-pause-btn" class="xedx-btn">Pause</button></td></tr>
-                        <td><tr><button id="xedx-stop-btn" class="xedx-btn">Stop</button></td></tr></tbody></table></center>
+               <tr><td id="xedx-tbl-body" style="padding: 5px; border: 1px solid blue;" class="xedx-show">
+                    <center><table><tbody><center>
+            */
+           `<tr><td align="center"><span class="cred dt"><h2>Loading next page</h2></span></td></tr>
+            <tr><td><span id="xedx-det-text" class="xedx-wait-span cblue">Each page takes about 10 seconds to load.</span></td></tr>
+            <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
+            <tr><td align="center"><button id="xedx-pause-btn" class="xedx-btn dt">Pause</button></td></tr>
+            <tr><td align="center"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+        /*
+                    </center></tbody></table></center>
                 </td></tr>
             </tbody>
         </table>`;
-
-        /*
-          `<br><div>
-              <h1><span class="xedx-wait-span cred">Processing results ... please be patient!</span></h1>
-              <span id="xedx-det-text" class="xedx-wait-span cblue">Each page takes about 10 seconds to load.</span>
-              <span id="xedx-time-text" class="xedx-wait-span"></span>
-              <br><button id="xedx-pause-btn" class="xedx-btn">Pause</button>
-              <br><button id="xedx-atop-btn" class="xedx-btn">Stop</button>
-           </div>`;
         */
 
         return u;
     }
+
+    /*
+    const searchPageUI =
+          `<br>
+          <div class="xedx-container">
+              <h2><span class="cred">Archer's IIR Helper</span></h2>
+          </div>
+          <div class="xedx-container">
+              <button id="xedx-go-btn" class="xedx-btn">Search!</button>
+          </div>`;
+
+    const searchingDiv =
+          `<br><div>
+              <h2><span class="xedx-wait-span cred">Search started ... please wait, be patient!</span></h2>
+              <button id="xedx-stop-btn" class="xedx-btn">Stop</button>
+           </div>`;
+
+    const searchContinuesDiv =
+          `<br><div>
+              <h2><span class="xedx-wait-span cred">Search continuing onto next page ... please wait, be patient!</span></h2>
+              <button id="xedx-stop-btn" class="xedx-btn">Stop</button>
+           </div>`;
+
+    const recoveringDiv =
+          `<br><div>
+              <h2><span class="xedx-wait-span cred">Recovery started ... please wait, be patient!</span></h2>
+           </div>`;
+           */
 
     // Install common styles
     function installStyles() {
@@ -717,7 +753,9 @@
             }
 
             .cred {color: red;}
-            .cblue {color: #000080;;}
+            .cblue {color: #000080;}
+
+            .dt {display: table;}
 
             .xedx-wait-span {
                 display: table;
@@ -752,6 +790,8 @@
                 cursor: pointer;
             }
        `);
+
+
     }
 
 })();
