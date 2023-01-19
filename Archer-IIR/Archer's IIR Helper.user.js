@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Archer's IIR Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.7
 // @description  Save IIR data to disk
 // @author       xedx [2100735]
 // @match        https://www.insolvencydirect.bis.gov.uk/*
@@ -22,17 +22,20 @@
 (function() {
     'use strict';
 
+    var enabled = true;
     var gPaused = GM_getValue("paused", false);
 
-    let firstLetterToSearchFor = 'j';
+    let firstLetterToSearchFor = 'l';
     let lastLetterToSearchFor = 'z'; // Normally would be "Z"!
 
-    const recoverLtr = 'j';
-    const recoverNum = 297;
+    const recoverLtr = 'l';
+    const recoverNum = 60;
 
+    const domainPrefix = "https://www.insolvencydirect.bis.gov.uk/eiir/";
     const homePageURL = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRMasterPage.asp";
     const nameSearchURL = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRRegisterNameInput.asp?option=NAME&court=ALL";
     const resultsPageURLPrefix = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRSearchNames.asp";
+    const caseDetailPrefix = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRCaseIndivDetail.asp";
     const errorPagePrefix = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRErrorPage.asp";
     const resultsPageURL = "https://www.insolvencydirect.bis.gov.uk/eiir/IIRSearchNames.asp?court=ALL&courtname=&office=&officename=&OPTION=NAME";
     var topNavTarget = document.querySelector("#topnav");
@@ -44,15 +47,18 @@
 
     const mainPageUI = GetMainPageUI();        // Page displayed on home page
     const processingDiv = GetProcessingUI();   // Page displayed on results of search page
-    const searchPageUI = GetSearchPageUI();    // Page displayed on search home when not searching
     const searchingDiv = GetSearchingUI();     // ... while searching
     const searchContinuesDiv = GetContinuesUI(); // Page shown when going to next 'letter'
     const recoveringDiv = GetRecoveringUI();   // Page displayed when recovery starting
 
 
     // Returns TRUE if clicked a button or went to new page
-    function onBtnClickGo() {
-        log("[onBtnClickGo]");
+    function onBtnClickGo(fromPageLoad=false) {
+        log("[onBtnClickGo] enabled: ", enabled);
+        if (!enabled) {
+            alert("Shouldn't be here!");
+            return;
+        }
 
         let redirected = GM_getValue("redirected", false);
         let searching = GM_getValue("searching", false);
@@ -69,6 +75,19 @@
         log("Processing? ", processing);
         log("Results page? ", resultsPage);
         log("Continuing? ", continuing);
+
+        // Clear state flags
+        // if (currURL == homePageURL && !recovering && GM_getValue("searchOver", true)) { // Clear all state variables
+        if (false) {
+            log("Clearing state");
+            GM_setValue("continuing", false);
+            GM_setValue("redirected", false);
+            GM_setValue("searching", false);
+            GM_setValue("processing", false);
+            GM_setValue("searchOver", false);
+            GM_setValue("processPage", 1);
+            GM_setValue("lastSearch", "");
+        }
 
         // Reset vars as appropriate
         GM_setValue("redirected", false);
@@ -128,6 +147,7 @@
             $("#btnSubmit").click();
             $("#mainbody > form").addClass("xedx-hidden");
             $("#mainbody > form").insertAfter(searchingDiv);
+            intervalTimer = setInterval(updateTimeText, 1000);
 
             return true;
         }
@@ -138,12 +158,18 @@
         return false;
     }
 
+    // Adds one to a char to get next, alphabetically.
     function nextChar(c) {
         return String.fromCharCode(c.charCodeAt(0) + 1);
     }
 
+    // Handle the search page, enter in a letter to search for or process results
     function handleNextResult(inRecovery=false) {
-        log("[handleNextResult]");
+        log("[handleNextResult] enabled: ", enabled);
+        if (!enabled) {
+            alert("Shouldn't be here!");
+            return;
+        }
 
         GM_setValue("continuing", false);
 
@@ -192,6 +218,8 @@
         log("At letter '" + lastLtr + "'\nSearch complete!");
         alert("At results for '" + lastLtr + processPage + "'\nSearch complete!");
 
+        GoHome();
+
         return false;
     }
 
@@ -203,7 +231,6 @@
             return;
         }
 
-        //log("Setting detail text (cb)");
         let currText = $("#xedx-time-text").text() + ".";
         $("#xedx-time-text").text(currText);
     }
@@ -219,11 +246,13 @@
         return nextPageURL;
     }
 
-    //
-    // CHECK ALL RETURN CODES IN HERE!!!!
-    //
+    // Handle the results page, the table of 15 names
     function processCurrentPageResults(inRecovery=false) {
-        log("[processCurrentPageResults]");
+        log("[processCurrentPageResults] enabled: ", enabled);
+        if (!enabled) {
+            alert("Shouldn't be here!");
+            return;
+        }
         let retries = GM_getValue("retries", 0);
 
         //if (inRecovery) debugger;
@@ -401,19 +430,24 @@
     // Persist all storag to disk
     function saveStorageToDisk() {
         log("[saveStorageToDisk]");
-        $("#xedx-test-btn").text("Wait...");
+        $("#xedx-saveall-btn").text("Wait...");
         let keys = GM_listValues();
         log("Keys lenght: ", keys.length);
         let storageData = "";
         let counter = 0;
+        let firstRes = "";
+        let lastRes = "";
         for (let i=0; i < keys.length; i++) {
             let key = keys[i];
-            if (key.indexOf("result.a") > -1) {
+            if (key.indexOf("result.") > -1) { // Change to .a, .b, etc for individual letters....
+                if (firstRes == "") firstRes = key;
+                lastRes = key;
                 counter++;
                 storageData += GM_getValue(key, "") + "\r\n";
             }
         }
         log("Wrote " + counter + " entries to file, total " + storageData.length + " bytes");
+        log("From " + firstRes + " to " + lastRes);
 
         if (counter >= 1) {
             const a = document.createElement("a");
@@ -427,7 +461,7 @@
         } else {
             alert("Nothing to save!");
         }
-        $("#xedx-test-btn").text("Test");
+        $("#xedx-saveall-btn").text("Save All");
     }
 
     // Called to process the "paused" button
@@ -441,19 +475,30 @@
         }
     }
 
+    // Process the "Stop" button press
     function handleStopButton() {
+        $("#xedx-ui").replaceWith(GetStoppingUI());
+        intervalTimer = setInterval(updateTimeText, 1000);
+        GM_setValue("continuing", false);
         GM_setValue("redirected", false);
         GM_setValue("searching", false);
         GM_setValue("processing", false);
         GM_setValue("searchOver", true);
+        GM_setValue("stopPage", GM_getValue("processPage", 1));
+        GM_setValue("stopLtr", GM_getValue("lastSearch", 1));
+
         GoHome();
     }
 
+    // Handle the "Restart" button press
     function handleRestartButton() {
+        $("#xedx-ui").replaceWith(GetRestartingUI());
         GM_setValue("redirected", false);
         GM_setValue("searching", false);
         GM_setValue("processing", true);
         GM_setValue("searchOver", false);
+        GM_setValue("processPage", GM_getValue("stopPage", 1));
+        GM_setValue("lastSearch", GM_getValue("stopLtr", 1));
 
         // Go to the last page we tried to go to
         let pageURL = GM_getValue("_nextURL", "");
@@ -462,6 +507,7 @@
         window.location.href = pageURL;
     }
 
+    // Handle the "Recover" button press, may not really be needed
     function handleRecoverButton() {
         // TEMPORARY - cleared if not already in recovery mode, above!
         //
@@ -479,15 +525,138 @@
         location.reload();
     }
 
+    // Handle the "Enable" checkbox
+    function handleEnableBtn() {
+        enabled = $("#xedx-enabled").is(':checked');
+        log("[handleEnableBtn] enabled: ", enabled);
+        GM_setValue("enabled", enabled);
+
+        // State of buttons:
+        $("#xedx-go-btn").prop("disabled",enabled);
+        $("#xedx-restart-btn").prop("disabled",enabled);
+        $("#xedx-recover-btn").prop("disabled",enabled);
+
+    }
+
+    function handleAddressBtn() {
+        log("[handleAddressBtn]");
+        let keys = GM_listValues();
+        log("Keys lenght: ", keys.length);
+
+        // Start where we left off, in case of error.
+        // For now, until debugged, start at 0
+        let startIndex = GM_getValue("addrIndex", -1);
+        if (startIndex < 0) startIndex = 0;
+        //for (let i=startIndex; i < keys.length; i++) {
+
+        for (let i=0; i < keys.length; i++) {
+            let key = keys[i];
+            if (key.indexOf("result.") < 0) continue;
+            let value = GM_getValue(key);
+
+            // Make sure not already processed.
+            if (value.indexOf("addr=") > -1) continue;
+
+            // Parse out address from value
+            let URL = parseUrlFromResultValue(value);
+            GM_setValue("addrIndex", i);
+            GM_setValue("addrURL", URL);
+            GM_setValue("addrKey", key);
+            window.location.href = URL;
+            return;
+        }
+    }
+
     function GoHome() {
         window.location.href = homePageURL;
     }
 
+    function parseUrlFromResultValue(value) {
+        let tokens = value.split(",");
+        let href = tokens[7]; // Should be href=<URL>
+
+        log("[parseUrlFromResultValuetoken] token: ", href);
+        let URL = href.substring(href.indexOf('=')+1)
+        log("URL: ", URL);
+        return URL;
+    }
+
+    // Save address data for a key
+    function parseDDetailsPage() {
+        // <td> with full address, parts separated by <br>
+        let addrCell =  document.querySelector("#frmCaseDetail > table:nth-child(21) > tbody > tr:nth-child(7) > td:nth-child(2)");
+        if (!addrCell) {
+         log("Can't find address table cell");
+            return;
+        }
+
+        let addrKey = GM_getValue("addrKey", null);
+        let addrURL = GM_getValue("addrURL", null);
+        let addrIndex = GM_getValue("addrIndex", -1);
+        if (!addrKey || !addrURL || addrIndex < 0) {
+            log("addrKey, addrURL or index missing: ", addrKey, addrURL, addrIndex);
+            debugger;
+            return;
+        }
+
+        // Validate addrURL against location.href?
+        let areEqual = (domainPrefix + addrURL).toUpperCase() === location.href.toUpperCase();
+        if (!areEqual) {
+            log("***** May not be right URL!!!!! *****");
+            log("addrURL: ", addrURL);
+            log("href: ", location.href);
+        }
+
+        // Save address info
+        let oldValue = GM_getValue(addrKey);
+        if (oldValue.indexOf("addr=") > -1) {
+            log("Value already has an addr!");
+            return;
+        }
+
+        // Make sure not already processed.
+        let newValue = oldValue + ", addr=" + addrCell.innerHTML;
+
+        log("Setting new value: ", newValue);
+        GM_setValue(addrKey, newValue);
+
+        // Get the next value. How do we know if we're at the end?
+        let keys = GM_listValues();
+        log("Keys lenght: ", keys.length);
+        let nextIndex = +addrIndex + 1;
+        if (nextIndex >= keys.length) {
+            log("Reached end of keys: ", nextIndex);
+            GM_setValue("addrIndex", -1);    // Mark end of search
+            alert("Parsed all available addresses!");
+            return;
+        }
+        let key = keys[nextIndex];
+        if (key.indexOf("result.") < 0) {
+            log("Error parsing result index: ", key);
+            return;
+        }
+
+        // Save where we're at
+        GM_setValue("addrIndex", nextIndex);
+        GM_setValue("addrKey", key);
+
+        // Parse out address from value
+        let value = GM_getValue(key);
+        let URL = parseUrlFromResultValue(value);
+
+        // Go to next one
+        GM_setValue("addrURL", URL);
+        window.location.href = URL;
+
+        return;
+    }
+
     // Called on page load
     function handlePageLoad() {
-        //debugger;
+        enabled = GM_getValue("enabled", enabled);
+
         let recovering = GM_getValue("recover", false);
-        if (recovering) {
+        if (recovering && enabled) {
             let msg = "Recovery Mode!";
             log(msg);
 
@@ -496,18 +665,29 @@
             alert(msg);
             GM_setValue("recover", false);
 
-            // Oops - this can finish, need to continue if more pages to process
-            // If returns TRUE, is looping still
-            // FALSE, need to go to next page.
-            //processCurrentPageResults(true);
             handleNextResult(true);
             return;
         }
 
         let currURL = location.href;
 
+        // Toggle to interrupt address parsing
+        let  addSearchEnabled = true;
+        if (addSearchEnabled && currURL.toUpperCase().indexOf(caseDetailPrefix.toUpperCase()) > -1) {
+            // Add some sort of UI...
+            if (topNavTarget) {
+                $(topNavTarget).after(GetAddrDetailsUI());
+                intervalTimer = setInterval(updateTimeText, 1000);  // Just in case, depends on the UI
+                InstallHandlers();
+            }
+            log("Details page: parsing");
+            parseDDetailsPage();
+            return;
+        }
+
         // This is wrong ... to support recovery....
-        if (currURL == homePageURL && !recovering && GM_getValue("searchOver", true)) { // Clear all state variables
+        // Clear state flags
+        if (false && currURL == homePageURL && !recovering && GM_getValue("searchOver", true)) { // Clear all state variables
             log("Clearing state");
             GM_setValue("continuing", false);
             GM_setValue("redirected", false);
@@ -520,54 +700,52 @@
 
         // Get state
         let resultsPage = currURL.toLowerCase().indexOf(resultsPageURLPrefix.toLowerCase()) > -1;
+        let homePage = currURL.toLowerCase().indexOf(homePageURL.toLowerCase()) > -1;
         let redirected = GM_getValue("redirected", false);
         let searching = GM_getValue("searching", false);
         let processing = GM_getValue("processing", false);
         let processPage = GM_getValue("processPage", 0);
         let searchOver = GM_getValue("searchOver", false);
 
-        log("[handlePageLoad]");
+        log("[handlePageLoad] enabled: ", enabled);
         log("target: ", topNavTarget);
         log("location: ", currURL);
 
         // Install a mini-UI
         if (topNavTarget) {
-            //let useUI = searchPageUI;
-            //log("UI is search page UI");
-            let useUI = searchingDiv; // e"arch starts automatically - so put up "searching....
+            let useUI = enabled ? searchingDiv : null; // Search starts automatically - so put up "searching....
             log("UI is 'searching....'");
 
-            if (location.href != nameSearchURL) {
+            // Only UI if not enabled...so far.
+            if (homePage) {
+            //if (location.href != nameSearchURL) {
                 useUI = mainPageUI;
                 if (!resultsPage) GM_setValue("searching", false);
                 log("Changing UI to main page UI");
             }
 
-            if (searching) {
+            if (searching && !searchOver && enabled) {
                 if (GM_getValue("continuing", false))
                     useUI = searchContinuesDiv;
                 else
-                    useUI = searchingDiv; //duringSearchUI;
+                    useUI = searchingDiv;
 
-                //GM_setValue("continuing", false);
                 log("Changing UI to 'searching...'");
             }
 
-            if (processing) {
+            if (processing && !searchOver && enabled) {
                 useUI = processingDiv;
                 log("Changing UI to 'processing...'");
             }
 
             log("Inserting main UI...");
-            $(topNavTarget).after(useUI);
+            if (useUI) {
+                $(topNavTarget).after(useUI);
+                intervalTimer = setInterval(updateTimeText, 1000);  // Just in case, depends on the UI
 
-            // Install handlers
-            $('#xedx-go-btn').on('click', onBtnClickGo);
-            $("#xedx-test-btn").on('click', saveStorageToDisk);
-            $("#xedx-pause-btn").on('click', handlePauseBtn);
-            $("#xedx-recover-btn").on('click', handleRecoverButton);
-            $("#xedx-stop-btn").on('click', handleStopButton);
-            $("#xedx-restart-btn").on('click', handleRestartButton);
+                // Install handlers
+                InstallHandlers();
+            }
         } else {
             topNavTarget = document.querySelector("#topnav");
             return setTimeout(handlePageLoad, 1000);
@@ -583,15 +761,25 @@
         log("processPage: ", processPage);
         log("Results page? ", resultsPage);
 
+        if (!enabled) {
+            log("Disabled, all done here.");
+            return;
+        }
+
+        if (searchOver) {
+            $("#xedx-tbl-title").text("Archer's IIR Helper - Search complete!");
+            log("Search is over - staying here");
+            log("Best be  on home page!");
+            return;
+        }
+
         gPaused = GM_getValue("paused", false);
         log("Paused? ", gPaused);
         if (gPaused) {
             $("#xedx-det-text").text("Paused!");
-            //setTimeout(processCurrentPageResults, 5000);
             setTimeout(handleNextResult, 5000);
         }
 
-        //GM_setValue("redirected", false);
         if (redirected && !searching && !processing) {
             log("Redirected...start search");
             if (onBtnClickGo(true)) return;
@@ -603,7 +791,7 @@
         }
 
         if (processing) {
-            //processCurrentPageResults();
+            log("Processing - handleNextResult");
             handleNextResult();
         }
 
@@ -618,6 +806,9 @@
     logScriptStart();
     versionCheck();
 
+    enabled = GM_getValue("enabled", enabled);
+    log("Script state: ", enabled ? "ENABLED" : "DISABLED");
+
     installStyles();
 
     callOnContentLoaded(handlePageLoad);
@@ -626,6 +817,23 @@
     // End main
     //////////////////////////////////////////////////////////////////////
 
+    // Install UI handlers
+    function InstallHandlers() {
+        // Install handlers
+        $('#xedx-go-btn').on('click', onBtnClickGo);
+        $("#xedx-saveall-btn").on('click', saveStorageToDisk);
+        $("#xedx-pause-btn").on('click', handlePauseBtn);
+        $("#xedx-recover-btn").on('click', handleRecoverButton);
+        $("#xedx-stop-btn").on('click', handleStopButton);
+        $("#xedx-restart-btn").on('click', handleRestartButton);
+        $("#xedx-address-btn").on('click', handleAddressBtn);
+
+        $("#xedx-enabled").prop('checked', enabled);
+        $("#xedx-enabled").on('click', handleEnableBtn);
+        handleEnableBtn();  // Sets the state of buttons
+    }
+
+    // Get tables/DIVs for various UI pieces
     function GetTableFooter() {
         let u =
                            `</tbody></table></center>
@@ -638,7 +846,7 @@
 
     function GetTableHeader() {
         let u =
-            `<table width="100%" cellspacing="0" cellpadding="0">
+            `<table id="xedx-ui" width="100%" cellspacing="0" cellpadding="0">
                 <tbody>
                     <tr><td style="color: white;" align="center" bgcolor="blue">
                         <b><span id="xedx-tbl-title">Archer's IIR Helper</span></b>
@@ -651,40 +859,47 @@
 
     function GetMainPageUI() {
         let u = tblHdr + // TBD: Add an "Enabled" checkbox
-           `<td><tr><button id="xedx-go-btn" class="xedx-btn">Start Searching</button></td></tr>
-            <td><tr><button id="xedx-test-btn" class="xedx-btn">Save All</button></td></tr>
-            <td><tr><button id="xedx-recover-btn" class="xedx-btn">Start Recovery</button></td></tr>
-            <td><tr><button id="xedx-restart-btn" class="xedx-btn">Restart</button></td></tr>
+            `<tr><td><button id="xedx-go-btn" class="xedx-btn">Start New Search</button>
+            <button id="xedx-saveall-btn" class="xedx-btn">Save All</button>` +
+            // `<td><tr><button id="xedx-recover-btn" class="xedx-btn">Start Recovery</button></td></tr>`
+            `<button id="xedx-restart-btn" class="xedx-btn">Restart</button>
+            <input type="checkbox" id="xedx-enabled" name="enable"><label for="enable">Enable Search</label></td></tr>` +
+
+            `<tr><td><button id="xedx-address-btn" class="xedx-btn">Start Address Lookup</button></td></tr>
             <tr><td style="text-align: center" colspan="13">Save any page individually:</td></tr>
             <tr>
-                <td><button class="xedx-btn">A</button></td>
-                <td><button class="xedx-btn">B</button></td>
-                <td><button class="xedx-btn">C</button></td>
-                <td><button class="xedx-btn">D</button></td>
-                <td><button class="xedx-btn">E</button></td>
-                <td><button class="xedx-btn">F</button></td>
-                <td><button class="xedx-btn">G</button></td>
-                <td><button class="xedx-btn">H</button></td>
-                <td><button class="xedx-btn">I</button></td>
-                <td><button class="xedx-btn">J</button></td>
-                <td><button class="xedx-btn">K</button></td>
-                <td><button class="xedx-btn">L</button></td>
-                <td><button class="xedx-btn">M</button></td>
+                <td>
+                    <button class="xedx-btn bsm">A</button>
+                    <button class="xedx-btn bsm">B</button>
+                    <button class="xedx-btn bsm">C</button>
+                    <button class="xedx-btn bsm">D</button>
+                    <button class="xedx-btn bsm">E</button>
+                    <button class="xedx-btn bsm">F</button>
+                    <button class="xedx-btn bsm">G</button>
+                    <button class="xedx-btn bsm">H</button>
+                    <button class="xedx-btn bsm">I</button>
+                    <button class="xedx-btn bsm">J</button>
+                    <button class="xedx-btn bsm">K</button>
+                    <button class="xedx-btn bsm">L</button>
+                    <button class="xedx-btn bsm">M</button>
+                </td>
             </tr>
             <tr>
-                <td><button class="xedx-btn">N</button></td>
-                <td><button class="xedx-btn">O</button></td>
-                <td><button class="xedx-btn">P</button></td>
-                <td><button class="xedx-btn">Q</button></td>
-                <td><button class="xedx-btn">R</button></td>
-                <td><button class="xedx-btn">S</button></td>
-                <td><button class="xedx-btn">T</button></td>
-                <td><button class="xedx-btn">U</button></td>
-                <td><button class="xedx-btn">V</button></td>
-                <td><button class="xedx-btn">W</button></td>
-                <td><button class="xedx-btn">X</button></td>
-                <td><button class="xedx-btn">Y</button></td>
-                <td><button class="xedx-btn">Z</button></td>
+                <td>
+                    <button class="xedx-btn bsm">N</button>
+                    <button class="xedx-btn bsm">O</button>
+                    <button class="xedx-btn bsm">P</button>
+                    <button class="xedx-btn bsm">Q</button>
+                    <button class="xedx-btn bsm">R</button>
+                    <button class="xedx-btn bsm">S</button>
+                    <button class="xedx-btn bsm">T</button>
+                    <button class="xedx-btn bsm">U</button>
+                    <button class="xedx-btn bsm">V</button>
+                    <button class="xedx-btn bsm">W</button>
+                    <button class="xedx-btn bsm">X</button>
+                    <button class="xedx-btn bsm">Y</button>
+                    <button class="xedx-btn bsm">Z</button>
+                </td>
             </tr>` + tblFtr;
 
         return u;
@@ -701,16 +916,28 @@
         return u;
     }
 
+    /*
     function GetSearchPageUI() {
         let u = tblHdr +
-              `<td align="left"><button id="xedx-go-btn" class="xedx-btn dt">Stearch!button></td></tr>` + tblFtr;
+              `<td align="left"><button id="xedx-go-btn" class="xedx-btn dt">Stearch!<button></td></tr>` + tblFtr;
 
         return u;
     }
+    */
 
     function GetSearchingUI() {
         let u = tblHdr +
               `<tr><td align="center" colspan="2"><span class="cred dt"><h2>Search started ... please wait, be patient!</span></h2>
+              <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
+              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+
+        return u;
+    }
+
+    function GetAddrDetailsUI() {
+        let u = tblHdr +
+              `<tr><td align="center" colspan="2"><span class="cred dt"><h2>Getting address details ... stand  by!</span></h2>
+              <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
               <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
 
         return u;
@@ -720,7 +947,8 @@
         let u = tblHdr +
               `<tr><td align="center" colspan="2"><span class="cred dt">
                   <h2>Search continuing onto next page ... please wait, be patient!</span></h2>
-              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>
+              <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>` + tblFtr;
 
         return u;
     }
@@ -729,7 +957,27 @@
         let u = tblHdr +
               `<tr><td align="center" colspan="2"><span class="cred dt">
                   <h2>Recovery started ... please wait, be patient!</span></h2>
-              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>
+              <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>` + tblFtr;
+
+        return u;
+    }
+
+    function GetRestartingUI() {
+        let u = tblHdr +
+              `<tr><td align="center" colspan="2"><span class="cred dt">
+                  <h2>Restarting ... please wait, be patient!</span></h2>
+              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>
+              <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>` + tblFtr;
+
+        return u;
+    }
+
+    function GetStoppingUI() {
+        let u = tblHdr +
+              `<tr><td align="center" colspan="2"><span class="cred dt">
+                  <h2>Stopping search ... please wait, be patient!</span></h2>
+                  <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>` + tblFtr;
 
         return u;
     }
@@ -762,6 +1010,8 @@
             .xedx-hidden {
                 display: none;
             }
+
+            .bsm {width: 29px;}
 
             .xedx-btn {
                 background: transparent linear-gradient(180deg,#CCCCCC 0%,#999999 60%,#666666 100%) 0 0 no-repeat;
