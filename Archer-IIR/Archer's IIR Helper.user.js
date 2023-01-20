@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Archer's IIR Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Save IIR data to disk
 // @author       xedx [2100735]
 // @match        https://www.insolvencydirect.bis.gov.uk/*
@@ -532,12 +532,13 @@
         GM_setValue("enabled", enabled);
 
         // State of buttons:
-        $("#xedx-go-btn").prop("disabled",enabled);
-        $("#xedx-restart-btn").prop("disabled",enabled);
-        $("#xedx-recover-btn").prop("disabled",enabled);
+        $("#xedx-go-btn").prop("disabled", !enabled);
+        $("#xedx-restart-btn").prop("disabled", !enabled);
+        $("#xedx-recover-btn").prop("disabled", !enabled);
 
     }
 
+    let newAddrSearch = true;
     function handleAddressBtn() {
         log("[handleAddressBtn]");
         let keys = GM_listValues();
@@ -546,7 +547,7 @@
         // Start where we left off, in case of error.
         // For now, until debugged, start at 0
         let startIndex = GM_getValue("addrIndex", -1);
-        if (startIndex < 0) startIndex = 0;
+        if (startIndex < 0 || newAddrSearch) startIndex = 0;
         //for (let i=startIndex; i < keys.length; i++) {
 
         for (let i=0; i < keys.length; i++) {
@@ -582,13 +583,37 @@
     }
 
     // Save address data for a key
+    var addrRetries = 0;
     function parseDDetailsPage() {
         // <td> with full address, parts separated by <br>
         let addrCell =  document.querySelector("#frmCaseDetail > table:nth-child(21) > tbody > tr:nth-child(7) > td:nth-child(2)");
         if (!addrCell) {
-         log("Can't find address table cell");
+            addrCell = document.querySelector("#frmCaseDetail > table:nth-child(23) > tbody > tr:nth-child(7) > td:nth-child(2)");
+        }
+        if (!addrCell) {
+            log("Can't find address table cell");
+            if (addrRetries++ < 3) {
+                return setTimeout(parseDDetailsPage, 250);
+            } else {
+                let addrIndex = GM_getValue("addrIndex");
+                log("****Skipping index " + addrIndex + ", moving to next one.****");
+                log("Bad URL: ", location.href);
+                log("addrURL: ", GM_getValue("addrURL", "unknown"));
+                log("Bad key: ", GM_getValue("addrKey", "unknown"));
+
+                // Keep track of this. Reset when? Button click?
+                let count = GM_getValue("badURLs", 0);
+                GM_setValue("badURLs", (+count +1));
+
+                addrIndex = +addrIndex + 1;
+                GM_setValue("addrIndex", addrIndex);
+                handleAddressBtn();
+                addrRetries = 0;
+                return;
+            }
             return;
         }
+        addrRetries = 0;
 
         let addrKey = GM_getValue("addrKey", null);
         let addrURL = GM_getValue("addrURL", null);
@@ -598,6 +623,10 @@
             debugger;
             return;
         }
+
+        let keys = GM_listValues();
+        log("Keys lenght: ", keys.length);
+        $("#xedx-count-span").text("On record " + addrIndex + " of " + keys.length + " records");
 
         // Validate addrURL against location.href?
         let areEqual = (domainPrefix + addrURL).toUpperCase() === location.href.toUpperCase();
@@ -621,8 +650,6 @@
         GM_setValue(addrKey, newValue);
 
         // Get the next value. How do we know if we're at the end?
-        let keys = GM_listValues();
-        log("Keys lenght: ", keys.length);
         let nextIndex = +addrIndex + 1;
         if (nextIndex >= keys.length) {
             log("Reached end of keys: ", nextIndex);
@@ -929,7 +956,7 @@
         let u = tblHdr +
               `<tr><td align="center" colspan="2"><span class="cred dt"><h2>Search started ... please wait, be patient!</span></h2>
               <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
-              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+              <td align="center"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
 
         return u;
     }
@@ -937,8 +964,9 @@
     function GetAddrDetailsUI() {
         let u = tblHdr +
               `<tr><td align="center" colspan="2"><span class="cred dt"><h2>Getting address details ... stand  by!</span></h2>
+              <tr><td><span id="xedx-count-span" class="xedx-wait-span"></span></td></tr>
               <tr><td><span id="xedx-time-text" class="xedx-wait-span"></span></td></tr>
-              <td align="left"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
+              <td align="center"><button id="xedx-stop-btn" class="xedx-btn dt">Stop</button></td></tr>` + tblFtr;
 
         return u;
     }
