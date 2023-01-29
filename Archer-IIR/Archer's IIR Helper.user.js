@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Archer's IIR Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Save IIR data to disk
 // @author       xedx [2100735]
 // @match        https://www.insolvencydirect.bis.gov.uk/*
@@ -620,13 +620,14 @@
         let addrIndex = GM_getValue("addrIndex", -1);
         if (!addrKey || !addrURL || addrIndex < 0) {
             log("addrKey, addrURL or index missing: ", addrKey, addrURL, addrIndex);
-            debugger;
+            //debugger;
             return;
         }
 
         let keys = GM_listValues();
+        let count = GM_getValue("badURLs", 0);
         log("Keys lenght: ", keys.length);
-        $("#xedx-count-span").text("On record " + addrIndex + " of " + keys.length + " records");
+        $("#xedx-count-span").text("On record " + addrIndex + " of " + keys.length + " records, " + count + " skipped");
 
         // Validate addrURL against location.href?
         let areEqual = (domainPrefix + addrURL).toUpperCase() === location.href.toUpperCase();
