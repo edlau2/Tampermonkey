@@ -2,8 +2,8 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.8';
-const defSSID = '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g';
+const UTILITIES_VERSION_INTERNAL = '2.9';
+const defSSID = '1p-kjUKwN0CRby4YH-WOSITV1MiOqj2qw8k1QBC0DrLg';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
