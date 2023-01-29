@@ -2,8 +2,8 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.9';
-const defSSID = '1p-kjUKwN0CRby4YH-WOSITV1MiOqj2qw8k1QBC0DrLg';
+const UTILITIES_VERSION_INTERNAL = '2.10';
+const defSSID = '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
@@ -86,6 +86,25 @@ function onEdit(e) {
   }
 
   console.log('<== onEdit');
+}
+
+/*
+ This attempts to fix issues when the saved SSID is no longer valid.
+ Run from within the script editor, or create a button to link to it.
+*/
+function FixupPermissions()
+{
+  console.log("Fixing up permissions...");
+  deleteSSID();
+  let mySS = important_getSSID();
+  let currSSID = mySS ? mySS.getKey() : "UNKNOWN!";
+  console.log("SSID being used is: " + currSSID);
+
+  if (mySS) {
+    loadScriptOptions(mySS);
+    safeAlert("Ran FixupPermissions\n\nThe SSID being used is: " + currSSID +
+      "\n\nThis should match the ID visible in your sheet URL.");
+  }
 }
 
 function syncPriceCalcWithSheet26(ss=null) {
@@ -194,8 +213,8 @@ function important_getSSID() {
       console.log("Default SSID failed.\nPossible solution:");
       console.log("\nEdit line 6 in utilities.gs.\nEnter the ID in the URL of the spreadsheet.");
       console.log("\nFor example, if the URL is\n");
-      console.log("https://docs.google.com/spreadsheets/d/2_WR-BW10hJsQrbqVajqyYa3Y8SDvpUgv4-FUXQpDm5g/edit#gid=1694413230");
-      console.log("\n enter '2_WR-BW10hJsQrbqVajqyYa3Y8SDvpUgv4-FUXQpDm5g'\n");
+      console.log("https://docs.google.com/spreadsheets/d/1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g/edit#gid=1694314230");
+      console.log("\n enter '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g'\n");
       console.log("as the defSSID\n");
     }
   } finally {
@@ -243,7 +262,7 @@ function markDupsInPriceList() {
     }
   }
 
-  //SpreadsheetApp.flush();
+  SpreadsheetApp.flush();
   log('<== markDupsInPriceList finished, found ' + dupsFound + ' duplicates');
   return dupsFound;
 }
