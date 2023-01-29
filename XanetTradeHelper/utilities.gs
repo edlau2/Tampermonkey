@@ -194,8 +194,8 @@ function important_getSSID() {
       console.log("Default SSID failed.\nPossible solution:");
       console.log("\nEdit line 6 in utilities.gs.\nEnter the ID in the URL of the spreadsheet.");
       console.log("\nFor example, if the URL is\n");
-      console.log("https://docs.google.com/spreadsheets/d/1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g/edit#gid=1694314230");
-      console.log("\n enter '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g'\n");
+      console.log("https://docs.google.com/spreadsheets/d/2_WR-BW10hJsQrbqVajqyYa3Y8SDvpUgv4-FUXQpDm5g/edit#gid=1694413230");
+      console.log("\n enter '2_WR-BW10hJsQrbqVajqyYa3Y8SDvpUgv4-FUXQpDm5g'\n");
       console.log("as the defSSID\n");
     }
   } finally {
