@@ -243,7 +243,7 @@ function markDupsInPriceList() {
     }
   }
 
-  SpreadsheetApp.flush();
+  //SpreadsheetApp.flush();
   log('<== markDupsInPriceList finished, found ' + dupsFound + ' duplicates');
   return dupsFound;
 }
