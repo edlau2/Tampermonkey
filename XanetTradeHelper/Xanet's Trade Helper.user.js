@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.8
+// @version      3.9
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @match        https://www.torn.com/trade.php*
@@ -12,6 +12,8 @@
 // @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
+
+// Per kontamusse: optionally display pricing details in version 3.9
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -39,6 +41,7 @@
     var dispItemInfo = false;        // true to display alert on missing items or 0 price, also on success.
     var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
     var testData = false;            // true to emulate using test data
+    var priceDetails = false;        // true to display price details
 
     //////////////////////////////////////////////////////////////////////
     // Development tools/variables
@@ -285,7 +288,11 @@
             //
             let newOutput = parseResponse(resp);
             if (newOutput != "") {
-                alert(newOutput);
+                if (!priceDetails) {
+                    alert(newOutput);
+                } else {
+                    $('#xedx-pricing-text').textContent = newOutput;
+                }
                 log(newOutput);
             }
         }
@@ -564,6 +571,16 @@
                 log('Saved value for testData');
                 indicateActive(activeFlag);
                 break;
+            case "xedx-pricedetails-opt":
+                priceDetails = this.checked;
+                GM_setValue("priceDetails", priceDetails);
+                log('Saved value for priceDetails');
+                if (priceDetails) {
+                    $("#xedx-price-detail-div").addClass('xedx-show').removeClass('xedx-hide');
+                } else {
+                    $("#xedx-price-detail-div").addClass('xedx-hide').removeClass('xedx-show');
+                }
+                break;
             default:
                 log('Checkbox ID not found!');
         }
@@ -578,6 +595,8 @@
         $("#xedx-iteminfo-opt")[0].checked = GM_getValue("dispItemInfo", dispItemInfo);
         $("#xedx-baditeminfo-opt")[0].checked = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
         $("#xedx-testdata-opt")[0].checked = GM_getValue("testData", testData);
+        $("#xedx-pricedetails-opt")[0].checked = GM_getValue("priceDetails", priceDetails);
+
     }
 
     // Helper: Read saved options values
@@ -589,6 +608,13 @@
         dispItemInfo = GM_getValue("dispItemInfo", dispItemInfo);
         dispBadItemInfoOnly = GM_getValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
         testData = GM_getValue("testData", testData);
+        priceDetails = GM_getValue("priceDetails", priceDetails);
+
+        if (priceDetails) {
+            $("#xedx-price-detail-div").addClass('xedx-show').removeClass('xedx-hide');
+        } else {
+            $("#xedx-price-detail-div").addClass('xedx-hide').removeClass('xedx-show');
+        }
     }
 
     function logSavedOptions() {
@@ -664,6 +690,7 @@
         $("#xedx-iteminfo-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-baditeminfo-opt")[0].addEventListener("click", handleOptsClick);
         $("#xedx-testdata-opt")[0].addEventListener("click", handleOptsClick);
+        $("#xedx-pricedetails-opt")[0].addEventListener("click", handleOptsClick);
 
         // Accept/cancel button handler
         trapAcceptButton();
@@ -776,6 +803,7 @@
 
     function buildUI(fromInit=false) {
         log('[buildUI]');
+        addStyles();
         getSavedOptions();
         if (validPointer(document.getElementById('xedx-main-div'))) {
             log('UI already installed!');
@@ -983,7 +1011,27 @@
     // Some 'hidden' functions, stuck here to be code-collapsed to
     // make the code easier to read.
     //
+    // TBD: finish making everything CSS styles
+    //
     //////////////////////////////////////////////////////////////////////
+
+    function addStyles() {
+        GM_addStyle(`
+          .xedx-hide {display: none;}
+          .xedx-show {display: block;}
+
+          .xedx-price-details {
+              margin-left: 10px;
+              margin-right: 20px;
+              font-weight: bold;
+              font-size: 12px;}
+
+          .xedx-pad10 {
+              padding-top: 5px;
+              padding-bottom: 5px;
+          }
+          `);
+    }
 
     function createMainDiv() {
         let retDiv =
@@ -1009,6 +1057,12 @@
                   '<span>Trade ID:</span><span id="xedx-trade-id" style="color: green; margin-left: 10px; margin-right: 30px;">0</span>' +
                   '<span>Total Sets:</span><span id="xedx-total-sets" style="color: green; margin-left: 10px;">0</span>' +
                   '<span id="xedx-status-line" style="display:hide; color: green; float: right; margin-right: 10px;">Please Wait...</span>' +
+              '</div>' +
+
+              // Per kontamusse: optionally display pricing details
+              '<div id="xedx-price-detail-div" class="xedx-pad10 cont-gray top-round bottom-round active xedx-show" role="table" aria-level="5">' +
+                '<span class="xedx-price-details">Detailed pricing:</span>' +
+                '<span id="xedx-pricing-text"></span>' +
               '</div>' +
 
           // This is the content that we want to hide when '[hide] | [show]' is clicked.
@@ -1058,9 +1112,15 @@
                   '<label for="baditemInfo"><span style="margin-left: 15px;">Only missing items/prices</span></label>' +
               '</div>' +
               '<div id="xedx-testdata-div" style="display: block;">' +
-                  '<input type="checkbox" id="xedx-testdata-opt" name="testData" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<input type="checkbox" id="xedx-testdata-opt" name="testData" style="margin-left: 200px;">' +
                   '<label for="testData"><span style="margin-left: 15px;">Use test data</span></label>' +
               '</div>' +
+              '<div id="xedx-price-details-div" style="display: block;">' +
+                  '<input type="checkbox" id="xedx-pricedetails-opt" name="priceDetails" style="margin-left: 200px; margin-bottom: 10px;">' +
+                  '<label for="priceDetails"><span style="margin-left: 15px;">Display price details</span></label>' +
+              '</div>' +
+
+
 
           '</div>';
 
