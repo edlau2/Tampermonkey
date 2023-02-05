@@ -85,6 +85,9 @@
     var activeFlag = false;
     var observer = null; // Mutation observer
 
+    // Some HTML crap
+    const ten_spaces = "&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp";
+
     ////////////////////////////////////////////////////////////////////////////////
     // Process each item in the trade. This is where we do stuff - build the aray
     // array we will be uploading. Uploading is done by calling 'uploadDataArray()'
@@ -287,11 +290,12 @@
             // 'The following items are not in the price sheet, or do not have pricing information: <nice list>'
             //
             let newOutput = parseResponse(resp);
+            log("[newOutput] " + newOutput);
             if (newOutput != "") {
                 if (!priceDetails) {
                     alert(newOutput);
                 } else {
-                    $('#xedx-pricing-text').textContent = newOutput;
+                    $('#xedx-pricing-text')[0].innerHTML = newOutput;
                 }
                 log(newOutput);
             }
@@ -335,6 +339,7 @@
         log('[parseResponse]  dataArray = ' + dataArray + ' Length: ' + dataArray.length);
         debug('[parseResponse]  array data: ' + JSON.stringify(dataArray));
 
+        let detailsText = "<br><br>";
         let missingPriceWarning = "";
         let dataReceived = 'Result data:\n';
         let fullDataReceived = dataReceived;
@@ -358,18 +363,22 @@
             }
 
             // Text for received data array
+            // When displaying details on the main UI, format a little nicer.
             for (let i = 0; i < dataArray.length; i++) {
                 let item = dataArray[i];
                 if (item.price <= 0) {continue;}
                 let text = '\t' + item.name + ' x' + item.qty;
                 let fullText = text + ' - ' + asCurrency(item.price) +
-                    ' each, ' + asCurrency(item.total) + ' total.\n';
+                    ' each, ' + asCurrency(item.total) + ' total.';
+                detailsText += ten_spaces + fullText + '<br>';
                 dataReceived += (text + '\n');
                 fullDataReceived += fullText;
             }
         }
 
-        if (dispBadItemInfoOnly && cmd == 'price' && missingPriceWarning != "") {
+        if (priceDetails) {
+            return detailsText + "<br>";
+        } else if (dispBadItemInfoOnly && cmd == 'price' && missingPriceWarning != "") {
            return successText + '\n\n'+ missingPriceWarning;
         } else if (dispBadItemInfoOnly) {
             return '';
