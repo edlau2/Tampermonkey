@@ -18,6 +18,7 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint curly: 0*/
 
 (function() {
     'use strict';
@@ -288,6 +289,9 @@
             // What we like to see is either complete success, 'All x items logged and Running Averages updated!'
             //  - or -
             // 'The following items are not in the price sheet, or do not have pricing information: <nice list>'
+            //
+            // Partial prettied - if  'priceDetails' is enabled, successfull results display nicely.
+            // Haven't tested failures...
             //
             let newOutput = parseResponse(resp);
             log("[newOutput] " + newOutput);
@@ -568,11 +572,15 @@
                 dispItemInfo = this.checked;
                 GM_setValue("dispItemInfo", dispItemInfo);
                 log('Saved value for dispItemInfo');
+                if (dispItemInfo)
+                    $( "#xedx-pricedetails-opt" ).prop( "checked", false );
                 break;
             case "xedx-baditeminfo-opt":
                 dispBadItemInfoOnly = this.checked;
                 GM_setValue("dispBadItemInfoOnly", dispBadItemInfoOnly);
                 log('Saved value for dispBadItemInfoOnly');
+                if (dispBadItemInfoOnly)
+                    $( "#xedx-pricedetails-opt" ).prop( "checked", false );
                 break;
             case "xedx-testdata-opt":
                 testData = this.checked;
@@ -585,6 +593,8 @@
                 GM_setValue("priceDetails", priceDetails);
                 log('Saved value for priceDetails');
                 if (priceDetails) {
+                    $( "#xedx-baditeminfo-opt" ).prop( "checked", false );
+                    $( "#xedx-iteminfo-opt" ).prop( "checked", false );
                     $("#xedx-price-detail-div").addClass('xedx-show').removeClass('xedx-hide');
                 } else {
                     $("#xedx-price-detail-div").addClass('xedx-hide').removeClass('xedx-show');
