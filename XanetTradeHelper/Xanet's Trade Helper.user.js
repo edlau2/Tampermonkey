@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      3.10
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @match        https://www.torn.com/trade.php*
