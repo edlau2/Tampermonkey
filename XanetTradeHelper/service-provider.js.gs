@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Versioning, internal
-var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.4';
+var XANET_TRADE_HELPER_VERSION_INTERNAL = '3.5';
 
 // Function that calls the main unit test, here so I can set breakpoints here and not step in.
 function doIt() {doMainTest();}
@@ -197,14 +197,14 @@ function processSetItemPrices(retArray) {
     Object.assign(retArray[i], {inFlowerSet: false});
     Object.assign(retArray[i], {inPlushieSet: false});
     
-    myFlowerSet.forEach((element, index, array) => { // Scan flower sets.
+    if (myFlowerSet) myFlowerSet.forEach((element, index, array) => { // Scan flower sets.
       if (element.name == retArray[i].name.trim()) {
         myFlowerSet[index].quantity = retArray[i].qty;
         retArray[i].inFlowerSet = true;
       }
     });
   
-    myPlushieSet.forEach((element, index, array) => { // Scan plushie sets.
+    if (myPlushieSet) myPlushieSet.forEach((element, index, array) => { // Scan plushie sets.
       if (element.name == retArray[i].name.trim()) {
         myPlushieSet[index].quantity = retArray[i].qty;
         retArray[i].inPlushieSet = true;
@@ -259,6 +259,8 @@ function processSetItemPrices(retArray) {
 
 // Helper to count complete sets
 function countCompleteSets(itemArray) {
+  if (!itemArray) return 0;
+
   let totalSets = 99999999;
   for (let i = 0; i < itemArray.length; i++) {              
     let amt = Number(itemArray[i].quantity);
