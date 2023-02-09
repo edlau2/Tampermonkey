@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      3.10
+// @version      3.11
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @match        https://www.torn.com/trade.php*
@@ -71,6 +71,7 @@
                        {"id":"786444001","name":"Crocus ","qty":"112","price":"0","total":"0"},
                        {"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},
                        {"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},
+                       {"id":"786444001","name":"Some Crap ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
@@ -351,20 +352,7 @@
         if (totalSets) {
             successText += '\nFound ' + totalSets + ' full sets!';
         }
-        if (dispItemInfo || dispBadItemInfoOnly) {
-            // Text for missing items.
-            let noPrice = countPricesAt(dataArray, 0);
-            let notInData = countPricesAt(dataArray, -1);
-            log('[parseResponse] Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
-            if ((noPrice > 0 || notInData > 0)) {
-                missingPriceWarning += 'Warning: the following items are not in the list or missing prices.\n';
-                for (let i = 0; i < dataArray.length; i++) {
-                    let item = dataArray[i];
-                    debug('[parseResponse] Processing item: ' + JSON.stringify(item));
-                    if (item.price > 0) {continue;}
-                    missingPriceWarning += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
-                }
-            }
+        if (dispItemInfo || dispBadItemInfoOnly || priceDetails) {
 
             // Text for received data array
             // When displaying details on the main UI, format a little nicer.
@@ -377,6 +365,27 @@
                 detailsText += ten_spaces + fullText + '<br>';
                 dataReceived += (text + '\n');
                 fullDataReceived += fullText;
+            }
+
+            // Text for missing items.
+            let noPrice = countPricesAt(dataArray, 0);
+            let notInData = countPricesAt(dataArray, -1);
+            let doneOnce = false;
+            log('[parseResponse] Items missing prices: ' + noPrice + ' Items not in sheet: ' + notInData);
+            if ((noPrice > 0 || notInData > 0)) {
+                missingPriceWarning += 'Warning: the following items are not in the list or missing prices.\n';
+                for (let i = 0; i < dataArray.length; i++) {
+                    let item = dataArray[i];
+                    debug('[parseResponse] Processing item: ' + JSON.stringify(item));
+                    if (item.price > 0) {continue;}
+                    if (!doneOnce) {
+                        detailsText += "<br>" + ten_spaces + "The following items are missing, or have no price:<br>";
+                        doneOnce = true;
+                    }
+                    detailsText += "<br>" + ten_spaces + item.name + ((item.price == 0) ? ' (no price)' : ' (missing)');
+                    missingPriceWarning += '\t' + item.name + ((item.price == 0) ? ' (no price)\n' : ' (missing)\n');
+                }
+                if (doneOnce) detailsText += "<br>";
             }
         }
 
