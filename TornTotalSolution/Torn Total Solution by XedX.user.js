@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.8
+// @version      3.9
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -186,6 +186,13 @@
         GM_addStyle(`.defbg {background-color: #FFFFF0;}`); // #FFE4C4;
         GM_addStyle(`.highlight-active {-webkit-animation: highlight-active 1s linear 0s infinite normal;
                                         animation: highlight-active 1s linear 0s infinite normal;}`);
+
+        GM_addStyle(
+            `
+            .xedx-green {color: limegreen;}
+            .xedx-red {color: red;}
+            .xedx-offred {color: #FF2B2B;}
+             `);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -3721,7 +3728,8 @@
 
         function highlightReadyStocks() {
             log('[tornStockProfits] [highlightReadyStocks]');
-            var objects = $(".Ready___Y6Stk");
+            //var objects = $(".Ready___Y6Stk");
+            var objects = $('[class^=".Ready"]');
             log('objects: ', objects);
             for (let i=0; i<objects.length; i++) {
                 let obj = objects[i];
@@ -3737,8 +3745,13 @@
             if (observer) observer.disconnect();
 
             // -- prep work --
-            var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
-            if (!mainStocksUL) return setTimeout(modifyPage, 250); // Check should not be needed
+            var root = document.querySelector("#stockmarketroot");
+            //var mainStocksUL = document.querySelector("#stockmarketroot > div.stockMarket___T1fo2");
+            var mainStocksUL = root.querySelectorAll('[class^="stockMarket"]')[0];
+            if (!mainStocksUL) {
+                log("[tornStockProfits] didn't find target!");
+                return setTimeout(modifyPage, 250); // Check should not be needed
+            }
 
             var stocksList = mainStocksUL.getElementsByTagName('ul');
             if (stocksList.length < 2) return setTimeout(modifyPage, 250); // Check should not be needed
@@ -3765,8 +3778,10 @@
                     let profit = (stockPrice - boughtPrice) * ownedShares; // Gross profit
                     let fee = stockPrice * ownedShares * .001;
                     profit = profit - fee; // -.1% fee.
-                    if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
-                    if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
+                    //if (profit > 0 && showProfit) $(ownedLI).append('<p class="up___WzZlD">' + asCurrency(profit) + '</p>');
+                    //if (profit < 0 && showLoss) $(ownedLI).append('<p class="down___BftsG">' + asCurrency(profit) + '</p>');
+                    if (profit > 0 && showProfit) $(ownedLI).append('<p class="xedx-green">' + asCurrency(profit) + '</p>');
+                    if (profit < 0 && showLoss) $(ownedLI).append('<p class="xedx-offred">' + asCurrency(profit) + '</p>');
                 }
             }
 
