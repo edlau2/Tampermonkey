@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      4.0
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1243,7 +1243,7 @@
                 colorIcon(data);
             }
 
-            resolve("tornSidebarColors complete!");
+            resolve("[tornSidebarColors] complete!");
         });
 
         function init_opt_scIcons() {
@@ -1272,8 +1272,13 @@
         }
 
         function colorIcon(data) {
-            const sc_svrRoot = " > div > a > span.svgIconWrap___YUyAq > svg";
-            let icon = document.querySelector(data.svgLink + sc_svrRoot);
+            //const sc_svrRoot = " > div > a > span.svgIconWrap___YUyAq > svg";
+            //let icon = document.querySelector(data.svgLink + sc_svrRoot);
+
+            let root = document.querySelector(data.svgLink);
+            let icon1 = root.querySelectorAll('[class^="svgIconWrap"]')[0];
+            let icon = icon1.querySelector("svg");
+
             if (icon) {
                 icon.setAttribute('stroke', data.color);
                 icon.setAttribute('stroke-width', data.strokeWidth);
@@ -3849,7 +3854,10 @@
             }
 
             //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
-            let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
+            //let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
+            let root = document.querySelector("#sidebar");
+            let iconArea = root.querySelectorAll('[class^="status-icons"]')[0];
+
             if (!iconArea /*&& devMode*/) {
                 log('[addRaceIcon] Can`t find icon area!');
             }
@@ -4683,35 +4691,36 @@
 
         function installTheButton(retries=0) {
             const addBtnDiv = getAddBtnDiv();
-            if (document.getElementById('xedx-add-btn')) document.getElementById('xedx-add-btn').remove();
+            //if (document.getElementById('xedx-add-btn')) document.getElementById('xedx-add-btn').remove();
             let hash = window.location.hash;
             let substrings = ['manage', 'personalize', 'add', 'userid'];
             if (substrings.some(v => hash.includes(v))) return;
-            let targetNode = document.querySelector("#react-root > div > div.appHeaderWrapper___Omvtz > " +
-                                                "div.topSection___OilHR > div.titleContainer___LJY0N");
-            if (!targetNode)
-                targetNode = document.querySelector("#bazaarRoot > div > div.appHeaderWrapper___Omvtz.disableLinksRightMargin____LINY > " +
-                                   "div.topSection___OilHR > div.titleContainer___LJY0N");
+            let targetNode = document.querySelectorAll('[class^="titleContainer"]')[0];
             if (!targetNode && retries++ < 10) {
                 return setTimeout(function() {installTheButton(retries)}, 50);
             }
+            addIcon(targetNode, addBtnDiv);
+            setInterval(function (){addIcon(targetNode, addBtnDiv);}, 1000);
+        }
+
+        function addIcon(targetNode, addBtnDiv) {
             if (!location.href.includes('userid=')) {
-                $(targetNode).append(addBtnDiv);
+                if (!document.getElementById('xedx-add-btn')) //document.getElementById('xedx-add-btn').remove();
+                    $(targetNode).append(addBtnDiv);
             }
         }
 
         function getAddBtnDiv() {
             return '<a id="xedx-add-btn" to="#/add" role="button" aria-labelledby="add-items" href="#/add" ' +
                 "style='float: right;' " +
-                'class="linkContainer___AOKtu inRow___uFQ4S greyLineV___mY84h link-container-ItemsAdd" ' +
-                'i-data="i_687_11_101_33"><span class="iconContainer___q3CES linkIconContainer___IqlVh">' +
-                '<svg xmlns="http://www.w3.org/2000/svg" class="default___qrLNi svgIcon___gFpTP" ' +
+                'i-data="i_687_11_101_33"><span class="">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" ' +
                 'filter="url(#top_svg_icon)" fill="#777" stroke="transparent" stroke-width="1" ' +
                 'width="17" height="16" viewBox="0 0 16.67 17">' +
                 '<path d="M2,8.14A4.09,4.09,0,0,1,3,8a4,4,0,0,1,3.38,6.13l3,1.68V8.59L2,4.31ZM16,' +
                 '4.23,8.51,0,6.45,1.16,13.7,5.43ZM5.11,1.92,2.79,3.23,10,7.43l2.33-1.27Zm5.56,6.66V16l6-3.42V5.36ZM3,' +
                 '9a3,3,0,1,0,3,3A3,3,0,0,0,3,9Zm1.67,3.33H3.33v1.34H2.67V12.33H1.33v-.66H2.67V10.33h.66v1.34H4.67Z">' +
-                '</path></svg></span><span class="linkTitle___QYMn6">Add items</span></a>';
+                '</path></svg></span><span class="xedx-red">Add items</span></a>';
         }
 
     } // End function tornBazaarAddButton() {
@@ -4766,7 +4775,6 @@
 
             if (location.href.indexOf('/tab=info') > -1) {
                 targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
-                //document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list > ul.table-body > li:nth-child(30) > div.table-cell.member.icons.membersCol___AQ21i > div > div.userWrap___vmatZ.flexCenter___dZEr7.textWrap___Pyv8H.flexCenter___dZEr7 > a > span")
                 if (!targetNode) {
                     debug('[installUI] targetNode not found, retrying...');
                     return setTimeout(function() {installUI(++retries)}, 500);
@@ -6919,7 +6927,8 @@
             `);
 
         let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
-        let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
+        //let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
+        let serverDiv = document.querySelectorAll('[class^="footer-menu"]')[0];
         if (!serverDiv) return setTimeout(installConfigMenu, 100);
 
         $(serverDiv).append(cfgSpan);
