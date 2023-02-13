@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.0
+// @version      4.1
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -3733,9 +3733,11 @@
 
         function highlightReadyStocks() {
             log('[tornStockProfits] [highlightReadyStocks]');
-            //var objects = $(".Ready___Y6Stk");
-            var objects = $('[class^=".Ready"]');
-            log('objects: ', objects);
+            let objects = document.querySelectorAll('[class^="Ready__"]'); // Not working...
+            log('[tornStockProfits] objects: ', objects);
+            if (!objects.length) objects = $(".Ready___woq83");
+            log('[tornStockProfits] objects: ', objects);
+
             for (let i=0; i<objects.length; i++) {
                 let obj = objects[i];
                 if (obj.textContent == 'Ready for collection') {
