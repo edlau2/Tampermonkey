@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.1
+// @version      4.2
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -6084,9 +6084,12 @@
     // Will handleHashChange() catch it? And nee to turn back on....
     // doesn't work with honor bars off
     function tornOverseasRank() {
+        let statusSpan = "span.user-green-status";
         let opts = {};
         getSavedOpts();
         writeSavedOpts(); // Just write here for now, only need to save on change
+        log("[tornOverseasRank] starting");
+        debug("[tornOverseasRank] opts: ", opts);
 
         //debugLoggingEnabled = true;
         let   autoRefreshId = 0;
@@ -6125,10 +6128,10 @@
             let li = msg.li;
             let optMsg = msg.optMsg;
 
-            log('Processing queued ID ' + ID);
+            log('[tornOverseasRank] Processing queued ID ' + ID);
             if (optMsg) {log(optMsg)};
             if (requestsPaused) {
-                log("Requests pause, can't make request. Will retry later.");
+                log("[tornOverseasRank] Requests pause, can't make request. Will retry later.");
                 return queryQueue.push(msg);
             }
             logApiCall('user: profile');
@@ -6225,9 +6228,10 @@
 
         // Write to the UI
         function updateLiWithRank(li, cacheObj) {
+            debug("[tornOverseasRank] updateLiWithRank");
             observer.disconnect();
             let lvlNode = li.getElementsByClassName('level')[0];
-            let statusNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.status > span.t-green");
+            let statusNode = li.querySelector("div.left-right-wrapper > div.right-side.right > span.status > " + statusSpan);
             let text = lvlNode.childNodes[2].data;
             if (text.indexOf("/") != -1) { // Don't do again!
                 observer.observe(targetNode, config);
@@ -6399,10 +6403,10 @@
 
                 let ID = idNode.getAttribute('href').split('=')[1];
                 if (!getCachedRankFromId(ID, li)) { // This call write to the li if found.
-                    let statusSel = li.querySelector('div.left-right-wrapper > div.right-side.right > span.status > span.t-green');
+                    debug("[tornOverseasRank] ID: ", ID, " li: ", li);
+                    let statusSel = li.querySelector('div.left-right-wrapper > div.right-side.right > span.status > ' + statusSpan);
                     let nameSel = li.querySelector("div.left-right-wrapper > div.left-side.left > a.user.name > img");
                     let name = validPointer(nameSel) ? nameSel.title : 'unknown';
-                    // let name2 = validPointer(nameSel) ? nameSel.getAttribute('title') : 'unknown'; // Also valid.
 
                     if (validPointer(statusSel)) {
                         // Only get rank if status is 'Okay' ...
