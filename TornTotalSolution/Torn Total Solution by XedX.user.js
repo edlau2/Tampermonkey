@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.3
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -525,9 +525,9 @@
                 let statName = keys[i];
                 if (optStats[statName].enabled) {
                     if (update) {
-                        updateStat(statName, optStats[statName].name, personalStats[statName]);
+                        updateStat(statName, optStats[statName].name, personalStats[statName], optStats[statName].req);
                     } else {
-                        addStat(statName, optStats[statName].name, personalStats[statName]);
+                        addStat(statName, optStats[statName].name, personalStats[statName], optStats[statName].req);
                     }
                 }
             }
@@ -566,10 +566,10 @@
 
         function loadAwardLi() {
             return '<li tabindex="0" id="ID" role="row" aria-label="STAT_DESC: STAT_VAL">' +
-                '<span class="divider"  style="width: 180px;">' +
+                '<span class="divider"  style="width: 180px;">' + //180px;">' +
                     '<span>STAT_DESC</span>' +
                 '</span>' +
-                '<span class="desc" style="width: 100px;">STAT_VAL</span>' +
+                '<span class="desc" style="width: auto;">STAT_VAL</span>' + // was 100px
             '</li>';
         }
 
@@ -605,42 +605,46 @@
         }
 
         // Add stats to the DIV on the home page
-        function addStat(statName, desc, val) {
+        function addStat(statName, desc, val, required=null) {
             log('[addStat] ', desc + ': ', val);
             let newLi = award_li;
             newLi = newLi.replaceAll('ID', "x-" + statName);
             newLi = newLi.replaceAll('STAT_DESC', desc);
-            newLi = newLi.replaceAll('STAT_VAL', numberWithCommas(Number(val)));
+
+            let statVal = numberWithCommas(Number(val));
+            if (required != null) statVal = statVal + "/" + required;
+            newLi = newLi.replaceAll('STAT_VAL', statVal);
             debug('Stats LI: ', newLi);
             $('#stats-list').append(newLi);
         }
 
-        function updateStat(statName, desc, newValue) {
+        function updateStat(statName, desc, newValue, required=null) {
             let sel = "#x-" + statName;
             let li = document.querySelector(sel + " > span.desc");
+            let statVal = numberWithCommas(Number(newValue));
+            if (required != null) statVal = statVal + "/" + required;
             log('[updateStat] sel: ', sel, ' curr value: ', li.textContent,
-                ' new value: ', newValue);
-            li.textContent = numberWithCommas(Number(newValue));
+                ' new value: ', statVal);
+            li.textContent = statVal;
         }
 
     }
 
     function initOptStats() {
 
-        function addOptStat(name, desc, category) {
-            optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category};
+        function addOptStat(name, desc, category, required=null) {
+            optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category, req: required};
         }
 
         addOptStat('killstreak', "Kill Streak", "attacks");
         addOptStat('defendswon', "Defends Won", "attacks");
-        addOptStat('attackdamage', "Total Damage", "attacks");
         addOptStat('attackswon', "Attacks Won", "attacks");
         addOptStat('attackslost', "Attacks Lost", "attacks");
         addOptStat('attackcriticalhits', "Total Crit Hits", "attacks");
         addOptStat('onehitkills', "One Hit Kills", "attacks");
         addOptStat('attacksdraw', 'Stalemates', "attacks");
         addOptStat('bestdamage', "Best Damage", "attacks");
-        addOptStat('attackdamage', "Total Damage", "attacks");
+        addOptStat('attackdamage', "Total Damage", "attacks", "100,000,000");
         addOptStat('bountiescollected', 'Bounties Collected', "attacks");
         addOptStat('unarmoredwon', "Unarmored Fights Won", "attacks");
         addOptStat('attackhits', "Total Attack Hits", "attacks");
@@ -648,48 +652,49 @@
         addOptStat("yourunaway", "Times you Escaped", "attacks");
         addOptStat("theyrunaway", "Foes Escaped", "attacks");
 
-        addOptStat("cantaken", "Cannabis Taken", "drugs");
-        addOptStat("exttaken", "Ecstacy Taken", "drugs");
-        addOptStat("kettaken", "Ketamine Taken", "drugs");
-        addOptStat("lsdtaken", "LSD Taken", "drugs");
-        addOptStat("opitaken", "Opium Taken", "drugs");
-        addOptStat("shrtaken", "Shrooms Taken", "drugs");
-        addOptStat("spetaken", "Speed Taken", "drugs");
-        addOptStat("pcptaken", "PCP Taken", "drugs");
-        addOptStat("xantaken", "Xanax Taken", "drugs");
-        addOptStat("victaken", "Vicodin Taken", "drugs");
+        addOptStat("cantaken", "Cannabis Taken", "drugs", "50");
+        addOptStat("exttaken", "Ecstacy Taken", "drugs", "50");
+        addOptStat("kettaken", "Ketamine Taken", "drugs", "50");
+        addOptStat("lsdtaken", "LSD Taken", "drugs", "50");
+        addOptStat("opitaken", "Opium Taken", "drugs", "50");
+        addOptStat("shrtaken", "Shrooms Taken", "drugs", "50");
+        addOptStat("spetaken", "Speed Taken", "drugs", "50");
+        addOptStat("pcptaken", "PCP Taken", "drugs", "50");
+        addOptStat("xantaken", "Xanax Taken", "drugs", "50");
+        addOptStat("victaken", "Vicodin Taken", "drugs", "50");
 
-        addOptStat("argtravel", "Flights to Argentina", "travel");
-        addOptStat("mextravel", "Flights to Mexico", "travel");
-        addOptStat("dubtravel", "Flights to UAE", "travel");
-        addOptStat("hawtravel", "Flights to Hawaii", "travel");
-        addOptStat("japtravel", "Flights to Japan", "travel");
-        addOptStat("lontravel", "Flights to UK", "travel");
-        addOptStat("soutravel", "Flights to South Africa", "travel");
-        addOptStat("switravel", "Flights to Switzerland", "travel");
-        addOptStat("chitravel", "Flights to China", "travel");
-        addOptStat("cantravel", "Flights to Canada", "travel");
-        addOptStat("caytravel", "Flights to Caymans", "travel");
+        addOptStat("argtravel", "Flights to Argentina", "travel", "50");
+        addOptStat("mextravel", "Flights to Mexico", "travel", "50");
+        addOptStat("dubtravel", "Flights to UAE", "travel", "50");
+        addOptStat("hawtravel", "Flights to Hawaii", "travel", "50");
+        addOptStat("japtravel", "Flights to Japan", "travel", "50");
+        addOptStat("lontravel", "Flights to UK", "travel", "50");
+        addOptStat("soutravel", "Flights to South Africa", "travel", "50");
+        addOptStat("switravel", "Flights to Switzerland", "travel", "50");
+        addOptStat("chitravel", "Flights to China", "travel", "50");
+        addOptStat("cantravel", "Flights to Canada", "travel", "50");
+        addOptStat("caytravel", "Flights to Caymans", "travel", "50");
+        addOptStat("traveltime", "Total Travel Time", "travel", "31,536,000");
 
-        addOptStat('smghits', "Finishing Hits: SMG", "weapons");
-        addOptStat('chahits', "Finishing Hits: Mechanical", "weapons");
-        addOptStat('heahits', "Finishing Hits: Heavy Artillery", "weapons");
-        addOptStat('pishits', "Finishing Hits: Pistols", "weapons");
-        addOptStat('machits', "Finishing Hits: Machine Guns", "weapons");
-        addOptStat('grehits', "Finishing Hits: Temps", "weapons");
-        addOptStat('h2hhits', "Finishing Hits: Hand to Hand", "weapons");
-        addOptStat('axehits', "Finishing Hits: Clubbing", "weapons");
-        addOptStat('rifhits', "Finishing Hits: Rifle", "weapons");
-        addOptStat('shohits', "Finishing Hits: Shotgun", "weapons");
-        addOptStat('piehits', "Finishing Hits: Piercing", "weapons");
-        addOptStat('slahits', "Finishing Hits: Slashing", "weapons");
+        addOptStat('smghits', "Finishing Hits: SMG", "weapons", "100 and 1,000");
+        addOptStat('chahits', "Finishing Hits: Mechanical", "weapons", "100 and 1,000");
+        addOptStat('heahits', "Finishing Hits: Heavy Artillery", "weapons", "100 and 1,000");
+        addOptStat('pishits', "Finishing Hits: Pistols", "weapons", "100 and 1,000");
+        addOptStat('machits', "Finishing Hits: Machine Guns", "weapons", "100 and 1,000");
+        addOptStat('grehits', "Finishing Hits: Temps", "weapons", "100 and 1,000");
+        addOptStat('h2hhits', "Finishing Hits: Hand to Hand", "weapons", "100 and 1,000");
+        addOptStat('axehits', "Finishing Hits: Clubbing", "weapons", "100 and 1,000");
+        addOptStat('rifhits', "Finishing Hits: Rifle", "weapons", "100 and 1,000");
+        addOptStat('shohits', "Finishing Hits: Shotgun", "weapons", "100 and 1,000");
+        addOptStat('piehits', "Finishing Hits: Piercing", "weapons", "100 and 1,000");
+        addOptStat('slahits', "Finishing Hits: Slashing", "weapons", "100 and 1,000");
 
-        addOptStat('roundsfired', "Rounds Fired", "weapons");
+        addOptStat('roundsfired', "Rounds Fired", "weapons", "1,000,000");
         addOptStat('specialammoused', "Special Ammo Total Used", "weapons");
         addOptStat('hollowammoused', "Hollow Point Ammo Used", "weapons");
         addOptStat('tracerammoused', "Tracer Ammo Used", "weapons");
         addOptStat('piercingammoused', "Piercing Ammo Used", "weapons");
-        addOptStat('incendiaryammoused', "IncendiaryAmmo Used", "weapons");
+        addOptStat('incendiaryammoused', "Incendiary Ammo Used", "weapons");
 
         addOptStat('medicalitemsused', "Medical Items Used", "medical");
         addOptStat('bloodwithdrawn', "Blood Bags Filled", "medical");
@@ -6148,6 +6153,10 @@
                 GM_addStyle(`.xedx-cached {float: right; margin-left: 10px; font-size: 12px; color:red;}
                              .xedx-notcached {float: right; margin-left: 10px; font-size: 12px; color:green;}
                              .xedx-bg {background-color: green}
+                             .xedx-btn {
+                                  margin-top: 10px;
+                                  margin-left: 20px;
+                                  margin-bottom: 10px;}
                 `);
 
                 buildUI();
@@ -6163,10 +6172,29 @@
         }// End function _tornOverseasRank() {
 
         function buildUI() { // r8989  m-top10 m-bottom10 background
+            GM_addStyle(`.xedx-btn {
+                            margin-top: 10px;
+                            margin-left: 20px;
+                            margin-bottom: 10px;
+                            }`);
             let div = `<div class="cont-gray border-round m-top10">
-                           <input type="checkbox" class="abroad_click m-top10 m-left20 m-bottom10" name="autoRefresh"` +
+                           <div>
+                           <input type="checkbox" id="abroad_click" class="xedx-btn"` +
                            (opts.autoRefresh ? ' checked ': '') + ` />
-                           <span style="color: red;"> Auto Refresh? </span>
+                           <span style="color: red;"> Auto Refresh </span>
+
+                           <input type="checkbox" id="display_rank" class="xedx-btn"` +
+                           (opts.displayRank ? ' checked ': '') + ` />
+                           <span style="color: red;"> Display Rank </span>
+
+                           <input type="checkbox" id="display_health" class="xedx-btn"` +
+                           (opts.displayHealth ? ' checked ': '') + ` />
+                           <span style="color: red;"> Display Health </span>
+
+                           <input type="checkbox" id="last_action" class="xedx-btn"` +
+                           (opts.displayLastAction ? ' checked ': '') + ` />
+                           <span style="color: red;"> Last Action </span>
+                           </div>
                        </div>`;
 
             let target = document.querySelector("#mainContainer > div.content-wrapper > div.travel-people.revive-people");
@@ -6174,11 +6202,21 @@
 
             // TBD: if went from off to on, set timer. Or just set, if now on.
             // Switch to interval?
-            $(".abroad_click").on('click', function(event){
-                if (event.currentTarget.name == "autoRefresh") {
-                    opts.autoRefresh = $(event.currentTarget).is(':checked');
-                    writeSavedOpts();
-                }
+            $("#abroad_click").on('click', function(event){
+                opts.autoRefresh = $(event.currentTarget).is(':checked');
+                writeSavedOpts();
+            });
+            $("#display_rank").on('click', function(event){
+                opts.displayRank = $(event.currentTarget).is(':checked');
+                writeSavedOpts();
+            });
+            $("#display_health").on('click', function(event){
+                opts.displayHealth = $(event.currentTarget).is(':checked');
+                writeSavedOpts();
+            });
+            $("#last_action").on('click', function(event){
+                opts.displayLastAction = $(event.currentTarget).is(':checked');
+                writeSavedOpts();
             });
         }
 
@@ -6362,12 +6400,12 @@
                 opts.displayHealth = (typeof tmpOpts.displayHealth !== undefined) ? tmpOpts.displayHealth : true;
                 opts.displayLastAction = (typeof tmpOpts.displayLastAction !== undefined) ? tmpOpts.displayLastAction : true;
                 opts.autoRefreshSecs = (typeof tmpOpts.autoRefreshSecs !== undefined) ? tmpOpts.autoRefreshSecs : 45;
-                opts.autoRefresh = (typeof tmpOpts.autoRefresh !== undefined) ? tmpOpts.autoRefresh : true;
+                opts.autoRefresh = (typeof tmpOpts.autoRefresh !== undefined) ? tmpOpts.autoRefresh : false;
                 opts.cacheMaxHours = (typeof tmpOpts.cacheMaxHours !== undefined) ? tmpOpts.cacheMaxHours : 6;
                 opts.cacheMaxMs = (typeof tmpOpts.cacheMaxMs !== undefined) ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
                 opts.queueIntms = (typeof tmpOpts.queueIntms !== undefined) ? tmpOpts.queueIntms : 300;
             } catch (e) {
-                log('[userListExtender] ERROR: ', e);
+                log('[tornOverseasRank] ERROR: ', e);
             }
 
             return opts;
