@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.10';
+const UTILITIES_VERSION_INTERNAL = '2.11';
 const defSSID = '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -16,13 +16,46 @@ var itemUpdateRan = false;
 // https://developers.google.com/apps-script/service_spreadsheet
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
 
+// TBD: this will give permission errors on using OpenShhetByID, so need
+// to create a trigger, instead, to run in a few seconds.
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 function onOpen(e) {
+  createTimeDrivenTrigger("onOpenTrigger", 5);
+  /*
   let ss = important_getSSID();
   console.log(getVersion());
   loadScriptOptions(ss);
   syncPriceCalcWithSheet26(ss);
-  // checkForUpdates();
+  */
+}
+
+function onOpenTrigger() {
+  let ss = important_getSSID();
+  console.log(getVersion());
+  loadScriptOptions(ss);
+  syncPriceCalcWithSheet26(ss);
+
+  // Remove this now disabled trigger
+  deleteFunctionTriggers("onOpenTrigger");
+}
+
+// Helper to install required trigegrs
+function installScriptTriggers() {
+  // The "up2" trigger, daily, 1 AM
+  createDailyTriggerAtHour("up2", 1);
+
+  // batchAPI, every minute (?) - is every minute too often?
+  createPeriodicTrigger("batchAPI", 1);
+
+  // checkSheet10, every 10 minutes
+  createPeriodicTrigger("checkSheet10", 10);
+}
+
+// Debugging aid to clear all triggers
+function deleteScriptTriggers() {
+deleteFunctionTriggers("up2");
+deleteFunctionTriggers("batchAPI");
+deleteFunctionTriggers("checkSheet10");
 }
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
@@ -178,8 +211,8 @@ function getVersion(ss=null) {
   return 'XANET_API_INTERFACE_VERSION_INTERNAL = "' + XANET_API_INTERFACE_VERSION_INTERNAL + '"\n' +
          'XANET_TRADE_HELPER_VERSION_INTERNAL = "' + XANET_TRADE_HELPER_VERSION_INTERNAL + '"\n' +
          'UTILITIES_VERSION_INTERNAL = "' + UTILITIES_VERSION_INTERNAL + '"\n' +
-         'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL + '"\n' +
-         'SSID: ' + (ss ? ss.getKey() : important_getSSID().getKey());
+         'BATCHAPI_VERSION_INTERNAL = "' + BATCHAPI_VERSION_INTERNAL; // + '"\n' +
+         //'SSID: ' + (ss ? ss.getKey() : important_getSSID().getKey());
 }
 
 // Function to get the spredsheet handle by SSID
