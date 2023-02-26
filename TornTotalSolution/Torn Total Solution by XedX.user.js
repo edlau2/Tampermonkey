@@ -612,7 +612,7 @@
             newLi = newLi.replaceAll('STAT_DESC', desc);
 
             let statVal = numberWithCommas(Number(val));
-            if (required != null) statVal = statVal + "/" + required;
+            if (required != null) statVal = statVal + " / " + required;
             newLi = newLi.replaceAll('STAT_VAL', statVal);
             debug('Stats LI: ', newLi);
             $('#stats-list').append(newLi);
@@ -622,7 +622,7 @@
             let sel = "#x-" + statName;
             let li = document.querySelector(sel + " > span.desc");
             let statVal = numberWithCommas(Number(newValue));
-            if (required != null) statVal = statVal + "/" + required;
+            if (required != null) statVal = statVal + " / " + required;
             log('[updateStat] sel: ', sel, ' curr value: ', li.textContent,
                 ' new value: ', statVal);
             li.textContent = statVal;
@@ -1417,8 +1417,8 @@
             if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
 
             // Set parents to 'flex', allow divs to be side-by-side
-            document.querySelector("#nav-city").setAttribute('style', 'display:flex;');
-            document.querySelector("#nav-city > div > a").setAttribute('style', 'width:70%;float:left;');
+            document.querySelector("#nav-city").setAttribute('style', 'display:block;');
+            document.querySelector("#nav-city > div > a").setAttribute('style', 'width:auto;height:23px;float:left;');
 
             // Add the caret and handler.
             let target = document.querySelector("#nav-city > div");
