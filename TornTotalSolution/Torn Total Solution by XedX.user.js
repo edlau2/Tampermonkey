@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.4
+// @version      4.5
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -2196,6 +2196,7 @@
                     '</div>' +
                 '<div class="clear"></div>'+
                 '</li>';
+            log('[tornBazaarPlus] buildNewLi()');
             let temp = newLi.replace(/replaceID/g, id);
             let temp2 = temp.replace(/replaceName/g, name);
             return temp2;
@@ -4607,7 +4608,9 @@
             //my bazaar add
             async function auto_price_add(input) {
               if (!torn_items) torn_items = await get_torn_items();
-              const item_name = input.closest('LI').querySelector('canvas.item-converted').getAttribute('aria-label');
+              let item_name = input.closest('LI').querySelector('.t-overflow').textContent;
+              log('[tornBazaarPlus] itemName: ', item_name);
+
               const lowest_price = await lowest_market_price(parseInt(torn_items[item_name]));
               set_regular_input(input, auto_price(lowest_price));
             }
