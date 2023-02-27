@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.36
+// @version     2.37
 // @license     MIT
 // ==/UserScript==
 
@@ -63,10 +63,23 @@ function getPlayerFullName() {
 // Get the user's ID
 ///////////////////////////////////////////////////////////////////////////////////
 
+var queryRetries = 0;
 function queryUserId(callback) {
     xedx_TornUserQuery(null, 'basic', function(responseText, id, callback) {
         let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
+        if (jsonResp.error) {
+            if (jsonResp.error.code == 17) {
+                if (queryRetries++ < 5) {
+                    debugger;
+                    return queryUserId(callback);
+                } else {
+                    queryRetries = 0;
+                    return handleError(responseText);
+                }
+            } else { // != 17
+                return handleError(responseText);
+            }
+        }
         try {
           return callback(jsonResp.player_id);
         } catch (e) {
@@ -690,6 +703,10 @@ function handleError(responseText) {
             '\nCode: ' + jsonResp.error.code +
             '\nError: ' + jsonResp.error.error;
 
+        // Temporary
+        log("[jsHelper] Error: ", errorText);
+        if (jsonResp.error.code == 5) debugger;
+
         if (jsonResp.error.code == 5) {
             errorText += '\n\n The Torn API only allows so many requests per minute. ' +
                 'If this limit is exceeded, this error will occur. It will clear itself' +
@@ -715,6 +732,9 @@ function handleError(responseText) {
 }
 
 function handleSysError(response, addlText=null) {
+
+    console.log("System error: ", response);
+
     let errorText = GM_info.script.name + ': An error has occurred querying data.\n\n' +
         response.error;
 
