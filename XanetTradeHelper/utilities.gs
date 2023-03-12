@@ -2,8 +2,8 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.11';
-const defSSID = '1_WR-BW10hJsQrbqVajqyJa3Y8SDvpUgv4-FUXQpDm5g';
+const UTILITIES_VERSION_INTERNAL = '2.12';
+const defSSID = '1gjmMqSS9K35QJHcAvX15aWhc913JeUmSPFI1qlZr1CY';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
@@ -61,8 +61,9 @@ deleteFunctionTriggers("checkSheet10");
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
 // See 'https://developers.google.com/apps-script/guides/triggers' for more details
 //
-// rsnge:  { columnEnd: 1, columnStart: 1, rowEnd: 17, rowStart: 17 }
+// range:  { columnEnd: 1, columnStart: 1, rowEnd: 17, rowStart: 17 }
 //
+var Lock = LockService.getScriptLock();
 function onEdit(e) {
   let modified = true;
   let ss = e.source;
@@ -80,17 +81,35 @@ function onEdit(e) {
   }
 
   if (sheetName == 'Price Calc') {
+    log("Checking for changes to be migrated to sheet26");
+    log("Start col: " + e.range.columnStart + " end col: " + e.range.columnEnd);
+    log("Start row: " + e.range.rowStart + " end row: " + e.range.rowEnd);
     // Look for changes in column 1, rows > 217
     let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
                               (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
                               (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
     if (isInterestingColumn) {
       console.log('Detected change in names range or ID range! Verifying ID`s...');
+      log('idColumnNumber is ' + idColumnNumber);
 
       // Migrate changes to Sheet26...
-      if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
-        if (opts.opt_fixup26) fixSheet26(e.range, e.oldValue, ss)
+      // This won't work - need to submit single cells to fixSheet26.
+      // So, iterate all cells in col 1 and col idColumnNumber, send each one.
+      // In the changed range...
+
+      if (opts.opt_fixup26) {
+        if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+          fixSheet26(e.range, e.oldValue, ss);
+        } else {
+          for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) {
+            let cell = "A" + i;
+            log("Checking cell " + cell);
+            let myRange = priceSheet(ss).getRange(cell);
+            fixSheet26(myRange, null, ss);
+          }
+        }
       }
+
       syncPriceCalcWithSheet26(ss);
     }
 
@@ -540,6 +559,13 @@ function fixSheet26(range, oldValue, ss=null) {
     return;
   }
 
+try {
+  Lock.waitLock(10000);
+} catch (e) {
+  Logger.log('Could not obtain lock after 10 seconds.');
+  return;
+}
+
   let sheetRange = sheet26(ss).getDataRange();
   let dataRange = sheet26(ss).getRange(1, 1, sheetRange.getLastRow(), 1);
   let valArray = dataRange.getValues(); // All values in Col A, Sheet 26
@@ -579,6 +605,7 @@ function fixSheet26(range, oldValue, ss=null) {
         if (!newValue) {
           SpreadsheetApp.flush();
           console.log('<== Finished fixing up Sheet26');
+          Lock.releaseLock();
           return; 
         }
         break;
@@ -604,11 +631,13 @@ function fixSheet26(range, oldValue, ss=null) {
     }
   }
 
+   Lock.releaseLock();
+
   SpreadsheetApp.flush();
   log('<== Finished fixing up Sheet26');
 
-  if (!emptyCellRange) return (console.log('fixSheet26: didn`t find an empty row!'));
+  if (!emptyCellRange) return oldValue ? log('fixSheet26: didn`t find an empty row') : log("Deleted value");
   emptyCellRange.setValue(newValue);
-  return (emptyRow ? console.log('New value successfully inserted at row ' + emptyRow + ' on Sheet26.') :
+  return (emptyRow ? console.log('New value successfully handled at row ' + emptyRow + ' on Sheet26.') :
           console.log('Unable to find empty row on Sheet26!'));
 }
