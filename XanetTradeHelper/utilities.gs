@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.12';
+const UTILITIES_VERSION_INTERNAL = '2.13';
 const defSSID = '1gjmMqSS9K35QJHcAvX15aWhc913JeUmSPFI1qlZr1CY';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -74,7 +74,7 @@ function onEdit(e) {
   let sheetName = sheet.getName();
   if (!idColumnNumber) idColumnNumber = findIdColumnNum(ss);
 
-  console.log('==> onEdit sheet: "', sheetName , '" range: ', e.range,  ' Old value: ', e.oldValue);
+  console.log('==> onEdit sheet: "', sheetName); // , '" range: ', e.range,  ' Old value: ', e.oldValue);
 
   if (sheetName == 'Sort Order') {
     if (opts.opt_autoSort) sortPriceCalc(ss);
@@ -93,19 +93,23 @@ function onEdit(e) {
       log('idColumnNumber is ' + idColumnNumber);
 
       // Migrate changes to Sheet26...
-      // This won't work - need to submit single cells to fixSheet26.
       // So, iterate all cells in col 1 and col idColumnNumber, send each one.
       // In the changed range...
-
       if (opts.opt_fixup26) {
         if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
-          fixSheet26(e.range, e.oldValue, ss);
+          fixSheet26(e.range, e.oldValue, e.range.rowStart, ss);
         } else {
           for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) {
             let cell = "A" + i;
             log("Checking cell " + cell);
             let myRange = priceSheet(ss).getRange(cell);
-            fixSheet26(myRange, null, ss);
+
+            // If we hit an empty cell, may have shifted a mess of cells
+            // and have hit the bottom. In which case, bail.
+            if (myRange.getValue() == '') break;
+
+            // Otherwise insert/delete from sheet26
+            fixSheet26(myRange, null, i, ss);
           }
         }
       }
@@ -304,8 +308,8 @@ function markDupsInPriceList() {
     for (let j = i+1; j < dataRangeArr.length; j++) {
       let compareName = dataRangeArr[j].toString().trim();
       if (checkName == compareName) { // Duplicate row!
-        console.log('Warning! Duplicate row found in "price calc" for "a "' + 
-          checkName + '" at row ' + psStartRow + j + '!');
+        console.log('Warning! Duplicate row found in "price calc" for a "' + 
+          checkName + '" at row ' + +psStartRow + +j + '!');
         dupsFound++;
         let maxColumns = sheetRange.getLastColumn();
         priceSheet().getRange(psStartRow + j, 1, 1, maxColumns).setBackground("yellow");
@@ -552,19 +556,21 @@ function isRangeSingleCell(range) {
   return false;
 }
 
-function fixSheet26(range, oldValue, ss=null) {
+function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
   log('Fixing up Sheet 26 ==>');
   if (!isRangeSingleCell(range)) {
     console.log('==> fixSheet26: unable to fix up, not a single cell: ', range);
     return;
   }
 
-try {
-  Lock.waitLock(10000);
-} catch (e) {
-  Logger.log('Could not obtain lock after 10 seconds.');
-  return;
-}
+  log("Range: " + range + " Row: " + priceSheetRow + " Range row start: " + range.rowStart);
+
+  try {
+    Lock.waitLock(10000);
+  } catch (e) {
+    Logger.log('Could not obtain lock after 10 seconds.');
+    return;
+  }
 
   let sheetRange = sheet26(ss).getDataRange();
   let dataRange = sheet26(ss).getRange(1, 1, sheetRange.getLastRow(), 1);
@@ -615,12 +621,33 @@ try {
   }
 
   // Case 2: Cell added or changed, find first empty row on Sheet26, indicated
-  // by a '1' (or blank), and insert the new name there.
+  // by a '1' (or blank), and insert the new name there. But first, make sure 
+  // it's not already in there!
   log('fixSheet26: newValue = "' + newValue + '"');
   if (newValue) {
     console.log('Looking for first empty row to insert ' + newValue);
     if (!emptyCellRange) {
       for (let i=sheet26row; i<valArray.length; i++) {
+        
+        // Compare the cell value to what we want to add, if the same,
+        // it's a dup!
+        if (newValue.toLowerCase() == valArray[i].toString().toLowerCase()) {
+          log("[fixSheet26] value already exists! Not adding again.");
+
+          //log("Deleting from PriceCalc, row " + priceSheetRow);
+          //priceSheet(ss).deleteRow(priceSheetRow);
+
+          console.log('Warning! Duplicate row found in "price calc" for a "' + 
+            valArray[i] + '" at row ' + priceSheetRow + '!');
+          let maxColumns = sheetRange.getLastColumn();
+          priceSheet().getRange(priceSheetRow, 1, 1, maxColumns).setBackground("yellow");
+          let cell = priceSheet(ss).getRange('A' + priceSheetRow).setValue(valArray[i] + " (duplicate)");
+
+          SpreadsheetApp.flush();
+          Lock.releaseLock();
+          return;
+        }
+
         if (!emptyCellRange && (valArray[i] == '1' || !valArray[i])) {
           emptyRow = i+1;
           emptyCellRange = sheet26(ss).getRange(emptyRow, 1, 1, 1);
