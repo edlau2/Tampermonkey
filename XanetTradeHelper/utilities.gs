@@ -2,7 +2,7 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.13';
+const UTILITIES_VERSION_INTERNAL = '2.14';
 const defSSID = '1gjmMqSS9K35QJHcAvX15aWhc913JeUmSPFI1qlZr1CY';
 
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
@@ -88,6 +88,16 @@ function onEdit(e) {
     let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
                               (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
                               (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
+
+    log("e.range.columnStart: " + e.range.columnStart);
+    log("e.range.columnnEnd: " + e.range.columnnEnd);
+    log("e.range.rowStart: " + e.range.rowStart);
+    log("e.range.rowEnd: " + e.range.rowEnd);
+
+    log("(e.range.columnStart <= 1 <= e.range.columnnEnd) " + (e.range.columnStart <= 1 <= e.range.columnnEnd));
+    log("(e.range.columnStart <= idColumnNumber <= e.range.columnEnd) " + (e.range.columnStart <= idColumnNumber <= e.range.columnEnd));
+    log("(e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd) " + (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd));
+
     if (isInterestingColumn) {
       console.log('Detected change in names range or ID range! Verifying ID`s...');
       log('idColumnNumber is ' + idColumnNumber);
@@ -96,17 +106,20 @@ function onEdit(e) {
       // So, iterate all cells in col 1 and col idColumnNumber, send each one.
       // In the changed range...
       if (opts.opt_fixup26) {
-        if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+        if (isRangeSingleCell(e.range) && e.range.columnStart == 1) { // One cell
           fixSheet26(e.range, e.oldValue, e.range.rowStart, ss);
         } else {
-          for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) {
-            let cell = "A" + i;
+          for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) { // A range of cells
+            let cell = "A" + i; // Need to handle ID cell too? Col 24 (Y)
             log("Checking cell " + cell);
             let myRange = priceSheet(ss).getRange(cell);
 
             // If we hit an empty cell, may have shifted a mess of cells
             // and have hit the bottom. In which case, bail.
-            if (myRange.getValue() == '') break;
+            if (myRange.getValue() == '') {
+              log("Cell is empty, must be deletions! Done here.");
+              break;
+            }
 
             // Otherwise insert/delete from sheet26
             fixSheet26(myRange, null, i, ss);
@@ -114,6 +127,7 @@ function onEdit(e) {
         }
       }
 
+      log("Done fixing sheet26, calling syncPriceCalcWithSheet26")
       syncPriceCalcWithSheet26(ss);
     }
 
@@ -632,18 +646,21 @@ function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
         // Compare the cell value to what we want to add, if the same,
         // it's a dup!
         if (newValue.toLowerCase() == valArray[i].toString().toLowerCase()) {
-          log("[fixSheet26] value already exists! Not adding again.");
+          log("[fixSheet26] value for " + valArray[i] + " already exists! Not adding again.");
 
+          /*
           //log("Deleting from PriceCalc, row " + priceSheetRow);
           //priceSheet(ss).deleteRow(priceSheetRow);
 
           console.log('Warning! Duplicate row found in "price calc" for a "' + 
-            valArray[i] + '" at row ' + priceSheetRow + '!');
+             valArray[i] + '" at row ' + priceSheetRow + '!');
           let maxColumns = sheetRange.getLastColumn();
           priceSheet().getRange(priceSheetRow, 1, 1, maxColumns).setBackground("yellow");
           let cell = priceSheet(ss).getRange('A' + priceSheetRow).setValue(valArray[i] + " (duplicate)");
 
           SpreadsheetApp.flush();
+          */
+          
           Lock.releaseLock();
           return;
         }
@@ -663,8 +680,24 @@ function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
   SpreadsheetApp.flush();
   log('<== Finished fixing up Sheet26');
 
-  if (!emptyCellRange) return oldValue ? log('fixSheet26: didn`t find an empty row') : log("Deleted value");
+  if (!emptyCellRange) {
+    if (oldValue) 
+      log('fixSheet26: didn`t find an empty row');
+    else log("Deleted value from PriceCalc");
+
+    return;
+  }
+
+  log("Inserting " + newValue + " at row " + emptyRow);
+
   emptyCellRange.setValue(newValue);
-  return (emptyRow ? console.log('New value successfully handled at row ' + emptyRow + ' on Sheet26.') :
-          console.log('Unable to find empty row on Sheet26!'));
+  if (emptyRow)
+    log('New value successfully handled at row ' + emptyRow + ' on Sheet26.');
+  else
+    log('Unable to find empty row on Sheet26!');
+
+  return;
 }
+
+
+
