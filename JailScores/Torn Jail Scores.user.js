@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -82,9 +82,18 @@
     // Helper to parse a time string (33h 14m format), converting to minutes
     // On mobile: "TIME\n33h 14m"
     function parseJailTimeStr(timeStr) {
+        log("timeStr: ", timeStr, " index: ", timeStr.indexOf("TIME"));
+
         if (timeStr.indexOf("TIME") > -1) {
-            timeStr.replace("TIME\n", '');
+            timeStr = timeStr.replace("TIME\n", '');
+            timeStr = timeStr.replace("TIME :", '');
+            //timeStr = timeStr.replace("TIME : ", '');
+            //timeStr.replace("TIME", '');
+            //timeStr.replace(":", '');
+            timeStr.trim();
         }
+        log("Parsed timeStr: ", timeStr);
+
         var hour = 0;
         var minute = 0;
         var minuteStart = 0;
@@ -186,16 +195,22 @@
             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
 
             var timeStr = wrapper.children[0].innerText;
+            log("timeStr: ", timeStr);
 
             let theString = wrapper.children[1].innerText;
+            log("theString: ", theString);
+
             let lvlStr = theString.replace(/^\D+/g, '');
-            //var lvlStr = wrapper.children[1].innerText;
+            log("lvlStr: ", lvlStr);
 
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
 
             let minutes = parseJailTimeStr(timeStr);
+            log("minutes: ", minutes);
+
             wrapper.children[0].setAttribute('time', minutes); // For sorting
             let score = (minutes + 180) * parseInt(lvlStr);
+            log("score: ", score);
 
             // Calc success rate
             let sr = getSuccessRate(score, getSkill(), totalPenalty);
