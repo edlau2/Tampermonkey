@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -80,7 +80,11 @@
     }
 
     // Helper to parse a time string (33h 14m format), converting to minutes
+    // On mobile: "TIME\n33h 14m"
     function parseJailTimeStr(timeStr) {
+        if (timeStr.indexOf("TIME") > -1) {
+            timeStr.replace("TIME\n", '');
+        }
         var hour = 0;
         var minute = 0;
         var minuteStart = 0;
@@ -182,7 +186,11 @@
             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
 
             var timeStr = wrapper.children[0].innerText;
-            var lvlStr = wrapper.children[1].innerText;
+
+            let theString = wrapper.children[1].innerText;
+            let lvlStr = theString.replace(/^\D+/g, '');
+            //var lvlStr = wrapper.children[1].innerText;
+
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
 
             let minutes = parseJailTimeStr(timeStr);
