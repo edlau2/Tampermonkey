@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.5
+// @version      4.6
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -132,9 +132,12 @@
     var userId = null;
     var userName = null;
 
+    var queryRetries = 0; // global retry attempts for certain API errors, cleared after 5 (only try 5 times)
+
     const recoverableErrors = [5, // Too many requests
                                8, // IP Block
                                9, // API disabled
+                               17 // Backend error occured
                                ];
 
     //class API_LOG {
@@ -213,10 +216,20 @@
             log('[personalStatsQueryCB] unknown error, no response!');
             return;
         }
-        let _jsonResp = JSON.parse(responseText);
-        if (_jsonResp.error) {return handleError(responseText);}
+        let jsonResp = JSON.parse(responseText);
+        if (jsonResp.error) {
+            if (jsonResp.error.code == 17) {
+                if (queryRetries++ < 5) {
+                    //debugger;
+                    alert("Retrying error 17!");
+                    return personalStatsQuery(callback=personalStatsQueryCB);
+                } else {
+                    queryRetries = 0;
+                }
+            }
+            return handleError(responseText);
+        }
 
-        jsonResp = _jsonResp;
         personalStats = jsonResp.personalstats;
         honorsAwarded = jsonResp.honors_awarded;
         attacks = jsonResp.attacks;
@@ -483,7 +496,16 @@
         function updateStatsHandlerer(responseText, ID) {
             log('[updateStatsHandlerer]');
             let _jsonResp = JSON.parse(responseText);
-            if (_jsonResp.error) {return handleError(responseText);}
+            if (_jsonResp.error) {
+                if (queryRetries++ < 5) {
+                    //debugger;
+                    alert("Retrying error 17!");
+                    return personalStatsQuery(updateStatsHandlerer);
+                } else {
+                    queryRetries = 0;
+                }
+                return handleError(responseText);
+            }
 
             jsonResp = _jsonResp;
             personalStats = jsonResp.personalstats;
@@ -2104,7 +2126,16 @@
         function marketQueryCB(responseText, ID, param) {
             debug('[tornMuseumSetHelper] market query callback.');
             var jsonResp = JSON.parse(responseText);
-            if (jsonResp.error) {return handleError(responseText);}
+            if (jsonResp.error) {
+                if (queryRetries++ < 5) {
+                    //debugger;
+                    alert("Retrying error 17!");
+                    return xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
+                } else {
+                    queryRetries = 0;
+                }
+                return handleError(responseText);
+            }
 
             let objEntries = Object.entries(jsonResp.pointsmarket);
             let firstPointTrade = Object.entries(objEntries[0][1]);
@@ -3094,7 +3125,16 @@
         function tornQueryCB(responseText, ID, param) {
             debug('[tornWeSpreadsheet] Torn items query callback.');
             var jsonResp = JSON.parse(responseText);
-            if (jsonResp.error) {return handleError(responseText);}
+            if (jsonResp.error) {
+                if (queryRetries++ < 5) {
+                    //debugger;
+                    alert("Retrying error 17!");
+                    return xedx_TornTornQuery(null, 'items', tornQueryCB);
+                } else {
+                    queryRetries = 0;
+                }
+                return handleError(responseText);
+            }
             itemsArray = jsonResp.items; // Array of Torn items
             sortArrays(); // Also calls 'modifyPage()'
         }
@@ -3733,7 +3773,18 @@
         function tornStocksCB(responseText, ID, param) {
             log('[tornStockProfits] tornStocksCB');
             tornStocksJSON = JSON.parse(responseText);
-            if (tornStocksJSON.error) {return handleError(responseText);}
+            if (tornStocksJSON.error) {
+                if (tornStocksJSON.error.code == 17) {
+                    if (queryRetries++ < 5) {
+                        //debugger;
+                        alert("Retrying error 17!");
+                        return xedx_TornTornQuery(null, 'stocks', tornStocksCB);
+                    } else {
+                        queryRetries = 0;
+                    }
+                }
+                return handleError(responseText);
+            }
             modifyPage();
         }
 
@@ -5005,7 +5056,18 @@
                 tornDisableRefills.safetyOn = false;
             }
             tornDisableRefills.jsonResp = JSON.parse(responseText);
-            if (tornDisableRefills.jsonResp.error) {return handleApiError(responseText);}
+            if (tornDisableRefills.jsonResp.error) {
+                if (tornDisableRefills.error.code == 17) {
+                    if (queryRetries++ < 5) {
+                        //debugger;
+                        alert("Retrying error 17!");
+                        return xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
+                    } else {
+                        queryRetries = 0;
+                    }
+                }
+                return handleError(responseText);
+            }
 
             let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
             if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
@@ -5225,7 +5287,7 @@
             let jsonResp = JSON.parse(rt);
             if (jsonResp.error) {
                 debug('[userListExtender] updateUserLevelsCB: error:', localjsonResp.error);
-                if (localjsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
+                if (jsonResp.error.code == 5) { // {"code":5,"error":"Too many requests"}
                     if (isRanked(li)) { // Don't do again!
                         log('[userListExtender] ***** updateUserLevelsCB: rank for ' + name + ' already present! Ignoring.');
                         return;
@@ -5246,6 +5308,15 @@
                     debug('[userListExtender] ', msg);
                     opts.opt_paused = true;
                     return;
+                }
+                if (jsonResp.error.code == 17) {
+                    if (queryRetries++ < 5) {
+                        //debugger;
+                        alert("Retrying error 17!");
+                        return xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
+                    } else {
+                        queryRetries = 0;
+                    }
                 }
                 return handleError(responseText);
             }
@@ -6631,7 +6702,18 @@
 
             function getCompanyProfileCB(responseText, ID, parentUL) {
                 let _jsonResp = JSON.parse(responseText);
-                if (_jsonResp.error) {return handleError(responseText);}
+                if (_jsonResp.error) {
+                    if (_jsonResp.error.code == 17) {
+                        if (queryRetries++ < 5) {
+                            //debugger;
+                            alert("Retrying error 17!");
+                            return xedx_TornCompanyQuery(ID, 'profile', getCompanyProfileCB, parentUL);
+                        } else {
+                            queryRetries = 0;
+                        }
+                    }
+                    return handleError(responseText);
+                }
                 let company = _jsonResp.company;
                 let hired = company.employees_hired;
                 let capacity = company.employees_capacity;
