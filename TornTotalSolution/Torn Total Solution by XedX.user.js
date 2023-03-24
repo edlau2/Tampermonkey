@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.6
+// @version      4.7
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -109,6 +109,9 @@
     // Log for API calls
     var apiCallLog = {}; // Must be before initDebugOptions()!
     var maxApiCalls = 10;
+
+    // Misc debug stuff
+    var alertOnRetry = false;
     loadApiCallLog();
     initDebugOptions();
 
@@ -221,7 +224,7 @@
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
                     //debugger;
-                    alert("Retrying error 17!");
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return personalStatsQuery(callback=personalStatsQueryCB);
                 } else {
                     queryRetries = 0;
@@ -499,7 +502,7 @@
             if (_jsonResp.error) {
                 if (queryRetries++ < 5) {
                     //debugger;
-                    alert("Retrying error 17!");
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return personalStatsQuery(updateStatsHandlerer);
                 } else {
                     queryRetries = 0;
@@ -2129,7 +2132,7 @@
             if (jsonResp.error) {
                 if (queryRetries++ < 5) {
                     //debugger;
-                    alert("Retrying error 17!");
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
                 } else {
                     queryRetries = 0;
@@ -3128,7 +3131,7 @@
             if (jsonResp.error) {
                 if (queryRetries++ < 5) {
                     //debugger;
-                    alert("Retrying error 17!");
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return xedx_TornTornQuery(null, 'items', tornQueryCB);
                 } else {
                     queryRetries = 0;
@@ -3777,7 +3780,7 @@
                 if (tornStocksJSON.error.code == 17) {
                     if (queryRetries++ < 5) {
                         //debugger;
-                        alert("Retrying error 17!");
+                        if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornTornQuery(null, 'stocks', tornStocksCB);
                     } else {
                         queryRetries = 0;
@@ -5060,7 +5063,7 @@
                 if (tornDisableRefills.error.code == 17) {
                     if (queryRetries++ < 5) {
                         //debugger;
-                        alert("Retrying error 17!");
+                        if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
                     } else {
                         queryRetries = 0;
@@ -5312,7 +5315,7 @@
                 if (jsonResp.error.code == 17) {
                     if (queryRetries++ < 5) {
                         //debugger;
-                        alert("Retrying error 17!");
+                        if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
                     } else {
                         queryRetries = 0;
@@ -6706,7 +6709,7 @@
                     if (_jsonResp.error.code == 17) {
                         if (queryRetries++ < 5) {
                             //debugger;
-                            alert("Retrying error 17!");
+                            if (alertOnRetry) alert("Retrying error 17!");
                             return xedx_TornCompanyQuery(ID, 'profile', getCompanyProfileCB, parentUL);
                         } else {
                             queryRetries = 0;
@@ -7079,6 +7082,7 @@
     function initDebugOptions() {
         loggingEnabled = GM_getValue('dbgopts-logging', true);
         debugLoggingEnabled = GM_getValue('dbgopts-dbglogging', false);
+        alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
 
         let savedSize = maxApiCalls;
         maxApiCalls = GM_getValue("api-call-log-size", maxApiCalls);
@@ -7089,6 +7093,7 @@
         GM_setValue('dbgopts-logging', loggingEnabled);
         GM_setValue('dbgopts-dbglogging', debugLoggingEnabled);
         GM_setValue("api-call-log-size", maxApiCalls);
+        GM_setValue("alertOnRetry", alertOnRetry);
 
         log('[initDebugOptions] loggingEnabled: ', loggingEnabled);
         log('[initDebugOptions] debugLoggingEnabled: ', debugLoggingEnabled);
