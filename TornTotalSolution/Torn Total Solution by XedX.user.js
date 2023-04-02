@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.7
+// @version      4.8
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
-// @remote      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @require        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -219,7 +219,7 @@
             log('[personalStatsQueryCB] unknown error, no response!');
             return;
         }
-        let jsonResp = JSON.parse(responseText);
+        jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
@@ -510,13 +510,13 @@
                 return handleError(responseText);
             }
 
-            jsonResp = _jsonResp;
-            personalStats = jsonResp.personalstats;
-            honorsAwarded = jsonResp.honors_awarded;
-            attacks = jsonResp.attacks;
+            //jsonResp = _jsonResp;
+            personalStats = _jsonResp.personalstats;
+            honorsAwarded = _jsonResp.honors_awarded;
+            attacks = _jsonResp.attacks;
 
-            userId = jsonResp.player_id;
-            userName = jsonResp.name;
+            userId = _jsonResp.player_id;
+            userName = _jsonResp.name;
 
             buildStatsUI(true);
         }
@@ -1028,11 +1028,8 @@
                 let name = jailStatArray[i];
                 let searchName = 'xedx-val-span-' + name;
                 let valSpan = document.getElementById(searchName);
-                let stats = jsonResp.personalstats;
-                if (!validPointer(valSpan)) {
-                    log('[populateJailDiv] Unable to find proper span: ' + searchName + ' at ' + document.URL);
-                    continue;
-                }
+                let stats = personalStats;
+                if (!validPointer(valSpan)) {continue;}
                 if (!validPointer(stats[name])) {continue;}
                 if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
                     valSpan.innerText = '$' + numberWithCommas(stats[name]);
