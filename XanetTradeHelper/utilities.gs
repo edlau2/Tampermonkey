@@ -696,6 +696,7 @@ function copyPriceCalcToSheet26(ss) {
   var lastRow = sourceSheet.getLastRow();
   var targetRange = targetSheet.getRange("B8:B" + lastRow);
   range.copyTo(targetRange);
+  copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
 }
 
 function copySheet26BToSheet26D(ss) {
@@ -703,7 +704,7 @@ function copySheet26BToSheet26D(ss) {
   var range = sheet26.getRange("B8:B");
   var lastRow = sheet26.getLastRow();
   var targetRange = sheet26.getRange("D8:D" + lastRow);
-  range.copyTo(targetRange);
+  range.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
 }
 
 function replaceValues(ss) {
