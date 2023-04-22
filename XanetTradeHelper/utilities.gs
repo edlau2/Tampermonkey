@@ -690,6 +690,7 @@ function isRangeSingleCell(range) {
 } */
 
 function copyPriceCalcToSheet26(ss) {
+  log('[copyPriceCalcToSheet26] ==>');
   var sourceSheet = ss.getSheetByName("Price Calc");
   var targetSheet = ss.getSheetByName("Sheet26");
   var range = sourceSheet.getRange("Y8:Y");
@@ -697,17 +698,21 @@ function copyPriceCalcToSheet26(ss) {
   var targetRange = targetSheet.getRange("B8:B" + lastRow);
   range.copyTo(targetRange);
   copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
+  log('<== [copyPriceCalcToSheet26]');
 }
 
 function copySheet26BToSheet26D(ss) {
+  log('[copySheet26BToSheet26D] ==>');
   var sheet26 = ss.getSheetByName("Sheet26");
   var range = sheet26.getRange("B8:B");
   var lastRow = sheet26.getLastRow();
   var targetRange = sheet26.getRange("D8:D" + lastRow);
   range.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
+  log('<== [copySheet26BToSheet26D]');
 }
 
 function replaceValues(ss) {
+  log('[replaceValues] ==>');
   // Get the Sheet26
   const sheet = ss.getSheetByName('Sheet26');
   var range = sheet.getRange('B8:B');
@@ -749,9 +754,12 @@ function replaceValues(ss) {
       }
     }
   }
+
+  log('<== [replaceValues]');
 }
 
 function updateColumnA(ss) {
+  log('[updateColumnA] ==>');
   // Get the Sheet
   const sheet = ss.getSheetByName('Sheet26');
 
@@ -786,4 +794,6 @@ function updateColumnA(ss) {
       }
     }
   }
+
+  log('<== [updateColumnA]');
 }
