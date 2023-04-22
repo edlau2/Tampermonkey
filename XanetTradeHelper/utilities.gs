@@ -696,8 +696,7 @@ function copyPriceCalcToSheet26(ss) {
   var range = sourceSheet.getRange("Y8:Y");
   var lastRow = sourceSheet.getLastRow();
   var targetRange = targetSheet.getRange("B8:B" + lastRow);
-  range.copyTo(targetRange);
-  copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
+  range.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
   log('<== [copyPriceCalcToSheet26]');
 }
 
