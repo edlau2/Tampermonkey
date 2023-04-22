@@ -692,7 +692,7 @@ function isRangeSingleCell(range) {
 function copyPriceCalcToSheet26(ss) {
   var sourceSheet = ss.getSheetByName("Price Calc");
   var targetSheet = ss.getSheetByName("Sheet26");
-  var range = sourceSheet.getRange("Z8:Z");
+  var range = sourceSheet.getRange("Y8:Y");
   var lastRow = sourceSheet.getLastRow();
   var targetRange = targetSheet.getRange("B8:B" + lastRow);
   range.copyTo(targetRange);
