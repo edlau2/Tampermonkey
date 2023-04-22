@@ -2,9 +2,8 @@
 // Helpers/Utilities
 /////////////////////////////////////////////////////////////////////////////
 
-const UTILITIES_VERSION_INTERNAL = '2.14';
+const UTILITIES_VERSION_INTERNAL = '2.15';
 const defSSID = '1gjmMqSS9K35QJHcAvX15aWhc913JeUmSPFI1qlZr1CY';
-
 //const custItemStartRow = 214; // Where new items may be added onto price sheet
 const custItemStartRow = 8; // Change to ANY row
 var idColumnLetter = 'V';
@@ -42,20 +41,27 @@ function onOpenTrigger() {
 // Helper to install required trigegrs
 function installScriptTriggers() {
   // The "up2" trigger, daily, 1 AM
-  createDailyTriggerAtHour("up2", 1);
+  createDailyTriggerAtHour("callSheet10", 1);
 
   // batchAPI, every minute (?) - is every minute too often?
   createPeriodicTrigger("batchAPI", 1);
 
   // checkSheet10, every 10 minutes
   createPeriodicTrigger("checkSheet10", 10);
-}
 
+  createPeriodicTrigger("FixupPermissions", 30);
+}
+function installProfitTrackingTriggers() {
+  createDailyTriggerAtHour("copyCellToNewSheet",1);
+  createPeriodicTrigger("callEvents", 15);
+}
 // Debugging aid to clear all triggers
 function deleteScriptTriggers() {
 deleteFunctionTriggers("up2");
 deleteFunctionTriggers("batchAPI");
 deleteFunctionTriggers("checkSheet10");
+deleteFunctionTriggers("call Events");
+deleteFunctionTriggers("copyCellToNewSheet");
 }
 
 // The onEdit(e) trigger runs automatically when a user changes the value of any cell in a spreadsheet.
@@ -88,16 +94,6 @@ function onEdit(e) {
     let isInterestingColumn = (e.range.columnStart <= 1 <= e.range.columnnEnd) ||
                               (e.range.columnStart <= idColumnNumber <= e.range.columnEnd) ||
                               (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd);
-
-    log("e.range.columnStart: " + e.range.columnStart);
-    log("e.range.columnnEnd: " + e.range.columnnEnd);
-    log("e.range.rowStart: " + e.range.rowStart);
-    log("e.range.rowEnd: " + e.range.rowEnd);
-
-    log("(e.range.columnStart <= 1 <= e.range.columnnEnd) " + (e.range.columnStart <= 1 <= e.range.columnnEnd));
-    log("(e.range.columnStart <= idColumnNumber <= e.range.columnEnd) " + (e.range.columnStart <= idColumnNumber <= e.range.columnEnd));
-    log("(e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd) " + (e.range.columnStart <= e.range.columnEnd <= e.range.columnEnd));
-
     if (isInterestingColumn) {
       console.log('Detected change in names range or ID range! Verifying ID`s...');
       log('idColumnNumber is ' + idColumnNumber);
@@ -106,35 +102,36 @@ function onEdit(e) {
       // So, iterate all cells in col 1 and col idColumnNumber, send each one.
       // In the changed range...
       if (opts.opt_fixup26) {
-        if (isRangeSingleCell(e.range) && e.range.columnStart == 1) { // One cell
+         /*if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
           fixSheet26(e.range, e.oldValue, e.range.rowStart, ss);
         } else {
-          for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) { // A range of cells
-            let cell = "A" + i; // Need to handle ID cell too? Col 24 (Y)
+          for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) {
+            let cell = "A" + i;
             log("Checking cell " + cell);
             let myRange = priceSheet(ss).getRange(cell);
 
             // If we hit an empty cell, may have shifted a mess of cells
             // and have hit the bottom. In which case, bail.
-            if (myRange.getValue() == '') {
-              log("Cell is empty, must be deletions! Done here.");
-              break;
-            }
+            if (myRange.getValue() == '') break;
 
             // Otherwise insert/delete from sheet26
             fixSheet26(myRange, null, i, ss);
           }
-        }
+        } */
+      copySheet26BToSheet26D(ss);
+      copyPriceCalcToSheet26(ss);
+      replaceValues(ss);
+      updateColumnA(ss);
       }
 
-      log("Done fixing sheet26, calling syncPriceCalcWithSheet26")
-      syncPriceCalcWithSheet26(ss);
-    }
+      // syncPriceCalcWithSheet26(ss);
+      
+    } // end "if (isInterestingColumn..."
 
     priceSheet(ss).getRange('A4').setValue(timenow());
     priceSheet(ss).getRange('A4').setFontFamily('Arial');
     priceSheet(ss).getRange('A4').setFontSize('10');
-  }
+  } // End 'if (priceCalc....)
 
   if (sheetName == 'Options' && isRangeSingleCell(e.range)) {
     let valCol = numToSSColumn(e.range.columnStart);
@@ -228,10 +225,10 @@ function loadScriptOptions(ss) {
   opts.opt_autoReceipts = optsSheet(ss).getRange("B18").getValue();
 
   // AWH options
-  opts.awhBaseURL = optsSheet(ss).getRange("B23").getValue();
-  opts.awhKey = optsSheet(ss).getRange("B24").getValue();
-  opts.opt_getItemBids = optsSheet(ss).getRange("B25").getValue();
-  opts.opt_suppressAdvErrs = optsSheet(ss).getRange("B26").getValue();
+  opts.awhBaseURL = optsSheet(ss).getRange("B25").getValue();
+  opts.awhKey = optsSheet(ss).getRange("B26").getValue();
+  opts.opt_getItemBids = optsSheet(ss).getRange("B27").getValue();
+  opts.opt_suppressAdvErrs = optsSheet(ss).getRange("B28").getValue();
 
   if (opts.opt_calcSetItemPrices && opts.opt_calcSetPointPrices) {
     log('ALERT: Can`t have both set item prices and ' + 
@@ -489,7 +486,7 @@ function handleNewItems(ss=null) {
   let lastRow = sheetRange.getLastRow();
   let dataRange = priceSheet(ss).getRange(custItemStartRow, 1, lastRow - custItemStartRow, 1);
   let values = dataRange.getValues();
-  var itemRange = itemSheet(ss).getRange(2, nameCol, 1159, 2);
+  var itemRange = itemSheet(ss).getRange(2, nameCol, 3000, 2);
   var itemRangeArr = itemRange.getValues();
   let newItems = 0;
 
@@ -570,7 +567,7 @@ function isRangeSingleCell(range) {
   return false;
 }
 
-function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
+/*function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
   log('Fixing up Sheet 26 ==>');
   if (!isRangeSingleCell(range)) {
     console.log('==> fixSheet26: unable to fix up, not a single cell: ', range);
@@ -646,9 +643,9 @@ function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
         // Compare the cell value to what we want to add, if the same,
         // it's a dup!
         if (newValue.toLowerCase() == valArray[i].toString().toLowerCase()) {
-          log("[fixSheet26] value for " + valArray[i] + " already exists! Not adding again.");
-
           /*
+          log("[fixSheet26] value already exists! Not adding again.");
+
           //log("Deleting from PriceCalc, row " + priceSheetRow);
           //priceSheet(ss).deleteRow(priceSheetRow);
 
@@ -659,7 +656,7 @@ function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
           let cell = priceSheet(ss).getRange('A' + priceSheetRow).setValue(valArray[i] + " (duplicate)");
 
           SpreadsheetApp.flush();
-          */
+          
           
           Lock.releaseLock();
           return;
@@ -680,24 +677,106 @@ function fixSheet26(range, oldValue, priceSheetRow, ss=null) {
   SpreadsheetApp.flush();
   log('<== Finished fixing up Sheet26');
 
-  if (!emptyCellRange) {
-    if (oldValue) 
-      log('fixSheet26: didn`t find an empty row');
-    else log("Deleted value from PriceCalc");
-
-    return;
-  }
-
-  log("Inserting " + newValue + " at row " + emptyRow);
-
+  if (!emptyCellRange) return oldValue ? log('fixSheet26: didn`t find an empty row') : log("Deleted value");
   emptyCellRange.setValue(newValue);
-  if (emptyRow)
-    log('New value successfully handled at row ' + emptyRow + ' on Sheet26.');
-  else
-    log('Unable to find empty row on Sheet26!');
+  return (emptyRow ? console.log('New value successfully handled at row ' + emptyRow + ' on Sheet26.') :
+          console.log('Unable to find empty row on Sheet26!'));
+} */
 
-  return;
+function copyPriceCalcToSheet26(ss) {
+  var sourceSheet = ss.getSheetByName("Price Calc");
+  var targetSheet = ss.getSheetByName("Sheet26");
+  var range = sourceSheet.getRange("Z8:Z");
+  var lastRow = sourceSheet.getLastRow();
+  var targetRange = targetSheet.getRange("B8:B" + lastRow);
+  range.copyTo(targetRange);
 }
 
+function copySheet26BToSheet26D(ss) {
+  var sheet26 = ss.getSheetByName("Sheet26");
+  var range = sheet26.getRange("B8:B");
+  var lastRow = sheet26.getLastRow();
+  var targetRange = sheet26.getRange("D8:D" + lastRow);
+  range.copyTo(targetRange);
+}
 
+function replaceValues(ss) {
+  // Get the Sheet26
+  const sheet = ss.getSheetByName('Sheet26');
+  var range = sheet.getRange('B8:B');
+  var values = range.getValues();
+  
+  // Loop through the values in reverse order to find the last non-empty row
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (values[i][0] != '') {
+      var lastRowB = i + 8; // Add 8 to the index to get the actual row number
+      break;
+    }
+  }
+  
+  // Find instances where column C has value 0
+  const rangeC = sheet.getRange('C8:C' + lastRowB);
+  const valuesC = rangeC.getValues();
+  Logger.log(valuesC);
+  
+  for (let i = 0; i < valuesC.length; i++) {
+    if (valuesC[i][0] == 0) {
+      // Get the value in column B in the same row as the 0 in column C
+      const valueB = sheet.getRange('B' + (i+8)).getValue();
+      
+      // Find the first row where column A has value 1
+      const rangeA = sheet.getRange('A:A');
+      const valuesA = rangeA.getValues();
+      
+      let rowToUpdate = null;
+      for (let j = 0; j < valuesA.length; j++) {
+        if (valuesA[j][0] == 1) {
+          rowToUpdate = j+1;
+          break;
+        }
+      }
+      
+      // Replace the value in column A with the value from column B
+      if (rowToUpdate != null) {
+        sheet.getRange('A' + rowToUpdate).setValue(valueB);
+      }
+    }
+  }
+}
 
+function updateColumnA(ss) {
+  // Get the Sheet
+  const sheet = ss.getSheetByName('Sheet26');
+
+  // Find the last non-empty row in range D8:D
+  const rangeD = sheet.getRange('D8:D');
+  const valuesD = rangeD.getValues();
+  let lastRowD = null;
+  for (let i = valuesD.length - 1; i >= 0; i--) {
+    if (valuesD[i][0] !== '') {
+      lastRowD = i + 8;
+      break;
+    }
+  }
+
+  // Search column E from row 8 up to lastRowD for instances of 0
+  const rangeE = sheet.getRange('E8:E' + lastRowD);
+  const valuesE = rangeE.getValues();
+  for (let i = 0; i < valuesE.length; i++) {
+    if (valuesE[i][0] === 0) {
+      // Get the text in column D in the same row as the 0 in column E
+      const valueD = sheet.getRange('D' + (i+8)).getValue();
+
+      // Search column A for the text from column D
+      const rangeA = sheet.getRange('A1:A' + lastRowD);
+      const valuesA = rangeA.getValues();
+      for (let j = 0; j < valuesA.length; j++) {
+        if (valuesA[j][0] === valueD) {
+          // Convert the cell containing the text in column A to "1"
+          sheet.getRange('A' + (j+1)).setValue(1);
+          break;
+        }
+      }
+    }
+  }
+}
