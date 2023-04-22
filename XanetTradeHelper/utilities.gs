@@ -101,8 +101,10 @@ function onEdit(e) {
       // Migrate changes to Sheet26...
       // So, iterate all cells in col 1 and col idColumnNumber, send each one.
       // In the changed range...
+
+      /*
       if (opts.opt_fixup26) {
-         /*if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
+        if (isRangeSingleCell(e.range) && e.range.columnStart == 1) {
           fixSheet26(e.range, e.oldValue, e.range.rowStart, ss);
         } else {
           for (let i=e.range.rowStart; i <= e.range.rowEnd; i++) {
@@ -117,12 +119,16 @@ function onEdit(e) {
             // Otherwise insert/delete from sheet26
             fixSheet26(myRange, null, i, ss);
           }
-        } */
+        } 
+      }
+      */
+
+      syncPriceCalcWithSheet26(ss);
+      
       copySheet26BToSheet26D(ss);
       copyPriceCalcToSheet26(ss);
       replaceValues(ss);
       updateColumnA(ss);
-      }
 
       // syncPriceCalcWithSheet26(ss);
       
