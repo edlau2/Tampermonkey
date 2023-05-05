@@ -260,7 +260,7 @@ function processSetItemPrices(retArray) {
 // Helper to count complete sets
 function countCompleteSets(itemArray) {
   if (!itemArray) return 0;
-
+    
   let totalSets = 99999999;
   for (let i = 0; i < itemArray.length; i++) {              
     let amt = Number(itemArray[i].quantity);
@@ -364,6 +364,8 @@ var bulkPriceRows = null;
 
 function fillPrices(array, updateAverages) { // A8:<last row>
 
+  log('[fillPrices] will update running averages: ' + updateAverages ? 'TRUE' : "FALSE");
+
   // For values on the price list...
   const startRow = 7;
   let sheetRange = priceSheet().getDataRange();
@@ -434,7 +436,10 @@ function fillPrices(array, updateAverages) { // A8:<last row>
           array[i].priceAskMe = true;
           array[i].price = '0';
           array[i].total = '0';
-          if (updateAverages) {updateRunningAverages(array[i]);}
+          if (updateAverages) {
+            log("Going to update running averages...");
+            updateRunningAverages(array[i]);
+            }
           log('Found match (but no price) for ' + searchWord + ',\nPrice = ' + price + '\nTotal for items (' + 
             array[i].qty + ') is ' + array[i].total);
           break;
@@ -443,7 +448,10 @@ function fillPrices(array, updateAverages) { // A8:<last row>
         array[i].price = price; // Case 1.
         array[i].total = price * array[i].qty; 
         transTotal += price * array[i].qty;
-        if (updateAverages) {updateRunningAverages(array[i]);} // SLOW call
+        if (updateAverages) {
+          log("Going to update running averages...");
+          updateRunningAverages(array[i]);
+          } // SLOW call
 
         //inSet = !!(array[i].inFlowerSet || array[i].inPlushieSet);
         //if (inSet == undefined) inSet = false;
@@ -569,16 +577,21 @@ function cleanRunningAverages() {
 /////////////////////////////////////////////////////////////////////////////
 
 var names = null;
-function updateRunningAverages(item) {
+function updateRunningAverages(item) 
+{
+  console.log('[updateRunningAverages] ==>');
+
   // Locate column (create range) in the 'Running Averages' sheet (avgSheet)
   // D:row is last price, E:row last qty. Running avg: (last price total + new price total)/(last qty + new qty)
   let sheetRange = avgSheet().getDataRange();
   let rows = sheetRange.getLastRow();
+  
+  //let rows = avgSheet.getLastRow();
   if (!names) {names = avgSheet().getRange(3, 1, rows-1).getValues();}
 
   profile();
-  console.log('updateRunningAverages, rows: ' + rows);
-  console.log('updateRunningAverages: item = ' + JSON.stringify(item));
+  console.log('[updateRunningAverages] rows: ' + rows);
+  console.log('[updateRunningAverages] item = ' + JSON.stringify(item));
   let found = false;
   for (let row = 3; row < rows; row++) {
     let name = names[row-3].toString();
@@ -615,9 +628,10 @@ function updateRunningAverages(item) {
     itemRange.setValues([[avg, timenow(), newPrice, newQty, avg, 0, 'active']]);
   }
 
-  console.log('updateRunningAverages, end.');
   SpreadsheetApp.flush();
   profile();
+
+  console.log('<== [updateRunningAverages]');
 }
 
 /////////////////////////////////////////////////////////////////////////////
