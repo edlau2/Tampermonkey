@@ -484,11 +484,18 @@ function fillPrices(array, updateAverages) { // A8:<last row>
 }
 
 function sortRunningAverages() {
-  log('sortRunningAverages ==>');
+  console.log('sortRunningAverages ==>');
   let sheetRange = avgSheet().getDataRange();
-  let sortRange = avgSheet().getRange(2, 1, sheetRange.getLastRow() - 2, sheetRange.getLastColumn());
-  sortRange.sort(sheetRange.getLastColumn());
-  log('<== sortRunningAverages');
+  let lastCol = sheetRange.getLastColumn();
+  let startRow = 3;
+  let startCol = 1;
+  let colN = 15;
+  let colR = 19;
+  let numRows = sheetRange.getLastRow() - startRow;
+  console.log("sortRange, startRow: " + startRow + " startCol:" + startCol + " numRows: " + numRows + " lastCol: " + lastCol);
+  let sortRange = avgSheet().getRange(startRow, startCol, numRows, (lastCol+1));
+  sortRange.sort([{column: colN, ascending: true}, {column: colR, ascending: true}]);
+  console.log('<== sortRunningAverages');
 }
 
 /**
