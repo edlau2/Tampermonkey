@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.8
+// @version      4.9
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -105,6 +105,10 @@
     //////////////////////////////////////////////////////////////////////
     // Options and global variables
     //////////////////////////////////////////////////////////////////////
+
+    // over-ride setting in JS-Helpers...done via Options screen now.
+    //alertOnError = false;
+    //GM_setValue('alertOnError', true);
 
     // Log for API calls
     var apiCallLog = {}; // Must be before initDebugOptions()!
@@ -223,7 +227,6 @@
         if (jsonResp.error) {
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
-                    //debugger;
                     if (alertOnRetry) alert("Retrying error 17!");
                     return personalStatsQuery(callback=personalStatsQueryCB);
                 } else {
@@ -501,7 +504,6 @@
             let _jsonResp = JSON.parse(responseText);
             if (_jsonResp.error) {
                 if (queryRetries++ < 5) {
-                    //debugger;
                     if (alertOnRetry) alert("Retrying error 17!");
                     return personalStatsQuery(updateStatsHandlerer);
                 } else {
@@ -2128,7 +2130,6 @@
             var jsonResp = JSON.parse(responseText);
             if (jsonResp.error) {
                 if (queryRetries++ < 5) {
-                    //debugger;
                     if (alertOnRetry) alert("Retrying error 17!");
                     return xedx_TornMarketQuery(null, 'pointsmarket', marketQueryCB);
                 } else {
@@ -3127,7 +3128,6 @@
             var jsonResp = JSON.parse(responseText);
             if (jsonResp.error) {
                 if (queryRetries++ < 5) {
-                    //debugger;
                     if (alertOnRetry) alert("Retrying error 17!");
                     return xedx_TornTornQuery(null, 'items', tornQueryCB);
                 } else {
@@ -3776,7 +3776,6 @@
             if (tornStocksJSON.error) {
                 if (tornStocksJSON.error.code == 17) {
                     if (queryRetries++ < 5) {
-                        //debugger;
                         if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornTornQuery(null, 'stocks', tornStocksCB);
                     } else {
@@ -5059,7 +5058,6 @@
             if (tornDisableRefills.jsonResp.error) {
                 if (tornDisableRefills.error.code == 17) {
                     if (queryRetries++ < 5) {
-                        //debugger;
                         if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornUserQuery(null, 'bars', refillsUserQueryCB);
                     } else {
@@ -5152,7 +5150,7 @@
                       '</tr>' +
                       '<tr>' + // Row 2
                           '<td class="xtdx"><div>' +
-                              '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded"">' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidefedded-opt" name="hidefedded">' +
                               '<label for="hidefedded"><span style="margin-left: 15px">Hide Fedded</span></label>' +
                           '</div></td>' +
                           '<td class="xtdx""><div>' +
@@ -5165,12 +5163,16 @@
                       '</tr>' +
                       '<tr>' + // Row 3
                           '<td  class="xtdx"><div>' +
-                              '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel"">' +
+                              '<input type="checkbox" class="xcbx" id="xedx-hidetravel-opt" name="hidetravel">' +
                               '<label for="hidetravel"><span style="margin-left: 15px">Hide Traveling</span></label>' +
                           '</div></td>' +
                           '<td  class="xtdx" id="showcaymans" style="display: hide; colspan: 3;"><div>' +
-                              '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans"">' +
+                              '<input type="checkbox" class="xcbx" id="xedx-showcaymans-opt" name="showcaymans">' +
                               '<label for="showcaymans"><span style="margin-left: 15px">Caymans Only</span></label>' +
+                          '</div></td>' +
+                           '<td  class="xtdx" id="showscore" style="display: hide; colspan: 3;"><div>' +
+                              '<input type="checkbox" class="xcbx" id="xedx-showscore-opt" name="showscore">' +
+                              '<label for="showscore"><span style="margin-left: 15px">Show Score</span></label>' +
                           '</div></td>' +
                       '</tr>' +
                       '<tr>' + // Row 4
@@ -5230,9 +5232,10 @@
             debug('[userListExtender] newcacheItem, from: ', obj);
             let lifeCurr = obj.life.current; // Can't use these (?), will be invalid if cached.
             let lifeMax = obj.life.maximum;  // ...
+            let score = obj.competition ? obj.competition.score : 0;
             let rank = numericRankFromFullRank(obj.rank);
             return {ID: ID, numeric_rank: rank, name: obj.name, lifeCurr: lifeCurr, lifeMax: lifeMax,
-                    state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true};
+                    state: obj.status.state, description: obj.status.description, access: new Date().getTime(), fromCache: true, score: score};
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -5311,7 +5314,6 @@
                 }
                 if (jsonResp.error.code == 17) {
                     if (queryRetries++ < 5) {
-                        //debugger;
                         if (alertOnRetry) alert("Retrying error 17!");
                         return xedx_TornUserQuery(ID, 'profile', updateUserLevelsCB, li);
                     } else {
@@ -5534,14 +5536,21 @@
                 }
 
                 // Not filtered: add rank.
+                let logMsg = "";
+                let score = cache_item.score;
                 if (!lifeMax || !lifeCurr) {
                     lvlNode.innerText = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+                    logMsg = lvlNode.innerText;
                 } else {
                     lvlNode.parentNode.setAttribute('style', 'width: 60%;');
                     lvlNode.setAttribute('style', 'width: 25%; color: ' + (fullLife ? 'limegreen;' : 'red;'));
                     lvlNode.nextElementSibling.setAttribute('style', 'width: 50%;');
-                    lvlNode.innerText = '[' + lifeCurr + '/' + lifeMax + '] ' + text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+                    lvlNode.innerText = '[' + lifeCurr + '/' + lifeMax + '] ' + text.trim() + '/' + (numeric_rank ? numeric_rank : '?') +
+                                         (opts.opt_showscore ? ('/' + score) : '');
+                    logMsg = lvlNode.innerText;
                 }
+                log('[userListExtender] score: ' + score);
+                log('[userListExtender] innerText: ' + logMsg);
             } else {
                 debugger;
             }
@@ -5903,6 +5912,10 @@
                         }
                         debug('[userListExtender] Saved value for opts.opt_showcaymans');
                         break;
+                    case "xedx-showscore-opt":
+                        opts.opt_showscore = this.checked;
+                        debug("[userlistextender] Saved value for opts.opt_snowscore");
+                        break;
                     case "xedx-hidehosp-opt":
                         opts.opt_hidehosp = this.checked;
                         debug('[userListExtender] Saved value for opts.opt_hidehosp');
@@ -5951,6 +5964,8 @@
                 //$('#loggingEnabled')[0].style.display = 'none';
                 $('#viewcache')[0].style.display = 'none';
                 $('#clearcache')[0].style.display = 'none';
+                $('#showscore')[0].style.display = 'none';
+                opts.opt_showscore = false;
                 opts.opt_showcaymans = false;
                 //GM_setValue("opts.opt_showcaymans", opts.opt_showcaymans);
             } else {
@@ -5958,6 +5973,7 @@
                 //$('#loggingEnabled')[0].style.display = 'block';
                 $('#viewcache')[0].style.display = 'inline-block';
                 $('#clearcache')[0].style.display = 'inline-block';
+                $('#showscore')[0].style.display = 'inline-block';
             }
 
             setSavedOptions();
@@ -5996,6 +6012,7 @@
                 opts.opt_hidefallen = (typeof tmpOpts.opt_hidefallen !== undefined) ? tmpOpts.opt_hidefallen : true;
                 opts.opt_hidetravel = (typeof tmpOpts.opt_hidetravel !== undefined) ? tmpOpts.opt_hidetravel : true;
                 opts.opt_showcaymans = (typeof tmpOpts.opt_showcaymans !== undefined) ? tmpOpts.opt_showcaymans : false;
+                opts.opt_showscore = (typeof tmpOpts.opt_showscore !== undefined) ? tmpOpts.opt_showscore : false;
                 opts.opt_hidehosp = (typeof tmpOpts.opt_hidehosp !== undefined) ? tmpOpts.opt_hidehosp : true;
                 opts.opt_disabled = (typeof tmpOpts.opt_disabled !== undefined) ? tmpOpts.opt_disabled : false;
                 opts.opt_showctry = (typeof tmpOpts.opt_showctry !== undefined) ? tmpOpts.opt_showctry : true;
@@ -6029,6 +6046,7 @@
                 $("#xedx-hidefallen-opt")[0].checked = opts.opt_hidefallen;
                 $("#xedx-hidetravel-opt")[0].checked = opts.opt_hidetravel;
                 $("#xedx-showcaymans-opt")[0].checked = opts.opt_showcaymans;
+                $("#xedx-showscore-opt")[0].checked = opts.opt_showscore;
                 $("#xedx-hidehosp-opt")[0].checked = opts.opt_hidehosp;
                 $("#xedx-disabled-opt")[0].checked = opts.opt_disabled;
                 $("#xedx-showctry-opt")[0].checked = opts.opt_showctry;
@@ -6079,6 +6097,7 @@
             $("#xedx-hidefedded-opt")[0].addEventListener("click", handleOptsClick);
             $("#xedx-hidetravel-opt")[0].addEventListener("click", handleOptsClick);
             $("#xedx-showcaymans-opt")[0].addEventListener("click", handleOptsClick);
+            $("#xedx-showscore-opt")[0].addEventListener("click", handleOptsClick);
             $("#xedx-hidehosp-opt")[0].addEventListener("click", handleOptsClick);
             $("#xedx-disabled-opt")[0].addEventListener("click", handleOptsClick);
             $("#xedx-viewcache-btn")[0].addEventListener("click", handleOptsClick);
@@ -6165,6 +6184,7 @@
     function tornOverseasRank() {
         let statusSpan = "span.user-green-status";
         let opts = {};
+        var compActive = false;
         getSavedOpts();
         writeSavedOpts(); // Just write here for now, only need to save on change
         log("[tornOverseasRank] starting");
@@ -6190,10 +6210,12 @@
             let la = obj.last_action.relative;
             let lifec = obj.life.current;
             let lifem = obj.life.maximum;
+            let score = obj.competition ? obj.competition.score : 0;
+            if (obj.competition) compActive = true;
 
             // ID not needed here, it's the key...but check to see if we access it.
             return {ID: ID, name: obj.name, numeric_rank: numeric_rank, la: la, lifeCurr: lifec, lifeMax: lifem, state: state,
-                    access: new Date().getTime(), fromCache: false};
+                    access: new Date().getTime(), fromCache: false, score: score};
         }
 
         // Queue of rank from ID requests, from the Torn API
@@ -6353,6 +6375,7 @@
             let la = cacheObj.la;
             let lifeCurrurr = cacheObj.lifeCurr;
             let lifeMaxax = cacheObj.lifeMax;
+            let score = cacheObj.score;
             let ul = li.querySelector("div.center-side-bottom.left > ul");
             let div = li.querySelector("div.center-side-bottom.left");
 
@@ -6370,7 +6393,9 @@
                 statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
                 statusNode.textContent = statusNode.textContent + ' ' + la;
             }
-            if (opts.displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?');
+            // Add score!
+            if (opts.displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?')
+                + (compActive ? ('/' + score) : '');
 
             observer.observe(targetNode, config);
         }
@@ -6705,7 +6730,6 @@
                 if (_jsonResp.error) {
                     if (_jsonResp.error.code == 17) {
                         if (queryRetries++ < 5) {
-                            //debugger;
                             if (alertOnRetry) alert("Retrying error 17!");
                             return xedx_TornCompanyQuery(ID, 'profile', getCompanyProfileCB, parentUL);
                         } else {
@@ -7079,7 +7103,8 @@
     function initDebugOptions() {
         loggingEnabled = GM_getValue('dbgopts-logging', true);
         debugLoggingEnabled = GM_getValue('dbgopts-dbglogging', false);
-        alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
+        alertOnError = GM_getValue("dbgopts-alertonerror", false);
+        alertOnRetry = GM_getValue("alertOnRetry", false);
 
         let savedSize = maxApiCalls;
         maxApiCalls = GM_getValue("api-call-log-size", maxApiCalls);
@@ -7089,12 +7114,14 @@
 
         GM_setValue('dbgopts-logging', loggingEnabled);
         GM_setValue('dbgopts-dbglogging', debugLoggingEnabled);
+        GM_getValue("dbgopts-alertonerror", alertOnError);
         GM_setValue("api-call-log-size", maxApiCalls);
         GM_setValue("alertOnRetry", alertOnRetry);
 
         log('[initDebugOptions] loggingEnabled: ', loggingEnabled);
         log('[initDebugOptions] debugLoggingEnabled: ', debugLoggingEnabled);
-        log('[initDebugOptions] maxApiCalls: ', maxApiCalls);
+        log('[initDebugOptions] alertonerror: ', alertOnError);
+        log('[initDebugOptions] alertOnRetry: ', alertOnRetry);
     }
 
     function checkGeneralSaveButton() {
@@ -7467,6 +7494,11 @@
             newRow = '<tr class="xvisible defbg">' +
                 '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
                 ' id="dbgopts-dbglogging" ' + (GM_getValue("dbgopts-dbglogging", false) ? 'checked' : '') + '/></td><td>Enable Debug Only Logging</td></tr>';
+            $(tbody).append(newRow);
+
+            newRow = '<tr class="xvisible defbg">' +
+                '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
+                ' id="dbgopts-alertonerror" ' + (GM_getValue("dbgopts-alertonerror", false) ? 'checked' : '') + '/></td><td>Alert on API errors</td></tr>';
             $(tbody).append(newRow);
 
             let size = GM_getValue("api-call-log-size", maxApiCalls);
