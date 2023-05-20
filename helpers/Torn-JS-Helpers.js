@@ -10,7 +10,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_deleteValue
-// @version     2.37
+// @version     2.39
 // @license     MIT
 // ==/UserScript==
 
@@ -21,6 +21,17 @@
 ///////////////////////////////////////////////////////////////////////////////////
 // Validate an API key and prompt if misssing
 ///////////////////////////////////////////////////////////////////////////////////
+
+var debugLoggingEnabled = true;
+var loggingEnabled = true;
+var alertOnRetry = false;
+var alertOnError = false;
+
+alertOnError = GM_getValue("alertOnError", alertOnError);
+alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
+
+GM_setValue("alertOnError", alertOnError);
+GM_setValue("alertOnRetry", alertOnRetry);
 
 var api_key = GM_getValue('gm_api_key');
 
@@ -70,7 +81,8 @@ function queryUserId(callback) {
         if (jsonResp.error) {
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
-                    debugger;
+                    //debugger;
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return queryUserId(callback);
                 } else {
                     queryRetries = 0;
@@ -147,8 +159,6 @@ function versionCheck(silent=false) {
 
 // Simple logging helpers. Log regular events or debug-only events.
 // Set these two vars as appropriate in your script.
-var debugLoggingEnabled = true;
-var loggingEnabled = true;
 
 function log(...data) {
     if (loggingEnabled) {
@@ -725,7 +735,7 @@ function handleError(responseText) {
         }
 
         errorText += '\nPress OK to continue.';
-        alert(errorText);
+        if (alertOnError) alert(errorText);
         console.log(errorText);
         errorLogged = true;
     }
@@ -739,7 +749,7 @@ function handleSysError(response, addlText=null) {
         response.error;
 
     errorText += '\n\nPress OK to continue.';
-    alert(errorText);
+    if (alertOnError) alert(errorText);
     console.log(errorText);
     console.log(response);
     console.log(response.error);
