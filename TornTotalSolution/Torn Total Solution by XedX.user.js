@@ -1629,7 +1629,7 @@
         }
 
         function appendHideShowChatDiv() {
-            if ($("#xedxShowHideChat") return;
+            if ($("#xedxShowHideChat").length > 0) return;
             //$('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatHdr);
             $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]').append(hideChatDiv);
             installHideShowClickHandler();
