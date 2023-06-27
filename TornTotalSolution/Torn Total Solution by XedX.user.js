@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.10
+// @version      4.11
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -228,7 +228,7 @@
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
                     if (alertOnRetry) alert("Retrying error 17!");
-                    return personalStatsQuery(callback=personalStatsQueryCB);
+                    return personalStatsQuery();
                 } else {
                     queryRetries = 0;
                 }
