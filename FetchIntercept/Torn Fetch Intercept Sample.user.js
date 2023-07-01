@@ -22,7 +22,7 @@
     'use strict';
 
     // Stuff to intercept chat
-    const spyAllMsgs = true;       // Set to false to reduce chat clutter
+    const spyAllMsgs = false;       // Set to false to reduce chat clutter
     const secret = $('script[secret]').attr("secret");
     const userID = $('script[uid]').attr("uid");
     const chatURL = 'wss://ws-chat.torn.com/chat/ws';
@@ -31,7 +31,8 @@
     // Just so I know I'm running...
     logScriptStart();
 
-    const globalWS = newSocket();               // Global socket if we want to intercept chat also
+    const spyOnChats = false;    // Set to false to ignore chat messages, true to intercept
+    var globalWS = null;
 
     ///////////////////////////////////////////////
     // Could call this, replaces as a promise in a slightly diff fashion.
@@ -126,7 +127,9 @@
     ////////////////////////////////////////////////
     // Chat interception stuff
     //
-    installWebSocket();  // Hook chat
+    if (spyOnChats) {
+        installWebSocket();  // Hook chat
+    }
 
     // Creates a new WebSocket for chatting
     function newSocket() {
