@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Criminal Record Details
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -50,12 +50,16 @@ Borrowed from:
     let arrayIllegal = [[5000,'Civil&nbsp;Offence']];
     let arrayOther = [[5000,'Find&nbsp;A&nbsp;Penny,&nbsp;Pick&nbsp;It&nbsp;Up']];
 
+    let arrayCrimes2 = [[100, ''], [200, ''], [300, ''], [500, ''], [750, ''], [1000, ''],
+                        [1500, ''], [2000, ''], [2500, ''], [3000, ''], [4000, ''], [5000, ''],
+                        [6000, ''], [7500, ''], [10000, '']];
+
     function addStyles() {
         GM_addStyle(`
             .fr60 {float: right; width:60px;}
-            .cdata {font-style:italic; float:right; width:75px; text-align:left}
+            .mycdata {font-style:italic; float:left; width:75px; text-align:left}
             .block {display:block;overflow:hidden;}
-            .boldred {font-weight:bold; color:red; width:35px; float:right; text-align:left;}
+            .myboldred {font-weight:bold; color:red; width:35px; float:left; text-align:left;}
         `);
     }
 
@@ -65,39 +69,35 @@ Borrowed from:
         let desc = $(this).children(":last").text();
         let n = desc.replace(',','');
 
-        log('Cehcking item: ', item);
+        log("fixupLine for '" + type + "', " + desc);
 
         switch(type){
-            case 'Other':
-                type += ' (nerve: 2)';
+            case 'Vandalism':
+                type += ' (TBD)';
                 arr = arrayOther;
                 break;
-            case 'Illegal products':
-                type = 'Illegal products (nerve: 3, 16)';
+            case 'Illegal production':
+                type += ' (TBD)';
                 arr = arrayIllegal;
                 break;
             case 'Theft':
-                type += ' (nerve: 4, 5, 6, 7, 15)';
+                type += ' (nerve: 2)';
                 arr = arrayThefts;
                 break;
-            case 'Computer crimes':
-                type += ' (nerve: 9, 18)';
+            case 'Cybercrime':
+                type += ' (TBD)';
                 arr = arrayVirus;
                 break;
-            case 'Murder':
-                type += ' (nerve: 10)';
+            case 'Counterfeiting':
+                type += ' (TBD)';
                 arr = arrayMurder;
                 break;
-            case 'Drug deals':
-                type += ' (nerve: 8)';
-                arr = arrayDrugs;
-                break;
-            case 'Fraud crimes':
-                type = 'Fraud (nerve: 11, 13, 14, 17)';
+            case 'Fraud':
+                type = 'Fraud (TBD)';
                 arr = arrayFraud;
                 break;
-            case 'Auto theft':
-                type += ' (nerve: 12)';
+            case 'Illicit services':
+                type += ' (TBD)';
                 arr = arrayGTA;
                 break;
         }
@@ -132,17 +132,19 @@ Borrowed from:
         }
 
         if (rootNode.length) {
+            log("Root node good, looking for crimes...");
             //$(rootNode).find('li').each(item => fixupCrimeLi(item));
             $(rootNode).find('li').each(
-                 function(item){
+                function(item){
                 let arr = null;
                 let type = $(this).children(":first").text().trim();
                 let desc = $(this).children(":last").text();
                 let n = desc.replace(',','');
 
-                log('Cehcking item: ', item);
+                log('Checking item (1): ' + item + ' type: ' + type + ' desc: ' + desc + ' n: ' + n);
 
                 switch(type){
+                    // Crimes 1.0
                     case 'Other':
                         type += ' (nerve: 2)';
                         arr = arrayOther;
@@ -151,10 +153,10 @@ Borrowed from:
                         type = 'Illegal products (nerve: 3, 16)';
                         arr = arrayIllegal;
                         break;
-                    case 'Theft':
-                        type += ' (nerve: 4, 5, 6, 7, 15)';
-                        arr = arrayThefts;
-                        break;
+                    //case 'Theft':   // Also 2.0
+                    //    type += ' (nerve: 2)';
+                    //    arr = arrayThefts;
+                    //    break;
                     case 'Computer crimes':
                         type += ' (nerve: 9, 18)';
                         arr = arrayVirus;
@@ -175,6 +177,40 @@ Borrowed from:
                         type += ' (nerve: 12)';
                         arr = arrayGTA;
                         break;
+
+                    // All the rest are Crimes 2.0
+                    case 'Vandalism':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Illegal production':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Theft':
+                        type += ' (nerve: 2)';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Cybercrime':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Counterfeiting':
+                        type += ' (nerve: 2)';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Fraud':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Illicit services':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
+                    case 'Extortion':
+                        type += ' ';
+                        arr = arrayCrimes2;
+                        break;
                 }
                 $(this).children(":first").text(type);
 
@@ -184,13 +220,18 @@ Borrowed from:
                         if ((mink == -1) && (arr[k][0] > n)) mink = k;
                     }
                     if (mink >= 0) {
-                        desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
-                               '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
+                        let needed = (arr[mink][0] - n);
+                        //desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
+                        //       '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
+
+                        desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + //arr[mink][1] +
+                               '</span><span class="myboldred">Need: ' + needed + '</span>';
+
                         $(this).children(":last").html(desc);
                         $(this).children(":last").attr('title', desc);
                     }else{
                         $(this).children(":last").css("color","green");
-                        $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
+                        $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="mycdata">Good job!</span>');
                     }
                 }
             }
@@ -206,7 +247,7 @@ Borrowed from:
                 let desc = $(this).children(":last").text();
                 let n = desc.replace(',','');
 
-                log('Cehcking item: ', item);
+                log('Checking item (2): ' + item + ' type: ' + type);
 
                 switch(type){
                     case 'Other':
