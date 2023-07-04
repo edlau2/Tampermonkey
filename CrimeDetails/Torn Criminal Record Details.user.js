@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Torn Criminal Record Details
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -63,65 +65,41 @@ Borrowed from:
         `);
     }
 
-    function fixupCrimeLi(item){
-        let arr = null;
-        let type = $(this).children(":first").text().trim();
-        let desc = $(this).children(":last").text();
-        let n = desc.replace(',','');
+    // Helper to parse # from an aria-label
+    function qtyFromAriaLabel(ariaLabel) {
+        // ex. aria-label = "Drug deals: 255"
+        let parts = ariaLabel.split(':');
+        return Number(parts[1].replace(/,/g, ""));
+    }
 
-        log("fixupLine for '" + type + "', " + desc);
+    function addCrimeToolTip(li, name, crimes) {
+        log("[addCrimeToolTip]");
+        if (name.indexOf("Criminal off") > -1) return;
 
-        switch(type){
-            case 'Vandalism':
-                type += ' (TBD)';
-                arr = arrayOther;
-                break;
-            case 'Illegal production':
-                type += ' (TBD)';
-                arr = arrayIllegal;
-                break;
-            case 'Theft':
-                type += ' (nerve: 2)';
-                arr = arrayThefts;
-                break;
-            case 'Cybercrime':
-                type += ' (TBD)';
-                arr = arrayVirus;
-                break;
-            case 'Counterfeiting':
-                type += ' (TBD)';
-                arr = arrayMurder;
-                break;
-            case 'Fraud':
-                type = 'Fraud (TBD)';
-                arr = arrayFraud;
-                break;
-            case 'Illicit services':
-                type += ' (TBD)';
-                arr = arrayGTA;
-                break;
-        }
-        $(this).children(":first").text(type);
+        let text = '<B>' + name + CRLF + CRLF + '</B>Medals at: <B>' +
+            ((crimes >= 100) ? '<font color=green>100, </font>' : '<font color=red>100, </font>') +
+            ((crimes >= 200) ? '<font color=green>200, </font>' : '<font color=red>200, </font>') +
+            ((crimes >= 300) ? '<font color=green>300, </font>' : '<font color=red>300, </font>') +
+            ((crimes >= 500) ? '<font color=green>500, </font>' : '<font color=red>500, </font>') +
+            ((crimes >= 750) ? '<font color=green>750, </font>' : '<font color=red>750, </font>') +
+            ((crimes >= 1000) ? '<font color=green>1000, </font>' : '<font color=red>1000, </font>') +
+            ((crimes >= 1500) ? '<font color=green>1500, </font>' : '<font color=red>1500, </font>') +
+            ((crimes >= 2000) ? '<font color=green>2000, </font>' : '<font color=red>2000, </font>') +
+            ((crimes >= 2500) ? '<font color=green>2500, </font>' : '<font color=red>2500, </font>') +
+            ((crimes >= 3000) ? '<font color=green>3000, </font>' : '<font color=red>3000, </font>') +
+            ((crimes >= 4000) ? '<font color=green>4000, </font>' : '<font color=red>4000, </font>') +
+            ((crimes >= 5000) ? '<font color=green>5000, </font>' : '<font color=red>5000, </font>') +
+            ((crimes >= 6000) ? '<font color=green>6000, </font>' : '<font color=red>6000, </font>') +
+            ((crimes >= 7500) ? '<font color=green>7500, </font>' : '<font color=red>7500, </font>') +
+            ((crimes >= 10000) ? '<font color=green>10000</font>' : '<font color=red>10000</font></B>');
 
-        if (arr != null) {
-            var mink = -1;
-            for (var k=0; k<arr.length; ++k) {
-                if ((mink == -1) && (arr[k][0] > n)) mink = k;
-            }
-            if (mink >= 0) {
-                desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
-                       '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
-                $(this).children(":last").html(desc);
-                $(this).children(":last").attr('title', desc);
-            }else{
-                $(this).children(":last").css("color","green");
-                $(this).children(":last").html('<span class="fr60">'+desc+'</span><span class="cdata">Good job!</span>');
-            }
-        }
+
+        displayToolTip(li, text);
     }
 
     function handlePageLoad() {
         log('==>[handlePageLoad]');
+
         let rootNode = $("div[id^=item]:has(>div.title-black:contains('Criminal Record'))");
         log("Root node: ", rootNode);
         //$("div[id^=item]:has(>div.title-black:contains('Criminal Record'))" ).find('li').each(
@@ -140,6 +118,10 @@ Borrowed from:
                 let type = $(this).children(":first").text().trim();
                 let desc = $(this).children(":last").text();
                 let n = desc.replace(',','');
+
+                let label = this.innerText;
+                let ariaLabel = this.getAttribute('aria-label');
+                let crimes = qtyFromAriaLabel(ariaLabel);
 
                 log('Checking item (1): ' + item + ' type: ' + type + ' desc: ' + desc + ' n: ' + n);
 
@@ -196,7 +178,7 @@ Borrowed from:
                         arr = arrayCrimes2;
                         break;
                     case 'Counterfeiting':
-                        type += ' (nerve: 2)';
+                        type = 'Bootlegging (nerve: 2,5)';
                         arr = arrayCrimes2;
                         break;
                     case 'Fraud':
@@ -214,6 +196,8 @@ Borrowed from:
                 }
                 $(this).children(":first").text(type);
 
+                addCrimeToolTip(this, type, crimes);
+
                 if (arr != null) {
                     var mink = -1;
                     for (var k=0; k<arr.length; ++k) {
@@ -221,8 +205,6 @@ Borrowed from:
                     }
                     if (mink >= 0) {
                         let needed = (arr[mink][0] - n);
-                        //desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + arr[mink][1] +
-                        //       '</span><span class="boldred">' + (arr[mink][0] - n) + '</span>';
 
                         desc = '<span class="fr60">'+desc+'</span><span class="cdata block">' + //arr[mink][1] +
                                '</span><span class="myboldred">Need: ' + needed + '</span>';
@@ -240,6 +222,7 @@ Borrowed from:
             log("Can't find root node - page html changed?");
         }
 
+        /*
         $("#xxx-item10961667 > div.bottom-round > div > ul").find('li').each(
             function(item){
                 let arr = null;
@@ -302,6 +285,8 @@ Borrowed from:
                 }
             }
         );
+        */
+
         log('<==[handlePageLoad]');
     }
 
@@ -312,6 +297,7 @@ Borrowed from:
     logScriptStart();
     versionCheck();
     addStyles();
+    addToolTipStyle();
     callOnContentLoaded(handlePageLoad);
 
 })();
