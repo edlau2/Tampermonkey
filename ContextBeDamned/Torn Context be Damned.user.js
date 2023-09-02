@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Context be Damned
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  try to take over the world!
+// @version      0.2
+// @description  Add what I think is interesting highlighting
 // @author       xedx [2100735]
 // @match        https://contextbedamned.com/torn.php
 // @connect      api.torn.com
