@@ -1976,9 +1976,17 @@ function memberLastAction(jNode) {
     lista.each( function(){ // Each one of these is a table.row
       var ID;
       $(this).find('div.member a').each(function(i, item){
+          console.log("Altercoes member node: ", item);
           var url = $(this).attr('href');
           if(url.match(/user2ID\=(\d+)/)){
               ID = url.match(/user2ID\=(\d+)/)[1];
+          }
+          // profiles.php?XID=3062075
+          if (ID == undefined) {
+              console.log("Altercoes ID not found, looking for profiles.php and XID");
+              if(url.match(/profiles.php\?XID\=(\d+)/)){
+                ID = url.match(/profiles.php\?XID\=(\d+)/)[1];
+              }
           }
 
           console.log("Altercoes ID for " ,url, ": ", ID);
@@ -1986,7 +1994,18 @@ function memberLastAction(jNode) {
       $(this).append("<div class='table-cell position' style='width: 12%;'><span class='ellipsis' id=\"empl_" + ID + "\"><img width=\"12px\" heigth=\"12px\" src=\"https://thumbs.gfycat.com/BitterEarnestBeardeddragon-small.gif\"></img></span></div>");
   });
 
-  var linkAPI = "https://api.torn.com/faction/?selections=basic&key=";
+    let linkAPI;
+    console.log("Altercoes href: ", location.href);
+    if (location.href.indexOf("step=your") > 0) {
+        console.log("Altercoes getting my fac member list");
+        linkAPI = "https://api.torn.com/faction/?selections=basic&key=";
+    } else {
+        let facID = location.href.match(/profile&ID\=(\d+)/)[1];
+        console.log("Altercoes getting other fac member list, ID=", facID);
+        //https://api.torn.com/faction/43545?selections=basic&key=
+        linkAPI = "https://api.torn.com/faction/" + facID + "?selections=basic&key=";
+    }
+
   requestAPI(linkAPI, api_key, true, handler_members_last_action);
 }
 
@@ -2026,7 +2045,11 @@ function handler_members_last_action(){
             var lastAction = item.last_action.relative.replace('ago', '');
             var userID = i;
 
-            $("#empl_" + userID).html(lastAction);
+            console.log("Altercoes adding last action for #empl_", userID.trim());
+            console.log("Altercoes last action: ", lastAction);
+            let nodeID = "#empl_" + userID.trim();
+            console.log("Altercoes nodeID: ", nodeID);
+            $("#empl_" + userID.trim()).html(lastAction);
         })
     }
   }
