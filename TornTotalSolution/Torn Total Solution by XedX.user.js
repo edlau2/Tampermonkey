@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.13
+// @version      4.14
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1007,7 +1007,7 @@
                       'Jail and Bounty Stats' +
                   '</div>' +
                   '<div class="bottom-round">' +
-                      '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 174px; overflow: auto">' +
+                      '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 199px; overflow: auto">' +
                           '<ul class="info-cont-wrap">' +
                               '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
                               '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
@@ -1015,6 +1015,7 @@
                               '<li><span class="divider" id="xedx-div-span-peopleboughtspent"><span>Bail Fees</span></span><span id="xedx-val-span-peopleboughtspent" class="desc">0</span></li>' +
                               '<li><span class="divider" id="xedx-div-span-jailed"><span>Times Jailed</span></span><span id="xedx-val-span-jailed" class="desc">0</span></li>' +
                               '<li id="xedx-bounties" title="original"><span class="divider" id="xedx-div-span-bountiescollected"><span>Bounties Collected</span></span><span id="xedx-val-span-bountiescollected" class="desc">0</span></li>' +
+                              '<li id="xedx-bounties-placed" title="original"><span class="divider" id="xedx-div-span-bountiesplaced"><span>Bounties Placed</span></span><span id="xedx-val-span-bountiesplaced" class="desc">0</span></li>' +
                               '<li id="xedx-fees" title="original"><span class="divider" id="xedx-div-span-totalbountyreward"><span>Bounty Rewards</span></span><span id="xedx-val-span-totalbountyreward" class="desc">0</span></li>' +
                           '</ul>' +
                       '</div>' +
@@ -1025,7 +1026,8 @@
         }
 
         function populateJailDiv() {
-            let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent','jailed','bountiescollected','totalbountyreward'];
+            let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent',
+                                 'jailed','bountiescollected','bountiesplaced','totalbountyreward'];
             for (let i=0; i<jailStatArray.length; i++) {
                 let name = jailStatArray[i];
                 let searchName = 'xedx-val-span-' + name;
@@ -5972,7 +5974,7 @@
             let lifec = obj.life.current;
             let lifem = obj.life.maximum;
             let score = obj.competition ? obj.competition.score : 0;
-            if (obj.competition) compActive = true;
+            //if (obj.competition) compActive = true;
 
             // ID not needed here, it's the key...but check to see if we access it.
             return {ID: ID, name: obj.name, numeric_rank: numeric_rank, la: la, lifeCurr: lifec, lifeMax: lifem, state: state,
@@ -6654,7 +6656,7 @@
 
                 switch(type){
                     case 'Vandalism':
-                        type += ' ';
+                        type += ' (Graffiti, nerve: 3) ';
                         arr = arrayCrimes2;
                         break;
                     case 'Illegal production':
@@ -6662,7 +6664,7 @@
                         arr = arrayCrimes2;
                         break;
                     case 'Theft':
-                        type += ' (nerve: 2)';
+                        type += ' (nerve: 2,4)';
                         arr = arrayCrimes2;
                         break;
                     case 'Cybercrime':
@@ -6744,10 +6746,13 @@
 
         function addAlerts() {
             log('[tornTravelAlerts] addAlerts');
-            let node = document.querySelector("#tab4-2 > div.travel-map");
+            //let node = document.querySelector("#tab4-2 > div.travel-map");
+            let node = document.querySelector("#travelDestinations");
+            log("Node: ", node);
             if (!node) return setTimout(addAlerts, 250);
 
-            $(node).after(alertDiv);
+            $(node).before(alertDiv);
+            //$(node).after(alertDiv);
 
             let weapons = inventoryArray.filter(e => {return (e.type == 'Primary' || e.type == 'Secondary' || e.type == 'Melee') && (e.equipped > 0)});
             let armor = inventoryArray.filter(e => {return (e.type == 'Defensive') && (e.equipped > 0)});
