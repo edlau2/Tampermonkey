@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Flying Availabilty
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Check available stock while flying
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -19,11 +19,15 @@
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
 
+/* GitHub link:
+    https://github.com/edlau2/Tampermonkey/raw/master/TornFlyingAvailability/Torn%20Flying%20Availabilty.user.js
+*/
+
 (function() {
     'use strict';
 
     // For testing/dev/debug
-    var devMode = true;
+    var devMode = false;
     var inFlight = false;
     var country = "";
     var countryCode = "";
@@ -40,12 +44,15 @@
     {
         GM_addStyle(`
             .xedx-flex-wrap {display: flex; flex-direction: row;}
-            .xedx-center {display: inline-block; margin-bottom: 10px;}
+            .xedx-center {display: inline-block; margin-bottom: 0px;}
             .xedx-fly-btn {display: inline-block;
                        vertical-align: top;
                        margin-top: 10px;}
             .xedx-ml2 {margin-left: 20px;}
             .xedx-mb10 {margin-bottom: 10px;}
+            .xdivider span {padding-right: 3px; margin-top: 10px;}
+            .xedx-item {margin-right: 10px;}
+            .xedx-name {width: 120px;}
         `);
     }
 
@@ -84,12 +91,12 @@
         `<li>
             <div class="xedx-flex-wrap" tabindex="0">
                     <span class="thumbnail">
-                        <img class="torn-item medium" src="/images/items/REPLACE_ID/medium.png">
+                        <img class="torn-item medium xedx-item" src="/images/items/REPLACE_ID/medium.png">
                     </span>
-                    <span class="divider">
-                        <span class="xedx-center">REPLACE_NAME</span>
+                    <span class="xdivider">
+                        <span class="xedx-center xedx-name">REPLACE_NAME</span>
                     </span>
-                    <span class="divider">
+                    <span class="xdivider">
                         <span class="xedx-center">Available: REPLACE_Q</span>
                     </span>
             </div>
@@ -100,10 +107,10 @@
             <div class="xedx-flex-wrap" tabindex="0">
                     <span class="thumbnail">
                     </span>
-                    <span class="divider">
+                    <span class="xdivider">
                         <span class="xedx-center"></span>
                     </span>
-                    <span class="divider">
+                    <span class="xdivider">
                         <span class="xedx-center"></span>
                     </span>
             </div>
