@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Flying Availabilty
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Check available stock while flying
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
@@ -21,6 +21,8 @@
 
 /* GitHub link:
     https://github.com/edlau2/Tampermonkey/raw/master/TornFlyingAvailability/Torn%20Flying%20Availabilty.user.js
+
+    To get country from a console: $('body')[0].getAttribute('data-country')
 */
 
 (function() {
@@ -32,7 +34,7 @@
     var country = "";
     var countryCode = "";
 
-    debugLoggingEnabled = devMode;
+    debugLoggingEnabled = true; //devMode;
 
     var targetNode = document.querySelector("#mainContainer > div.content-wrapper > " +
                                               "div.travel-agency-travelling > div.flight-info");
@@ -52,8 +54,14 @@
             .xedx-mb10 {margin-bottom: 10px;}
             .xdivider span {padding-right: 3px; margin-top: 10px;}
             .xedx-item {margin-right: 10px;}
-            .xedx-name {width: 120px;}
+            .xedx-cell-width {width: 120px; margin-left: 10px;}
         `);
+
+        /*
+        GM_addStyle(`
+            .xedx-o {outline: 1px solid white;}
+        `);
+        */
     }
 
     const delim = `<hr class="delimiter-999 m-hide">`;
@@ -91,13 +99,16 @@
         `<li>
             <div class="xedx-flex-wrap" tabindex="0">
                     <span class="thumbnail">
-                        <img class="torn-item medium xedx-item" src="/images/items/REPLACE_ID/medium.png">
+                        <img class="torn-item medium xedx-item xedx-o" src="/images/items/REPLACE_ID/medium.png">
                     </span>
-                    <span class="xdivider">
-                        <span class="xedx-center xedx-name">REPLACE_NAME</span>
+                    <span class="xdivider xedx-o">
+                        <span class="xedx-center xedx-cell-width">REPLACE_NAME</span>
                     </span>
-                    <span class="xdivider">
-                        <span class="xedx-center">Available: REPLACE_Q</span>
+                    <span class="xdivider xedx-o">
+                        <span class="xedx-center xedx-cell-width">Price: REPLACE_COST</span>
+                    </span>
+                    <span class="xdivider xedx-o">
+                        <span class="xedx-center xedx-cell-width">Available: REPLACE_Q</span>
                     </span>
             </div>
         </li>`;
@@ -106,6 +117,9 @@
         `<li>
             <div class="xedx-flex-wrap" tabindex="0">
                     <span class="thumbnail">
+                    </span>
+                    <span class="xdivider">
+                        <span class="xedx-center"></span>
                     </span>
                     <span class="xdivider">
                         <span class="xedx-center"></span>
@@ -136,7 +150,7 @@
             let jsonObj = JSON.parse(responseText);
             if (jsonObj.error) {return handleError(responseText);}
             availableStocks = jsonObj.stocks;
-            //debug("Available: ", availableStocks);
+            debug("Available: ", availableStocks);
         }
 
         handlePageLoad();
@@ -145,18 +159,19 @@
     function codeFromCountry(country) {
 
         if (country == 'uk') return 'uni';
-        if (country == 'mexico') return 'mex';
+        if (country == 'mexico') return 'mex';            // Verified
         if (country == 'canada') return 'can';
         if (country == 'argentina') return 'arg';
         if (country == 'hawaii') return 'haw';
-        if (country == 'caymans') return 'cay';
-        if (country == 'zurich') return 'swi';
+        if (country == 'cayman-islands') return 'cay';    // Verified
+        if (country == 'switzerland') return 'swi';       // Verified
         if (country == 'japan') return 'jap';
         if (country == 'china') return 'chi';
         if (country == 'uae') return 'uae';
         if (country == 'sa') return 'sou';
 
         log("*** Didn't find ", country, " in country list! ***");
+        GM_setValue("unknown_country", country);
         return null;
     }
 
@@ -213,7 +228,10 @@
             if (!optEnabled) return;
 
             // Build the LI and insert
-            let newLi = liInsert.replaceAll("REPLACE_ID", item.id).replaceAll("REPLACE_NAME", item.name).replaceAll("REPLACE_Q", item.quantity);
+            let newLi = liInsert.replaceAll("REPLACE_ID", item.id)
+                                .replaceAll("REPLACE_NAME", item.name)
+                                .replaceAll("REPLACE_COST", asCurrency(item.cost))
+                                .replaceAll("REPLACE_Q", item.quantity);
             $("#xedx-inventory-ul").append(newLi);
         });
     }
@@ -251,7 +269,7 @@
             if (country == "torn")
                 li = "<li> --> Flying home, nothing to see here!</li>";
             else
-                li = "<li>Unable to locate country for: '" + country + "' </li>";
+                li = "<li>Unable to locate country for: '" + country + " Let xedx [2100735] know!' </li>";
             $("#xedx-inventory-ul").append(li);
             return;
         }
