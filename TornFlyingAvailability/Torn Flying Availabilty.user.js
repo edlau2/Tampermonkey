@@ -18,6 +18,7 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint curly: 0*/
 
 /* GitHub link:
     https://github.com/edlau2/Tampermonkey/raw/master/TornFlyingAvailability/Torn%20Flying%20Availabilty.user.js
@@ -41,6 +42,9 @@
 
     var itemsList = null;
     var availableStocks = null;
+    var updating = false;
+    var updateInterval = null;
+    var lastUpdate = "";
 
     function addStyles()
     {
@@ -78,7 +82,7 @@
 
            <div id="xedx-fly-wrapper" class="items-wrap t-blue-cont">
              <div class="title-black hospital-dark top-round scroll-dark" role="heading" aria-level="5">
-                 <span class="m-hide"> Inventory </span>
+                 <span id="xedx-last-update" class="m-hide"> Inventory </span>
              </div>
              <div class="title-black hospital-dark " role="heading" aria-level="5">
                  <input type="checkbox" id="xedx-plushies" data-type="Plushie" class="xedx-fly-btn"/><span> Plushies </span>
@@ -130,6 +134,12 @@
             </div>
         </li>`;
 
+    function getYataStocks()
+    {
+        if (updating) log("Updating stock list...");
+        xedx_YataForeignStocks(handleStocksResult);
+    }
+
     function itemsQueryCallback(responseText)
     {
         log("itemsQueryCallback");
@@ -140,7 +150,42 @@
             itemsList = jsonObj.items;
         }
 
-        xedx_YataForeignStocks(handleStocksResult);
+        getYataStocks();
+    }
+
+    function logTimestamp(timestamp)
+    {
+        const date = new Date(timestamp * 1000);
+        const now = new Date(Date.now());
+
+        const datevalues = {
+            "year": date.getFullYear(),
+            "month": date.getMonth()+1,
+            "day": date.getDate(),
+            "hr": date.getHours(),
+            "min": date.getMinutes(),
+            "sec": date.getSeconds(),
+        };
+
+        const nowvalues = {
+            "year": now.getFullYear(),
+            "month": now.getMonth()+1,
+            "day": now.getDate(),
+            "hr": now.getHours(),
+            "min": now.getMinutes(),
+            "sec": now.getSeconds(),
+        };
+
+        /*
+        debug("timestamp: ", timestamp, " date: ", datevalues);
+        debug("timestamp now: ", now, " date: ", nowvalues);
+        debug("timestamp diff, hrs: ", nowvalues.hr - datevalues.hr, " min: ", nowvalues.min - datevalues.min,
+            " sec: ", nowvalues.sec - datevalues.sec);
+        */
+
+        lastUpdate = (nowvalues.min - datevalues.min) + " min. ago";
+        log("Last update: ", lastUpdate);
+        $("#xedx-last-update").text(" Inventory - Last Updated " + lastUpdate);
     }
 
     function handleStocksResult(responseText, param)
@@ -151,16 +196,29 @@
             if (jsonObj.error) {return handleError(responseText);}
             availableStocks = jsonObj.stocks;
             debug("Available: ", availableStocks);
+            if (!countryCode) countryCode = codeFromCountry(country);
+
+            log("countryCode: ", countryCode);
+            if (countryCode) {
+                log("availableStocks[countryCode]: ", availableStocks[countryCode]);
+                log("availableStocks[countryCode].update: ", availableStocks[countryCode].update);
+                logTimestamp(availableStocks[countryCode].update);
+            }
         }
 
-        handlePageLoad();
+        if (updating)
+            reloadInventory();
+        else
+            handlePageLoad();
     }
 
-    function codeFromCountry(country) {
+    function codeFromCountry(country)
+    {
+        log ("[codeFromCountry] locating ", country);
 
-        if (country == 'uk') return 'uni';
+        if (country == 'uk') return 'uni';                // Verified
         if (country == 'mexico') return 'mex';            // Verified
-        if (country == 'canada') return 'can';
+        if (country == 'canada') return 'can';            // Verified
         if (country == 'argentina') return 'arg';
         if (country == 'hawaii') return 'haw';
         if (country == 'cayman-islands') return 'cay';    // Verified
@@ -168,7 +226,7 @@
         if (country == 'japan') return 'jap';
         if (country == 'china') return 'chi';
         if (country == 'uae') return 'uae';
-        if (country == 'sa') return 'sou';
+        if (country == 'south-africa') return 'sou';      // Verified
 
         log("*** Didn't find ", country, " in country list! ***");
         GM_setValue("unknown_country", country);
@@ -239,7 +297,7 @@
     function handlePageLoad() {
         // Can check for any required DIV here and setTimeout() if not available,
         // or trigger any required API calls...
-        let testNode = $('#xedx-trav-div');
+        let testNode = $('#xedx-fly-wrapper');
         if (!$(testNode).length)
         {
             // Testing - need diff target if not really flying
@@ -261,8 +319,7 @@
 
         // For the country we are in, add the available stock to our UL
         // Clean up the UI later
-        // FOr now just do Mex until I can x-late country to YATA code
-        countryCode = codeFromCountry(country);
+        //countryCode = codeFromCountry(country);
         if (!countryCode) {
             log("Unable to find country code! ERROR!");
             let li = "";
@@ -275,6 +332,11 @@
         }
 
         buildInventoryList();
+
+        // Start auto-updating
+        updating = true;
+        updateInterval = setInterval(getYataStocks, 60000);
+        logTimestamp(availableStocks[countryCode].update);
     }
 
     //////////////////////////////////////////////////////////////////////
