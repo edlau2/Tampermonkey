@@ -6,5 +6,5 @@ What it does is tell you the current inventory (available stock) of the country 
 going to, and when that was updated. You can dynamically select the types of inventory to view.
 
 
-![screenshot1.png](https://github.com/edlau2/Tampermonkey/blob/master/TornFlyingAvailabilty/screenshot1.png)
-![screenshot2.png](https://github.com/edlau2/Tampermonkey/blob/master/TornFlyingAvailabilty/screenshot2.png)
+![screenshot1.png](https://github.com/edlau2/Tampermonkey/blob/master/TornFlyingAvailability/screenshot1.png)
+![screenshot2.png](https://github.com/edlau2/Tampermonkey/blob/master/TornFlyingAvailability/screenshot2.png)
