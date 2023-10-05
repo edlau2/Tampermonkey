@@ -1,6 +1,4 @@
-## Torn Flying Availabilty
-
-Sorry for the crappy name, may change it to "Overseas Stock Availability" or something
+## Torn Foreign Stock
 
 What it does is tell you the current inventory (available stock) of the country you are 
 going to, and when that was updated. You can dynamically select the types of inventory to view.
