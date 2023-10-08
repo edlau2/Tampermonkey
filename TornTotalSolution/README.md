@@ -2,6 +2,8 @@
 
 This script combines many of the standalone scripts written by me for Torn. The standalone scripts still work fine, but are now being maintained here.
 
+Note: I haven't updated this (the README) in over a year, several new scripts ave been added and fixes made not represented here!
+
 This requires a Limited Access API key. It will prompt when first run, and save it localy so you aren't prompted again. It makes one (possibly two, depending an what scripts are enabled) query(ies) when loaded - which is when a page is opened or refreshed.
 
 Each script is configurable - either from a global configuartion page, or an individual page, for example, the Stats Tracker and Exteneded Atatcks List scripts have their own pages.
