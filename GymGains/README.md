@@ -2,7 +2,7 @@
 
 Keeps detailed track of gym perks, bat stats, etc.
 
-Overview:
+Overview (note, in this screenshot, TT is installed and for some reason has the wrong fac perks listed - the "4%" in green)
 
 ![screenshot1.png](https://github.com/edlau2/Tampermonkey/blob/master/GymGains/screenshot1.png)
 
