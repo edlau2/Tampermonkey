@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
-// @include      https://www.torn.com/*
+// @match        https://www.torn.com/*
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -142,9 +142,39 @@
     function handleMiniProfileChange() {
         log('handleMiniProfileChange');
         let node = target;
+
+        // profile-mini-_userImageLink___dXxCP
+        let idNode = node.querySelectorAll('[class*="userImageLink"]')[0];
+        if (!idNode) {
+            log('Mini-profile closing - no id');
+            log("target: ", target);
+
+            profileQueried = false;
+            return;
+        }
+        let href = $(idNode).attr('href');
+        log("idNode: ", idNode);
+        log("href: ", href);
+        if (!href)
+        {
+            log("Can't find href or ID!! Closing.");
+            return;
+        }
+        if (!profileQueried && href) {
+            log("href: ", href);
+            let id = xidFromProfileURL(href);
+            log('User ID = ' + id);
+
+            xedx_TornStatsSpy(id, getTornSpyCB, node);
+            profileQueried = true;
+        }
+
+        /* Old method, page changed 11/23/2023 (fix is above)
         let idNode = node.querySelectorAll('[id$=-user]')[0];
         if (!idNode) {
             log('Mini-profile closing - no id');
+            log("target: ", target);
+
             profileQueried = false;
             return;
         }
@@ -154,6 +184,7 @@
             xedx_TornStatsSpy(id, getTornSpyCB, node);
             profileQueried = true;
         }
+        */
     }
 
     function getTornSpyCB(respText, ID, node) {
