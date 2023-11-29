@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.15
+// @version      4.17
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -133,7 +133,11 @@
     var attacks = null;
     var weArray = null;
     var fhArray = null;
+
+    // Note: The 'User->Inventory' API call has been removed, perhaps
+    // permanently. This won't work unless a workaround is found.
     var inventoryArray = null; // JSON Array of your inventory
+
     let itemsArray = null; // JSON Array of all Torn items
 
     var userId = null;
@@ -210,6 +214,8 @@
     //////////////////////////////////////////////////////////////////////
 
     // Get data used for most of the handlers in here, in one call.
+    // Note: The 'User->Inventory' API call has been removed, perhaps
+    // permanently. This won't work unless a workaround is found.
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
         logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
@@ -241,6 +247,9 @@
         attacks = jsonResp.attacks;
         weArray = jsonResp.weaponexp;
         fhArray = jsonResp.personalstats;
+
+        // Note: The 'User->Inventory' API call has been removed, perhaps
+        // permanently. This won't work unless a workaround is found.
         inventoryArray = jsonResp.inventory;
 
         userId = jsonResp.player_id;
@@ -1494,16 +1503,26 @@
         //https://www.torn.com/racing.php
         //https://www.torn.com/dump.php
         //https://www.torn.com/travelagency.php
-        let link0 = JSON.parse(GM_getValue('custlink-bounties', JSON.stringify({enabled: true, cust: false, desc: "Bounties", link: "https://www.torn.com/bounties.php#!p=main", cat: "City"})));
-        let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House", link: "amarket.php", cat: "City"})));
-        let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs", link: "shops.php?step=bitsnbobs", cat: "City"})));
-        let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building", link: "points.php", cat: "City"})));
-        let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market", link: "imarket.php", cat: "City"})));
-        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "page.php?sid=log", cat: "Home"})));
-        let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots", link: "page.php?sid=slots", cat: "Casino"})));
-        let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel", link: "loader.php?sid=spinTheWheel", cat: "Casino"})));
-        let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker", link: "loader.php?sid=holdem", cat: "Casino"})));
-        let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette", link: "page.php?sid=russianRoulette", cat: "Casino"})));
+        let link0 = JSON.parse(GM_getValue('custlink-bounties', JSON.stringify({enabled: true, cust: false, desc: "Bounties",
+                                                                                link: "https://www.torn.com/bounties.php#!p=main", cat: "City"})));
+        let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House",
+                                                                                    link: "amarket.php", cat: "City"})));
+        let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs",
+                                                                                 link: "shops.php?step=bitsnbobs", cat: "City"})));
+        let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building",
+                                                                                      link: "points.php", cat: "City"})));
+        let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market",
+                                                                                  link: "imarket.php", cat: "City"})));
+        let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log",
+                                                                           link: "page.php?sid=log", cat: "Home"})));
+        let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots",
+                                                                             link: "page.php?sid=slots", cat: "Casino"})));
+        let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel",
+                                                                                    link: "page.php?sid=spinTheWheel", cat: "Casino"})));
+        let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker",
+                                                                             link: "page.php?sid=holdem", cat: "Casino"})));
+        let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette",
+                                                                                       link: "page.php?sid=russianRoulette", cat: "Casino"})));
 
         // Force an adjustment - move 'Log' to under 'Home'
         // Make editable?
@@ -3329,10 +3348,16 @@
         }
 
         // Helper to get inventory object by ID
+        //
+        // Note: The 'User->Inventory' API call has been removed, perhaps
+        // permanently. This won't work unless a workaround is found.
         function getInventoryById(itemID) {
-            let itemObjs = inventoryArray.filter(item => item.ID == itemID);
-            //return itemObjs[0];
-            return itemObjs;
+            debug("***inventory: ", inventoryArray);
+
+            //let itemObjs = inventoryArray.filter(item => item.ID == itemID);
+            //return itemObjs;
+
+            return null;
         }
 
         // Helper to toggle body div on arrow click
@@ -6760,12 +6785,15 @@
             $(node).before(alertDiv);
             //$(node).after(alertDiv);
 
-            let weapons = inventoryArray.filter(e => {return (e.type == 'Primary' || e.type == 'Secondary' || e.type == 'Melee') && (e.equipped > 0)});
-            let armor = inventoryArray.filter(e => {return (e.type == 'Defensive') && (e.equipped > 0)});
-            debug('[tornTravelAlerts] weapons: ', weapons, ' armor: ', armor);
-            if (!weapons.length || !armor.length) {
-                $(".xedx-salert").after("<span class='xedx-salert' style='margin-top: 0px;'>You seem to be kinda naked!</span>");
-            }
+            // Note: The 'User->Inventory' API call has been removed, perhaps
+            // permanently. This won't work unless a workaround is found.
+
+            //let weapons = inventoryArray.filter(e => {return (e.type == 'Primary' || e.type == 'Secondary' || e.type == 'Melee') && (e.equipped > 0)});
+            //let armor = inventoryArray.filter(e => {return (e.type == 'Defensive') && (e.equipped > 0)});
+            //debug('[tornTravelAlerts] weapons: ', weapons, ' armor: ', armor);
+            //if (!weapons.length || !armor.length) {
+            //    $(".xedx-salert").after("<span class='xedx-salert' style='margin-top: 0px;'>You seem to be kinda naked!</span>");
+            //}
         }
 
     } // End function tornTravelAlerts() {
