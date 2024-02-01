@@ -25,18 +25,30 @@
     // maybe try '65px'
     const posColWidth = '97px';
     const ageColWidth = '70px';
+    const respectColWidth = '69px';    // On the Respect page
 
     function handlePageLoad() {
 
         log("Hash for page: ", window.location.hash);
         if (!window.location.hash)
             return;
+        //if (window.location.hash == '#type=factionrespect')
+        //    return;
 
         let title = $("#hall-of-fame-list-wrap > div > ul.table-titles > li.position");
         $(title).css('width', posColWidth);
 
         let age = $("#hall-of-fame-list-wrap > div > ul.table-titles > li:nth-child(4)");
-        $(age).css('width', ageColWidth);
+        log("age: ", $(age));
+        if ($(age).length > 1)
+        {
+            $(age).css('width', ageColWidth);
+        }
+        else
+        {
+            let respect = $("#hall-of-fame-list-wrap > div > ul.table-titles > li.col-big");
+            $(respect).css('width', respectColWidth);
+        }
 
         let ulList = $("#hall-of-fame-list-wrap > div > ul.players-list")[0];
 
@@ -58,20 +70,41 @@
             $(pRow).css('width', posColWidth);
 
             let ageCol = rows[index].querySelector("li:nth-child(4)");
-            $(ageCol).css('width', ageColWidth);
+            log("ageCol: ", $(ageCol));
+            if ($(ageCol).length > 1)
+            {
+                $(ageCol).css('width', ageColWidth);
+            }
+            else
+            {
+                let bigCol = rows[index].querySelector("li.col-big");
+                $(bigCol).css('width', respectColWidth);
+            }
 
             let iRow = rows[index].querySelector('i[class^=rank-change-icon]');
             let title = $(iRow).attr("title");
 
-            let modifier = "";
-            let tokens = title.split(' ');
-            if (tokens[0] == "Up") modifier = "   (+";
-            if (tokens[0] == "Down") modifier = "   (-";
-            modifier += tokens[1] + ")";
+            if (!title)
+            {
+                iRow = rows[index].querySelector('i[class^=rank-change-icon]');
+                title = $(iRow).text();
+            }
 
-            let sRow = rows[index].querySelector('li[class^=position] > span');
-            let orgText = $(sRow).text();
-            $(sRow).text(orgText + modifier);
+            log("iRow: ", iRow);
+            log("Title: ", title);
+
+            if (iRow && title)
+            {
+              let modifier = "";
+              let tokens = title.split(' ');
+              if (tokens[0] == "Up") modifier = "   (+";
+              if (tokens[0] == "Down") modifier = "   (-";
+              modifier += tokens[1] + ")";
+
+              let sRow = rows[index].querySelector('li[class^=position] > span');
+              let orgText = $(sRow).text();
+              $(sRow).text(orgText + modifier);
+            }
         });
     }
 
