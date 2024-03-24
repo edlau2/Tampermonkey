@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Xanet's Trade Helper
+// @name         Xanet's Trade Helper-PDA
 // @namespace    http://tampermonkey.net/
-// @version      3.12
+// @version      1.02
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @match        https://www.torn.com/trade.php*
@@ -36,6 +36,7 @@
     loggingEnabled = true;           // Declared in Torn-JS-helpers, true to log to console, false otherwise
     debugLoggingEnabled = true;      // Declared in Torn-JS-helpers, turn of to disable debug() output
 
+    const supressWarnings = true;    // Suppress misc. warnings
     const uiDelay = 500;             // Delay, in ms, before loading the mini UI. Needed if the script runs too quickly.
 
     var autoUpload = true;           // true to auto-upload when we have data - for pricing info.
@@ -43,9 +44,6 @@
     var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
     var testData = false;            // true to emulate using test data
     var priceDetails = false;        // true to display price details
-
-    // New option, used to disable the "auto add money" step
-    var autoAddMoney = true;
 
     //////////////////////////////////////////////////////////////////////
     // Development tools/variables
@@ -56,7 +54,7 @@
     // Allows the UI to display when travelling (for testing while I'm not in Torn)
     // Suppresses the 'Accept' button from being propogated. (commented out)
     //
-    var xedxDevMode = true;
+    var xedxDevMode = false;
 
     //
     // Test data to upload when there is no active trade
@@ -75,8 +73,6 @@
                        {"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},
                        {"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},
                        {"id":"786444001","name":"Some Crap ","qty":"2","price":"0","total":"0"},
-                       {"id":"786444001","name":"Snow Cannon ","qty":"2","price":"0","total":"0"},
-                       {"id":"786444001","name":"Spear ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
@@ -196,7 +192,7 @@
         let useArray = deepCopy(testData ? testArray : dataArray);
 
         // Nothing in trade, don't do this.
-        if (!useArray.length) {
+        if (!useArray.length && !supressWarnings) {
             hideStatus();
             let msg = 'No ' + (testData ? 'test' : 'live') + ' data in trade, unable to upload!';
             log('[uploadDataArray] ' + msg);
@@ -793,13 +789,6 @@
     // Helper to handle the page asking for how much $$ to add to the trade.
     // This basically adds a listener.
     function handleAddMoneyPage() {
-
-        if (!autoAddMoney)
-        {
-            log("[handleAddMoneyPage] autoAddMoney disabled, not installing handler");
-            return;
-        }
-
         let hash = location.hash;
         let step = hash.split(/=|#|&/)[2];
         log('[handleAddMoneyPage] step = ' + step);
@@ -819,12 +808,6 @@
 
     // Helper for above, actually fills the field.
     function addMoney(target1, target2) {
-        if (!autoAddMoney)
-        {
-            log("[addMoney] autoAddMoney disabled, not updating");
-            return;
-        }
-
         log('[addMoney]');
         let value = target2.getAttribute('value');
         if (value == '' || value == null || value == undefined) {
