@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.17
+// @version      4.19
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -218,8 +218,12 @@
     // permanently. This won't work unless a workaround is found.
     function personalStatsQuery(callback=personalStatsQueryCB) {
         log('[personalStatsQuery]');
-        logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
-        xedx_TornUserQueryDbg(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
+
+        //logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
+        //xedx_TornUserQueryDbg(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
+
+        logApiCall('user: personalstats,profile,attacks,honors,weaponexp');
+        xedx_TornUserQueryDbg(null, 'personalstats,profile,attacks,honors,weaponexp', callback);
     }
 
     // Callback for above
@@ -229,8 +233,20 @@
             log('[personalStatsQueryCB] unknown error, no response!');
             return;
         }
-        jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {
+
+        try {
+           jsonResp = JSON.parse(responseText);
+        }
+        catch (err) {
+            log("[personalStatsQueryCB] error, invalid JSON");
+            log("response: ", responseText);
+            log("error: ", err);
+            return handleApiComplete(); //handleError(responseText);
+        }
+
+        if (!jsonResp) return handleError(responseText);
+
+        if (jsonResp && jsonResp.error) {
             if (jsonResp.error.code == 17) {
                 if (queryRetries++ < 5) {
                     if (alertOnRetry) alert("Retrying error 17!");
@@ -239,7 +255,8 @@
                     queryRetries = 0;
                 }
             }
-            return handleError(responseText);
+            //handleApiComplete();
+            return  handleError(responseText);
         }
 
         personalStats = jsonResp.personalstats;
@@ -666,6 +683,9 @@
 
     }
 
+    // This adds to the COnfig HTML, as well as to the stat tracker section on the home page,
+    // depending on what has been selected from the Config page.
+    // See above, "categoryColors", for categories.
     function initOptStats() {
 
         function addOptStat(name, desc, category, required=null) {
@@ -673,7 +693,7 @@
         }
 
         addOptStat('killstreak', "Kill Streak", "attacks");
-        addOptStat('defendswon', "Defends Won", "attacks");
+        addOptStat('defendswon', "Defends Won", "attacks", "10,000");
         addOptStat('attackswon', "Attacks Won", "attacks");
         addOptStat('attackslost', "Attacks Lost", "attacks");
         addOptStat('attackcriticalhits', "Total Crit Hits", "attacks");
@@ -685,8 +705,9 @@
         addOptStat('unarmoredwon', "Unarmored Fights Won", "attacks");
         addOptStat('attackhits', "Total Attack Hits", "attacks");
         addOptStat('attacksassisted', "Total Assists", "attacks");
-        addOptStat("yourunaway", "Times you Escaped", "attacks");
-        addOptStat("theyrunaway", "Foes Escaped", "attacks");
+        addOptStat("yourunaway", "Times you Escaped", "attacks", "50|250|1,000");
+        addOptStat("theyrunaway", "Foes Escaped", "attacks", "50|250|1,000");
+        addOptStat("respectforfaction", "Faction Respect", "attacks", "100,000");
 
         addOptStat("cantaken", "Cannabis Taken", "drugs", "50");
         addOptStat("exttaken", "Ecstacy Taken", "drugs", "50");
@@ -1517,6 +1538,7 @@
                                                                            link: "page.php?sid=log", cat: "Home"})));
         let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots",
                                                                              link: "page.php?sid=slots", cat: "Casino"})));
+        //https://www.torn.com/page.php?sid=spinTheWheel
         let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel",
                                                                                     link: "page.php?sid=spinTheWheel", cat: "Casino"})));
         let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker",
@@ -4831,15 +4853,42 @@
         }
 
         function onRefillClick(e) {
+            let targetText = null;
             let target = e.target;
-            var parent = e.target.parentElement;
+            debug("[tornDisableRefills] onClick target: ", target);
+            if (target) {
+                targetText = $(target).text();
+                log("[tornDisableRefills] onClick target: ", $(target).text());
+            }
+
+            let li = $(target).closest("li");
+            debug("[tornDisableRefills] onClick li: ", li);
+
+            let classList = $(li).attr("class");
+            debug("[tornDisableRefills] classList: ", classList);
+
             if (!tornDisableRefills.safetyOn) return;
-            if (target.classList[1] == undefined) {
-                if ((parent.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
-                if ((parent.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
-            } else {
-                if ((target.classList[1].indexOf('energy') > -1) && tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
-                if ((target.classList[1].indexOf('nerve') > -1) && tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+
+            // Check target text() for "Refill Energy" or "Refill Nerve"
+            // Over-rides the safety net
+            if (targetText) {
+            if (targetText.indexOf('Refill Energy') > -1 ||
+               targetText.indexOf('Refill Nerve') > -1) {
+                log("[tornDisableRefills] over-ride clicked");
+                return;
+                }
+            }
+
+            if (classList)
+            {
+                if (classList.indexOf('Energy') > -1) {
+                    log("[tornDisableRefills] ENERGY node");
+                    if (tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                }
+                if (classList.indexOf('Nerve') > -1) {
+                    log("[tornDisableRefills] NERVE node");
+                    if (tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+                }
             }
         }
 
@@ -4861,15 +4910,30 @@
                 return handleError(responseText);
             }
 
-            let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
-            if (!titleBar) return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
+            // Changed 04/02/2024
+            //let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
+            let titleBar = document.querySelector("#points-building-root > div > div");
+            if (!titleBar) {
+                log("[tornDisableRefills] Title bar not found!");
+                return setTimeout(function (){userQueryCB(responseText, id, param)}, 100);
+            }
             $(titleBar).append(safetyNet);
 
             let ckBox = document.querySelector("#refill_confirm");
             ckBox.addEventListener("click", onCheckboxClicked);
             ckBox.checked = tornDisableRefills.safetyOn = GM_getValue('refills_checkbox', true);
 
-            document.querySelector("#mainContainer > div.content-wrapper > ul").addEventListener('click', onRefillClick, {capture: true}, true);
+            // Check this also...
+            //let chkNode = document.querySelector("#mainContainer > div.content-wrapper > ul");
+            let chkNode = document.querySelector("#points-building-root > div > ul");
+            if (!chkNode)
+            {
+                log("[tornDisableRefills] chkNode not found!");
+            }
+            else
+            {
+                chkNode.addEventListener('click', onRefillClick, {capture: true}, true);
+            }
         }
     } // End function tornDisableRefills() {
 
@@ -6687,7 +6751,7 @@
 
                 switch(type){
                     case 'Vandalism':
-                        type += ' (Graffiti, nerve: 3) ';
+                        type += ' (Graffiti) ';
                         arr = arrayCrimes2;
                         break;
                     case 'Illegal production':
@@ -6695,23 +6759,23 @@
                         arr = arrayCrimes2;
                         break;
                     case 'Theft':
-                        type += ' (nerve: 2,4)';
+                        type += ' ';
                         arr = arrayCrimes2;
                         break;
                     case 'Cybercrime':
-                        type += ' ';
+                        type += ' (Cracking)';
                         arr = arrayCrimes2;
                         break;
                     case 'Counterfeiting':
-                        type = 'Bootlegging (nerve: 2,5)';
+                        type += ' (Bootlegging)';
                         arr = arrayCrimes2;
                         break;
                     case 'Fraud':
-                        type += ' ';
+                        type += ' (Skimming, Hustling)';
                         arr = arrayCrimes2;
                         break;
                     case 'Illicit services':
-                        type += ' ';
+                        type += ' (Disposal)';
                         arr = arrayCrimes2;
                         break;
                     case 'Extortion':
@@ -7143,6 +7207,7 @@
                          tornGymGains, removeTornGymGains, generalToolTip, "gym", false, false);
 
         // POINTS:  @match        https://www.torn.com/points.php*
+        // https://www.torn.com/page.php?sid=points (changed 04/02/2024)
         setGeneralCfgOpt("tornDisableRefills", "Torn Point Refill Safety Net",
                          tornDisableRefills, removeDisableRefills, generalToolTip, "misc");
 
@@ -7722,7 +7787,7 @@
     function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
     function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
     function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
-    function isPointsPage() {return (location.href.indexOf("points.php") > -1)}
+    function isPointsPage() {return (location.href.indexOf("page.php?sid=points") > -1)} //https://www.torn.com/page.php?sid=points
     function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
     function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") > -1)}
     function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
