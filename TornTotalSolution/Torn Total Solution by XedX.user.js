@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.19
+// @version      4.20
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -4883,11 +4883,17 @@
             {
                 if (classList.indexOf('Energy') > -1) {
                     log("[tornDisableRefills] ENERGY node");
-                    if (tornDisableRefills.jsonResp.energy.current > 0) return e.stopPropagation();
+                    if (tornDisableRefills.jsonResp.energy.current > 0) {
+                        log("[tornDisableRefills] caught by safety net!");
+                        return e.stopPropagation();
+                    }
                 }
                 if (classList.indexOf('Nerve') > -1) {
                     log("[tornDisableRefills] NERVE node");
-                    if (tornDisableRefills.jsonResp.nerve.current > 0) return e.stopPropagation();
+                    if (tornDisableRefills.jsonResp.nerve.current > 0) {
+                        log("[tornDisableRefills] caught by safety net!");
+                        return e.stopPropagation();
+                    }
                 }
             }
         }
@@ -4910,6 +4916,9 @@
                 return handleError(responseText);
             }
 
+            log("[tornDisableRefills] energy", tornDisableRefills.jsonResp.energy.current);
+            log("[tornDisableRefills] nerve", tornDisableRefills.jsonResp.nerve.current);
+
             // Changed 04/02/2024
             //let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
             let titleBar = document.querySelector("#points-building-root > div > div");
@@ -4925,10 +4934,11 @@
 
             // Check this also...
             //let chkNode = document.querySelector("#mainContainer > div.content-wrapper > ul");
-            let chkNode = document.querySelector("#points-building-root > div > ul");
+            let chkNodeRoot = document.querySelector("#points-building-root");
+            let chkNode = chkNodeRoot ? chkNodeRoot.querySelectorAll('ul')[0] : null;
             if (!chkNode)
             {
-                log("[tornDisableRefills] chkNode not found!");
+                log("[tornDisableRefills] chkNode not found! root: ", chkNodeRoot);
             }
             else
             {
