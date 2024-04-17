@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.20
+// @version      4.21
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -918,7 +918,7 @@
                 case 'cantaken':
                     text = text + TAB + '<B>Who\'s Frank?</B> (50 Cannabis): ' + pctText + CRLF +
                         TAB + '<B>Spaced Out</B> (Overdose on Cannabis)' + CRLF;
-                    effectText = 'Increases nerve by 2-3.';
+                    effectText = 'Increases nerve by 8-12 (x3 on 4/20).';
                     cdText = 'Cooldown: 1 to 1 1/2 hr.';
                     sideEffectText = '-35% speed, -25% def, -20% strength';
                     odChance = '.04% (1/2,500), 5x chance on 4/20';
@@ -4834,7 +4834,7 @@
         log('[tornDisableRefills]');
 
         const safetyNet = '<input class="xedx-ctrls" type="checkbox" id="refill_confirm" name="refill_confirm" value="refill_confirm" checked>' +
-                        '<label for="refill_confirm">  Safety Net! Note that clicking the title bar will bypass the safety net.</label>';
+                        '<label for="refill_confirm" id="confirm_label">  Safety Net! Note that clicking the title bar will bypass the safety net.</label>';
 
         return new Promise((resolve, reject) => {
             if (abroad()) return reject('[tornDisableRefills] not at home!');
@@ -4902,6 +4902,7 @@
             if (typeof tornDisableRefills.jsonResp == 'undefined' ) {
                 tornDisableRefills.jsonResp = null;
                 tornDisableRefills.safetyOn = false;
+                // Note: after too many retries, warn that this is disabled?
             }
             tornDisableRefills.jsonResp = JSON.parse(responseText);
             if (tornDisableRefills.jsonResp.error) {
@@ -4913,6 +4914,7 @@
                         queryRetries = 0;
                     }
                 }
+                // Note: after too many retries, warn that this is disabled.
                 return handleError(responseText);
             }
 
@@ -4920,7 +4922,7 @@
             log("[tornDisableRefills] nerve", tornDisableRefills.jsonResp.nerve.current);
 
             // Changed 04/02/2024
-            //let titleBar = document.querySelector("#mainContainer > div.content-wrapper > div.content-title");
+            // Note: after too many retries, warn that this is disabled.
             let titleBar = document.querySelector("#points-building-root > div > div");
             if (!titleBar) {
                 log("[tornDisableRefills] Title bar not found!");
@@ -4938,6 +4940,7 @@
             let chkNode = chkNodeRoot ? chkNodeRoot.querySelectorAll('ul')[0] : null;
             if (!chkNode)
             {
+                // Note: warn that this is disabled.
                 log("[tornDisableRefills] chkNode not found! root: ", chkNodeRoot);
             }
             else
