@@ -102,9 +102,19 @@ function batchAPI() {
           apiCall = "https://api.torn.com/market/" + item_id_arr[itemId][1] + 
                     "?comment=batchAPI&selections=bazaar&key=" + api_key;
           bazaarListings = ImportJSON(apiCall);
+          // The getRange takes 4 params in this case:
+          // top row, first col, number rows, num columns
+          // The setValues is an array, and must match the size of the range.
+          // So a change from 3 columns to 2 requires the range to 'shrink'
+          // and shift if needed. Also, the length check has apparently changed.
+          // I eft the original for comparison...
           bazaar_prices_tab.getRange(2, printIndex, 102, 3).clearContent();
           if (bazaarListings[0].length == 3){
-          bazaar_prices_tab.getRange(2, printIndex, bazaarListings.length, 3).setValues(bazaarListings);
+             bazaar_prices_tab.getRange(2, printIndex, bazaarListings.length, 3).setValues(bazaarListings);
+          }
+          else if (bazaarListings[0].length == 2){
+            // For the shift - printIndex should change (?)
+             bazaar_prices_tab.getRange(2, printIndex + 1, bazaarListings.length, 2).setValues(bazaarListings);
           }
         }
         if (bazaarListings[0][2] == "Error") {
@@ -121,14 +131,17 @@ function batchAPI() {
     }
     bazaar_prices_tab.getRange("A8").setValue(cycle_iter);
     setStatus("Success!");
+    
 
   } catch (e) {
     console.log('batchAPI: ' + e.stack);
   } finally {
+    unlockBazaarPrices();
     bazaar_prices_tab.getRange("A11").setValue(timenow());
     console.log('batchAPI completed, importJSON calls: ' + importJSON_calls);
     console.timeEnd('iterTimer'); // Output elpsed time
     return 'Success';
+    
   }
 }
 
@@ -160,6 +173,7 @@ function checkSheet10() {
   if (status != "1 Buy Price") {
     up2();
   }
+
 }
 
 function up2(){
@@ -177,13 +191,13 @@ function ClearCells() { // Unused (?)
   sheet.getRange('A2:A100').clearContent();
 }
 
-/** Unused functions, left for legacy purposes.
- * 
+
 function up() {
   var ss = important_getSSID();
-  ss.getRange('Sheet10!F8').setValue(Math.random());
+  ss.getRange('Profit Tracking Records!I7').setValue(Math.random());
 }
-
+/** Unused functions, left for legacy purposes.
+ * 
 function up4() {
   SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a2').setValue(Math.random());
 }
@@ -212,5 +226,19 @@ function up10(){
   SpreadsheetApp.openById('1cMDWkDPZmDGBHTXBCoUsybH0h3lf6ND-VJSoh8Df09k').getRange('bazaar prices!a8').setValue(Math.random());
 }
 */
+function unlockBazaarPrices() {
+  // Get the spreadsheet and sheets by name
+  const ss = important_getSSID();
+  const bazaarPricesSheet = ss.getSheetByName("bazaar prices");
+  const priceCalcSheet = ss.getSheetByName("Price Calc");
 
+  // Get the values of the cells we want to compare
+  const bazaarPrice = bazaarPricesSheet.getRange("A8").getValue();
+  const priceCalcValue = priceCalcSheet.getRange("O5").getValue();
 
+  // Update the value of cell N5 in the Price Calc sheet
+  if (bazaarPrice === priceCalcValue) {
+    priceCalcSheet.getRange("N5").setValue(false);
+  }
+  Logger.log("1");
+}
