@@ -30,7 +30,6 @@
 
         var classList = $(targetNode).attr('class').split(/\s+/);
         $.each(classList, function(index, item) {
-            log("Looking at class: ", item);
             if (item.indexOf('defender__') > -1) {
                 addStyle(item);
             }
