@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.21
+// @version      4.23
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -491,6 +491,7 @@
                             "racing":  '#228B22',  // Forest Green
                             "foes":    '#FF8C00',  // DarkOrange
                             "jail":    '#CD5C5C',  // Indian Red
+                            "misc":    '#FF60B0',  // No clue, need a color here...
                            };
 
     function tornStatTracker() {
@@ -767,6 +768,8 @@
         addOptStat("failedbusts", "Busts Failed", "jail");
         addOptStat("peoplebought", "People Bailed Out", "jail");
         addOptStat("jailed", "Times Jailed", "jail");
+
+        addOptStat("awards", "Awards", "misc");
     }
 
     function removeTornStatTracker() {
@@ -3297,10 +3300,12 @@
 
         // Helper to build and color-code an individual cell for WE
         function buildWeCell(weItem) {
+
+            // Check this ! Inventory no longer in API...
             let itemObjs = getInventoryById(weItem.itemID);
             let color = (weItem.exp == 100) ? 'xtdx-green' :
                 (weItem.exp >= 50) ? 'xtdx-orange' : 'xtdx-red';
-            if (itemObjs.length && itemObjs.filter(i => i.equipped).length) {color = 'xtdx-yellow';}
+            if (itemObjs && itemObjs.length && itemObjs.filter(i => i.equipped).length) {color = 'xtdx-yellow';}
 
             let output = '<td class="xtdx ' + color + '">' +
                 '<span style="float:left">' + weItem.name +
@@ -3507,9 +3512,35 @@
             if (location.href.indexOf("loader.php?sid=attack") < 0) return reject('tornSeeTheTemps wrong page!');
             if (abroad()) return reject('tornSeeTheTemps not at home!');
 
-            GM_addStyle (`.defender___2q-P6 {background:none !important;}}`);
+            handleSeeTheTempsPageLoad();
+
+            //GM_addStyle (`.defender___2q-P6 {background:none !important;}}`);
             resolve("tornSeeTheTemps complete!");
         });
+
+        // May want to move to the 'handlePageLoad()' section,
+        // instead of retrying....
+        let sttRetries = 0;
+        function handleSeeTheTempsPageLoad()
+        {
+            let targetNode = $("#defender").find('[class^="modal_"]');
+            if (targetNode.length == 0) {
+                if (sttRetries++ >= 5) return;
+                return setTimeout(handleSeeTheTempsPageLoad, 100);
+            }
+
+            var classList = $(targetNode).attr('class').split(/\s+/);
+            $.each(classList, function(index, item) {
+                log("Looking at class: ", item);
+                if (item.indexOf('defender__') > -1) {
+                    addSeeTheTempsStyle(item);
+                }
+            });
+        }
+
+        function addSeeTheTempsStyle(className) {
+            GM_addStyle ( `.` + className + `{ background:none !important; }}`);
+        }
     } // End function tornSeeTheTemps() {
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -6857,7 +6888,10 @@
             //let node = document.querySelector("#tab4-2 > div.travel-map");
             let node = document.querySelector("#travelDestinations");
             log("Node: ", node);
-            if (!node) return setTimout(addAlerts, 250);
+            if (!node) {
+                log("Node not found!");
+                return setTimout(addAlerts, 250);
+            }
 
             $(node).before(alertDiv);
             //$(node).after(alertDiv);
