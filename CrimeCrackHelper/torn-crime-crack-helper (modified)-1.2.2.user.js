@@ -5,6 +5,7 @@
 // @description  Utilize password database to crack torn cracking crime.
 // @author       nodelore[2786679]
 // @match        https://www.torn.com/loader.php?sid=crimes*
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_getValue
 // @grant        GM.getValue
 // @grant        GM_setValue
@@ -171,7 +172,7 @@
         if($("div.cracker-helper-selector").length == 0){
             $("h4[class*=heading___]").after(selector);
             if (demandStart)
-                $("#xedx-save-btn").on('click', main);
+                $("#xedx-save-btn").on('click', {from: "demandStart"}, main);
             else
                 $("#xedx-save-btn").remove();
         }
@@ -598,13 +599,14 @@
         }
     }
 
-    const updatePage = ()=>{
+    const updatePage = (from)=>{
         if(location.href.endsWith("cracking")){
+            log("[updatePage] from: ", from);
             inject_once();
             insertSelector();
             setCrackTitle("Loading");
             const crimes = $('.crime-option');
-            if(crimes.length < 1){
+            if(crimes.length < 1 || from == "demandStart"){
                 if(!updateInterval){
                     updateInterval = setInterval(()=>{
                         if($('.crime-option').length > 0 && cracker_helper.data.length > 0){
@@ -791,14 +793,26 @@
         is_injected = true;
     }
 
-    if (demandStart)
-        insertSelector();
-    else
-        main();
+    function nowInSecs() {
+        return Math.floor(Date.now() / 1000);
+    }
 
-    function main() {
-        console.log('Userscript cracker helper starts');
-        updatePage();
+    if (demandStart) {
+        insertSelector();
+    }
+    else {
+        main();
+    }
+
+    function main(event) {
+        let from = event.data.from;
+        console.log('Userscript cracker helper starts: ', from);
+
+        let start = nowInSecs();
+        updatePage(from);
+        let end = nowInSecs();
+        log("Main update, elapsed ", end-start, " secs");
+
         window.onhashchange = ()=>{
             updatePage();
         }
@@ -807,16 +821,22 @@
             const historyEvent = history[type];
             return function() {
                 const newEvent = historyEvent.apply(this, arguments);
-               const e = new Event(type);
+                const e = new Event(type);
                 e.arguments = arguments;
                 window.dispatchEvent(e);
                 return newEvent;
             };
         };
+
         history.pushState = bindEventListener('pushState');
         window.addEventListener('pushState', function(e) {
+            log("begin pushState update: ", Date.now());
             updatePage();
+            log("end pushState update: ", Date.now());
         });
+
+        end = nowInSecs();
+        log("end main, elapsed ", end-start, " secs");
     }
 
 })();
