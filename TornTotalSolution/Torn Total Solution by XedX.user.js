@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.23
+// @version      4.24
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1383,7 +1383,12 @@
                 "padding-right:10px;" +
                 "}");
 
-        installCollapsibleCaret();
+        installCollapsibleCaret("nav-city");
+        installCollapsibleCaret("nav-home");
+        installCollapsibleCaret("nav-casino");
+        installCollapsibleCaret("nav-crimes");
+
+        // Need new func to install all 3...
         installHashChangeHandler(installCollapsibleCaret);
 
         return new Promise((resolve, reject) => {
@@ -1402,6 +1407,12 @@
                     custLinkNodeRemove(key);
                 }
             }
+
+            // Only once all links have been inserted, can we set the initial state.
+            initCustLinkState("nav-city");
+            initCustLinkState("nav-home");
+            initCustLinkState("nav-casino");
+            initCustLinkState("nav-crimes");
 
             resolve("tornCustomizableSidebar complete!");
         });
@@ -1428,6 +1439,9 @@
                 case 'casino':
                     node = document.getElementById('nav-casino');
                     break;
+                case 'crimes':
+                    node = document.getElementById('nav-crimes');
+                    break;
                 case 'city':
                 default:
                     node = document.getElementById('nav-city');
@@ -1449,16 +1463,24 @@
         }
 
         function buildCustLink(key) {
-            // Span1: (icons - if I want to add them)
-            // <i class="cql-raceway"></i>
-            // <i class="cql-stock-market"></i>
-            // <i class="cql-travel-agency"></i>
+            // Add root to ID: -custlink-root?
+            let root = custLinkGetRoot(key);
+            let rootId = '';
+            if (root) rootId = $(root).attr("id");
+            debug("[buildCustLink] key: ", key);
+            debug("[buildCustLink] rootId: ", rootId);
+            debug("[buildCustLink] root: ", custLinkGetRoot(key));
 
             let data = custLinksOpts[key];
             let fullLink = (data.link.indexOf('www.torn.com') > -1) ? data.link : "https://www.torn.com/" + data.link;
 
-            let outerDiv = '<div class="' + custLinkClassNames.link_class + '" style="display: block" id="' + key + '"><div class="' +
+            let custLinkId = rootId + "-" + key;
+            let outerDiv = '<div class="' + custLinkClassNames.link_class + '" style="display: block" id="' + custLinkId + '"><div class="' +
                 custLinkClassNames.row_class  + '">';
+
+            //let outerDiv = '<div class="' + custLinkClassNames.link_class + '" style="display: block" id="' + key + '"><div class="' +
+            //    custLinkClassNames.row_class  + '">';
+
             //let span1 = '<span class="svgIconWrap___YUyAq "><i class="cql-travel-agency"></i></span>';
             let aData = '<a href="' + fullLink + '" class="' + custLinkClassNames.a_class + '">'; // '" i-data="i_0_1120_172_23">' +
             let span2 = '<span class="' + custLinkClassNames.link_name_class + '">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;' + data.desc + '</span>';
@@ -1467,35 +1489,85 @@
             return outerDiv + aData + /* span1 + */ span2 + endDiv;
         }
 
+        // Add crimes also!!!
+        //
+        // TBD: change this so that any root node (e.g., #nav-city) can be made collapsible.
+        // Need to pass in root, and for the click fn, pass in the class, built from name of
+        // root, to decide which to expand/collapse:
+        // Instead of:
+        // document.getElementById("xedx-collapse").addEventListener('click', function (event) {
+        //        cs_handleClick(event)}, { passive: false });
+        // do:
+        // installCollapsibleCaret(rootNodeName)
+        // let collapseId = rootNodeName + "-collapse";
+        // let collapseSel = "#" + collapseId;
+        // $(collapseSel).on('click', {from: collapseId}, cs_handleClick);
+        // In handler, event.data.from will equal ID. 'from' can be anything...
+        // Not sure if this would also work:
+        // $(collapseSel).on('click', {from: collapseId}, { passive: false }, cs_handleClick);
+
         // Returns null on success, error otherwise.
-        function installCollapsibleCaret() {
-            const caretNode = `<span style="float:right;"><i id="xedx-collapse" class="icon fas fa-caret-down xedx-caret"></i></span>`;
-            cs_caretState = GM_getValue('cs_lastState', cs_caretState);
+        function installCollapsibleCaret(nodeName) {
+            //debug("[custLinks - installCollapsibleCaret] nodeName: ", nodeName);
+
+            if (!nodeName) nodeName = "nav-city";
+            let selName = "#" + nodeName;
+            let nodeId = nodeName + "-collapse";
+
+            debug("[custLinks - installCollapsibleCaret] nodeName: ", nodeName, " ID: ", nodeId, " sel: ", selName);
+
+            const caretNode = `<span style="float:right;"><i id="` + nodeId + `" class="icon fas fa-caret-down xedx-caret"></i></span>`;
+            cs_caretState = GM_getValue(nodeName + 'cs_lastState', cs_caretState);
             if (!document.querySelector("#sidebarroot")) return "'#sidebarroot' not found, try again later!";
             if (document.getElementById('xedx-collapse')) document.getElementById('xedx-collapse').remove();
-            if (!document.querySelector("#nav-city")) return "'#nav-city' not found, try again later!";
+            if (!document.querySelector(selName)) return selName + "' not found, try again later!";
 
             // Set parents to 'flex', allow divs to be side-by-side
-            document.querySelector("#nav-city").setAttribute('style', 'display:block;');
-            document.querySelector("#nav-city > div > a").setAttribute('style', 'width:auto;height:23px;float:left;');
+            document.querySelector(selName).setAttribute('style', 'display:block;');
+            document.querySelector(selName + " > div > a").setAttribute('style', 'width:auto;height:23px;float:left;');
 
             // Add the caret and handler.
-            let target = document.querySelector("#nav-city > div");
-            if (!target) return "'#nav-city > div' not found, try again later!";
+            let target = document.querySelector(selName + " > div");
+            if (!target) return selName + " > div' not found, try again later!";
             $(target).append(caretNode);
-            document.getElementById("xedx-collapse").addEventListener('click', function (event) {
-                cs_handleClick(event)}, { passive: false });
 
-            // Little trick here - set current state to opposite of the saved state.
-            // So calling the handler tricks it to set the *other* way, which is how
-            // we want it to start up.
-            cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
-            cs_handleClick();
+            let handlerSel = "#" + nodeId;
+            debug("custLinks - add handler to ", handlerSel);
+
+            $(handlerSel).on('click', {from: nodeName}, cs_handleClick);
         }
 
-        function cs_handleClick(e) {
-            debug('[cs_handleClick] state = ' + cs_caretState);
-            let targetNode = document.querySelector("#xedx-collapse"); // e.target
+        function initCustLinkState(nodeName) {
+            cs_caretState = GM_getValue(nodeName + 'cs_lastState', cs_caretState);
+            let newEvent = event;
+            event.data = {};
+            newEvent.data.from = nodeName;
+            cs_caretState = (cs_caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+
+            debug("[custLinks - initCustLinkState] initial state, from: ", newEvent.data.from);
+            cs_handleClick(newEvent, nodeName);
+        }
+
+        // TBD: All nodes are collapsing!!!!
+        function cs_handleClick(e, optParam) {
+            debug('[custLinks - cs_handleClick] state = ' + cs_caretState);
+
+            let rootNodeName = "nav-city";
+            if (e && e.data && e.data.from)
+                rootNodeName = e.data.from;
+
+            let nodeId = rootNodeName + "-collapse";
+            let nodeSel = "#" + nodeId;
+            let targetNode = document.querySelector(nodeSel); // e.target
+
+            debug("[custLinks - cs_handleClick] optParam: ", optParam);
+            debug("[custLinks - cs_handleClick] rootNodeName: ", rootNodeName);
+            debug("[custLinks - cs_handleClick] nodeId: ", nodeId);
+            debug("[custLinks - cs_handleClick] nodeSel: ", nodeSel);
+            debug("[custLinks - cs_handleClick] targetNode: ", targetNode);
+            if (e)
+                debug("[custLinks - cs_handleClick] e.target: ", e.target);
+
             let elemState = 'block;';
             if (cs_caretState == 'fa-caret-down') {
                 targetNode.classList.remove("fa-caret-down");
@@ -1507,16 +1579,26 @@
                 targetNode.classList.add("fa-caret-down");
                 cs_caretState = 'fa-caret-down';
             }
-            GM_setValue('cs_lastState', cs_caretState);
-            $("[id^=custlink-]").attr("style", "display: " + elemState);
+
+            GM_setValue(rootNodeName + 'cs_lastState', cs_caretState);
+
+            // These need unique indicators (ID's) under 'city', 'home', etc.
+            // let custLinkId = rootId + "-" + key;
+            let partialID = rootNodeName + "-custlink-";
+            debug("[custLinks - cs_handleClick] partial ID: ", partialID);
+            $("[id^=" + rootNodeName + "-custlink-]").attr("style", "display: " + elemState);
         }
     } // End function tornCustomizableSidebar() {
 
     function removeCustomizableSidebar() {
+        debug("[custLink] remove ALL new links !!!");
+
         $("[id^=custlink-]").remove();
-        $("#xedx-collapse").remove();
+        $("#xedx-collapse").remove(); // need to remove ALL here
     }
 
+    // TBD: Add crimes also!!! Replace Torn Quick Crimes!!!
+    //
     // Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
     function initCustLinksObject() {
         debug('[initCustLinksObject]');
@@ -1527,6 +1609,8 @@
         //https://www.torn.com/racing.php
         //https://www.torn.com/dump.php
         //https://www.torn.com/travelagency.php
+        //
+        // When adding here, don't forget to also set, a bit below...
         let link0 = JSON.parse(GM_getValue('custlink-bounties', JSON.stringify({enabled: true, cust: false, desc: "Bounties",
                                                                                 link: "https://www.torn.com/bounties.php#!p=main", cat: "City"})));
         let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House",
@@ -1548,9 +1632,64 @@
                                                                              link: "page.php?sid=holdem", cat: "Casino"})));
         let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette",
                                                                                        link: "page.php?sid=russianRoulette", cat: "Casino"})));
+        let link10 = JSON.parse(GM_getValue("custlink-personalstats", JSON.stringify({enabled:true, cust: false, desc: "Personal Stats",
+                                                                                       link: "personalstats.php", cat: "Home"})));
+
+        // Add crimes...
+        const crimeURLRoot = "https://www.torn.com/loader.php?sid=crimes#/";
+        const crimesPath = "loader.php?sid=crimes#/";
+        const crimeULs = [
+             "searchforcash",
+             "bootlegging",
+             "graffiti",
+             "shoplifting",
+             "pickpocketing",
+             "cardskimming",
+             "burglary",
+             "hustling",
+             "disposal",
+             "cracking",
+             "forgery"
+        ];
+
+        let link11 = JSON.parse(GM_getValue("custlink-searchforcash",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Search for Cash",
+                                            link: crimesPath + crimeULs[0], cat: "Crimes"})));
+        let link12 = JSON.parse(GM_getValue("custlink-bootlegging",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Bootlegging",
+                                            link: crimesPath + crimeULs[1], cat: "Crimes"})));
+        let link13 = JSON.parse(GM_getValue("custlink-graffiti",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Graffiti",
+                                            link: crimesPath + crimeULs[2], cat: "Crimes"})));
+        let link14 = JSON.parse(GM_getValue("custlink-shoplifting",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Shoplifting",
+                                            link: crimesPath + crimeULs[3], cat: "Crimes"})));
+        let link15 = JSON.parse(GM_getValue("custlink-pickpocketing",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Pickpocketing",
+                                            link: crimesPath + crimeULs[4], cat: "Crimes"})));
+        let link16 = JSON.parse(GM_getValue("custlink-cardskimming",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Card Skimming",
+                                            link: crimesPath + crimeULs[5], cat: "Crimes"})));
+        let link17 = JSON.parse(GM_getValue("custlink-burglary",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Burglary",
+                                            link: crimesPath + crimeULs[6], cat: "Crimes"})));
+        let link18 = JSON.parse(GM_getValue("custlink-hustling",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Hustling",
+                                            link: crimesPath + crimeULs[7], cat: "Crimes"})));
+        let link19 = JSON.parse(GM_getValue("custlink-disposal",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Disposal",
+                                            link: crimesPath + crimeULs[8], cat: "Crimes"})));
+        let link20 = JSON.parse(GM_getValue("custlink-cracking",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Cracking",
+                                            link: crimesPath + crimeULs[9], cat: "Crimes"})));
+        let link21 = JSON.parse(GM_getValue("custlink-forgery",
+                                            JSON.stringify({enabled:true, cust: false, desc: "Forgery",
+                                            link: crimesPath + crimeULs[10], cat: "Crimes"})));
+        // I dont think that from here.....
 
         // Force an adjustment - move 'Log' to under 'Home'
-        // Make editable?
+        // Make editable? Did I do this for backwards compatibility?
+        // Fix old versions? Maybe once under City? Don't recall..
         link5.cat = "Home";
 
         // Slots link changed: use the correct version (based on script version)
@@ -1558,6 +1697,8 @@
             // Link changed from loader.php to page.php. Changed here 10/01/2023
             link6 = {enabled:true, cust: false, desc: "Slots", link: "page.php?sid=slots", cat: "Casino"};
         }
+
+        // To here..... is required anymore.
 
         GM_setValue('custlink-bounties', JSON.stringify(link0));
         GM_setValue('custlink-auctionhouse', JSON.stringify(link1));
@@ -1569,6 +1710,19 @@
         GM_setValue("custlink-spinthewheel", JSON.stringify(link7));
         GM_setValue("custlink-poker", JSON.stringify(link8));
         GM_setValue("custlink-russianroulette", JSON.stringify(link9));
+        GM_setValue("custlink-personalstats", JSON.stringify(link10));
+
+        GM_setValue("custlink-searchforcash", JSON.stringify(link11));
+        GM_setValue("custlink-bootlegging", JSON.stringify(link12));
+        GM_setValue("custlink-graffiti", JSON.stringify(link13));
+        GM_setValue("custlink-shoplifting", JSON.stringify(link14));
+        GM_setValue("custlink-pickpocketing", JSON.stringify(link15));
+        GM_setValue("custlink-cardskimming", JSON.stringify(link16));
+        GM_setValue("custlink-burglary", JSON.stringify(link17));
+        GM_setValue("custlink-hustling", JSON.stringify(link18));
+        GM_setValue("custlink-disposal", JSON.stringify(link19));
+        GM_setValue("custlink-cracking", JSON.stringify(link20));
+        GM_setValue("custlink-forgery", JSON.stringify(link21));
 
         // Then fill the 'custLinksOpts' object
         updateCustLinksRows();
