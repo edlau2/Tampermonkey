@@ -1482,8 +1482,11 @@
             //    custLinkClassNames.row_class  + '">';
 
             //let span1 = '<span class="svgIconWrap___YUyAq "><i class="cql-travel-agency"></i></span>';
+
+            const linkIndent = '">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;';
             let aData = '<a href="' + fullLink + '" class="' + custLinkClassNames.a_class + '">'; // '" i-data="i_0_1120_172_23">' +
-            let span2 = '<span class="' + custLinkClassNames.link_name_class + '">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;' + data.desc + '</span>';
+            //let span2 = '<span class="' + custLinkClassNames.link_name_class + '">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;' + data.desc + '</span>';
+            let span2 = '<span class="' + custLinkClassNames.link_name_class + linkIndent + data.desc + '</span>';
             let endDiv = '</a></div></div>';
 
             return outerDiv + aData + /* span1 + */ span2 + endDiv;
