@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -33,7 +33,10 @@
     const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
     const caretNode = '<span style="float:right;"><i id="xedx-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
     var caretState = 'fa-caret-right';
+    var statCaretState = 'fa-caret-right';
     const custBatStatsEnabled = true; // Turn off if my IP (18.119.136.223) goes away, it's at AWS
+
+    const displayCustomStats = true;
 
     // From: https://wiki.torn.com/wiki/Ranks
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
@@ -58,23 +61,48 @@
     const batStatLi = 'xedx-batstat-li';
     var targetNode = document.getElementById('profileroot');
 
-    function handleClick(e) {
-        log('handleClick: state = ' + caretState);
-        let targetNode = document.querySelector("#xedx-caret"); // e.target
+    function handleClick(event) {
+
+        let fromId = undefined;
+        if (event && event.data)
+            fromId = event.data.fromId;
+
+        let useCaretState = caretState;
+        let parentId = "#xedx-stat-det";
+        let personalInfoCaret = false;
+        if (fromId && fromId == "xedx-stats-caret") {
+            useCaretState = statCaretState;
+            parentId = "#xedx-cust-stats";
+            personalInfoCaret = true;
+        }
+
+        let targetNode = fromId ? document.querySelector("#" + fromId) : document.querySelector("#xedx-caret");
+
         let elemState = 'block';
-        let childList = document.querySelector("#nav-home").parentNode.children;
-        if (caretState == 'fa-caret-down') {
+        if (useCaretState == 'fa-caret-down') {
             targetNode.classList.remove("fa-caret-down");
             targetNode.classList.add("fa-caret-right");
-            caretState = 'fa-caret-right';
+            if (personalInfoCaret) {
+                statCaretState = 'fa-caret-right';
+                setInfoSize("124px;");
+            } else
+                caretState = 'fa-caret-right';
             elemState = 'none';
         } else {
             targetNode.classList.remove("fa-caret-right");
             targetNode.classList.add("fa-caret-down");
-            caretState = 'fa-caret-down';
+            if (personalInfoCaret) {
+                statCaretState = 'fa-caret-down';
+                //let size = 124 + (numStatsAdded - 1) * 30;     // with one stat rows...
+                let size = 124 + (numStatsAdded) * 24;
+                let sizeStr = size.toString() + "px;";
+                log("Adjust size ", size, " as str: ", sizeStr);
+                setInfoSize(sizeStr); // 174px
+            } else
+                caretState = 'fa-caret-down';
         }
-        GM_setValue('lastState', caretState);
-        document.querySelector("#xedx-stat-det").setAttribute('style' , 'display: ' + elemState);
+
+        document.querySelector(parentId).setAttribute('style' , 'display: ' + elemState);
     }
 
     // Get data used to calc bat stats and get NW via the Torn API
@@ -84,18 +112,32 @@
     }
 
     // Callback for above
+    let retries = 0;
     function personalStatsQueryCB(responseText, ID) {
         if (responseText == undefined) {
+            // Retry without the 'profile' selection, but just once.
             log("Error queryig user stats - no result!");
+            if (retries < 1) {
+                xedx_TornUserQueryDbg(ID, 'personalstats,crimes', personalStatsQueryCB);
+                retries++;
+                return;
+            }
             return;
         }
+
+        // Maybe make global to access in other places, namely the new
+        // custom user stats stuff....for now jst pass to fn.
         let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleError(responseText);}
+        if (jsonResp.error) {
+            if (jsonResp.error.code == 6)
+                return;
+            return handleError(responseText);
+        }
 
         let userNW = jsonResp.personalstats.networth;
         let userCrimes = jsonResp.criminalrecord.total;
         let userLvl = jsonResp.level;
-        let userRank = numericRankFromFullRank(jsonResp.rank);
+        let userRank = (jsonResp.rank == undefined) ? undefined : numericRankFromFullRank(jsonResp.rank);
 
         // Highlight life as appropriate
         doLifeHighlighting();
@@ -104,7 +146,8 @@
         addNetWorthToProfile(userNW);
 
         // Get bat stats estimate, based on rank triggers (sync)
-        batStats = getEstimatedBatStats(userNW, userCrimes, userLvl, userRank); // Calculate bat stats estimate
+        if (userRank != undefined && userLvl != undefined && userNW != undefined)
+            batStats = getEstimatedBatStats(userNW, userCrimes, userLvl, userRank); // Calculate bat stats estimate
 
         // Get any spies (async). On completion, get our estimated stats from FF DB.
         log('Calling xedx_TornStatsSpy');
@@ -112,6 +155,116 @@
 
         // Display the numeric rank next to textual rank (sync)
         addNumericRank(userRank);
+
+        if (displayCustomStats) {
+            addCustomStats(jsonResp.personalstats);
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////
+    // Function to add custom stats to the "Personal Information" section.
+    // May change to custom DIV somewhere in there, collapsed by default....
+    //////////////////////////////////////////////////////////////////////////////////
+
+    // When I get time, make fns to take ID as param to make node and onClick handler..
+    // And add to the js utilities script...
+    const statCaretNode = '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
+
+    // height in px, eg, "160px;"
+    var numStatsAdded = 0;
+    function setInfoSize(height) {
+        log("[setInfoSize] ", height);
+        GM_addStyle(`.d .profile-wrapper .profile-container.personal-info {
+            height: ` + height +
+            `line-height: 15px;
+            background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
+            background-color: var(--default-bg-panel-color);
+        }`);
+    }
+
+    function addCustomStats(personalStats) {
+        let sectionDiv = document.querySelector(".personal-information");
+        let table = sectionDiv.querySelector(".info-table");
+
+        // Add header, with caret and stats all at once.
+        // Not working since container height fixed.
+        // Use GM_addStyle to make new css?
+        let li = getCustStatsBody(personalStats);
+        $(table).append(li);
+
+        log("Added custom stats table entries!");
+        log($("#xedx-cust-stats2"));
+
+        if (document.getElementById("xedx-stats-caret") && !abroad()) {
+            $("#xedx-stats-caret").on('click', {fromId: "xedx-stats-caret"}, handleClick);
+
+            statCaretState = (statCaretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+
+            let newEvent = event;
+            event.data = {};
+            newEvent.data.fromId = "xedx-stats-caret";
+            handleClick(newEvent);
+        }
+
+    }
+
+    // 'Owner' LI added to UL, stats go beneath and are collapsible.
+    const ppsStatsId = "xedx-cust-collapsible";
+    function getCustStatsBody(personalStats) {
+        let li = '<li id="xedx-cust-stats2">' +
+                     '<div class="user-information-section"><span class="bold">Custom Stats</span></div>' +
+                     '<div class="user-info-value" id="' + ppsStatsId + '"><span> Expand for more...</span>' +
+                     //statCaretNode +
+                     '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>' +
+                 '</div></li>';
+
+         // Now hideable LI's...
+        li += '<div id="xedx-cust-stats" class="xedx-cx" style="display:block;">';
+
+        // Add as many stats as needed. Note: need to add 30px for each when setting style.
+        let ps = personalStats;  // shorthand
+        li += makeStatLi2("xantaken", personalStats.xantaken, "SE's used", ps.statenhancersused);
+        li += makeStatLi2("Cans Used", ps.energydrinkused, "Boosters", ps.boostersused);
+        li += makeStatLi2("RW Hits", ps.rankedwarhits, "Refills", ps.refills);
+        //li += makeStatLi2("test stat5", "hi", "test stat6", "hi");
+        //li += makeStatLi("test stat6", "hi");
+        numStatsAdded = 3;
+
+        // and close it.
+        li += "</div>";
+
+        return li;
+    }
+
+    // LI to contain cust stats beneath our collapsible 'owner' LI
+    function makeStatLi(name, value) {
+        let li = '<li style="display:flex;">' +
+            '<div class="user-information-section">' +
+            //'<div class="user-info-value" style="border-right: 1px solid black;width:50%;">' +
+            '<span class="bold">' + name + '</span>' +
+            '</div>' +
+            '<div class="user-info-value">' +
+            //'<div class="user-info-value" style="width:50%;">' +
+            '<span>' + value + '</span>' +
+            '</div></li>';
+        return li;
+    }
+
+    function makeStatLi2(name1, value1, name2, value2) {
+        let li = '<li style="display:flex;">' +
+            '<div class="user-info-value" style="border-right: 1px solid black; width:30%;">' +
+                '<span class="bold">' + name1 + '</span>' +
+            '</div>' +
+            '<div class="user-info-value" style="border-right: 1px solid black; width:20%;">' +
+                '<span>' + value1 + '</span>' +
+            '</div>' +
+            '<div class="user-info-value" style="border-right: 1px solid black; width:30%;">' +
+                '<span class="bold">' + name2 + '</span>' +
+            '</div>' +
+            '<div class="user-info-value" style="width:20%;">' +
+                '<span>' + value2 + '</span>' +
+            '</div></li>';
+        return li;
     }
 
     //////////////////////////////////////////////////////////////////////////////////
@@ -123,6 +276,8 @@
         let liSpan = document.querySelector(/*"#profileroot > div > div > div > div:nth-child(5) >"*/
                                         "div.basic-information.profile-left-wrapper.left > " +
                                         " div > div.cont.bottom-round > div > ul > li:nth-child(5) > div.user-info-value > span");
+        if (!liSpan) return;
+
         let life = liSpan.textContent;
         let parts = life.split('/');
         log('Life: ', life, ' parts: ', parts);
@@ -358,7 +513,7 @@
 
         if (jsonSpy.status) {
             //$("#xedx-collapsible").append(caretNode);
-            li += '<div id="xedx-stat-det" style="display:block;">' +
+            li += '<div id="xedx-stat-det" class="xedx-cx" style="display:block;">' +
                   '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
                   numberWithCommas(jsonSpy.speed) + '</span></div>' +
                   '<div class="user-info-value" style="width:50%;"><span>Str: ' +
@@ -373,10 +528,17 @@
         // Make the details 'collapsible'
         if (document.getElementById("xedx-caret") && !abroad()) {
             caretState = GM_getValue('lastState', caretState);
-            document.getElementById("xedx-caret").addEventListener('click', function (event) {
-                handleClick(event)}, { passive: false });
+            $("#xedx-caret").on('click', {fromId: "xedx-caret"}, handleClick);
+
+            //document.getElementById("xedx-caret").addEventListener('click', {fromId: "xedx-caret"}, function (event) {
+            //    handleClick(event)}, { passive: false });
+
             caretState = (caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
-            handleClick();
+
+            let newEvent = event;
+            event.data = {};
+            newEvent.data.fromId = "xedx-caret";
+            handleClick(newEvent);
         }
 
         return li;
@@ -514,3 +676,4 @@
     callOnContentLoaded(handlePageLoad);
 
 })();
+
