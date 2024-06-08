@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @match        https://www.torn.com/profiles.php*
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -26,6 +25,16 @@
 
 (function() {
     'use strict';
+
+    // These are custom stats that can be displayed in a collapsible DIV
+    // under Personal Information. Any stat that is available in the user
+    // personalstats API call can be put here.
+    var statArray = [{statDesc: "Xanax Used", statVar: "xantaken"},
+                     {statDesc: "SE's used",  statVar: "statenhancersused"},
+                     {statDesc: "Cans Used",  statVar: "energydrinkused"},
+                     {statDesc: "Boosters",   statVar: "boostersused"},
+                     {statDesc: "RW Hits",    statVar: "rankedwarhits"},
+                     {statDesc: "Refills",    statVar: "refills"}];
 
     // Constants and globals
     const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
@@ -78,13 +87,14 @@
 
         let targetNode = fromId ? document.querySelector("#" + fromId) : document.querySelector("#xedx-caret");
 
+        let baseHeight = notSharing ? 59 : 124;  // 59 is header (35) plus one row (24), ours. If shared, + 3 rows.
         let elemState = 'block';
         if (useCaretState == 'fa-caret-down') {
             targetNode.classList.remove("fa-caret-down");
             targetNode.classList.add("fa-caret-right");
             if (personalInfoCaret) {
                 statCaretState = 'fa-caret-right';
-                setInfoSize("124px;");
+                setInfoSize(baseHeight.toString() + "px;");
             } else
                 caretState = 'fa-caret-right';
             elemState = 'none';
@@ -93,11 +103,9 @@
             targetNode.classList.add("fa-caret-down");
             if (personalInfoCaret) {
                 statCaretState = 'fa-caret-down';
-                //let size = 124 + (numStatsAdded - 1) * 30;     // with one stat rows...
-                let size = 124 + (numStatsAdded) * 24;
+                let size = baseHeight + (numStatsAdded) * 24;
                 let sizeStr = size.toString() + "px;";
-                log("Adjust size ", size, " as str: ", sizeStr);
-                setInfoSize(sizeStr); // 174px
+                setInfoSize(sizeStr);
             } else
                 caretState = 'fa-caret-down';
         }
@@ -182,18 +190,27 @@
         }`);
     }
 
+    var notSharing = false;
     function addCustomStats(personalStats) {
+        log("[addCustomStats]");
         let sectionDiv = document.querySelector(".personal-information");
         let table = sectionDiv.querySelector(".info-table");
 
+        if (!sectionDiv) return log("ERROR sectionDiv not found!");
+
+        // The table may not exist. This is the case if the user
+        // isn't sharing information.
+        if (!table) {
+            notSharing = true;
+            let contDiv = $(".profile-container.personal-info");
+            let list = '<ul class="info-table"></ul>';
+            $(contDiv).append(list);
+            table = sectionDiv.querySelector(".info-table");
+        }
+
         // Add header, with caret and stats all at once.
-        // Not working since container height fixed.
-        // Use GM_addStyle to make new css?
         let li = getCustStatsBody(personalStats);
         $(table).append(li);
-
-        log("Added custom stats table entries!");
-        log($("#xedx-cust-stats2"));
 
         if (document.getElementById("xedx-stats-caret") && !abroad()) {
             $("#xedx-stats-caret").on('click', {fromId: "xedx-stats-caret"}, handleClick);
@@ -209,26 +226,30 @@
     }
 
     // 'Owner' LI added to UL, stats go beneath and are collapsible.
-    const ppsStatsId = "xedx-cust-collapsible";
-    function getCustStatsBody(personalStats) {
+    function getCustStatsBody(ps) {
         let li = '<li id="xedx-cust-stats2">' +
                      '<div class="user-information-section"><span class="bold">Custom Stats</span></div>' +
-                     '<div class="user-info-value" id="' + ppsStatsId + '"><span> Expand for more...</span>' +
-                     //statCaretNode +
+                     '<div class="user-info-value"><span> Expand for more...</span>' +
                      '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>' +
                  '</div></li>';
 
-         // Now hideable LI's...
+        // Now hideable LI's...
         li += '<div id="xedx-cust-stats" class="xedx-cx" style="display:block;">';
 
-        // Add as many stats as needed. Note: need to add 30px for each when setting style.
-        let ps = personalStats;  // shorthand
-        li += makeStatLi2("xantaken", personalStats.xantaken, "SE's used", ps.statenhancersused);
-        li += makeStatLi2("Cans Used", ps.energydrinkused, "Boosters", ps.boostersused);
-        li += makeStatLi2("RW Hits", ps.rankedwarhits, "Refills", ps.refills);
-        //li += makeStatLi2("test stat5", "hi", "test stat6", "hi");
-        //li += makeStatLi("test stat6", "hi");
-        numStatsAdded = 3;
+        // Add as many stats as needed. Note: need to add 24px for each when setting style.
+        // See setInfoSize()
+        // I call two functions just to see which looks better. makeStatLi2 uses less real estate.
+        for (let i=0; i<statArray.length; i += 2) {
+            let stat1 = statArray[i];
+            if (!stat1) break;
+            let stat2 = statArray[i+1];
+            li += makeStatLi2(stat1 ? stat1.statDesc : '',
+                              stat1 ? ps[stat1.statVar] : '',
+                              stat2 ? stat2.statDesc : '',
+                              stat2 ? ps[stat2.statVar] : '');
+            numStatsAdded++;
+            if (!stat2) break;
+        }
 
         // and close it.
         li += "</div>";
@@ -237,6 +258,7 @@
     }
 
     // LI to contain cust stats beneath our collapsible 'owner' LI
+    // One stat per row
     function makeStatLi(name, value) {
         let li = '<li style="display:flex;">' +
             '<div class="user-information-section">' +
@@ -250,6 +272,7 @@
         return li;
     }
 
+    // Two stats per row
     function makeStatLi2(name1, value1, name2, value2) {
         let li = '<li style="display:flex;">' +
             '<div class="user-info-value" style="border-right: 1px solid black; width:30%;">' +
