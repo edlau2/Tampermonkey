@@ -88,7 +88,7 @@
     // otherwise false for default behavior.
     var demandStart = GM_getValue("demandStart", true);
     GM_setValue("demandStart", demandStart);
-    log("demandStart: ", demandStart);
+    debug("demandStart: ", demandStart);
 
   // =====================================================================================================================================================================
 
@@ -169,10 +169,12 @@
       options += `<option value="${abbr}">${abbr}</option>`;
     }
 
+    const valText = demandStart ? "Start!" : "Stop!";
     const selector = $(`
             <div class="cracker-helper-selector">
                 <div class="btn-wrap silver">
-                    <div id="xedx-save-btn"><span class="btn"><input type="submit" class="torn-btn xedx-span" value="Start!"></span></div>
+                    <div id="xedx-save-btn">
+                    <span class="btn" style="margin-right: 10px;"><input type="submit" class="torn-btn xedx-span" value="` + valText + `"></span></div>
                 </div>
                 <label>Source:</label>
                 <select name="crackerSel">
@@ -194,12 +196,9 @@
     if ($("div.cracker-helper-selector").length == 0) {
       $("h4[class*=heading___]").after(selector);
         if (demandStart) {
-            //$("#xedx-save-btn").on('click', {from: "demandStart"}, main);
             $("#xedx-save-btn").on('click', doDemandStart);
         }
         else {
-            // Instead of removing, restart with script OFF,
-            //$("#xedx-save-btn").remove();
             $("#xedx-save-btn").on('click', doDemandStart);
         }
     }
@@ -874,7 +873,7 @@
 
     if (demandStart) {
         insertSelector();
-        log("[cracker] delayLoad complete, waiting for start");
+        debug("[cracker] delayLoad complete, waiting for start");
     }
     else {
         main();
@@ -882,9 +881,6 @@
 
     function main(event) {
         GM_setValue("demandStart", true);
-        let from = "";
-        if (event && event.data)
-            from = event.data.from;
         log("Userscript cracker helper starts");
         updatePage();
         window.onhashchange = () => {
