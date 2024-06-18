@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   seintz.torn.wall-battlestats
-// @version     1.02
+// @version     1.03
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
 // @run-at      document-end
 // @match       https://www.torn.com/factions.php*
+// @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
 // @grant       GM_getValue
@@ -23,6 +24,7 @@ let manualApiKey = "<your API key here>";
  * -------------------------------------------------------------------------
  */
 
+logScriptStart();
 
 var api_key = GM_getValue('gm_api_key');
 validateApiKey();
@@ -114,6 +116,9 @@ function loadTSFactions(id) {
     url: `https://www.tornstats.com/api/v2/${apiKey}/spy/faction/${id}`,
     onload: (r) => {
       let j = JSONparse(r.responseText);
+
+        log("Spy response: ", j);
+
       if (!j || !j.status || !j.faction) {
         loadTSFactionsDone();
         return;
