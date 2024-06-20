@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   seintz.torn.wall-battlestats
-// @version     1.03
+// @version     1.04
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -15,8 +15,13 @@
 // @connect     tornstats.com
 // ==/UserScript==
 
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 let manualApiKey = "<your API key here>";
+
+//debugLoggingEnabled = true;
 
 /*
  * -------------------------------------------------------------------------
@@ -28,14 +33,12 @@ logScriptStart();
 
 var api_key = GM_getValue('gm_api_key');
 validateApiKey();
-let apiKey = api_key; //manualApiKey?.length == 16 ? manualApiKey : localStorage["finally.torn.api"];
 
+let apiKey = api_key; //manualApiKey?.length == 16 ? manualApiKey : localStorage["finally.torn.api"];
 if (!apiKey) {
     alert('no apikey set');
     return;
 }
-
-localStorage.setItem("finally.torn.api", apiKey || "");
 
 let bsCache = JSONparse(localStorage["finally.torn.bs"]) || {};
 let hospTime = {};
@@ -91,6 +94,7 @@ function loadTSFactionsDone() {
   loadTSFactions();
 }
 
+var apiRequests = 0;
 function loadTSFactions(id) {
   if (loadTSFactionLock) {
     if (
@@ -111,15 +115,57 @@ function loadTSFactions(id) {
   id = id || loadTSFactionBacklog.shift();
   loadTSFactionDone.push(id);
 
+    // test: force error to see if I catch it
+    let URL;
+    //if (apiRequests == 0)
+    //    URL = `https://www.tornstats.com/api/v2/123badkey7890123/spy/faction/${id}`;
+    //else
+        URL = `https://www.tornstats.com/api/v2/${apiKey}/spy/faction/${id}`;
+
   GM_xmlhttpRequest({
     method: "GET",
-    url: `https://www.tornstats.com/api/v2/${apiKey}/spy/faction/${id}`,
+    url: URL,
     onload: (r) => {
       let j = JSONparse(r.responseText);
 
-        log("Spy response: ", j);
+      debug("Spy resp text: (id=", id, ") ", r.responseText);
+      debug("Spy response: ", j);
+
+        if (j && !j.status) {
+            log("Error loading fac spies (1): ", j);
+            if (j.message) {
+                log("msg: ", j.message);
+                let msg = "The server has responded with an error:\n" + j.message;
+                if (j.message.indexOf("User not found") > -1)
+                    msg += "\n\nYour API key may not be valid or the one used to register with TornStats";
+                else
+                    msg += "TornStats said: '" + j.message + "'";
+                msg += "\n\nWould you like to try re-entering your API key?";
+
+                if (apiRequests == 3) {
+                    msg = "Too many retries, aborting...";
+                    window.alert(msg);
+                    return;
+                }
+                log("Calling confirm: ", msg);
+                if (window.confirm(msg)) {
+                    apiRequests++;
+                    api_key = null;
+                    validateApiKey();
+                    loadTSFactionsDone();
+                    setTimeout(loadTSFactions(id), 100);
+                    return;
+                }
+                log("going home");
+                return;
+            }
+            else {
+                log("No message? ", j);
+            }
+        }
 
       if (!j || !j.status || !j.faction) {
+        log("Error loading fac spies (2): ", j);
         loadTSFactionsDone();
         return;
       }
@@ -233,6 +279,7 @@ function sortStats(node, sort) {
 
 function addSpy(id, spy) {
   if (!spy) return;
+  //debug("addSpy: ", id, " spy: ", spy);
   bsCache[id] = spy;
 }
 
@@ -274,6 +321,9 @@ function updateStats(id, node, parentNode) {
     else if (difference > 60)
       time = Math.floor(difference / 60) + " minutes ago";
     else time = Math.floor(difference) + " seconds ago";
+  }
+  else {
+     //debug("No entry found in cache for id ", id);
   }
 
   let units = ["K", "M", "B", "T", "Q"];
