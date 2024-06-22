@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Fac Travel Icons
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Indicate where people flying/abroad are at or going to.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php?step=profile&ID=*
@@ -101,20 +101,28 @@
 
         let desc = jsonResp.status.description;
         let country = getCountryFromStatus(desc);
+        //log("Got ", country, " for ID ", id);
         if (country) $(iconLi).replaceWith($(getAbroadFlag(country)));
     }
 
     function handlePageLoad() {
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
-        for (let i=0; i < travelIcons.length; i++) {
-            let iconLi = travelIcons[i]; if (!iconLi) continue;
-            let iconTray = iconLi.parentNode; if (!iconTray) continue;
-            let memberIcons = iconTray.parentNode; if (!memberIcons) continue;
-            let liTableRow = memberIcons.parentNode; if (!liTableRow) continue;
-            let userStatusWrap = liTableRow.querySelector("[class^='userStatusWrap']"); if (!userStatusWrap) continue;
-            let fullId = userStatusWrap.id; if (!fullId) continue;
-            let id = fullId.match(/\d+/)[0];
+        log("Found ", $(travelIcons).length,  " people abroad");
 
+        // Now back up the DOM tree to get to ID, and get basic stats
+        for (let i=0; i < $(travelIcons).length; i++) {
+            let iconLi = $(travelIcons)[i];
+
+            let memberRow = $(iconLi).closest("li.table-row");
+            if (!memberRow) {log("no memberRow!"); continue;}
+
+            let honorWrap = $(memberRow).find("[class^='honorWrap'] > a");
+            if (!honorWrap) {log("no honorWrap!"); continue;}
+
+            let fullId = $(honorWrap).prop("href");
+            if (!fullId) {log("no fullId!"); continue;}
+
+            let id = fullId.match(/\d+/)[0];
             xedx_TornUserQuery(id, "basic", userBasicQueryCallback, iconLi);
         }
     }
