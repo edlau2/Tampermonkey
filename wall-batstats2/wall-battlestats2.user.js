@@ -83,7 +83,6 @@
     }
 
     function validateApiKey(forced=false) {
-        log("validateApiKey: ", api_key);
         let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
                      "Your key will be saved locally so you won't have to be asked again.\n" +
                      "Your key is kept private and not shared with anyone." +
@@ -92,8 +91,6 @@
         if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
             api_key = prompt(text, "");
             GM_setValue('gm_api_key', api_key);
-
-            log("New key: ", api_key);
             apiKey = api_key;
         }
     }
