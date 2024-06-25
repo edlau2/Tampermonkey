@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -224,10 +224,10 @@
 
             let newLi;
             if (DEV_MODE) {
-                newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+                newLi = '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + ' ' + maxSR + '% </span>';
             } else {
-                newLi = '<span class="level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+                newLi = '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + '</span>';
             }
 
@@ -264,17 +264,18 @@
         if (ID == 'level') {
             lLvlOrder = (lLvlOrder == 'asc') ? 'desc' : 'asc';
             log('Sorting page by level, ', lLvlOrder);
-            sortPage("span > span:nth-child(2)", null, lLvlOrder);
+            sortPage("span > span.level", null, lLvlOrder);
         }
         if (ID == 'time') {
             lTimeOrder = (lTimeOrder == 'asc') ? 'desc' : 'asc';
             log('Sorting page by time, ', lTimeOrder);
-            sortPage("span > span:nth-child(1)", "time", lTimeOrder);
+            sortPage("span > span.time", "time", lTimeOrder);
         }
+        // #mainContainer > div.content-wrapper.summer > div.userlist-wrapper > ul > li:nth-child(2) > span > span.score.level
         if (ID == 'score') {
             lScoreOrder = (lScoreOrder == 'asc') ? 'desc' : 'asc';
             log('Sorting page by score, ', lScoreOrder);
-            sortPage("span > span:nth-child(3)", "score", lScoreOrder);
+            sortPage("span > span.score.level", "score", lScoreOrder);
         }
     }
 
@@ -283,7 +284,12 @@
         log('[sortPage]');
         let jailList = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         let matches = $(jailList).children("li");
+
+        log("matches: ", matches);
+        log("selector: ", sel);
+        log("attr: ", attr);
         tinysort(matches, {selector: sel, attr: attr, order: ord});
+        log("Sort complete");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -425,7 +431,7 @@
                             let text = node.textContent;
                             log('Bust action: ', text);
 
-                            // Need to get info from parent node - level, anme, time, etc...
+                            // Need to get info from parent node - level, name, time, etc...
                             let li = node.parentNode.parentNode;
                             let wrapper = li.getElementsByClassName("info-wrap")[0]; // 'li' is items[i]
                             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
@@ -510,8 +516,9 @@
     function addStyles() {
         GM_addStyle(`
             .xedx-box {float: right; display: flex;}
-            .score {width: 57px;}
+            .score { }
             .xedx-span {margin-bottom: 5px; margin-left: 20px;}
+            .xedx-hide {display: none;}
         `);
     }
 
