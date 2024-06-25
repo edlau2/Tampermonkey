@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -74,6 +74,7 @@
             $(content).css("margin", "0 auto");
             $(content).css("position", "relative");
             $(content).css("top", "10px");
+            $(content).css("bottom", "100px");
             $(content).css("left", leftContentMargin);
             $(content).css("width", contentWidth);    // subtract 20 for artificial left margin
             log("content: ", $(content));
@@ -81,6 +82,10 @@
             $(content).after(fakeDiv);
             $("#fake-div").css("width", leftContentMargin);
         }
+    }
+
+    function ignoredPage() {
+        if (window.location.href.indexOf("attack") > -1) return true;
     }
 
     function addStyles() {
@@ -108,6 +113,12 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+
+    if (ignoredPage()) {
+        log("Ignoring page: ", window.location.href);
+        return;
+    }
+
     addStyles();
     handlePageLoad();
 
