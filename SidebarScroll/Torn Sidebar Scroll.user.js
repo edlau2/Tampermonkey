@@ -25,14 +25,12 @@
     // Can set this to 'false' to disable logging.
     debugLoggingEnabled = true;
 
-    // This option, if enabled, does not seem to work if you use
-    // Firefox - breaks everything.
-    // Update: does not work correctly anywhere! For now, do not change!
-    const hideScrollbars = false; //(navigator.userAgent.indexOf("Firefox") == -1);
-    //debug("Firefox detect: ", navigator.userAgent.indexOf("Firefox"), " hide: ", hideScrollbars);
+    // This option, if enabled, hides the scrollbar that will appear
+    // on the sidebar while scrolling.
+    const hideScrollbars = true;
 
     const sidebarHeightExtra = 0;
-    const leftContentMargin = hideScrollbars ? "8px" : "20px";
+    const leftContentMargin = "20px";
     const bottomMargin = "80px";
     const fakeDiv = $(`<div id="fake-div"></div>`);
     const fakeDiv2 = $(`<div id="fake-div2" style="height: ` + bottomMargin + `;"></div>`);
@@ -65,7 +63,6 @@
         // ========== Set main conatiner properties ==========
         $(container).css("display", "flex");
         $(container).css("flex-direction", "row");
-        if (hideScrollbars) $(container).css("overflow", "hidden");
         debug("container: ", $(container));
 
         // ========== Set sidebar style ==========
@@ -75,12 +72,12 @@
         let winHeight = $(window).height();
         debug("winHeight: ", winHeight);
 
+        if (hideScrollbars) $(sidebar).addClass("disable-scrollbars");
         $(sidebar).css("width", sidebarWidth);
         $(sidebar).css("height", winHeight + sidebarHeightExtra);
         $(sidebar).css("overflow-y", "auto");
         $(sidebar).css("top", "0px");
         $(sidebar).css("position", "sticky");
-        if (hideScrollbars) $(sidebar).css("padding", "0 1em 1em 0");
         debug("sidebar: ", sidebar);
 
         // ========== Set content (right hand side) styles ==========
@@ -120,11 +117,19 @@
 
     function addStyles() {
         GM_addStyle(`
+           .disable-scrollbars::-webkit-scrollbar {
+                background: transparent; /* Chrome/Safari/Webkit */
+                width: 0px;
+            }
+            .disable-scrollbars {
+              scrollbar-width: none; /* Firefox */
+              -ms-overflow-style: none;  /* IE 10+ */
+            }
             .xedx-main-wrap {
                 display: flex;
                 flex-direction: row;
                 border: 1px solid red;
-            };
+            }
             .xedx-left {
                 overflow-y: auto;
                 border: 1px solid blue;
