@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -25,8 +25,14 @@
     // Can set this to 'false' to disable logging.
     debugLoggingEnabled = true;
 
+    // This option, if enabled, does not seem to work if you use
+    // Firefox - breaks everything.
+    // Update: does not work correctly anywhere! For now, do not change!
+    const hideScrollbars = false; //(navigator.userAgent.indexOf("Firefox") == -1);
+    //debug("Firefox detect: ", navigator.userAgent.indexOf("Firefox"), " hide: ", hideScrollbars);
+
     const sidebarHeightExtra = 0;
-    const leftContentMargin = "8px";
+    const leftContentMargin = hideScrollbars ? "8px" : "20px";
     const bottomMargin = "80px";
     const fakeDiv = $(`<div id="fake-div"></div>`);
     const fakeDiv2 = $(`<div id="fake-div2" style="height: ` + bottomMargin + `;"></div>`);
@@ -59,7 +65,7 @@
         // ========== Set main conatiner properties ==========
         $(container).css("display", "flex");
         $(container).css("flex-direction", "row");
-        $(container).css("overflow", "hidden");
+        if (hideScrollbars) $(container).css("overflow", "hidden");
         debug("container: ", $(container));
 
         // ========== Set sidebar style ==========
@@ -74,7 +80,7 @@
         $(sidebar).css("overflow-y", "auto");
         $(sidebar).css("top", "0px");
         $(sidebar).css("position", "sticky");
-        $(sidebar).css("padding", "0 1em 1em 0");
+        if (hideScrollbars) $(sidebar).css("padding", "0 1em 1em 0");
         debug("sidebar: ", sidebar);
 
         // ========== Set content (right hand side) styles ==========
