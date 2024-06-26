@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -22,9 +22,20 @@
 (function() {
     'use strict';
 
+    // Can set this to 'false' to disable logging.
+    debugLoggingEnabled = true;
+
     const sidebarHeightExtra = 0;
-    const leftContentMargin = "20px";
-    const fakeDiv = $(`<div id="fake-div" class="xedx-fake"><!-- fake div, forces correct spacing --></div>`);
+    const leftContentMargin = "8px";
+    const bottomMargin = "80px";
+    const fakeDiv = $(`<div id="fake-div"></div>`);
+    const fakeDiv2 = $(`<div id="fake-div2" style="height: ` + bottomMargin + `;"></div>`);
+    const fakeDiv3 = $(`<div id="fake-div3" style="height: ` + bottomMargin + `;"></div>`);
+
+    // Make sure the sidebar resizes correctly when the window size changes
+    $( window ).resize(function() {
+        adjustSidebarHeight();
+    });
 
     var retries = 0;
     function handlePageLoad() {
@@ -32,15 +43,15 @@
         let sidebar = $("#sidebarroot");
         let content = $("#mainContainer > .content-wrapper");
 
-        log("container: ", $(container));
-        log("sidebar: ", sidebar);
-        log("content: ", $(content));
+        debug("container: ", $(container));
+        debug("sidebar: ", sidebar);
+        debug("content: ", $(content));
 
         // If we don't have a sidebar, or mainContainer, this is all pointless.
         // Retry a few times in case we are here too early, which shouldn't happen.
         if(!$(container).length || !$(sidebar).length) {
             retries++;
-            log("missing divs: ", $(container).length, " : ", $(sidebar).length);
+            debug("missing divs: ", $(container).length, " : ", $(sidebar).length);
             if (retries < 3) return setTimeout(handlePageLoad, 250);
             return;
         }
@@ -48,27 +59,28 @@
         // ========== Set main conatiner properties ==========
         $(container).css("display", "flex");
         $(container).css("flex-direction", "row");
-        log("container: ", $(container));
+        $(container).css("overflow", "hidden");
+        debug("container: ", $(container));
 
         // ========== Set sidebar style ==========
         let sidebarWidth = $(sidebar).width();
-        log("sidebar width: ", sidebarWidth);
+        debug("sidebar width: ", sidebarWidth);
 
         let winHeight = $(window).height();
-        log("winHeight: ", winHeight);
+        debug("winHeight: ", winHeight);
 
         $(sidebar).css("width", sidebarWidth);
         $(sidebar).css("height", winHeight + sidebarHeightExtra);
         $(sidebar).css("overflow-y", "auto");
         $(sidebar).css("top", "0px");
         $(sidebar).css("position", "sticky");
-
-        log("sidebar: ", sidebar);
+        $(sidebar).css("padding", "0 1em 1em 0");
+        debug("sidebar: ", sidebar);
 
         // ========== Set content (right hand side) styles ==========
         if ($(content).length) {
             let contentWidth = $(content).width();
-            log("content width: ", contentWidth);
+            debug("content width: ", contentWidth);
 
             $(content).css("margin-bottom", "50px");
             $(content).css("margin", "0 auto");
@@ -77,15 +89,27 @@
             $(content).css("bottom", "100px");
             $(content).css("left", leftContentMargin);
             $(content).css("width", contentWidth);    // subtract 20 for artificial left margin
-            log("content: ", $(content));
+            debug("content: ", $(content));
 
+            // Bottom margin, "bottom" doesn't seem to work...
+            $(content).append(fakeDiv2);
+            $(sidebar).append(fakeDiv3);
+
+            // Spacing between DIV's
             $(content).after(fakeDiv);
             $("#fake-div").css("width", leftContentMargin);
         }
     }
 
+    function adjustSidebarHeight() {
+        debug("Window viewport size change detected!");
+        let winHeight = $(window).height();
+        debug("winHeight: ", winHeight);
+        $("#sidebarroot").css("height", winHeight + sidebarHeightExtra);
+    }
+
     function ignoredPage() {
-        if (window.location.href.indexOf("attack") > -1) return true;
+        if (window.location.search.indexOf("attack") > -1) return true;
     }
 
     function addStyles() {
@@ -121,10 +145,6 @@
 
     addStyles();
     handlePageLoad();
-
-    //callOnContentLoaded(handlePageLoad);
-
-
 })();
 
 
