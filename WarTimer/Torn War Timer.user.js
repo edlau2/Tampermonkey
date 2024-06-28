@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -27,7 +27,7 @@
     // 'Mode' of operation - tooltip, or click to toggle to local start time.
     const doToolTip = true;           // Display local start time as tool tip.
     const doDisplayStart = true;      // Toggle display type on right click, time until or local start time
-    const useLongDate = false;        // For display in window, use long or short format
+    const useLongDate = true;        // For display in window, use long or short format
 
     var retries = 0;
     const retryTime = 500;
@@ -100,7 +100,7 @@
 
     function addTimeDisplay() {
         if ($("#xtime").length) return;
-        $("#faction_war_list_id").on('contextmenu', handleTimeFormatChange);
+        $(timer).on('contextmenu', handleTimeFormatChange);
         GM_addStyle(".xnone {display: none !important; width: 0px !important;} .xblock {display: block !important; width: auto !important;}");
         GM_addStyle(".snone {display: none !important;} .sblock {display: inline-block !important;}");
         let timeSpan = '<span id="xtime" class="xnone">' + (useLongDate ? formattedDate : shortFormattedDate) + '</span>';
