@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   seintz.torn.wall-battlestats
-// @version     1.05
+// @version     1.06
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -727,6 +727,8 @@
         if (json.warDesc) members = json.warDesc.members;
         else if (json.userStatuses) members = json.userStatuses;
         else return;
+
+        if (!members) return;
 
         Object.keys(members).forEach((id) => {
           let status = members[id].status || members[id];
