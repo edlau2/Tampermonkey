@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -24,9 +24,20 @@
     // Enable for debug logging...
     debugLoggingEnabled = true;
 
+    // 'Mode' of operation - tooltip, or click to toggle to local start time.
+    const doToolTip = true;           // Display local start time as tool tip.
+    const doDisplayStart = true;      // Toggle display type on right click, time until or local start time
+    const useLongDate = false;        // For display in window, use long or short format
+
     var retries = 0;
     const retryTime = 500;
     const maxRetries = 5;
+
+    var formattedDate = "War starts on ";
+    var shortFormattedDate = '';
+    var warList;
+    var timer;
+    var timeSpans;
 
     function handleHashChange() {
         debug("hashChangeHandler: ", location.hash);
@@ -45,17 +56,17 @@
             return;
         }
 
-        let warList = $("#faction_war_list_id");
+        warList = $("#faction_war_list_id");
         debug("warList: ", $(warList));
 
         log("Looking for DIV, retries: ", retries, " found: ", $(warList).length);
         if ($(warList).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
 
-        let timer = $(warList).find("[class*='timer_']");
+        timer = $(warList).find("[class*='timer_']");
         debug("timer: ", $(timer));
         if ($(timer).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
 
-        let timeSpans = $(timer).find("span");
+        timeSpans = $(timer).find("span");
         debug("timespans: ", $(timeSpans));
         if ($(timeSpans).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
 
@@ -74,11 +85,44 @@
         startTime.setMinutes(startTime.getMinutes() + +min);
         startTime.setSeconds(startTime.getSeconds() + +sec);
 
-        let formattedDate = "War starts on " +
+        formattedDate += //"War starts on " +
             startTime.toLocaleString(undefined, {weekday: 'long'}) + ", at " +
             startTime.toLocaleString(undefined, {timeStyle: 'medium'});
+
+        shortFormattedDate = startTime.toLocaleString(undefined, {weekday: 'long'}) + ", " +
+            startTime.toLocaleString(undefined, {timeStyle: 'medium'});
+
         debug("start: ", formattedDate);
 
+        if (doToolTip) addToolTip();
+        if (doDisplayStart) addTimeDisplay();
+    }
+
+    function addTimeDisplay() {
+        if ($("#xtime").length) return;
+        $("#faction_war_list_id").on('contextmenu', handleTimeFormatChange);
+        GM_addStyle(".xnone {display: none !important; width: 0px !important;} .xblock {display: block !important; width: auto !important;}");
+        GM_addStyle(".snone {display: none !important;} .sblock {display: inline-block !important;}");
+        let timeSpan = '<span id="xtime" class="xnone">' + (useLongDate ? formattedDate : shortFormattedDate) + '</span>';
+        $(timer).append(timeSpan);
+    }
+
+    function handleTimeFormatChange() {
+        log("handleTimeFormatChange");
+        if ($("#xtime").hasClass("xnone")) {
+            log("Turning ON");
+            $(timeSpans).addClass("snone").removeClass("sblock");
+            $("#xtime").addClass("xblock").removeClass("xnone");
+        } else {
+            log("Turning OFF");
+            $(timeSpans).addClass("sblock").removeClass("snone");
+            $("#xtime").addClass("xnone").removeClass("xblock");
+        }
+        //log("xtime: ", $("#xtime"));
+        return false;
+    }
+
+    function addToolTip() {
         addToolTipStyle();
         displayToolTip2(timer, formattedDate);
     }
