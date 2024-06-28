@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -28,8 +28,14 @@
     const retryTime = 500;
     const maxRetries = 5;
 
+    function handleHashChange() {
+        debug("hashChangeHandler: ", location.hash);
+        retries = 0;
+        addLocalTime();
+    }
+
     function handlePageLoad() {
-        installHashChangeHandler(addLocalTime);
+        installHashChangeHandler(handleHashChange);
         addLocalTime();
     }
 
