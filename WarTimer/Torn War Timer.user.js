@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -30,8 +30,9 @@
     const useLongDate = true;        // For display in window, use long or short format
 
     var retries = 0;
+    var titleRetries = 0;
     const retryTime = 500;
-    const maxRetries = 5;
+    const maxRetries = 6;
 
     var formattedDate = "War starts on ";
     var shortFormattedDate = '';
@@ -42,10 +43,26 @@
     function handleHashChange() {
         debug("hashChangeHandler: ", location.hash);
         retries = 0;
+        titleRetries = 0;
         addLocalTime();
     }
 
     function handlePageLoad() {
+        if (titleRetries >= maxRetries) {
+            log("[handlePageLoad] max retries met!");
+            return false;
+        }
+
+        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10.red > span").text();
+        debug("titleBarText: ", titleBarText);
+        if (!titleBarText) {titleRetries++; return setTimeout(handlePageLoad, retryTime);}
+
+        titleRetries = 0;
+        if (titleBarText && titleBarText.indexOf("IS IN A WAR") > 0) {
+            log("Already warring, ignoring...");
+            return;
+        }
+
         installHashChangeHandler(handleHashChange);
         addLocalTime();
     }
@@ -59,7 +76,7 @@
         warList = $("#faction_war_list_id");
         debug("warList: ", $(warList));
 
-        log("Looking for DIV, retries: ", retries, " found: ", $(warList).length);
+        debug("Looking for DIV, retries: ", retries, " found: ", $(warList).length);
         if ($(warList).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
 
         timer = $(warList).find("[class*='timer_']");
@@ -108,17 +125,14 @@
     }
 
     function handleTimeFormatChange() {
-        log("handleTimeFormatChange");
+        debug("handleTimeFormatChange");
         if ($("#xtime").hasClass("xnone")) {
-            log("Turning ON");
             $(timeSpans).addClass("snone").removeClass("sblock");
             $("#xtime").addClass("xblock").removeClass("xnone");
         } else {
-            log("Turning OFF");
             $(timeSpans).addClass("sblock").removeClass("snone");
             $("#xtime").addClass("xnone").removeClass("xblock");
         }
-        //log("xtime: ", $("#xtime"));
         return false;
     }
 
