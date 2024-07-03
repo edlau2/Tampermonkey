@@ -38,7 +38,7 @@
     //usual yes/no "are you sure?" question. If 'doClickYes' is
     // true, it will click it. It only does one auto bust per
     // page load.
-    var   autoBustOn = true;
+    var   autoBustOn = false;
     const doClickYes = true;
     const bustMin = 90;
 
