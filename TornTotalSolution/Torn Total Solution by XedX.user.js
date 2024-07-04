@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.26
+// @version      4.27
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -7272,22 +7272,46 @@
     const opts_enabledScripts = {};
     var general_intervalTimer = null;
     var general_configWindow = null;
+    var configMaxRetries = 40;
+    var configRetries = 0;
 
     // Adds the "Powered by: XedX" menu link TBD: update tool tip style.
+    // On mobile, the div we append to may not exist...can put after this node, on settings menu
+    const settingsSel = "#topHeaderBanner > div.header-wrapper-top > div > div.header-navigation.right > div > ul > li.avatar > ul.settings-menu";
+
     function installConfigMenu() {
+        let usingMobileMenu  = false;
         if ($('#xedx-opts')[0]) return;
 
         GM_addStyle(`
             .xedx-tts-span {line-height: 12px; margin-left: 10px;}
             .powered-by {color: var(--default-blue-color); text-decoration: none; cursor: pointer;}
+            .xedx-mobile {color: #74c0fc !important; line-height: 33px !important; cursor: pointer; margin-left: 25px;}
             `);
 
         let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
-        //let serverDiv = $("div.footer-menu___uESqK.left___pFXym");
+        let mobileCfgSpan = '<div class="xedx-tts-span"><a class="xedx-mobile" id="xedx-opts">TTS Options</a></div>';
         let serverDiv = document.querySelectorAll('[class^="footer-menu"]')[0];
-        if (!serverDiv) return setTimeout(installConfigMenu, 100);
 
-        $(serverDiv).append(cfgSpan);
+        if (!serverDiv && isMobile) {
+            debug("Trying for settings menu for mobile...");
+            serverDiv = document.querySelector(settingsSel);
+            if (serverDiv) usingMobileMenu = true;
+            debug("Settings div: ", serverDiv);
+        }
+
+        if (!serverDiv || serverDiv.length == 0) {
+            if (configRetries++ > configMaxRetries) {
+                log("Unable to add config link, footer div not found!");
+                configRetries = 0;
+                return;
+            }
+            debug("Didn't find settings div, retrying...");
+            return setTimeout(installConfigMenu, 100);
+        }
+        configRetries = 0;
+
+        $(serverDiv).append(usingMobileMenu ? mobileCfgSpan : cfgSpan);
         $("#xedx-opts").click(function() {
             log('[handleTtsOptionsClick]');
             general_configWindow = window.open(tornTotalSolutionCfgURL);
@@ -8232,6 +8256,11 @@
     logScriptStart();
     validateApiKey();
     versionCheck();
+
+    // See if we are running on a mobile device
+    log("Checking for mobile device...");
+    var isMobile = SmartPhone.isAny();
+    log("isMobile ", isMobile);
 
     // Align Torn to the left
     // Make an option at some point
