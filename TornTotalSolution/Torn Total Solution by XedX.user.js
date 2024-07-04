@@ -1,15 +1,14 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.24
+// @version      4.26
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
+// xxx-@run-at       document-start
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @local        file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/DrugStats/Torn-Drug-Stats-Div.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
@@ -124,6 +123,9 @@
     const genConfigPath = "/TornTotalSolution/TTS-Opts.html";
     const statsConfigPath = "/TornTotalSolution/StatTracker.html";
 
+    // These are the URLs for the framework HTML that is used to hold the
+    // dynamically created options pages, which save the option locally in
+    // script local storage. Nothing is ever saved at these URLs.
     const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
     const tornTotalSolutionCfgURL = "http://18.119.136.223:8080/TornTotalSolution/TTS-Opts.html";
 
@@ -463,7 +465,7 @@
                       'Latest Attacks (Previous 100)' +
                   '</div>' +
                   '<div class="bottom-round">' +
-                  '    <div class="cont-gray bottom-round" style="width: 386px; height: 179px; overflow: auto">' +
+                  '    <div class="cont-gray bottom-round" style="height: 179px; overflow: auto">' +
                           '<ul class="list-cont" id="latest-attacks-list">' +
                           '</ul>' +
                       '</div>' +
@@ -606,7 +608,7 @@
                   'Stat Tracker' +
               '</div>' +
               '<div class="bottom-round">' +
-              '    <div class="cont-gray bottom-round" style="width: 386px; height: auto; overflow: auto;">' +
+              '    <div class="cont-gray bottom-round" style="height: auto; overflow: auto;">' + // used to have width: 386px;
                       '<ul class="info-cont-wrap" id="stats-list" style="overflow-y: scroll; width: auto; max-height: 125px;">' +
                       '</ul>' +
                   '</div>' +
@@ -620,7 +622,7 @@
 
         function loadAwardLi() {
             return '<li tabindex="0" id="ID" role="row" aria-label="STAT_DESC: STAT_VAL">' +
-                '<span class="divider"  style="width: 180px;">' + //180px;">' +
+                '<span class="divider"  style="width: 46%;">' + // used to be 180px;">' +
                     '<span>STAT_DESC</span>' +
                 '</span>' +
                 '<span class="desc" style="width: auto;">STAT_VAL</span>' + // was 100px
@@ -844,10 +846,48 @@
     // Handlers for "Torn Drug Stats" (called at API call complete)
     //////////////////////////////////////////////////////////////////////
 
+    GM_addStyle(`.xdrugd {width: 55%;}`);
+    const xdrug_stats_div = `<div class="sortable-box t-blue-cont h" id="xedx-drugstats-ext-div">
+    <div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">
+    <div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>
+    <div class="move-wrap"><i class="accordion-header-move right"></i>
+    </div>Drug and Rehab Stats
+    </div><div class="bottom-round">
+    <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto">
+    <ul class="info-cont-wrap">
+    <li title="original"><span class="divider"><span>Cannabis Used</span></span>
+    <span id="xedx-val-span-cantaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Ecstasy Used</span></span>
+    <span id="xedx-val-span-exttaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Ketamine Used</span></span>
+    <span id="xedx-val-span-kettaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>LSD Used</span></span>
+    <span id="xedx-val-span-lsdtaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Opium Used</span></span>
+    <span id="xedx-val-span-opitaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Shrooms Used</span></span>
+    <span id="xedx-val-span-shrtaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Speed Used</span></span>
+    <span id="xedx-val-span-spetaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>PCP Used</span></span>
+    <span id="xedx-val-span-pcptaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider"><span>Xanax Used</span></span>
+    <span id="xedx-val-span-xantaken" class="desc xdrugd">0</span></li>
+    <li title="original"><span class="divider" xdrugd"><span>Vicodin Used</span></span>
+    <span id="xedx-val-span-victaken" class="desc xdrugd">0</span></li>
+    <li><span class="divider" xdrugd"><span>Total Drugs Used</span></span>
+    <span id="xedx-val-span-drugsused" class="desc xdrugd">0</span></li>
+    <li><span class="divider"><span>Overdoses</span></span>
+    <span id="xedx-val-span-overdosed" class="desc xdrugd">0</span></li>
+    <li><span class="divider"><span>Rehabs</span></span>
+    <span id="xedx-val-span-rehabs" class="desc xdrugd">127</span></li>
+    <li><span class="divider"><span>Rehab Costs</span></span>
+    <span id="xedx-val-span-rehabcost" class="desc xdrugd">0</span></li></ul></div></div></div>';`;
+
     function tornDrugStats() {
         log('[tornDrugStats]');
 
-        let extDiv = drug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
+        let extDiv = xdrug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
         let extDivId = 'xedx-drugstats-ext-div';
         let mainDiv = document.getElementById('column0');
 
@@ -1040,7 +1080,7 @@
                       'Jail and Bounty Stats' +
                   '</div>' +
                   '<div class="bottom-round">' +
-                      '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="width: 386px; height: 199px; overflow: auto">' +
+                      '<div id="xedx-jail-stats-content-div" class="cont-gray bottom-round" style="height: 199px; overflow: auto">' + // removed width: 386px;
                           '<ul class="info-cont-wrap">' +
                               '<li id="xedx-busts" title="original"><span class="divider" id="xedx-div-span-peoplebusted"><span>People Busted</span></span><span id="xedx-val-span-peoplebusted" class="desc">0</span></li>' +
                               '<li><span class="divider" id="xedx-div-span-failedbusts"><span>Failed Busts</span></span><span id="xedx-val-span-failedbusts" class="desc">0</span></li>' +
@@ -1059,6 +1099,7 @@
         }
 
         function populateJailDiv() {
+            log("jailstats populateJailDiv");
             let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent',
                                  'jailed','bountiescollected','bountiesplaced','totalbountyreward'];
             for (let i=0; i<jailStatArray.length; i++) {
@@ -1070,6 +1111,15 @@
                 if (!validPointer(stats[name])) {continue;}
                 if (!name.localeCompare('totalbountyreward') || !name.localeCompare('peopleboughtspent')) {
                     valSpan.innerText = '$' + numberWithCommas(stats[name]);
+                } else if (!name.localeCompare('peoplebusted')) {
+                    // Just a test, make this better...
+                    let numBusts = +stats[name];
+                    let n = numBusts;  // temp shorthand
+                    let numTohit = n < 250 ? 250 : n < 500 ? 500 : n < 1000 ? 1000 : n < 2000 ? 2000 : n < 2500 ? 2500 :
+                        n < 4000 ? 4000 : n < 6000 ? 6000 : n < 8000 ? 8000 : n < 10000 ? 10000 : -1;
+                    let numToGo = numTohit == -1 ? 0 : numTohit - numBusts;
+                    valSpan.innerText = stats[name] + " (need: " + numToGo + ")";
+                    log("peoplebusted: ", numBusts);
                 } else {
                     valSpan.innerText = stats[name];
                 }
@@ -1336,14 +1386,39 @@
         }
 
         function colorIcon(data) {
-            //const sc_svrRoot = " > div > a > span.svgIconWrap___YUyAq > svg";
-            //let icon = document.querySelector(data.svgLink + sc_svrRoot);
-
             let root = document.querySelector(data.svgLink);
             let icon1 = root.querySelectorAll('[class^="svgIconWrap"]')[0];
             let icon = icon1.querySelector("svg");
 
+            // 'stroke' now seems to now be over-ridden by a CSS attr on parent...
+            // Neaten this up later...
             if (icon) {
+                let parentElem = icon.parentElement;
+                //debug("[colorIcon] set stroke color to: ", data.color);
+                //debug("[colorIcon] parentElement: ", parentElem);
+                //debug("[colorIcon] JS class list: ", parentElem.classList);
+                //debug("[colorIcon] JS class list0: ", parentElem.classList[0]);
+
+
+                let hasClass = false;
+                let className = "";
+                let cList = parentElem.classList;
+
+                for (let c of cList) {
+                    //debug("[colorIcon] checking ", c);
+                    if (c && c.indexOf('defaultIcon') > -1) {
+                        hasClass = true;
+                        className = c;
+                    }
+                }
+
+                //debug("[colorIcon] hasClass: ", hasClass);
+                if (hasClass) {
+                    //debug("[colorIcon] has def icon class, elem: ", $(parentElem));
+                    $(parentElem).removeClass(className);
+                    //debug("[colorIcon] after, elem: ", $(parentElem));
+                }
+
                 icon.setAttribute('stroke', data.color);
                 icon.setAttribute('stroke-width', data.strokeWidth);
             }
@@ -1517,6 +1592,11 @@
             let selName = "#" + nodeName;
             let nodeId = nodeName + "-collapse";
 
+            if (document.querySelector("#" + nodeId)) {
+                log("collapse node exists, not adding again!");
+                return;
+            }
+
             debug("[custLinks - installCollapsibleCaret] nodeName: ", nodeName, " ID: ", nodeId, " sel: ", selName);
 
             const caretNode = `<span style="float:right;"><i id="` + nodeId + `" class="icon fas fa-caret-down xedx-caret"></i></span>`;
@@ -1688,6 +1768,11 @@
         let link21 = JSON.parse(GM_getValue("custlink-forgery",
                                             JSON.stringify({enabled:true, cust: false, desc: "Forgery",
                                             link: crimesPath + crimeULs[10], cat: "Crimes"})));
+
+        let link22 = JSON.parse(GM_getValue("custlink-bazaar", JSON.stringify({enabled:true, cust: false, desc : "My Bazaar",
+                                                                           link: "bazaar.php", cat: "Home"})));
+
+
         // I dont think that from here.....
 
         // Force an adjustment - move 'Log' to under 'Home'
@@ -1726,6 +1811,10 @@
         GM_setValue("custlink-disposal", JSON.stringify(link19));
         GM_setValue("custlink-cracking", JSON.stringify(link20));
         GM_setValue("custlink-forgery", JSON.stringify(link21));
+
+        GM_setValue("custlink-bazaar", JSON.stringify(link22));
+
+
 
         // Then fill the 'custLinksOpts' object
         updateCustLinksRows();
