@@ -882,7 +882,7 @@
     <li><span class="divider"><span>Rehabs</span></span>
     <span id="xedx-val-span-rehabs" class="desc xdrugd">127</span></li>
     <li><span class="divider"><span>Rehab Costs</span></span>
-    <span id="xedx-val-span-rehabcost" class="desc xdrugd">0</span></li></ul></div></div></div>';`;
+    <span id="xedx-val-span-rehabcost" class="desc xdrugd">0</span></li></ul></div></div></div>`;
 
     function tornDrugStats() {
         log('[tornDrugStats]');
