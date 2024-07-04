@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.27
+// @version      4.28
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -847,6 +847,7 @@
     //////////////////////////////////////////////////////////////////////
 
     GM_addStyle(`.xdrugd {width: 55%;}`);
+
     const xdrug_stats_div = `<div class="sortable-box t-blue-cont h" id="xedx-drugstats-ext-div">
     <div id="xedx-header_div" class="title main-title title-black active top-round" role="heading" aria-level="5">
     <div class="arrow-wrap"><i class="accordion-header-arrow right"></i></div>
@@ -855,38 +856,36 @@
     </div><div class="bottom-round">
     <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto">
     <ul class="info-cont-wrap">
-    <li title="original"><span class="divider"><span>Cannabis Used</span></span>
+    <li title="original"><span id="xedx-div-span-cantaken" class="divider"><span>Cannabis Used</span></span>
     <span id="xedx-val-span-cantaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Ecstasy Used</span></span>
+    <li title="original"><span id="xedx-div-span-exttaken" class="divider"><span>Ecstasy Used</span></span>
     <span id="xedx-val-span-exttaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Ketamine Used</span></span>
+    <li title="original"><span id="xedx-div-span-kettaken" class="divider"><span>Ketamine Used</span></span>
     <span id="xedx-val-span-kettaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>LSD Used</span></span>
+    <li title="original"><span id="xedx-div-span-lsdtaken" class="divider"><span>LSD Used</span></span>
     <span id="xedx-val-span-lsdtaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Opium Used</span></span>
+    <li title="original"><span id="xedx-div-span-opitaken" class="divider"><span>Opium Used</span></span>
     <span id="xedx-val-span-opitaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Shrooms Used</span></span>
+    <li title="original"><span id="xedx-div-span-shrtaken" class="divider"><span>Shrooms Used</span></span>
     <span id="xedx-val-span-shrtaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Speed Used</span></span>
+    <li title="original"><span id="xedx-div-span-spetaken" class="divider"><span>Speed Used</span></span>
     <span id="xedx-val-span-spetaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>PCP Used</span></span>
+    <li title="original"><span id="xedx-div-span-pcptaken" class="divider"><span>PCP Used</span></span>
     <span id="xedx-val-span-pcptaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider"><span>Xanax Used</span></span>
+    <li title="original"><span id="xedx-div-span-xantaken" class="divider"><span>Xanax Used</span></span>
     <span id="xedx-val-span-xantaken" class="desc xdrugd">0</span></li>
-    <li title="original"><span class="divider" xdrugd"><span>Vicodin Used</span></span>
+    <li title="original"><span id="xedx-div-span-victaken" class="divider"><span>Vicodin Used</span></span>
     <span id="xedx-val-span-victaken" class="desc xdrugd">0</span></li>
-    <li><span class="divider" xdrugd"><span>Total Drugs Used</span></span>
+    <li><span id="xedx-div-span-drugsused" class="divider"><span>Total Drugs Used</span></span>
     <span id="xedx-val-span-drugsused" class="desc xdrugd">0</span></li>
-    <li><span class="divider"><span>Overdoses</span></span>
+    <li><span id="xedx-div-span-overdosed" class="divider"><span>Overdoses</span></span>
     <span id="xedx-val-span-overdosed" class="desc xdrugd">0</span></li>
-    <li><span class="divider"><span>Rehabs</span></span>
+    <li><span id="xedx-div-span-rehabs" class="divider"><span>Rehabs</span></span>
     <span id="xedx-val-span-rehabs" class="desc xdrugd">127</span></li>
-    <li><span class="divider"><span>Rehab Costs</span></span>
+    <li><span id="xedx-div-span-rehabcost" class="divider"><span>Rehab Costs</span></span>
     <span id="xedx-val-span-rehabcost" class="desc xdrugd">0</span></li></ul></div></div></div>`;
 
     function tornDrugStats() {
-        log('[tornDrugStats]');
-
         let extDiv = xdrug_stats_div; // Pulled from the include, 'Torn-Drug-Stats-Div.js' Move to here!!!
         let extDivId = 'xedx-drugstats-ext-div';
         let mainDiv = document.getElementById('column0');
@@ -896,7 +895,6 @@
             if (!isIndexPage()) reject('[tornDrugStats] wrong page!');
             if (!validPointer(mainDiv)) return reject('[tornDrugStats] unable to locate main DIV! Consider launching later.');
             $(mainDiv).append(extDiv); // could be $('#column0') ???
-
             installDrugStats(personalStats);
 
             resolve('tornDrugStats complete!');
@@ -904,7 +902,7 @@
 
         function installDrugStats(stats) {
             let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
-                              'opitaken', 'opitaken', 'shrtaken', 'spetaken',
+                              'opitaken', 'shrtaken', 'spetaken',
                               'pcptaken', 'xantaken', 'victaken', 'drugsused',
                               'overdosed', 'rehabs', 'rehabcost'];
 
@@ -944,7 +942,8 @@
         }
 
         function buildUseString(item) {
-            let useDiv = document.getElementById('xedx-val-span-' + item);
+            let selector = 'xedx-val-span-' + item;
+            let useDiv = document.getElementById(selector);
             let useText = useDiv.innerText.replace(/,/g, "");
             let pctText = useText/50 * 100;
             if (Number(pctText) >= 100) {
@@ -953,7 +952,9 @@
                 pctText = '<B><font color=\'red\'>' + pctText + '%</font></B>';
             }
 
-            let divSpan = document.getElementById('xedx-div-span-' + item);
+            let spanSelect = 'xedx-div-span-' + item;
+            let divSpan = document.getElementById(spanSelect);
+
             let text = '<B>' + divSpan.innerText + ': </B>Honor Bar Available' + CRLF;
             let effectText, cdText, sideEffectText, odChance, addiction;
 
@@ -1042,8 +1043,10 @@
                 default:
                     return;
             }
+
             text = text + CRLF + 'Effects: ' + effectText + CRLF + cdText + CRLF + 'Side Effects: ' + sideEffectText +
                 CRLF + 'Chance of OD: ' + odChance + CRLF + 'Addiction effect: ' + addiction;
+
             displayToolTip(useDiv.parentNode, text);
         }
 
@@ -3653,6 +3656,8 @@
         }
 
         // These are all functions to help reduce clutter in here, can use code folding
+        // Doesn't look right on mobile, maybe because width is 782px ???
+        // try matching to $(.equipped-items-wrap) ? Or use flex or something toexpand into table?
         function newTopDiv() {
             return '<div class="sortable-box t-blue-cont h" id="xedx-we-spreadsheet-div">' +
                          '<div class="title main-title title-black top-round active box" role="table" aria-level="5" id="xedx-we-spreadsheet-hdr-div">' +
@@ -3664,7 +3669,7 @@
                              '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-fh-spreadsheet-body">' +
                                  '<div class="cont-gray" style="height: auto;" id="xedx-fh-spreadsheet-cont">' +
                                      // Finishing hits table
-                                     '<table id="xedx-fh-spreadsheet-table" style="width: 782px;">' +
+                                     '<table id="xedx-fh-spreadsheet-table" style="width: 782px;">' +    // style="width: 782px; (auto didn't work)
                                          '<thead><tr>' +
                                              '<th class="xthx" id="xedx-fh-hdr" colspan="4" scope="colgroup">Finishing Hits</th>' +
                                          '</tr></thead>' +
@@ -3682,7 +3687,7 @@
                              '<div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-we-spreadsheet-body">' +
                                  '<div class="cont-gray" style="height: auto;" id="xedx-we-spreadsheet-cont">' +
                                      // Weapon Experience table
-                                     '<table id="xedx-we-spreadsheet-table" style="width: 782px;">' +
+                                     '<table id="xedx-we-spreadsheet-table" style="width: 782px;">' +    // style="width: 782px;
                                          //'<thead><tr>' +
                                          //    '<th class="xthx" colspan="4" scope="colgroup">Weapon Experience</th>' +
                                          //'</tr></thead>' +
