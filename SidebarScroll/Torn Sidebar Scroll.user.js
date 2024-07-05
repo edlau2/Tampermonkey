@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -32,9 +32,9 @@
     const sidebarHeightExtra = 0;
     const leftContentMargin = "20px";
     const bottomMargin = "80px";
-    const fakeDiv = $(`<div id="fake-div"></div>`);
-    const fakeDiv2 = $(`<div id="fake-div2" style="height: ` + bottomMargin + `;"></div>`);
-    const fakeDiv3 = $(`<div id="fake-div3" style="height: ` + bottomMargin + `;"></div>`);
+    const fakeDiv = $(`<div id="sidebar-scroll-fake-div"></div>`);
+    const fakeDiv2 = $(`<div id="sidebar-scroll-fake-div2" style="height: ` + bottomMargin + `;"></div>`);
+    const fakeDiv3 = $(`<div id="sidebar-scroll-fake-div3" style="height: ` + bottomMargin + `;"></div>`);
 
     // Make sure the sidebar resizes correctly when the window size changes
     $( window ).resize(function() {
@@ -100,7 +100,7 @@
 
             // Spacing between DIV's
             $(content).after(fakeDiv);
-            $("#fake-div").css("width", leftContentMargin);
+            $("#sidebar-scroll-fake-div").css("width", leftContentMargin);
         }
     }
 
