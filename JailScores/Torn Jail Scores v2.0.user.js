@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -37,21 +37,21 @@
     // whether TT 'quick bust' is on, it will prompt with the
     //usual yes/no "are you sure?" question. If 'doClickYes' is
     // true, it will click it. It only does one auto bust per
-    // page load.
+    // page load/fast reload.
+    //
+    // Right-clicking the title bar enables it, and turns the title green.
     var   autoBustOn = false;
     const doClickYes = true;
     const bustMin = 90;
 
-    // This doesn't add the minimal UI - the 'save log', 'hide/show'
-    // button (which will hide the un-needed UI pieces unil needed),
-    // and 'fast reload' buttons. The 'record stats' is mostly a dev
-    // tool, it profiles (records the times) to do certain things, like
-    // load/reload a page.
+    // "uiless", if true, doesn't add the minimal UI - the 'save log',
+    // 'hide/show' button (which will hide the un-needed UI pieces
+    // unil needed), and 'fast reload' buttons.
+    // The 'record stats' is mostly a dev tool, it profiles (records
+    // the times and displays in the debug console) to do certain things,
+    // like load/reload a page.
     const uiless = false;
     const recordStats = true;
-
-    // Doesn't affect load time the way it works now.
-    const SuppressImageContent = false;
 
     debugLoggingEnabled = false;
     loggingEnabled = true;
@@ -281,8 +281,8 @@
                         '<span class="title bold"> Score <span>:</span></span>' + scoreStr + '</span>';
             }
 
-            log("Wrapper: ", $(wrapper));
-            log("SR:", maxSR);
+            debug("Wrapper: ", $(wrapper));
+            debug("SR:", maxSR);
 
             if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
@@ -445,24 +445,28 @@
 
         // This should be last log entry on initial load-
         // page complete.
-        log("startAddJailScores took ", elapsed(startAddJailScores), " secs");
-        log("Sort complete, took ", elapsed(sortStart), " secs");
-        log("Script load time: ", elapsed(ScriptStartTime), " secs");
 
-        // Save stats to get averages
-        if (recordStats) {
-            let totalLoads = GM_getValue("totalLoads", 0);
-            totalLoads = +totalLoads + 1;
-            GM_setValue("totalLoads", totalLoads);
+        // This is WRONG if doing reload!
+        if (!doingReload) {
+            log("startAddJailScores took ", elapsed(startAddJailScores), " secs");
+            log("Sort complete, took ", elapsed(sortStart), " secs");
+            log("Script load time: ", elapsed(ScriptStartTime), " secs");
 
-            let loadTime = GM_getValue("loadTime", 0);
-            loadTime = +loadTime + elapsed(ScriptStartTime);
-            GM_setValue("loadTime", loadTime);
+            // Save stats to get averages
+            if (recordStats) {
+                let totalLoads = GM_getValue("totalLoads", 0);
+                totalLoads = +totalLoads + 1;
+                GM_setValue("totalLoads", totalLoads);
 
-            let loadTimeAvg = loadTime / totalLoads;
-            GM_setValue("loadTimeAvg", loadTimeAvg);
+                let loadTime = GM_getValue("loadTime", 0);
+                loadTime = +loadTime + elapsed(ScriptStartTime);
+                GM_setValue("loadTime", loadTime);
 
-            log("totalLoads: ", totalLoads, " Average time: ", loadTimeAvg, " avg to bust: ", GM_getValue("yesnoAvg", -1));
+                let loadTimeAvg = loadTime / totalLoads;
+                GM_setValue("loadTimeAvg", loadTimeAvg);
+
+                log("totalLoads: ", totalLoads, " Average time: ", loadTimeAvg, " avg to bust: ", GM_getValue("yesnoAvg", -1));
+            }
         }
     }
 
@@ -637,7 +641,7 @@
                         debug('Added node: ', node);
                         if ($(node).hasClass('ajax-action')) {
                             let text = node.textContent;
-                            debug('Bust action: ', text);
+                            log('Bust action: ', text);
 
                             // Need to get info from parent node - level, name, time, etc...
                             let li = node.parentNode.parentNode;
@@ -651,6 +655,42 @@
                             addLogEntry(busteeData, 'BUSTEE');
 
                             if (text.toLowerCase().indexOf('you busted') > -1) {
+
+                                // Display how many busts done today...
+                                // To save a date: localStorage['key'] = ''+myDate.getTime();
+                                // To restore: var myDate = new Date(parseInt(localStorage['key'], 10));
+                                let dateOlderThanDay = false;
+                                let temp = GM_getValue("lastBust", undefined);
+                                let now = new Date();
+                                let lastBust;
+                                if (temp) {
+                                    lastBust = new Date(parseInt(temp, 10));
+                                    log("last bust: ", lastBust.toLocaleString());
+                                    if (!isToday(lastBust)) {
+                                        dateOlderThanDay = true;
+                                    }
+                                }
+
+                                GM_setValue("lastBust", ''+now.getTime());
+
+                                temp = GM_getValue("lastBust", undefined);
+                                lastBust = new Date(parseInt(temp, 10));
+                                log("Set lastBust to: ", lastBust.toLocaleString());
+
+                                let currBustsToday = 0;
+                                if (dateOlderThanDay) {
+                                    log("Set busts todat to 1");
+                                    currBustsToday = 1;
+                                } else {
+                                    log("cuBusts: ", GM_getValue("currBusts", 0));
+                                    currBustsToday = GM_getValue("currBusts", 0) + 1;
+                                    log("cuBustsToday: ", currBustsToday);
+                                }
+
+                                GM_setValue("currBusts", currBustsToday);
+                                setTodaysBusts(currBustsToday);
+
+
                                 // Not long enough... (the 2 second wait)
                                 // Instead, manually add a new bust w/0 time elapsed,
                                 // and recalc penalty. And re-call 'addJailStats'...
@@ -694,20 +734,49 @@
         if (observer) observer.disconnect();
     }
 
+    function isToday(date) {
+        const now = new Date();
+        const yearDate = date.getYear();
+        const monthDate = date.getMonth();
+        const dayDate = date.getDate();
+        const yearNow = now.getYear();
+        const monthNow = now.getMonth();
+        const dayNow = now.getDate();
+        log("isToday, date: ", date.toLocaleString());
+        let rc = false;
+        if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
+            rc = true;
+        }
+
+        log("result: ", rc);
+        return rc;
+    }
+
     function handleSaveButton() {
         // Build data to save here:
         //let saveData = {"perks": perks, 'level': userLvl};
 
+        log("handleSaveButton");
         const a = document.createElement("a");
+
+        log("Adding log entries: ", logEntries);
+
         a.href = URL.createObjectURL(new Blob([JSON.stringify(logEntries, null, 2)], {
             type: "text/plain"
           }));
+
+        log("href: ", a.href);
+
         a.setAttribute("download", "data.txt");
         document.body.appendChild(a);
+
+        log("a: ", a);
+
         a.click();
         document.body.removeChild(a);
     }
 
+    /*
     const saveBtnDiv = `<div class="btn-wrap silver xedx-box">
                             <div id="xedx-save-btn">
                                 <span class="btn"><input type="submit" class="torn-btn xedx-span" value="Save Log"></span>
@@ -718,23 +787,34 @@
             <div id="xd1" class="xshow xdwrap title-black border-round m-top10">
                 <span class="xspleft">XedX Jail Scores</span>
                     <span class="xr xedx-span btn">
-                    <input id="xedx-reload-btn" type="submit" class="torn-btn" value="Reload">
-                    <input id="xedx-save-btn" type="submit" class="torn-btn" value="Save Log">
+                        <input id="xedx-reload-btn" type="submit" class="torn-btn" value="Reload">
+                        <input id="xedx-save-btn" type="submit" class="torn-btn" value="Save Log">
                     </span>
+                    <span id="xedx-msg"></span>
             </div>
         `;
-
-    /*
-    const hideBtn = `
-            <div class="xshowi xbr xhbtn"><input id="xhide-btn" type="submit" class="torn-btn" value="Hide"></div>
-        `;
     */
+
+    //
+    // Current one in use !!!
+    //
+    const saveBtnDiv3 = `
+            <div id="xd1" class="xshow xdwrap title-black border-round m-top10">
+                <span class="xspleft">XedX Jail Scores</span>
+                <span id="busts-today" class="xml10"></span>
+                <span id="xedx-msg" class="xml10"></span>
+                <span class="xr xedx-span btn xfr">
+                    <input id="xedx-save-btn" type="submit" class="torn-btn xmr10" value="Save Log">
+                    <input id="xedx-reload-btn" type="submit" class="torn-btn xfr xmr10" value="Reload">
+                </span>
+            </div>
+        `;
 
     const hideBtn2= `<span id="xhide-btn-span" class="xhbtn">
                          <input id="xhide-btn" type="submit" class="torn-btn" value="Hide">
                      </span>`;
 
-    const origUI = false;
+    //const origUI = false;
     var mainUiBtnsInstalled = false;
     var hideBtnInstalled = false;
     var lastShowState = GM_getValue("lastShow", "show");
@@ -753,28 +833,67 @@
         }
 
         if ($("#xedx-save-btn").length) {
-            debug("Exit installUI, button exists.");
+            log("Exit installUI, button exists.");
             return;
         }
 
-        if (origUI) {
-            let parent = document.querySelector("#mainContainer > div.content-wrapper > div.msg-info-wrap > div > div > div > div");
-            $(parent).append(saveBtnDiv);
-        } else {
-            $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv2);
-        }
+        $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv3);
+
+        setTitleColor();
 
         if (lastShowState && forceShow) {
             $("#xd1").addClass("xhide");
         }
 
+        // When we roll over, maybe keep a daily record?
+        // such as date|busts|date|busts|date....etc. ?
+        let temp = GM_getValue("lastBust", undefined);
+        if (temp) {
+            let lastBust = new Date(parseInt(temp, 10));
+            if (!isToday(lastBust))
+                setTodaysBusts(0);
+            else
+                setTodaysBusts(GM_getValue("currBusts", 0));
+        } else {
+            setTodaysBusts(0);
+        }
+
         mainUiBtnsInstalled = true;
 
-        $("#xedx-save-btn2").on('click', handleSaveButton);
+        $("#xedx-save-btn").on('click', handleSaveButton);
         $("#xedx-reload-btn").on('click', reloadUserList);
+
+        // Add a right-click handler to the fake div, for misc custom stuff
+            $("#xd1").on('contextmenu', handleRightClick);
 
         debug("Exit installUI");
     }
+
+    function setTitleColor() {
+        if (autoBustOn)
+            $("#xd1 > .xspleft").addClass("xgr");
+        else
+            $("#xd1 > .xspleft").removeClass("xgr");
+    }
+
+    function handleRightClick() {
+        log("Handle right click");;
+
+        autoBustOn = !autoBustOn;
+
+        setTitleColor();
+
+        log("auto: ", autoBustOn);
+        return false;
+    }
+
+    function setTodaysBusts(numBusts) {
+        log("setTodaysBusts: ", numBusts);
+        let msg = "(Today: " + numBusts + ")";
+        log("msg: ", msg);
+        $("#busts-today").text(msg);
+        log("span: ", $("#busts-today"));
+     }
 
     function addHideButton() {
         log("addHideButton");
@@ -786,6 +905,29 @@
             else setTimeout(doShow, 10);
         }
         if ($("#xhide-btn").length) hideBtnInstalled = true;
+    }
+
+    const criminalList = ['miscreant', 'imp', 'hooligan', 'bad-asses', 'no-goodkin', 'malefactor',
+                          'vagabond', 'transgressor', 'black-hat', 'evil-doer', 'criminal',
+                          'malfeasant', 'sinner', 'wrong-doer', 'degenerate', 'reprobate',
+                          'rascal', 'hoodlum', 'delinquent', 'scallywag', 'scoundrel', 'ruffian',
+                          'outlaw', 'hooligan', 'heathen', 'liars and thief', 'ner-do-well',
+                          'ingrate', 'lawbreaker', 'culprit', 'felon', 'felonius sort',
+                          'nefarious type', 'fraudster', 'yardbird', 'infractor', 'offender',
+                          'perp', 'scumbag', 'vandal', 'ruffian', 'crook', 'felon', 'delinquent',
+                          'bruiser', 'mug', 'troublemaker', 'misguided youth', 'shyster'];
+
+    function getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+
+    function getCriminalName(playerCount) {
+        let idx = getRandomInt(0, criminalList.length - 1);
+        let name = criminalList[idx];
+        if (playerCount > 1) name = name + "s";
+        return name;
     }
 
     var doingReload = false;
@@ -814,6 +956,8 @@
 
             // Move to not inline!
             function (response) {
+                let playerCount = 0;
+                let displayMsg = false;
                 log("Handling reloadUserList response");
                 let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
                 let jsonObj = JSON.parse(response);
@@ -824,9 +968,10 @@
 
                     let players = jsonObj.data.players;
                     let player = players[0];
+                    playerCount = players.length;
 
-                    log("Players: ", players);
-                    log("Player[0]: ", players[0]);
+                    debug("Players: ", players);
+                    debug("Player[0]: ", players[0]);
 
                     for (let idx=0; idx < players.length; idx++) {
                         let innerHTML = buildPlayerLi(players[idx]);
@@ -841,14 +986,72 @@
                         lScoreOrder = GM_getValue('lScoreOrder', lScoreOrder);
                         handleTitleClick({target: {'id': savedSortId}});
                     }
+
+                    // Auto-bust. Can flag all the info-wraps with a class if maxSR > bust min....
+                    // or maybe the li, then find li > .bust...
+                    // 'wrapper'is info-wrap here...
+                    let bustable = $(targetUl).find(".xbust");
+                    log("bustable: ", $(bustable));
+
+                    if (DEV_MODE && autoBustOn && $(bustable).length) {
+                        // Just bust the first one...
+                        let wrapper = $(bustable)[0];
+                        let bustNode = $(wrapper).siblings(".bust")[0];
+                        log("Auto Bust! bustNode: ", $(bustNode));
+
+                        // I think this flag needs to be set here...
+                        // otherwise, we click everyone who matches!
+                        // Maybe reset if we click "yes"?
+                        //busted = true;
+                        $(bustNode).click();
+
+                        // Now need to click "yes" ....
+                        clickYesRetries = 0;
+                        findAndClickYes(bustNode);
+                    }
+
                 }
+
+                let et = elapsed(reloadStart);
                 log("reloadUserList took ", elapsed(reloadStart), " secs");
+
+                let msg = "Reload complete, took ";
+                if (+et == 0)
+                    msg += "less than 1 second.";
+                else
+                    msg += et + " second(s).";
+
+                msg += " Found " + playerCount + " " + getCriminalName(playerCount) + ".";
+
+                $("#xedx-msg").text(msg);
+                //setTimeout(clearMsg, 5000);
+
+                if (recordStats) {
+                    let totalFastReloads = GM_getValue("totalFastReloads", 0);
+                    totalFastReloads = +totalFastReloads + 1;
+                    GM_setValue("totalFastReloads", totalFastReloads);
+
+                    let fastReloadTime = GM_getValue("fastReloadTime", 0);
+                    fastReloadTime = +fastReloadTime + et;
+                    GM_setValue("fastReloadTime", fastReloadTime);
+
+                    let fastReloadTimeAvg = fastReloadTime / totalFastReloads;
+                    GM_setValue("fastReloadTimeAvg", fastReloadTimeAvg);
+
+                    log("totalFastReloads: ", totalFastReloads, " Average time: ", fastReloadTimeAvg);
+                }
+
                 doingReload = false;
+
+                // Do auto-bust here as well?
+
                 observerOn();
             }
         );
 
     }
+
+    function clearMsg() { $("#xedx-msg").text(""); };
 
     function buildPlayerLi(player) {
 
@@ -871,6 +1074,8 @@
         return innerHTML;
     }
 
+    const tenPct = function (x) { x - (x * .01); }
+
     function buildInfoWrap(player) {
         let minutes = parseJailTimeStr(player.time);
 
@@ -879,11 +1084,40 @@
         let sr = getSuccessRate(score, getSkill(), totalPenalty);
         let maxSR = getMaxSuccessRate(score, userLvl, totalPenalty);
 
-        log("buildInfoWrap, player: ", player);
-        log("buildInfoWrap, skill: ", getSkill(), " totalPenalty: ", totalPenalty, " userLvl: ", userLvl);
-        log("buildInfoWrap, minutes: ", minutes, " score: ", score, " sr: ", sr, " maxSR: ", maxSR);
+        debug("buildInfoWrap, player: ", player);
+        debug("buildInfoWrap, skill: ", getSkill(), " totalPenalty: ", totalPenalty, " userLvl: ", userLvl);
+        debug("buildInfoWrap, minutes: ", minutes, " score: ", score, " sr: ", sr, " maxSR: ", maxSR);
 
-        let infoWrap = '<span class="info-wrap">' +
+        // Flag, via a dummy class, if 'bustable'...
+        let classStr = "info-wrap";
+        let scoreAddlClass = "";
+
+        // Adjust by 10% of value
+        /*
+        let planB = tenPct(bustMin);
+        let planC = tenPct(planB);
+        */
+
+        // Or just use same inteval from 100?
+        let diff = 100 - bustMin;
+        let planB = bustMin - diff;
+        let planC = planB - diff;
+
+        log("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
+        log("*** is bustable? maxSR: ", maxSR, " bustMin: ", bustMin);
+
+        if (maxSR >= bustMin) {
+            classStr += " xbust";
+            scoreAddlClass = "xgr";
+        } else if (maxSR >= planB) { // 10% of initial min
+            scoreAddlClass = "xylw";
+        } else if (maxSR >= planC) { // 10% less than above
+            scoreAddlClass = "xog";
+        }
+
+        log("maxSR: ", maxSR, " addl class: ", scoreAddlClass);
+
+        let infoWrap = '<span class="' + classStr +'">' +
                 '<span class="time" time="' + minutes + '">' +                // For sorting
                     '<span class="title bold">TIME<span>:</span></span>' +
                          player.time +
@@ -893,7 +1127,7 @@
                      '</span>' +
 
                       // around line 250, to calc score
-                      '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+                      '<span class="score level ' + scoreAddlClass + '" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                              '<span class="title bold"> Score <span>:</span></span>' +
                               scoreStr + ' ' + maxSR + '%' +
                       '</span>' +
@@ -902,6 +1136,7 @@
                           player.jailreason +
                       '</span>' +
                   '</span>';
+
         return infoWrap;
     }
 
@@ -921,6 +1156,7 @@
         return bustDiv;
     }
 
+    // Unused !
     // Type: Function( String responseText, String textStatus, jqXHR jqXHR )
     function reloadUserListCB(responseText, textStatus, jqXHR) {
         log("reloadUserListCB");
@@ -934,7 +1170,7 @@
     var bannerHidden = false;
 
     function handleHideBtn() {
-        log("handleHideBtn, xd1: ", $("#xd1"), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
+        debug("handleHideBtn, xd1: ", $("#xd1"), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
         if (!mainUiBtnsInstalled) {
             log("Main UI not installed, installing now");
             installUI(true);
@@ -949,12 +1185,12 @@
     function doHide() {
         log("doHide");
         try {
-            if ($("#jailFilter").length == 0) setTimeout(doHide, 250);
+            if ($("#jailFilter").length == 0) return setTimeout(doHide, 250);
         } catch (e) {
             log("Exception, prob JQuery not yet loaded: ", e);
             let jf = document.querySelector("#jailFilte");
             log("jf: ", jf);
-            if (!jf) setTimeout(doHide, 250);    // Hopefully loaded next time through...
+            if (!jf) return setTimeout(doHide, 250);    // Hopefully loaded next time through...
         }
         $("#jailFilter").addClass("xhide").removeClass("xshow");
         $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").addClass("xhide").removeClass("xshow");
@@ -964,8 +1200,7 @@
     }
 
     function doShow() {
-        log("doShow");
-        if($("#jailFilter").length == 0) setTimeout(doShow, 250);
+        if($("#jailFilter").length == 0) return setTimeout(doShow, 250);
 
         $("#jailFilter").addClass("xshow").removeClass("xhide");
         $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").addClass("xshow").removeClass("xhide");
@@ -983,6 +1218,21 @@
             .xhbtn {
                 margin-left: 10px;
                 height: 22px;
+            }
+            .xml10 {
+                margin-left: 10px;
+            }
+            .xmr10 {
+                margin-right: 10px;
+            }
+            .xml20 {
+                margin-left: 20px;
+            }
+            .xmr20 {
+                margin-right: 20px;
+            }
+            .xfr {
+                float: right;
             }
             .xr {
                 margin-left: auto;
@@ -1013,6 +1263,15 @@
             .xshowi {
                 display: inline-block;
             }
+            .xgr {
+                color: green;
+            }
+            .xylw {
+                color: #e1c919;
+            }
+            .xog {
+                color: #F08C00;
+            }
         `);
     }
 
@@ -1028,11 +1287,6 @@
     logScriptStart();
     validateApiKey(DEV_MODE ? 'FULL' : 'LIMITED');
     versionCheck();
-
-    // New way
-    if (SuppressImageContent) document.addEventListener('DOMContentLoaded', suppressHonorBars);
-
-    //suppressHonorBars();
 
     // New way:
     callOnContentLoaded(contentLoadHandler);
