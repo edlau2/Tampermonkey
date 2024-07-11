@@ -40,9 +40,15 @@
     // page load/fast reload.
     //
     // Right-clicking the title bar enables it, and turns the title green.
+    //
+    // These are likely ILLEGAL! Do not enable!
     var   autoBustOn = false;
-    const doClickYes = true;
-    const bustMin = 90;
+    const doClickYes = true;         // Only applicable if above option is on
+    // End ILLEGAL
+
+    var bustMin = 90;             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
+    var quickBustBtn = true;      // Change 'reload' to a bust/reload or somesuch,TBD...
+    const dispOptsScreen = true;    // true to enable the experimental option bar
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
     // 'hide/show' button (which will hide the un-needed UI pieces
@@ -53,8 +59,13 @@
     const uiless = false;
     const recordStats = true;
 
+    // Console logging levels
     debugLoggingEnabled = false;
     loggingEnabled = true;
+
+    // DO NOT EDIT!
+    const MAIN_DIV_ID = "xd1";
+    const MAIN_DIV_SEL = "#" + MAIN_DIV_ID;
 
     // Little helpers for profiling. ex: let start = _start(); .... debug("elapsed: ", elapsed(start));
     const nowInSecs = ()=>{return Math.floor(Date.now() / 1000);}
@@ -284,7 +295,7 @@
             debug("Wrapper: ", $(wrapper));
             debug("SR:", maxSR);
 
-            if (DEV_MODE && autoBustOn) {
+            if (false && DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
                 log("bustNode: ", $(bustNode));
                 if (maxSR >= bustMin && !busted) { // just do once
@@ -776,36 +787,17 @@
         document.body.removeChild(a);
     }
 
-    /*
-    const saveBtnDiv = `<div class="btn-wrap silver xedx-box">
-                            <div id="xedx-save-btn">
-                                <span class="btn"><input type="submit" class="torn-btn xedx-span" value="Save Log"></span>
-                            </div>
-                        </div>`;
-
-    const saveBtnDiv2 = `
-            <div id="xd1" class="xshow xdwrap title-black border-round m-top10">
-                <span class="xspleft">XedX Jail Scores</span>
-                    <span class="xr xedx-span btn">
-                        <input id="xedx-reload-btn" type="submit" class="torn-btn" value="Reload">
-                        <input id="xedx-save-btn" type="submit" class="torn-btn" value="Save Log">
-                    </span>
-                    <span id="xedx-msg"></span>
-            </div>
-        `;
-    */
-
     //
     // Current one in use !!!
     //
     const saveBtnDiv3 = `
-            <div id="xd1" class="xshow xdwrap title-black border-round m-top10">
+            <div id="` + MAIN_DIV_ID + `" class="xdwrap xshow xnb title-black border-round m-top10">
                 <span class="xspleft">XedX Jail Scores</span>
                 <span id="busts-today" class="xml10"></span>
-                <span id="xedx-msg" class="xml10"></span>
+                <span id="xedx-msg" class="xml5"></span>
                 <span class="xr xedx-span btn xfr">
-                    <input id="xedx-save-btn" type="submit" class="torn-btn xmr10" value="Save Log">
-                    <input id="xedx-reload-btn" type="submit" class="torn-btn xfr xmr10" value="Reload">
+                    <input id="xedx-save-btn" type="submit" class="torn-btn xmt3 torn-btn-override xmr10" value="Save Log">
+                    <input id="xedx-reload-btn" type="submit" class="torn-btn xmt3 torn-btn-override" value="Reload">
                 </span>
             </div>
         `;
@@ -813,6 +805,8 @@
     const hideBtn2= `<span id="xhide-btn-span" class="xhbtn">
                          <input id="xhide-btn" type="submit" class="torn-btn" value="Hide">
                      </span>`;
+
+    const optsBtn = `<button id="x-opts-btn" class="xhlpbtn xmt5"><span class="copts">*</span></button>`;
 
     //const origUI = false;
     var mainUiBtnsInstalled = false;
@@ -842,7 +836,7 @@
         setTitleColor();
 
         if (lastShowState && forceShow) {
-            $("#xd1").addClass("xhide");
+            $(MAIN_DIV_SEL).addClass("xhide");
         }
 
         // When we roll over, maybe keep a daily record?
@@ -858,22 +852,125 @@
             setTodaysBusts(0);
         }
 
+        // Add the options panel
+        if (dispOptsScreen && $("#xedx-jail-opts").length == 0) {
+            // Suppress the spinner/scroll
+            /* Chrome, Safari, Edge, Opera */
+            GM_addStyle( `
+                input::-webkit-outer-spin-button,
+                    input::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }`);
+
+            /* Firefox */
+            GM_addStyle( `
+                input[type=number] {
+                    padding-left: 5px;
+                    -moz-appearance: textfield;
+                }`);
+
+            log("Adding options panel to: ", $(MAIN_DIV_SEL));
+            let optsDiv = getOptionsDiv();
+            $(MAIN_DIV_SEL).after(optsDiv);
+            log("opts panel: ", $("#xedx-jail-opts"));
+
+            $("#xedx-jail-opts").css("height", optsDivHeight);
+            $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
+            $("#bust-limit").val(bustMin);
+            $(MAIN_DIV_SEL).prepend(optsBtn);
+
+            // Click handlers
+            if (!$("#x-opts-btn").hasClass("xtemp")) {
+                $("#x-opts-btn").addClass("xtemp");
+                $("#x-opts-btn").on('click', handleOptsBtn);
+                $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
+                log("#x-opts-btn added");
+            }
+
+            // Save options handler
+        }
+
         mainUiBtnsInstalled = true;
 
         $("#xedx-save-btn").on('click', handleSaveButton);
         $("#xedx-reload-btn").on('click', reloadUserList);
 
         // Add a right-click handler to the fake div, for misc custom stuff
-            $("#xd1").on('contextmenu', handleRightClick);
+            $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
 
         debug("Exit installUI");
     }
 
+    // ========== Options button and panel handlers ==========
+    function handleSaveOptsBtn() {
+        bustMin = $("#bust-limit").val();
+        quickBustBtn = $("#quick-bust-btn").is(":checked");
+
+        log("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn);
+    }
+
+    var inAnimation = false;
+    function optsAnimate(size) {
+        log("optsAnimate, inAnimation: ", inAnimation, " size: ", size);
+        inAnimation = true;
+
+        if (size == 0) {
+            $(MAIN_DIV_SEL).removeClass("top-rouond").addClass("border-round");
+        } else {
+            $(MAIN_DIV_SEL).removeClass("border-rouond").addClass("top-round");
+        }
+        $( "#xedx-jail-opts" ).animate({
+            height: size,
+        }, 1500, function() {
+            optsHideShow();
+            inAnimation = false;
+        });
+    }
+
+    function optsHideShow() {
+        let dataval = $("#xedx-jail-opts").attr("data-val");
+        $("#xedx-jail-opts").attr("data-val", "");
+        log("optsHideShow, dataval: ", dataval);
+        if (dataval == "none") return;
+
+        // Check for animate-specific data-val first
+        if (dataval == "hide") {
+            $("#xedx-jail-opts").removeClass("xshow").addClass("xhide");
+            return;
+        }
+        if (dataval == "show") {
+            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
+            return;
+        }
+
+        if ($("#xedx-jail-opts").hasClass("xshow")) {
+            $("#xedx-jail-opts").removeClass("xshow").addClass("xhide");
+        } else {
+            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
+        }
+    }
+
+    function handleOptsBtn() {
+        log("handleOptsBtn, animating: ", inAnimation);
+        if (inAnimation) return;
+
+        if ($("#xedx-jail-opts").hasClass("xshow")) {
+            $("#xedx-jail-opts").attr("data-val", "hide");
+            optsAnimate(0);
+        } else {
+            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
+            $("#xedx-jail-opts").attr("data-val", "none");
+            optsAnimate(optsDivHeight);
+        }
+    }
+    // ========== End Options button and panel handlers ==========
+
     function setTitleColor() {
         if (autoBustOn)
-            $("#xd1 > .xspleft").addClass("xgr");
+            $(MAIN_DIV_SEL + " > .xspleft").addClass("xgr");
         else
-            $("#xd1 > .xspleft").removeClass("xgr");
+            $(MAIN_DIV_SEL +" > .xspleft").removeClass("xgr");
     }
 
     function handleRightClick() {
@@ -915,7 +1012,8 @@
                           'ingrate', 'lawbreaker', 'culprit', 'felon', 'felonius sort',
                           'nefarious type', 'fraudster', 'yardbird', 'infractor', 'offender',
                           'perp', 'scumbag', 'vandal', 'ruffian', 'crook', 'felon', 'delinquent',
-                          'bruiser', 'mug', 'troublemaker', 'misguided youth', 'shyster'];
+                          'bruiser', 'mug', 'troublemaker', 'misguided youth', 'shyster',
+                          'scofflaw', 'rapscallion'];
 
     function getRandomInt(min, max) {
         min = Math.ceil(min);
@@ -1017,11 +1115,11 @@
 
                 let msg = "Reload complete, took ";
                 if (+et == 0)
-                    msg += "less than 1 second.";
+                    msg += "under 1 sec.";
                 else
-                    msg += et + " second(s).";
+                    msg += et + " secs.";
 
-                msg += " Found " + playerCount + " " + getCriminalName(playerCount) + ".";
+                msg += " Got " + playerCount + " " + getCriminalName(playerCount) + ".";
 
                 $("#xedx-msg").text(msg);
                 //setTimeout(clearMsg, 5000);
@@ -1168,9 +1266,8 @@
     }
 
     var bannerHidden = false;
-
     function handleHideBtn() {
-        debug("handleHideBtn, xd1: ", $("#xd1"), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
+        debug("handleHideBtn, ", MAIN_DIV_ID, ": ", $(MAIN_DIV_SEL), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
         if (!mainUiBtnsInstalled) {
             log("Main UI not installed, installing now");
             installUI(true);
@@ -1178,8 +1275,8 @@
             return;
         }
 
-        if ($("#xd1").hasClass("xshow")) doHide();
-        else if ($("#xd1").hasClass("xhide")) doShow();
+        if ($(MAIN_DIV_SEL).hasClass("xshow")) doHide();
+        else if ($(MAIN_DIV_SEL).hasClass("xhide")) doShow();
     }
 
     function doHide() {
@@ -1194,7 +1291,7 @@
         }
         $("#jailFilter").addClass("xhide").removeClass("xshow");
         $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").addClass("xhide").removeClass("xshow");
-        $("#xd1").addClass("xhide").removeClass("xshow");
+        $(MAIN_DIV_SEL).addClass("xhide").removeClass("xshow");
         $("#xhide-btn").prop('value', 'Show');
         GM_setValue("lastShow", "hide");
     }
@@ -1204,20 +1301,71 @@
 
         $("#jailFilter").addClass("xshow").removeClass("xhide");
         $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").addClass("xshow").removeClass("xhide");
-        $("#xd1").addClass("xshow").removeClass("xhide");
+        $(MAIN_DIV_SEL).addClass("xshow").removeClass("xhide");
         $("#xhide-btn").prop('value', 'Hide');
         GM_setValue("lastShow", "show");
     }
 
+    var optsDivHeight = 35;    // 30 per inner div
+    function getOptionsDiv() {
+        let optsDiv = `
+            <div id="xedx-jail-opts"  class="title-black xnb hospital-dark bottom-round xhide" role="heading" aria-level="5">
+            <div>
+                 <label for="limit">Lower bust limit, %:</label>
+                 <input type="number" id="bust-limit" class="xlimit" name="limit" min="0" max="100">
+                 <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
+                     <span class="xmr20">Quick Bust button</span>
+                 <span style="width: 68px; max-width: 68px; min-width: 68px;">
+                     <input id="xedx-save-opt-btn" type="submit" class="xopt-btn torn-btn xmt3 torn-btn-override" value="Apply">
+                 </span>
+             </div>
+             </div>
+             `;
+
+        return optsDiv;
+    }
+
     function addStyles() {
         GM_addStyle(`
+            .xod {
+                min-width: 784px;
+            }
+            .xopt-btn {
+                width: 68px;
+                height: 22px;
+                margin-top: 3px;
+            }
+            .xlimit {
+               height: 20px;
+               width: 26px;
+               border: 1px solid black;
+               border-radius: 2px;
+               margin-top: 5px;
+            }
+            .torn-btn-override {
+                border: 2px solid transparent !important;
+                height: 22px !important;
+                line-height: 22px !important;
+            }
+            .xedx-cb-opts {
+                display: inline-block;
+                vertical-align: top;
+                margin-top: 10px;
+            }
             .xdwrap {
                 display: flex;
                 flex-direction: row;
+                height: 34px !important;
+            }
+            .xnb:before {
+                content: none !important;
             }
             .xhbtn {
                 margin-left: 10px;
                 height: 22px;
+            }
+            .xml5 {
+                margin-left: 5px;
             }
             .xml10 {
                 margin-left: 10px;
@@ -1230,6 +1378,15 @@
             }
             .xmr20 {
                 margin-right: 20px;
+            }
+            .xmt3 {
+                margin-top: 3px;
+            }
+            .xmt5 {
+                margin-top: 5px;
+            }
+            .xmt10 {
+                margin-top: 10px;
             }
             .xfr {
                 float: right;
@@ -1272,6 +1429,28 @@
             .xog {
                 color: #F08C00;
             }
+            .xedx-torn-btn {
+                height: 34px;
+                line-height: 34px;
+                font-family: "Fjalla One", Arial, serif;
+                font-size: 14px;
+                font-weight: normal;
+                text-align: center;
+                text-transform: uppercase;
+                border-radius: 5px;
+                padding: 0 10px;
+                cursor: pointer;
+                color: #555;
+                color: var(--btn-color);
+                text-shadow: 0 1px 0 #FFFFFF40;
+                text-shadow: var(--btn-text-shadow);
+                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
+                background: var(--btn-background);
+                border: 1px solid #aaa;
+                border: var(--btn-border);
+                display: inline-block;
+                vertical-align: middle;
+             }
         `);
     }
 
