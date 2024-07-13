@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -46,9 +46,12 @@
     const doClickYes = true;         // Only applicable if above option is on
     // End ILLEGAL
 
-    var bustMin = 90;             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
-    var quickBustBtn = true;      // Change 'reload' to a bust/reload or somesuch,TBD...
-    const dispOptsScreen = true;    // true to enable the experimental option bar
+    var bustMin = GM_getValue("bustMin", 90);             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
+    var quickBustBtn = GM_getValue("quickBustBtn", true); // Change 'reload' to a bust/reload or somesuch
+    const dispOptsScreen = true;                          // true to enable the experimental option bar
+
+    GM_setValue("bustMin", bustMin);
+    GM_setValue("quickBustBtn", quickBustBtn);
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
     // 'hide/show' button (which will hide the un-needed UI pieces
@@ -78,6 +81,7 @@
     var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     var targetNode = null;
     var observer = null;
+    const reloadURL = "https://www.torn.com/jailview.php";
 
     // Used to determine if should use saved stats or go get
     const cacheExpHrs = 48;                            // 2 days time before recheck
@@ -295,7 +299,7 @@
             debug("Wrapper: ", $(wrapper));
             debug("SR:", maxSR);
 
-            if (false && DEV_MODE && autoBustOn) {
+            if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
                 log("bustNode: ", $(bustNode));
                 if (maxSR >= bustMin && !busted) { // just do once
@@ -753,13 +757,13 @@
         const yearNow = now.getYear();
         const monthNow = now.getMonth();
         const dayNow = now.getDate();
-        log("isToday, date: ", date.toLocaleString());
+        //debug("isToday, date: ", date.toLocaleString());
         let rc = false;
         if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
             rc = true;
         }
 
-        log("result: ", rc);
+        //debug("result: ", rc);
         return rc;
     }
 
@@ -787,25 +791,57 @@
         document.body.removeChild(a);
     }
 
-    //
-    // Current one in use !!!
-    //
+    // Adding "style="float:right;"" to the xcaret span looks kinda cool: "<span style="float:right;"><i id="xcaret" ..."
     const saveBtnDiv3 = `
             <div id="` + MAIN_DIV_ID + `" class="xdwrap xshow xnb title-black border-round m-top10">
                 <span class="xspleft">XedX Jail Scores</span>
                 <span id="busts-today" class="xml10"></span>
                 <span id="xedx-msg" class="xml5"></span>
                 <span class="xr xedx-span btn xfr">
-                    <input id="xedx-save-btn" type="submit" class="torn-btn xmt3 torn-btn-override xmr10" value="Save Log">
-                    <input id="xedx-reload-btn" type="submit" class="torn-btn xmt3 torn-btn-override" value="Reload">
+                    <span><i id="xcaret" class="icon fas fa-caret-right xedx-caret"></i></span>
+                    <span id="xswap" class="swap-span">
+                    <input id="xedx-reload-btn" type="submit" class="xedx-torn-btn xmt3" value="Reload">
+                    </span>
                 </span>
             </div>
         `;
+
+    const reloadBtnHtml = `<input id="xedx-reload-btn" type="submit" class="xedx-torn-btn xmt3" value="Reload">`;
+    const quickBustBtnHtml = `<input id="xedx-reload-btn2" style="width: 38px !important;"
+                               type="submit" class="xedx-torn-btn xmt3" value="R">
+                               <input id="xedx-quick-bust-btn"
+                               type="submit" class="qbust xedx-torn-btn xmt3" value="B">`;
+
+    function addSwapBtnHandlers() {
+        if ($("#xedx-reload-btn").length) {
+            $("#xedx-reload-btn").on('click', reloadUserList);
+        } else {
+            $("#xedx-quick-bust-btn").on("click", doQuickBust);
+            $("#xedx-reload-btn2").on('click', reloadUserList);
+        }
+    }
+
+    function swapReloadBtn() {
+        log("swapReloadBtn");
+        log("reload-btn: ", $("#xedx-reload-btn"));
+        log("reload-btn2: ", $("#xedx-reload-btn2"));
+        log("quick bust btn: ", $("#xedx-quick-bust-btn"));
+
+        if ($("#xedx-reload-btn").length) {
+            $("#xedx-reload-btn").replaceWith(quickBustBtnHtml);
+        } else {
+            $("#xedx-quick-bust-btn").remove();
+            $("#xedx-reload-btn2").replaceWith(reloadBtnHtml);
+        }
+
+        addSwapBtnHandlers();
+    }
 
     const hideBtn2= `<span id="xhide-btn-span" class="xhbtn">
                          <input id="xhide-btn" type="submit" class="torn-btn" value="Hide">
                      </span>`;
 
+    const caretNode = `<span style="float:right;"><i id="xcaret" class="icon fas fa-caret-down xedx-caret"></i></span>`;
     const optsBtn = `<button id="x-opts-btn" class="xhlpbtn xmt5"><span class="copts">*</span></button>`;
 
     //const origUI = false;
@@ -815,23 +851,31 @@
     if (lastShowState == "hide") setTimeout(doHide, 10);
 
     function installUI(forceShow=false) {
-        log('[installUI]: ', uiless, " lastShowState: ", lastShowState, " forceShow: ", forceShow);
+        debug('[installUI]: ', uiless, " lastShowState: ", lastShowState,
+            " forceShow: ", forceShow);
+        if ($("#xedx-reload-btn").length || $("#xedx-save-btn").length || $(MAIN_DIV_SEL).length ) {
+            //log("Exit installUI, main div exists.");
+            return;
+        }
+
         if (uiless) return;
+
         if (!hideBtnInstalled) {
             addHideButton();
         }
 
         if (lastShowState == "hide" && !forceShow) {
-            log("was hidden and not forced, not installing");
+            debug("was hidden and not forced, not installing");
             return;
         }
 
-        if ($("#xedx-save-btn").length) {
-            log("Exit installUI, button exists.");
+        if ($("#xedx-save-btn").length || $("#xedx-reload-btn").length) { // || waitingOnDivInst) {
+            debug("Exit installUI, button exists.");
             return;
         }
 
-        $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv3);
+        if (!$(MAIN_DIV_SEL).length)
+            $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv3);
 
         setTitleColor();
 
@@ -875,20 +919,17 @@
             $(MAIN_DIV_SEL).after(optsDiv);
             log("opts panel: ", $("#xedx-jail-opts"));
 
-            $("#xedx-jail-opts").css("height", optsDivHeight);
+            $("#xedx-jail-opts").css("height", 0);
             $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
             $("#bust-limit").val(bustMin);
-            $(MAIN_DIV_SEL).prepend(optsBtn);
+            $("#quick-bust-btn").prop('checked', true);
 
-            // Click handlers
-            if (!$("#x-opts-btn").hasClass("xtemp")) {
-                $("#x-opts-btn").addClass("xtemp");
-                $("#x-opts-btn").on('click', handleOptsBtn);
+            if (!$("#xcaret").hasClass("xtemp")) {
+                $("#xcaret").addClass("xtemp");
+                $("#xcaret").on('click', handleOptsBtn);
                 $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
                 log("#x-opts-btn added");
             }
-
-            // Save options handler
         }
 
         mainUiBtnsInstalled = true;
@@ -896,30 +937,40 @@
         $("#xedx-save-btn").on('click', handleSaveButton);
         $("#xedx-reload-btn").on('click', reloadUserList);
 
+        addSwapBtnHandlers();
+
         // Add a right-click handler to the fake div, for misc custom stuff
-            $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
+        $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
 
         debug("Exit installUI");
     }
 
-    // ========== Options button and panel handlers ==========
+    // ========== Options button and panel animation and click handlers ==========
     function handleSaveOptsBtn() {
         bustMin = $("#bust-limit").val();
         quickBustBtn = $("#quick-bust-btn").is(":checked");
 
-        log("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn);
+        GM_setValue("bustMin", bustMin);
+        GM_setValue("quickBustBtn", quickBustBtn);
+
+        debug("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn);
     }
 
     var inAnimation = false;
+
     function optsAnimate(size) {
         log("optsAnimate, inAnimation: ", inAnimation, " size: ", size);
         inAnimation = true;
 
         if (size == 0) {
-            $(MAIN_DIV_SEL).removeClass("top-rouond").addClass("border-round");
+            $(MAIN_DIV_SEL).removeClass("top-round").addClass("border-round");
+            $("#xcaret").removeClass("fa-caret-down").addClass("fa-caret-right");
         } else {
-            $(MAIN_DIV_SEL).removeClass("border-rouond").addClass("top-round");
+            $(MAIN_DIV_SEL).removeClass("border-round").addClass("top-round");
+            $("#xcaret").removeClass("fa-caret-right").addClass("fa-caret-down");
         }
+
+        log("Do animate, size: ", size);
         $( "#xedx-jail-opts" ).animate({
             height: size,
         }, 1500, function() {
@@ -928,41 +979,23 @@
         });
     }
 
+    // Callback when animation completes
     function optsHideShow() {
-        let dataval = $("#xedx-jail-opts").attr("data-val");
-        $("#xedx-jail-opts").attr("data-val", "");
-        log("optsHideShow, dataval: ", dataval);
-        if (dataval == "none") return;
+        // Don't think I need this anymore....
 
-        // Check for animate-specific data-val first
-        if (dataval == "hide") {
-            $("#xedx-jail-opts").removeClass("xshow").addClass("xhide");
-            return;
-        }
-        if (dataval == "show") {
-            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
-            return;
-        }
-
-        if ($("#xedx-jail-opts").hasClass("xshow")) {
-            $("#xedx-jail-opts").removeClass("xshow").addClass("xhide");
-        } else {
-            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
-        }
     }
 
     function handleOptsBtn() {
-        log("handleOptsBtn, animating: ", inAnimation);
-        if (inAnimation) return;
-
-        if ($("#xedx-jail-opts").hasClass("xshow")) {
-            $("#xedx-jail-opts").attr("data-val", "hide");
-            optsAnimate(0);
-        } else {
-            $("#xedx-jail-opts").removeClass("xhide").addClass("xshow");
-            $("#xedx-jail-opts").attr("data-val", "none");
-            optsAnimate(optsDivHeight);
+        let cssHeight = parseInt($("#xedx-jail-opts").css("height"), 10);
+        if (inAnimation) {
+            log("in animate, ret");
+            return;
         }
+
+        if (cssHeight > 0)
+            optsAnimate(0);
+        else
+            optsAnimate(optsDivHeight);
     }
     // ========== End Options button and panel handlers ==========
 
@@ -974,26 +1007,20 @@
     }
 
     function handleRightClick() {
-        log("Handle right click");;
-
+        debug("Handle right click");
         autoBustOn = !autoBustOn;
-
         setTitleColor();
-
-        log("auto: ", autoBustOn);
+        debug("auto: ", autoBustOn);
         return false;
     }
 
     function setTodaysBusts(numBusts) {
-        log("setTodaysBusts: ", numBusts);
         let msg = "(Today: " + numBusts + ")";
-        log("msg: ", msg);
         $("#busts-today").text(msg);
-        log("span: ", $("#busts-today"));
      }
 
     function addHideButton() {
-        log("addHideButton");
+        debug("addHideButton");
         if ($("#xhide-btn").length == 0) {
             $("#skip-to-content").append(hideBtn2);
             $("#xhide-btn").on("click", handleHideBtn);
@@ -1028,11 +1055,11 @@
         return name;
     }
 
+    // ========= Handlers for Fast Reloading ========================
+    // Move response handling to separate fn at some point....
     var doingReload = false;
     function reloadUserList() {
-        log("reloadUserList...");
         if (doingReload) {
-            log("Doing reload already! Don't do again!");
             doingReload = false;
             return;
         }
@@ -1040,13 +1067,9 @@
         let reloadStart = _start();
         observerOff();
 
-        //let URL = "https://www.torn.com/jailview.php #mainContainer > div.content-wrapper";
-        let URL = "https://www.torn.com/jailview.php";
-
-        //autoBustOn = false;
         doingReload = true;
         $.post(
-            URL,
+            reloadURL,
             {
                 action: "jail",
                 start: "0"
@@ -1085,25 +1108,16 @@
                         handleTitleClick({target: {'id': savedSortId}});
                     }
 
-                    // Auto-bust. Can flag all the info-wraps with a class if maxSR > bust min....
-                    // or maybe the li, then find li > .bust...
-                    // 'wrapper'is info-wrap here...
                     let bustable = $(targetUl).find(".xbust");
-                    log("bustable: ", $(bustable));
+                    debug("bustable: ", $(bustable));
 
                     if (DEV_MODE && autoBustOn && $(bustable).length) {
                         // Just bust the first one...
                         let wrapper = $(bustable)[0];
                         let bustNode = $(wrapper).siblings(".bust")[0];
-                        log("Auto Bust! bustNode: ", $(bustNode));
+                        debug("Auto Bust! bustNode: ", $(bustNode));
 
-                        // I think this flag needs to be set here...
-                        // otherwise, we click everyone who matches!
-                        // Maybe reset if we click "yes"?
-                        //busted = true;
                         $(bustNode).click();
-
-                        // Now need to click "yes" ....
                         clickYesRetries = 0;
                         findAndClickYes(bustNode);
                     }
@@ -1122,8 +1136,6 @@
                 msg += " Got " + playerCount + " " + getCriminalName(playerCount) + ".";
 
                 $("#xedx-msg").text(msg);
-                //setTimeout(clearMsg, 5000);
-
                 if (recordStats) {
                     let totalFastReloads = GM_getValue("totalFastReloads", 0);
                     totalFastReloads = +totalFastReloads + 1;
@@ -1140,17 +1152,47 @@
                 }
 
                 doingReload = false;
-
-                // Do auto-bust here as well?
-
                 observerOn();
             }
         );
 
     }
 
+    // Unused !
+    // Type: Function( String responseText, String textStatus, jqXHR jqXHR )
+    function reloadUserListCB(responseText, textStatus, jqXHR) {
+        log("reloadUserListCB");
+        log("resp: ", responseText);
+        log("status: ", textStatus);
+        log("jqXHR: ", jqXHR);
+
+        observerOn();
+    }
+
+    function doQuickBust() {
+        let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
+        let bustable = $(targetUl).find(".xbust");
+        debug("bustable: ", $(bustable));
+
+        if ($(bustable).length) {
+            // Just bust the first one...
+            let wrapper = $(bustable)[0];
+            let bustNode = $(wrapper).siblings(".bust")[0];
+            debug("Quick Bust! bustNode: ", $(bustNode));
+
+            $(bustNode).click();
+            clickYesRetries = 0;
+            findAndClickYes(bustNode);
+        }
+
+        swapReloadBtn();
+    }
+
+    // ========= End handlers for Fast Reloading ========================
+
     function clearMsg() { $("#xedx-msg").text(""); };
 
+    // ========= HTML element building..... ========================
     function buildPlayerLi(player) {
 
         let infoWrap = buildInfoWrap(player);
@@ -1191,22 +1233,23 @@
         let scoreAddlClass = "";
 
         // Adjust by 10% of value
-        /*
-        let planB = tenPct(bustMin);
-        let planC = tenPct(planB);
-        */
-
-        // Or just use same inteval from 100?
         let diff = 100 - bustMin;
         let planB = bustMin - diff;
         let planC = planB - diff;
 
-        log("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
-        log("*** is bustable? maxSR: ", maxSR, " bustMin: ", bustMin);
+        debug("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
+        debug("*** is bustable? maxSR: ", maxSR, " bustMin: ", bustMin);
 
         if (maxSR >= bustMin) {
             classStr += " xbust";
             scoreAddlClass = "xgr";
+            // ------
+            // Do button swap here! When to swap back ???
+            log("maxSR >= bustMin ==> do swap? ", $("#xedx-reload-btn").length);
+            if (quickBustBtn && $("#xedx-reload-btn").length) {
+                swapReloadBtn();
+            }
+
         } else if (maxSR >= planB) { // 10% of initial min
             scoreAddlClass = "xylw";
         } else if (maxSR >= planC) { // 10% less than above
@@ -1254,17 +1297,7 @@
         return bustDiv;
     }
 
-    // Unused !
-    // Type: Function( String responseText, String textStatus, jqXHR jqXHR )
-    function reloadUserListCB(responseText, textStatus, jqXHR) {
-        log("reloadUserListCB");
-        log("resp: ", responseText);
-        log("status: ", textStatus);
-        log("jqXHR: ", jqXHR);
-
-        observerOn();
-    }
-
+    // =========== Handle hiding our UI elements, via the main "Hide" button ===============
     var bannerHidden = false;
     function handleHideBtn() {
         debug("handleHideBtn, ", MAIN_DIV_ID, ": ", $(MAIN_DIV_SEL), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
@@ -1305,25 +1338,33 @@
         $("#xhide-btn").prop('value', 'Hide');
         GM_setValue("lastShow", "show");
     }
+    // =========== End handle hiding our UI elements, via the main "Hide" button ===============
 
+    // =========== Div for script options panel/dashboard,down here just  to keep ot of above code.
     var optsDivHeight = 35;    // 30 per inner div
     function getOptionsDiv() {
         let optsDiv = `
-            <div id="xedx-jail-opts"  class="title-black xnb hospital-dark bottom-round xhide" role="heading" aria-level="5">
-            <div>
-                 <label for="limit">Lower bust limit, %:</label>
-                 <input type="number" id="bust-limit" class="xlimit" name="limit" min="0" max="100">
-                 <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
-                     <span class="xmr20">Quick Bust button</span>
-                 <span style="width: 68px; max-width: 68px; min-width: 68px;">
-                     <input id="xedx-save-opt-btn" type="submit" class="xopt-btn torn-btn xmt3 torn-btn-override" value="Apply">
+            <div id="xedx-jail-opts"  class="xoptwrap title-black xnb bottom-round">
+                <span style="width: 75%;">
+                     <label for="limit">Lower bust limit, %:</label>
+                     <input type="number" id="bust-limit" class="xlimit xml20" name="limit" min="0" max="100">
+                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
+                         <span class="xmr20">Quick Bust button</span>
                  </span>
-             </div>
+                 <!-- span style="float: right; width: 68px; max-width: 68px; min-width: 68px;" -->
+                 <!-- span style="width: auto; min-width: 68px;" class="xfr" -->
+                 <span class="xopt-span">
+                     <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
+                     <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
+                 </span>
              </div>
              `;
 
         return optsDiv;
     }
+
+    // ================ Styles used throughout this. Not that a lot of my styles are defined
+    // in other scripts as well,need to consolidate...... ==================================
 
     function addStyles() {
         GM_addStyle(`
@@ -1356,6 +1397,19 @@
                 display: flex;
                 flex-direction: row;
                 height: 34px !important;
+            }
+            .xoptwrap {
+                display: flex;
+                flex-direction: row;
+                overflow: hidden;
+                padding: 0px;
+                min-width: 784px;
+            }
+            .xopt-span {
+                width: auto;
+                min-width: 68px;
+                float: right;
+                margin-left: auto;
             }
             .xnb:before {
                 content: none !important;
@@ -1390,6 +1444,19 @@
             }
             .xfr {
                 float: right;
+            }
+            .xfr2 {
+                margin-left: auto;
+            }
+            .flex-container {
+                padding: 0 10px;
+                margin: 0 auto;
+                border: 2px solid red;
+                width: 90%;
+                height: 60%;
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
             }
             .xr {
                 margin-left: auto;
@@ -1429,9 +1496,16 @@
             .xog {
                 color: #F08C00;
             }
+            .xedx-caret {
+                padding-top:5px;
+                padding-bottom:5px;
+                padding-left:20px;
+                padding-right:10px;
+             }
             .xedx-torn-btn {
-                height: 34px;
-                line-height: 34px;
+                height: 22px !important;
+                width: 74px;
+                line-height: 22px;
                 font-family: "Fjalla One", Arial, serif;
                 font-size: 14px;
                 font-weight: normal;
@@ -1450,6 +1524,15 @@
                 border: var(--btn-border);
                 display: inline-block;
                 vertical-align: middle;
+             }
+             .swap-span {
+                height: 34px;
+                width: 76px;
+             }
+             .qbust {
+                 width: 34px !important;
+                 color: red;
+                 border: 1px solid #b20000;
              }
         `);
     }
@@ -1481,27 +1564,14 @@
     // Suppress some doc load if possib;e?
     // Want fastest load time, least delay...
 
-    // Onl query and process past busts after min one minute, or
+    // Only query and process past busts after min one minute, or
     // start this script on every page and just do past busts when not
-    // on jail page? Save in storagee, for 72 hours?
+    // on jail page? Save in storage, for 72 hours?
 
-
-    // Maybe intercept fetch, suppress honor bar loading? See how it's done when
-    // option to not load is enabled?
-
-    // #mainContainer > div.content-wrapper.summer > div.userlist-wrapper > ul > li:nth-child(2) > a.user.name > div
-    // #mainContainer > div.content-wrapper.summer > div.userlist-wrapper > ul > li:nth-child(2) > a.user.name > div > img
-
-    // Install the 'save' button
+    // Install the UI
     if (DEV_MODE) callOnContentComplete(installUI);
 
-    // Removed for 'new way'...
-    //installHashChangeHandler(addJailScores);
-    //installObserver();
-
-    // Removed for 'new way'...
     // Start by kicking off a few API calls.
-
     if (DEV_MODE) {
         queryPastBusts();
     } else {
