@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   seintz.torn.wall-battlestats
-// @version     1.06
+// @version     1.07
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -74,6 +74,9 @@
         if (!$("#top-page-links-list").length) return setTimeout(installExtraUiElements, 500);
         $("#top-page-links-list").append(resetApiKeyLink);
         $("#xedx-rst-link").on("click", function () {api_key = ''; validateApiKey();});
+
+        //$("#xedx-rst-link").on('contextmenu', handleRightClick);
+        initColWidths();
     }
 
     function handleRstBtnClick() {
@@ -81,6 +84,12 @@
         api_key = '';
         validateApiKey();
     }
+
+    // temp!
+    //function handleRightClick() {
+    //    initColWidths();
+    //    return false;
+    //}
 
     function validateApiKey(forced=false) {
         let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -869,6 +878,143 @@
 
             let id = fullId.match(/\d+/)[0];
             xedx_TornUserQuery(id, "basic", userBasicQueryCallback, iconLi);
+        }
+    }
+
+    // ===============================================================
+    //
+    var tornToolsPresent = false;  // Has TT columns
+    var addlFirstColWidth = 0;     // with TT installed, may have div.tt-member-index column
+    const sortIconSel = "div[class^='sortIcon_']";
+
+
+    var bsTableHeader;             // BS header element, header of table
+    var activeClass;
+    var currSortDir = 'asc';
+    var ascSortClassName;
+    var descSortClassName;
+    var currSortDirClassName;
+
+    function initColWidths() {
+        if (document.readyState != "complete") return setTimeout(initColWidths, 100);
+
+        log("Fixing up column widths...");
+
+        const divider = " | ";
+        const tableHeader = $(".members-list > ul.table-header");
+        const membersTable = $(".members-list > ul.table-body");
+        const firstMemberRow = $(".members-list > ul.table-body > li")[0];
+
+        // See if the TT column is present
+        let ttIndexCol = $(".members-list > ul.table-body > li > div.tt-member-index")[0];
+        if ($(ttIndexCol).length > 0) {
+            tornToolsPresent = true;
+            addlFirstColWidth = parseInt($(ttIndexCol).outerWidth());
+        }
+
+        // First row member icon cell, may be [0] or [1], depending on TT
+        let memberIconCol = $(".members-list > ul.table-body > li > div.table-cell.member.icons")[0];
+        let memberIconsColWidth = parseInt($(memberIconCol).outerWidth(), 10);
+
+        // Width up to the 'lvl' column...
+        let actualWidthHdrCol1 = memberIconsColWidth + addlFirstColWidth;
+
+        // List of header columns. Need to modify col 1 for correct width
+        let headerColumnList = $(tableHeader).find("li");
+        let firstHdrCol = $(headerColumnList)[0];
+        let bodyColumnList = $(firstMemberRow).children("div");    // List of body row columns
+
+        // Force width of first header column, is too small if TT installed
+        let minWidth = tornToolsPresent ?
+                (parseInt($($(bodyColumnList)[0]).outerWidth()) +
+                parseInt($($(bodyColumnList)[1]).outerWidth())) :
+                parseInt($($(bodyColumnList)[0]).outerWidth());
+
+        let colIdx = tornToolsPresent ? 3 : 2;
+        let batBodyStatHeader = $(bodyColumnList)[colIdx];
+
+        $(firstHdrCol).css("min-width", (minWidth + 1) + "px");
+        $($(headerColumnList)[2]).css("min-width", parseInt($(batBodyStatHeader).outerWidth()) + "px");
+
+        // Find active one
+        let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
+        let classList = $(activeSortIcon).attr("class").split(/\s+/);
+        for (let idx=0; idx < classList.length; idx++) {
+            if (classList[idx].indexOf('active') > -1) {
+                activeClass = classList[idx];
+                break;
+            }
+        }
+
+        currSortDirClassName = getAscDescClassName(classList);
+        getSortDirClassNames();
+
+        bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column
+
+        if (!$(activeSortIcon).length || !$(bsTableHeader).length) {
+            return setTimeout(initColWidths, 100);
+        }
+
+        $(bsTableHeader).append($(activeSortIcon).clone());
+        $(activeSortIcon).removeClass(activeClass);
+
+        $(tableHeader).children("li.table-cell").on("click", handleTableHeaderClick);
+
+        $(bsTableHeader).click();
+        $(bsTableHeader).click();
+
+        log("Done fixing up column widths.");
+    }
+
+    function getSortDirClassNames() {
+        if (currSortDirClassName.indexOf('asc') > -1) {
+            ascSortClassName = currSortDirClassName;
+            descSortClassName = currSortDirClassName.replace('asc', 'desc');
+        } else {
+            descSortClassName = currSortDirClassName;
+            ascSortClassName = currSortDirClassName.replace('desc', 'asc');
+        }
+    }
+
+    function getAscDescClassName(classList) {
+        let className = "";
+        for (let idx=0; idx < classList.length; idx++) {
+            if (classList[idx].indexOf('asc') > -1) {
+                currSortDir = 'asc';
+                className = classList[idx];
+                ascSortClassName = className;
+                return className;
+            } else if (classList[idx].indexOf('desc') > -1) {
+                currSortDir = 'desc';
+                className = classList[idx];
+                descSortClassName = className;
+                return className;
+            }
+        }
+        return className;
+    }
+
+    // Note: there are two class for asc/desc....
+    function handleTableHeaderClick(e) {
+        if ($(bsTableHeader).outerWidth() > 40) debugger;
+
+        let node = e.currentTarget;
+        let bsIconNode = $(bsTableHeader).find("[class*='activeIcon']"); // "BS" col sort flag
+        let thisIconNode = $(node).find("[class*='activeIcon']")[0];     // Same on this node (mat be BS column also)
+
+        if (!$(node).hasClass("bs")) {
+            $(bsIconNode).removeClass(activeClass);
+            $(bsIconNode).removeClass("finally-bs-activeIcon");
+        } else {
+            $(bsIconNode).addClass(activeClass);
+            if ($(bsIconNode).hasClass("finally-bs-desc")) {
+                $(bsIconNode).removeClass("finally-bs-desc").addClass("finally-bs-asc");
+                $(bsIconNode).removeClass(descSortClassName).addClass(ascSortClassName);
+
+            } else {
+                $(bsIconNode).removeClass("finally-bs-asc").addClass("finally-bs-desc");
+                $(bsIconNode).removeClass(ascSortClassName).addClass(descSortClassName);
+            }
         }
     }
 
