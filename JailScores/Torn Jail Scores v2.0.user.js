@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.4
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -19,6 +19,7 @@
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
+/*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
 
 // The formulas used in here are taken from this forum post:
@@ -27,7 +28,7 @@
 (async function() {
     'use strict';
 
-    const DEV_MODE = true;
+    const DEV_MODE = true;             // Without this, scores only, no % chance etc...
 
     // These variables are for some new, experimental features.
     // autoBust might be illegal, haven't asked yet, so is OFF
@@ -46,12 +47,15 @@
     const doClickYes = true;         // Only applicable if above option is on
     // End ILLEGAL
 
+
+
+
+    // Used to turn on and off stuff not really tested, or just trying out
+    // as proof of concept.
+    var enablePreRelease = GM_getValue("enablePreRelease", false);
     var bustMin = GM_getValue("bustMin", 90);             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
     var quickBustBtn = GM_getValue("quickBustBtn", true); // Change 'reload' to a bust/reload or somesuch
-    const dispOptsScreen = true;                          // true to enable the experimental option bar
-
-    GM_setValue("bustMin", bustMin);
-    GM_setValue("quickBustBtn", quickBustBtn);
+    //const dispOptsScreen = true;                          // true to enable the experimental option bar
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
     // 'hide/show' button (which will hide the un-needed UI pieces
@@ -59,8 +63,14 @@
     // The 'record stats' is mostly a dev tool, it profiles (records
     // the times and displays in the debug console) to do certain things,
     // like load/reload a page.
+    var dispPenalty = GM_getValue("dispPenalty", false);
     const uiless = false;
     const recordStats = true;
+
+    GM_setValue("enablePreRelease", enablePreRelease);
+    GM_setValue("bustMin", bustMin);
+    GM_setValue("quickBustBtn", quickBustBtn);
+    GM_setValue("dispPenalty", dispPenalty);
 
     // Console logging levels
     debugLoggingEnabled = false;
@@ -339,7 +349,8 @@
     function findAndClickYes(bustNode) {
         if (clickYesRetries++ > maxYesRetries) return;
 
-        // document.querySelector("#mainContainer > div.content-wrapper.summer > div.userlist-wrapper > ul > li.active > div.confirm-bust > div > a.action-yes.t-blue.bold.m-left10")
+        forceReloadBtn();
+
         let yesNode = $(bustNode).parent().find(".confirm-bust > div > .action-yes");
         let noNode = $(bustNode).parent().find(".confirm-bust > .ajax-action > .action-no");
         log("Finding yes (retries: ", clickYesRetries, ") ", $(yesNode));
@@ -624,8 +635,19 @@
             debug('Entry: ', entry);
             debug('Time: ', ageMinutes + ' minutes ago.');
 
+            let penalty1 = totalPenalty;
+
             let indPenalty = getPenalty(getP0(), ageMinutes/60);
             totalPenalty += indPenalty;
+
+            let penalty2 = totalPenalty;
+            if (recordStats) {
+                let low = GM_getValue("p0low", -1);
+                if (penalty1 < low || (low == -1 && penalty1 > 0)) GM_setValue("p0low", penalty1);
+                let hi = GM_getValue("p0hi", -1);
+                if (penalty2 > hi || hi == -1) GM_setValue("p0hi", penalty2);
+            }
+
 
             pastBustsStats.push({'timestamp': entry.timestamp, 'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
         }
@@ -821,17 +843,52 @@
         }
     }
 
-    function swapReloadBtn() {
-        log("swapReloadBtn");
+    function forceReloadBtn() {
+        log("forceReloadBtn");
+        //log("reload-btn: ", $("#xedx-reload-btn"));
+        //log("reload-btn2: ", $("#xedx-reload-btn2"));
+        //log("quick bust btn: ", $("#xedx-quick-bust-btn"));
+
+        if ($("#xedx-reload-btn").length) {
+            return;
+        } else {
+            $("#xedx-quick-bust-btn").remove();
+            $("#xedx-reload-btn2").replaceWith(reloadBtnHtml);
+        }
+        addSwapBtnHandlers();
+    }
+
+    function forceBustButton() {
+        log("forceBustButton");
+        if ($("#xedx-reload-btn").length) {
+            $("#xedx-reload-btn").replaceWith(quickBustBtnHtml);
+        } else if (!$("#xedx-reload-btn2").length) {
+            log("Error: btn2 not installed!")
+        }
+        addSwapBtnHandlers();
+    }
+
+    // 'force', if true, goes to reg. reload btn
+    function swapReloadBtn(force) {
+        log("swapReloadBtn, force: ", force);
         log("reload-btn: ", $("#xedx-reload-btn"));
         log("reload-btn2: ", $("#xedx-reload-btn2"));
         log("quick bust btn: ", $("#xedx-quick-bust-btn"));
 
-        if ($("#xedx-reload-btn").length) {
-            $("#xedx-reload-btn").replaceWith(quickBustBtnHtml);
+        if (force) {
+            if ($("#xedx-reload-btn").length) {
+                return;
+            } else {
+                $("#xedx-quick-bust-btn").remove();
+                $("#xedx-reload-btn2").replaceWith(reloadBtnHtml);
+            }
         } else {
-            $("#xedx-quick-bust-btn").remove();
-            $("#xedx-reload-btn2").replaceWith(reloadBtnHtml);
+            if ($("#xedx-reload-btn").length) {
+                $("#xedx-reload-btn").replaceWith(quickBustBtnHtml);
+            } else {
+                $("#xedx-quick-bust-btn").remove();
+                $("#xedx-reload-btn2").replaceWith(reloadBtnHtml);
+            }
         }
 
         addSwapBtnHandlers();
@@ -896,8 +953,11 @@
             setTodaysBusts(0);
         }
 
+        // TEMP: set timer to update text for penalty/busts, won't need later
+        setInterval(updateBustsAndPenaltyText, 1000);
+
         // Add the options panel
-        if (dispOptsScreen && $("#xedx-jail-opts").length == 0) {
+        if (/*dispOptsScreen &&*/ $("#xedx-jail-opts").length == 0) {
             // Suppress the spinner/scroll
             /* Chrome, Safari, Edge, Opera */
             GM_addStyle( `
@@ -914,6 +974,7 @@
                     -moz-appearance: textfield;
                 }`);
 
+            /*
             log("Adding options panel to: ", $(MAIN_DIV_SEL));
             let optsDiv = getOptionsDiv();
             $(MAIN_DIV_SEL).after(optsDiv);
@@ -923,11 +984,15 @@
             $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
             $("#bust-limit").val(bustMin);
             $("#quick-bust-btn").prop('checked', true);
+            $("#pre-release-btn").prop('checked', enablePreRelease);
+            $("#penalty-btn").prop('checked', dispPenalty);
+            $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
+            */
+            addOptsDiv();
 
             if (!$("#xcaret").hasClass("xtemp")) {
                 $("#xcaret").addClass("xtemp");
                 $("#xcaret").on('click', handleOptsBtn);
-                $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
                 log("#x-opts-btn added");
             }
         }
@@ -942,18 +1007,49 @@
         // Add a right-click handler to the fake div, for misc custom stuff
         $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
 
+        // TEMP
+        //addSortIcon();
+
         debug("Exit installUI");
+    }
+
+    function addOptsDiv() {
+        log("Adding options panel to: ", $(MAIN_DIV_SEL));
+        if ($("#xedx-jail-opts").length) $("#xedx-jail-opts").remove();
+        let optsDiv = getOptionsDiv();
+        $(MAIN_DIV_SEL).after(optsDiv);
+        log("opts panel: ", $("#xedx-jail-opts"));
+
+        $("#xedx-jail-opts").css("height", 0);
+        $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
+        $("#bust-limit").val(bustMin);
+        $("#quick-bust-btn").prop('checked', true);
+        $("#pre-release-btn").prop('checked', enablePreRelease);
+        $("#penalty-btn").prop('checked', dispPenalty);
+        $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
     }
 
     // ========== Options button and panel animation and click handlers ==========
     function handleSaveOptsBtn() {
+        let savedPR = enablePreRelease;
+
         bustMin = $("#bust-limit").val();
         quickBustBtn = $("#quick-bust-btn").is(":checked");
+        enablePreRelease = $("#pre-release-btn").is(":checked");
+        dispPenalty = $("#penalty-btn").is(":checked");
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("quickBustBtn", quickBustBtn);
+        GM_setValue("enablePreRelease", enablePreRelease);
+        GM_setValue("dispPenalty", dispPenalty);
 
-        debug("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn);
+        if (savedPR != enablePreRelease) {
+            addOptsDiv();
+            handleOptsBtn();
+        }
+
+        debug("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn,
+             " enablePreRelease? ", enablePreRelease, " dispPenalty? ", dispPenalty);
     }
 
     var inAnimation = false;
@@ -1014,8 +1110,15 @@
         return false;
     }
 
+    function updateBustsAndPenaltyText() {
+        setTodaysBusts(GM_getValue("currBusts", 0));
+    }
+
     function setTodaysBusts(numBusts) {
-        let msg = "(Today: " + numBusts + ")";
+        let msg = "(Today: " + numBusts +  ")";
+        if (dispPenalty)
+            msg = "(Today: " + numBusts + " Penalty: " + round2(totalPenalty) + ")";
+
         $("#busts-today").text(msg);
      }
 
@@ -1059,6 +1162,12 @@
     // Move response handling to separate fn at some point....
     var doingReload = false;
     function reloadUserList() {
+
+        log("reloadUserList");
+
+        // No matter result, go back to normal reload btn?
+        forceReloadBtn();
+
         if (doingReload) {
             doingReload = false;
             return;
@@ -1085,9 +1194,20 @@
 
                 log("jsonObj: ", jsonObj);
                 if (jsonObj.success == true) {
-                    $(targetUl).empty();
 
                     let players = jsonObj.data.players;
+                    if (!players) {
+                        log("Error: 'players' is undefined: ", players);
+                        log("jsonObj.data: ", jsonObj.data);
+
+                        // Display error in title bar...
+                        let msg = "Error reloading, see log for details...please retry.";
+                        $("#xedx-msg").text(msg);
+                        return;
+                    }
+
+                    $(targetUl).empty();
+
                     let player = players[0];
                     playerCount = players.length;
 
@@ -1174,6 +1294,12 @@
         let bustable = $(targetUl).find(".xbust");
         debug("bustable: ", $(bustable));
 
+        log("doQuickBust, timed button restore");
+
+        // No matter result, go back to normal reload btn?
+        //swapReloadBtn(true);
+        setTimeout(forceReloadBtn, 500);
+
         if ($(bustable).length) {
             // Just bust the first one...
             let wrapper = $(bustable)[0];
@@ -1185,7 +1311,7 @@
             findAndClickYes(bustNode);
         }
 
-        swapReloadBtn();
+        //swapReloadBtn();
     }
 
     // ========= End handlers for Fast Reloading ========================
@@ -1247,7 +1373,7 @@
             // Do button swap here! When to swap back ???
             log("maxSR >= bustMin ==> do swap? ", $("#xedx-reload-btn").length);
             if (quickBustBtn && $("#xedx-reload-btn").length) {
-                swapReloadBtn();
+                forceBustButton();
             }
 
         } else if (maxSR >= planB) { // 10% of initial min
@@ -1343,13 +1469,45 @@
     // =========== Div for script options panel/dashboard,down here just  to keep ot of above code.
     var optsDivHeight = 35;    // 30 per inner div
     function getOptionsDiv() {
-        let optsDiv = `
-            <div id="xedx-jail-opts"  class="xoptwrap title-black xnb bottom-round">
+
+        let optsDiv;
+        if (enablePreRelease) {
+            optsDivHeight = 70;
+            optsDiv = `
+                <div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
+                    <span style="width: 75%;">
+                         <label for="limit">Lower limit, %:</label>
+                         <input type="number" id="bust-limit" class="xlimit xml10" name="limit" min="0" max="100">
+                         <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
+                             <span>Quick Bust</span>
+                         <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
+                             <span>Pre Release</span>
+                     </span>
+                     <span class="xopt-span">
+                         <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
+                         <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
+                     </span>
+
+                     <span class="break"></span>
+                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30">
+                         <span>Show p0</span>
+                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml10 xmr10 xmb30">
+                         <span>Test 1</span>
+                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
+                         <span>Test 2</span>
+                 </div>
+                 `;
+        } else {
+            optsDivHeight = 35;
+            optsDiv = `
+                <div id="xedx-jail-opts"  class="xoptwrap title-black xnb bottom-round">
                 <span style="width: 75%;">
-                     <label for="limit">Lower bust limit, %:</label>
-                     <input type="number" id="bust-limit" class="xlimit xml20" name="limit" min="0" max="100">
+                     <label for="limit">Lower limit, %:</label>
+                     <input type="number" id="bust-limit" class="xlimit xml10" name="limit" min="0" max="100">
                      <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
-                         <span class="xmr20">Quick Bust button</span>
+                         <span>Quick Bust</span>
+                     <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
+                         <span>Pre Release</span>
                  </span>
                  <!-- span style="float: right; width: 68px; max-width: 68px; min-width: 68px;" -->
                  <!-- span style="width: auto; min-width: 68px;" class="xfr" -->
@@ -1358,16 +1516,44 @@
                      <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
                  </span>
              </div>
-             `;
+                 `;
+        }
+
+
 
         return optsDiv;
     }
 
+    /*
+
+             </div>
+
+             <div class="break"></div>
+
+             <div>
+                <span style="width: 75%;">
+                    <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
+                         <span>test</span>
+                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xml10">
+                         <span class="xmr20">test2</span>
+                </span>
+             </div>
+
+             </div>
+    */
+
     // ================ Styles used throughout this. Not that a lot of my styles are defined
     // in other scripts as well,need to consolidate...... ==================================
 
+    // tmp, doesn't work...
+    function addSortIcon() {
+        if (!$("#score").length) return setTimeout(addSortIcon, 100);
+        $("#score").append('<div class="sortIcon___ALgdi desc___bb84w finally-bs-activeIcon activeIcon___h2CBt finally-bs-desc"></div>');
+        log("addSortIcon: ", $("#score"));
+    }
+
     function addStyles() {
-        GM_addStyle(`
+      GM_addStyle(`
             .xod {
                 min-width: 784px;
             }
@@ -1393,6 +1579,13 @@
                 vertical-align: top;
                 margin-top: 10px;
             }
+            .break {
+              flex-basis: 100%;
+              height: 0;
+            }
+            .flexwrap {
+                flex-wrap: wrap;
+            }
             .xdwrap {
                 display: flex;
                 flex-direction: row;
@@ -1417,6 +1610,9 @@
             .xhbtn {
                 margin-left: 10px;
                 height: 22px;
+            }
+            .xmb30 {
+                margin-bottom: 30px;
             }
             .xml5 {
                 margin-left: 5px;
