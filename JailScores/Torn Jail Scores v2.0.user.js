@@ -1192,18 +1192,22 @@
                 let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
                 let jsonObj = JSON.parse(response);
 
+                let countNode = $("div.users-list-title > span.title > span.total");
+                log("countNode: ", $(countNode));
+
                 log("jsonObj: ", jsonObj);
                 if (jsonObj.success == true) {
 
                     let players = jsonObj.data.players;
-                    if (!players) {
+                    if (!players) {  // Turns ou this happens when no one is in jail
                         log("Error: 'players' is undefined: ", players);
                         log("jsonObj.data: ", jsonObj.data);
 
-                        // Display error in title bar...
-                        let msg = "Error reloading, see log for details...please retry.";
+                        let msg = "There is no one in jail at this time.";
                         $("#xedx-msg").text(msg);
+                        $(countNode).text("0");      // TBD: change text also
                         return;
+
                     }
 
                     $(targetUl).empty();
@@ -1213,6 +1217,8 @@
 
                     debug("Players: ", players);
                     debug("Player[0]: ", players[0]);
+
+                    $(countNode).text(playerCount);
 
                     for (let idx=0; idx < players.length; idx++) {
                         let innerHTML = buildPlayerLi(players[idx]);
