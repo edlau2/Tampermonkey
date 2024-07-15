@@ -1204,6 +1204,13 @@
                         log("jsonObj.data: ", jsonObj.data);
 
                         let msg = "There is no one in jail at this time.";
+
+                         let et = elapsed(reloadStart);
+                        if (+et == 0)
+                            msg += " (under 1 sec)";
+                        else
+                            msg += " (" + et + " secs)";
+
                         $("#xedx-msg").text(msg);
                         $(countNode).text("0");      // TBD: change text also
                         return;
@@ -1369,7 +1376,7 @@
         let planB = bustMin - diff;
         let planC = planB - diff;
 
-        debug("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
+        log("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
         debug("*** is bustable? maxSR: ", maxSR, " bustMin: ", bustMin);
 
         if (maxSR >= bustMin) {
