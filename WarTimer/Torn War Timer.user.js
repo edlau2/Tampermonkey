@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -32,9 +32,9 @@
     var retries = 0;
     var titleRetries = 0;
     const retryTime = 500;
-    const maxRetries = 6;
+    const maxRetries = 20;
 
-    var formattedDate = "War starts on ";
+    var formattedDate; // = "War starts on ";
     var shortFormattedDate = '';
     var warList;
     var timer;
@@ -53,8 +53,18 @@
             return false;
         }
 
-        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10.red > span").text();
-        debug("titleBarText: ", titleBarText);
+        // #react-root > div > div > div.f-msg.m-top10 > span
+        // During war, ".red" class is there... I'm just comparing text.
+        //let titleBarText = $("#react-root > div > div > div.f-msg.m-top10.red > span").text();
+        // When matched (note "waiting"):
+        //
+        // #faction_war_list_id > li:nth-child(2) > div > ul
+        // <ul class="statsBox___zH9Ai waiting___CKbCz">
+
+        // This is when war ended, so not in war and not enlisted.
+        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10 > span").text();
+
+        debug("titleBarText, retries: ", titleRetries, " text: ", titleBarText);
         if (!titleBarText) {titleRetries++; return setTimeout(handlePageLoad, retryTime);}
 
         titleRetries = 0;
@@ -79,6 +89,16 @@
         debug("Looking for DIV, retries: ", retries, " found: ", $(warList).length);
         if ($(warList).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
 
+        // When war ended, warList had a class, "war-new", not sure during or enlisted...check!
+        var classList = $('#faction_war_list_id').attr('class').split(/\s+/);
+        if ($(warList).hasClass("war-new")) {
+            debug("has 'war-new' class!");
+        }
+
+        // Test these two:
+        // $('#faction_war_list_id').attr('class').split(/\s+/);
+        // $("#react-root > div > div > div.f-msg.m-top10").attr('class').split(/\s+/);
+
         timer = $(warList).find("[class*='timer_']");
         debug("timer: ", $(timer));
         if ($(timer).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
@@ -102,7 +122,7 @@
         startTime.setMinutes(startTime.getMinutes() + +min);
         startTime.setSeconds(startTime.getSeconds() + +sec);
 
-        formattedDate += //"War starts on " +
+        formattedDate = "War starts on " +
             startTime.toLocaleString(undefined, {weekday: 'long'}) + ", at " +
             startTime.toLocaleString(undefined, {timeStyle: 'medium'});
 
