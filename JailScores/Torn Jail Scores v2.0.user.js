@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -30,31 +30,17 @@
 
     const DEV_MODE = true;             // Without this, scores only, no % chance etc...
 
-    // These variables are for some new, experimental features.
-    // autoBust might be illegal, haven't asked yet, so is OFF
-    // by default. What it does: if after the page loads and
-    // calculates % chance,if a score is equal to or greater than
-    // bustMin, it will click the 'bust' button. Regardless of
-    // whether TT 'quick bust' is on, it will prompt with the
-    //usual yes/no "are you sure?" question. If 'doClickYes' is
-    // true, it will click it. It only does one auto bust per
-    // page load/fast reload.
-    //
-    // Right-clicking the title bar enables it, and turns the title green.
-    //
-    // These are likely ILLEGAL! Do not enable!
-    var   autoBustOn = false;
-    const doClickYes = true;         // Only applicable if above option is on
-    // End ILLEGAL
-
-
-
+    // Since tthis is a work in progress, may need to clean up old, unusd
+    // or changed stuff in storage on verion change. Need to do first
+    // before the version check, which writes out this version number.
+    cleanOldVersionIfo();
 
     // Used to turn on and off stuff not really tested, or just trying out
     // as proof of concept.
     var enablePreRelease = GM_getValue("enablePreRelease", false);
     var bustMin = GM_getValue("bustMin", 90);             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
     var quickBustBtn = GM_getValue("quickBustBtn", true); // Change 'reload' to a bust/reload or somesuch
+    var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     //const dispOptsScreen = true;                          // true to enable the experimental option bar
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
@@ -63,13 +49,20 @@
     // The 'record stats' is mostly a dev tool, it profiles (records
     // the times and displays in the debug console) to do certain things,
     // like load/reload a page.
-    var dispPenalty = GM_getValue("dispPenalty", false);
+    var dispPenalty = GM_getValue("dispPenalty", false);   // Only if pre-releaseenabled
+    var livePenaltyUpdate = true;                          // Update penalty calc immediately on bust, if in pre-release.
     const uiless = false;
     const recordStats = true;
+
+    // ms between calls to the API to check/recalculate penalty.
+    // Eventually refine and recalc on any new bust w/o an API call, but
+    // will be tricky to factor in decay (I think....)
+    var penaltyCalcOnIdleInt = 5000;
 
     GM_setValue("enablePreRelease", enablePreRelease);
     GM_setValue("bustMin", bustMin);
     GM_setValue("quickBustBtn", quickBustBtn);
+    GM_setValue("quickBustYlw", quickBustYlw);
     GM_setValue("dispPenalty", dispPenalty);
 
     // Console logging levels
@@ -87,6 +80,7 @@
     const elapsed = (startTime)=>{return _end()-startTime;}
 
     // Global vars
+    var intervalId = null;
     var savedSortId = '';
     var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     var targetNode = null;
@@ -129,6 +123,15 @@
     }
     addLogheader();
     */
+
+    function cleanOldVersionIfo() {
+        let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
+        if (Number(curr_ver) < 2.5) {
+            log("Cleaning up version older than 2.5");
+            GM_setValue("p0low", "-1");
+            GM_setValue("p0hi", "-1");
+        }
+    }
 
     setInterval(function() {_addLogEntry(logQueue.pop())}, 250); // Process log queue
 
@@ -526,6 +529,8 @@
         // Now get personal stats, perks, level. Could do as one call.
         // Logically easier to do in two, easier to debug also.
         if (param) personalStatsQuery();
+
+        if (!intervalId) startPastBustTimer();
     }
 
     // Query personal stats (unused?), perks, basic info (for level)
@@ -635,22 +640,22 @@
             debug('Entry: ', entry);
             debug('Time: ', ageMinutes + ' minutes ago.');
 
-            let penalty1 = totalPenalty;
-
             let indPenalty = getPenalty(getP0(), ageMinutes/60);
             totalPenalty += indPenalty;
 
-            let penalty2 = totalPenalty;
-            if (recordStats) {
-                let low = GM_getValue("p0low", -1);
-                if (penalty1 < low || (low == -1 && penalty1 > 0)) GM_setValue("p0low", penalty1);
-                let hi = GM_getValue("p0hi", -1);
-                if (penalty2 > hi || hi == -1) GM_setValue("p0hi", penalty2);
-            }
-
-
             pastBustsStats.push({'timestamp': entry.timestamp, 'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
+        } // end for loop
+
+
+        if (recordStats) {
+            let low = GM_getValue("p0low", -1);
+            if (totalPenalty < low || (low == -1)) {
+                GM_setValue("p0low", round2(totalPenalty));
+            }
+            let hi = GM_getValue("p0hi", -1);
+            if (totalPenalty > hi || hi == -1) GM_setValue("p0hi", round2(totalPenalty));
         }
+
         debug('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
         debug('pastBustsStats: ', pastBustsStats);
 
@@ -664,7 +669,6 @@
     // Start a mutation observer to run on page changes
     //////////////////////////////////////////////////////////////////////
 
-    var intervalId = null;
     const observerCallback = function(mutationsList, observer) {
             debug('Observer CB');
             observerOff();
@@ -727,21 +731,18 @@
                                 GM_setValue("currBusts", currBustsToday);
                                 setTodaysBusts(currBustsToday);
 
+                                // Try to adjust add'l penalty on the fly....
+                                if (enablePreRelease && livePenaltyUpdate) {
+                                    let indPenalty = getPenalty(getP0(), minutes/60);
+                                    let tmp = totalPenalty;
+                                    let sep = " | ";
+                                    totalPenalty += indPenalty;
+                                    log("Live penalty update, wrapper: ", $(wrapper));
+                                    log("penalties: ", tmp, sep, totalPenalty, sep, indPenalty, sep, minutes);
+                                } else {
+                                    setTimeout(queryPastBusts, 1000, false);
+                                }
 
-                                // Not long enough... (the 2 second wait)
-                                // Instead, manually add a new bust w/0 time elapsed,
-                                // and recalc penalty. And re-call 'addJailStats'...
-                                /*
-                                let indPenalty = getPenalty(getP0(), ageMinutes/60);
-                                totalPenalty += indPenalty;
-                                // Maybe .load() and refill just this?
-                                // var elemList = document.getElementsByClassName('user-info-list-wrap icons users-list bottom-round');
-                                // Add an ID to that? See the Hi/Lo script...
-                                //setTimeout(function() {queryPastBusts(false)}, 2000);
-                                */
-
-                                // TBD //
-                                if (!intervalId) intervalId = setInterval(() => {queryPastBusts(false)}, 5000);
                                 addLogEntry(text, 'OUT');
                             } else {
                                 addLogEntry(text, 'CHECK');
@@ -753,6 +754,12 @@
             targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul")
             observerOn();
         };
+
+    function startPastBustTimer() {
+        if (!intervalId) {
+            intervalId = setInterval(queryPastBusts, penaltyCalcOnIdleInt, false);
+        }
+    }
 
     function installObserver() {
         targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
@@ -832,7 +839,7 @@
     const quickBustBtnHtml = `<input id="xedx-reload-btn2" style="width: 38px !important;"
                                type="submit" class="xedx-torn-btn xmt3" value="R">
                                <input id="xedx-quick-bust-btn"
-                               type="submit" class="qbust xedx-torn-btn xmt3" value="B">`;
+                               type="submit" class="qbust-green xedx-torn-btn xmt3" value="B">`;
 
     function addSwapBtnHandlers() {
         if ($("#xedx-reload-btn").length) {
@@ -974,20 +981,6 @@
                     -moz-appearance: textfield;
                 }`);
 
-            /*
-            log("Adding options panel to: ", $(MAIN_DIV_SEL));
-            let optsDiv = getOptionsDiv();
-            $(MAIN_DIV_SEL).after(optsDiv);
-            log("opts panel: ", $("#xedx-jail-opts"));
-
-            $("#xedx-jail-opts").css("height", 0);
-            $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
-            $("#bust-limit").val(bustMin);
-            $("#quick-bust-btn").prop('checked', true);
-            $("#pre-release-btn").prop('checked', enablePreRelease);
-            $("#penalty-btn").prop('checked', dispPenalty);
-            $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
-            */
             addOptsDiv();
 
             if (!$("#xcaret").hasClass("xtemp")) {
@@ -1024,6 +1017,7 @@
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
         $("#bust-limit").val(bustMin);
         $("#quick-bust-btn").prop('checked', true);
+        //$("#quick-bust-ylw").prop('checked', false);
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
@@ -1035,11 +1029,13 @@
 
         bustMin = $("#bust-limit").val();
         quickBustBtn = $("#quick-bust-btn").is(":checked");
+        quickBustYlw = $("#quick-bust-ylw").is(":checked");
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("quickBustBtn", quickBustBtn);
+        GM_setValue("quickBustYlw", quickBustYlw);
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
 
@@ -1048,9 +1044,16 @@
             handleOptsBtn();
         }
 
+        $("#xedx-msg").text(" **** Options Saved! ****");
+        setTimeout(optsAnimate, 500, 0);
+        setTimeout(clearMsg, 3000);
+
         debug("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn,
+              " quick ylw? ", quickBustYlw,
              " enablePreRelease? ", enablePreRelease, " dispPenalty? ", dispPenalty);
     }
+
+    function clearMsg() { $("#xedx-msg").text("");}
 
     var inAnimation = false;
 
@@ -1116,7 +1119,7 @@
 
     function setTodaysBusts(numBusts) {
         let msg = "(Today: " + numBusts +  ")";
-        if (dispPenalty)
+        if (enablePreRelease && dispPenalty)
             msg = "(Today: " + numBusts + " Penalty: " + round2(totalPenalty) + ")";
 
         $("#busts-today").text(msg);
@@ -1302,15 +1305,27 @@
         observerOn();
     }
 
+    // Make this a helper script fn....
+    function getClassList(element) {
+        return $(element).attr("class").split(/\s+/);
+    }
+
     function doQuickBust() {
         let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         let bustable = $(targetUl).find(".xbust");
+
+        log("**** doQuickBust ****");
+        /*
+        log("Bustable: ", $(bustable));
+        let cl = getClassList(bustable);
+        log("Classlist: ", $(cl));
+        log("Parent: ", $(($bustable)[0]).parent());
+        log("**** doQuickBust ****");
+        */
+
+        if ($(bustable).hasClass("qbust-yellow") && !quickBustYlw) return;
         debug("bustable: ", $(bustable));
 
-        log("doQuickBust, timed button restore");
-
-        // No matter result, go back to normal reload btn?
-        //swapReloadBtn(true);
         setTimeout(forceReloadBtn, 500);
 
         if ($(bustable).length) {
@@ -1323,13 +1338,14 @@
             clickYesRetries = 0;
             findAndClickYes(bustNode);
         }
-
-        //swapReloadBtn();
     }
 
-    // ========= End handlers for Fast Reloading ========================
+    // These are likely ILLEGAL! Do not enable!
+    var   autoBustOn = false;
+    const doClickYes = true;         // Only applicable if above option is on
+    // End ILLEGAL
 
-    function clearMsg() { $("#xedx-msg").text(""); };
+    // ========= End handlers for Fast Reloading ========================
 
     // ========= HTML element building..... ========================
     function buildPlayerLi(player) {
@@ -1363,39 +1379,44 @@
         let sr = getSuccessRate(score, getSkill(), totalPenalty);
         let maxSR = getMaxSuccessRate(score, userLvl, totalPenalty);
 
-        debug("buildInfoWrap, player: ", player);
-        debug("buildInfoWrap, skill: ", getSkill(), " totalPenalty: ", totalPenalty, " userLvl: ", userLvl);
-        debug("buildInfoWrap, minutes: ", minutes, " score: ", score, " sr: ", sr, " maxSR: ", maxSR);
-
         // Flag, via a dummy class, if 'bustable'...
         let classStr = "info-wrap";
         let scoreAddlClass = "";
 
         // Adjust by 10% of value
-        let diff = 100 - bustMin;
+        let diff = 10; //100 - bustMin;
         let planB = bustMin - diff;
         let planC = planB - diff;
 
-        log("bustMin : ", bustMin, " planB: ", planB, " PlanC: ", planC);
-        debug("*** is bustable? maxSR: ", maxSR, " bustMin: ", bustMin);
+        let separator = " | ";
 
+        let hasGreen = false;
         if (maxSR >= bustMin) {
-            classStr += " xbust";
+            classStr += " xbust xbgreen";
             scoreAddlClass = "xgr";
-            // ------
-            // Do button swap here! When to swap back ???
-            log("maxSR >= bustMin ==> do swap? ", $("#xedx-reload-btn").length);
-            if (quickBustBtn && $("#xedx-reload-btn").length) {
+            hasGreen = true;
+
+            if (quickBustBtn) { // && $("#xedx-reload-btn").length) {
                 forceBustButton();
+                log("Adding GREEN button");
+                $(".xbyellow").removeClass("xbust").removeClass("xbyellow");
+                $("#xedx-quick-bust-btn").removeClass('qbust-yellow').addClass('qbust-green');
             }
 
-        } else if (maxSR >= planB) { // 10% of initial min
+        } else if (maxSR >= planB && maxSR < bustMin && !hasGreen) { // 10% of initial min
             scoreAddlClass = "xylw";
-        } else if (maxSR >= planC) { // 10% less than above
+            log("Adding YELLOW class, ",
+                maxSR, separator, bustMin, separator, diff, separator, planB. separator, planC);
+            //  Adding YELLOW class,  0  |  50  |  50  |  undefined -50
+            if (quickBustYlw && quickBustBtn && $("#xedx-reload-btn").length && !hasGreen) {
+                forceBustButton();
+                log("Adding YELLOW button, ", maxSR, separator, bustMin, separator, diff, separator, planB. separator, planC);
+                classStr += " xbust xbyellow";
+                $("#xedx-quick-bust-btn").removeClass('qbust-green').addClass('qbust-yellow');
+            }
+        } else if (maxSR >= planC && maxSR < planB) { // 10% less than above
             scoreAddlClass = "xog";
         }
-
-        log("maxSR: ", maxSR, " addl class: ", scoreAddlClass);
 
         let infoWrap = '<span class="' + classStr +'">' +
                 '<span class="time" time="' + minutes + '">' +                // For sorting
@@ -1502,12 +1523,13 @@
                      </span>
 
                      <span class="break"></span>
+
                      <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30">
                          <span>Show p0</span>
-                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml10 xmr10 xmb30">
-                         <span>Test 1</span>
-                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
-                         <span>Test 2</span>
+                     <input type="checkbox" id="quick-bust-ylw" data-type="sample3" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
+                         <span>QB on Yellow</span>
+                     <!-- input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
+                         <span>Test 2</span -->
                  </div>
                  `;
         } else {
@@ -1734,14 +1756,24 @@
                 display: inline-block;
                 vertical-align: middle;
              }
+             .qreload {
+
+             }
+             .qbust-green {
+                 height: 28px !important;
+                 width: 40px !important;
+                 color: green;
+                 border: 1px solid #0D4A09;
+             }
+             .qbust-yellow {
+                 height: 28px !important;
+                 width: 40px !important;
+                 color: yellow;
+                 border: 1px solid yellow;
+             }
              .swap-span {
                 height: 34px;
                 width: 76px;
-             }
-             .qbust {
-                 width: 34px !important;
-                 color: red;
-                 border: 1px solid #b20000;
              }
         `);
     }
