@@ -243,9 +243,22 @@
     var clickYesRetries = 0;
     var busted = false;
 
+    function getStartNumFromHash(hash) {
+        if (!hash) return 0;
+
+        let num = 0;
+        let temp = hash.match(/(\d+)/);
+        if (temp)
+            num = temp[0];
+        log("getStartNumFromHash, page: ", num);
+        return num;
+    }
+
     function hashHandler() {
         let currHash = location.hash;
+        let startNum = getStartNumFromHash(currHash);
         log("Hash change! New hash: ", currHash, " saved: ", savedHash);
+        log("Starting page: ", startNum);
         savedHash = currHash;
 
         addJailScores();
@@ -1190,15 +1203,10 @@
 
         doingReload = true;
         let useURL = reloadURL + savedHash;
-        let startNum = 0;
-        if (savedhash.indexOf("start=") > -1)
-            startNum = parseInt(savedHash);
+        let startNum = getStartNumFromHash(savedHash);
 
         log("Quick reload URL: ", useURL, " start num: ", startNum);
         $.post(
-            // reloadURL,
-            // reloadURL + savedHash,
-            //location.href,
             useURL,
             {
                 action: "jail",
