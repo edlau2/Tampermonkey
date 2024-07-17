@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -238,9 +238,18 @@
     // This adds the 'score' to the level column in the Jail view
     //////////////////////////////////////////////////////////////////////
 
+    var savedHash = location.hash;
     var startAddJailScores;
     var clickYesRetries = 0;
     var busted = false;
+
+    function hashHandler() {
+        let currHash = location.hash;
+        log("Hash change! New hash: ", currHash, " saved: ", savedHash);
+        savedHash = currHash;
+
+        addJailScores();
+    }
 
     function addJailScores() {
         debug('[addJailScores]');
@@ -1180,11 +1189,20 @@
         observerOff();
 
         doingReload = true;
+        let useURL = reloadURL + savedHash;
+        let startNum = 0;
+        if (savedhash.indexOf("start=") > -1)
+            startNum = parseInt(savedHash);
+
+        log("Quick reload URL: ", useURL, " start num: ", startNum);
         $.post(
-            reloadURL,
+            // reloadURL,
+            // reloadURL + savedHash,
+            //location.href,
+            useURL,
             {
                 action: "jail",
-                start: "0"
+                start: startNum
             },
 
             // Move to not inline!
@@ -1403,18 +1421,19 @@
                 $("#xedx-quick-bust-btn").removeClass('qbust-yellow').addClass('qbust-green');
             }
 
-        } else if (maxSR >= planB && maxSR < bustMin && !hasGreen) { // 10% of initial min
+        } else if (maxSR >= planB && maxSR < bustMin && !hasGreen && planB > 0) { // 10% of initial min
             scoreAddlClass = "xylw";
             log("Adding YELLOW class, ",
-                maxSR, separator, bustMin, separator, diff, separator, planB. separator, planC);
-            //  Adding YELLOW class,  0  |  50  |  50  |  undefined -50
+                maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
             if (quickBustYlw && quickBustBtn && $("#xedx-reload-btn").length && !hasGreen) {
                 forceBustButton();
-                log("Adding YELLOW button, ", maxSR, separator, bustMin, separator, diff, separator, planB. separator, planC);
+                log("Adding YELLOW button, ", maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
                 classStr += " xbust xbyellow";
                 $("#xedx-quick-bust-btn").removeClass('qbust-green').addClass('qbust-yellow');
             }
-        } else if (maxSR >= planC && maxSR < planB) { // 10% less than above
+        } else if (maxSR >= planC && maxSR < planB && !hasGreen && planC > 0) { // 10% less than above
+            log("Adding ORANGE class, ",
+                maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
             scoreAddlClass = "xog";
         }
 
@@ -1779,7 +1798,7 @@
     }
 
     function contentLoadHandler() {
-        installHashChangeHandler(addJailScores);
+        installHashChangeHandler(hashHandler);
         installObserver();
     }
 
