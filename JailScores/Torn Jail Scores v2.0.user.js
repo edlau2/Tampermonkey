@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview.php*
@@ -41,6 +41,7 @@
     var bustMin = GM_getValue("bustMin", 90);             // Will highlight in green at or above this %, yellow for this - 10%, and orange for that - 10%.
     var quickBustBtn = GM_getValue("quickBustBtn", true); // Change 'reload' to a bust/reload or somesuch
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
+    var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     //const dispOptsScreen = true;                          // true to enable the experimental option bar
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
@@ -1038,6 +1039,7 @@
         $("#xedx-jail-opts").css("height", 0);
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
         $("#bust-limit").val(bustMin);
+        $("#hide-limit").val(hideLimit);
         $("#quick-bust-btn").prop('checked', true);
         //$("#quick-bust-ylw").prop('checked', false);
         $("#pre-release-btn").prop('checked', enablePreRelease);
@@ -1050,12 +1052,14 @@
         let savedPR = enablePreRelease;
 
         bustMin = $("#bust-limit").val();
+        hideLimit = $("#hide-limit").val();
         quickBustBtn = $("#quick-bust-btn").is(":checked");
         quickBustYlw = $("#quick-bust-ylw").is(":checked");
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
 
         GM_setValue("bustMin", bustMin);
+        GM_setValue("hideLimit", hideLimit);
         GM_setValue("quickBustBtn", quickBustBtn);
         GM_setValue("quickBustYlw", quickBustYlw);
         GM_setValue("enablePreRelease", enablePreRelease);
@@ -1216,6 +1220,7 @@
             // Move to not inline!
             function (response) {
                 let playerCount = 0;
+                let hiddenPlayers = 0;
                 let displayMsg = false;
                 log("Handling reloadUserList response");
                 let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
@@ -1256,9 +1261,20 @@
 
                     $(countNode).text(playerCount);
 
+                    // May either flag HTML as hidden, give 'xhide' class,
+                    // or return 'undefined' if filtered so as to not display....
                     for (let idx=0; idx < players.length; idx++) {
-                        let innerHTML = buildPlayerLi(players[idx]);
-                        $(targetUl).append(innerHTML);
+                        let liObj = buildPlayerLi(players[idx]);
+                        let innerHTML = liObj.html; //buildInfoWrap(player);
+                        let hidden = liObj.isHidden;
+
+                        //let innerHTML = buildPlayerLi(players[idx]);
+
+                        if (!hidden) {
+                            $(targetUl).append(innerHTML);
+                        } else {
+                            hiddenPlayers++;
+                        }
                     }
 
                     // Now sort...
@@ -1289,15 +1305,18 @@
                 let et = elapsed(reloadStart);
                 log("reloadUserList took ", elapsed(reloadStart), " secs");
 
-                let msg = "Reload complete, took ";
+                let msg = "Reload complete, ";
                 if (+et == 0)
                     msg += "under 1 sec.";
                 else
                     msg += et + " secs.";
 
-                msg += " Got " + playerCount + " " + getCriminalName(playerCount) + ".";
+                msg += " Got " + playerCount + " " + getCriminalName(playerCount);
+                if (hiddenPlayers) msg += " (" + hiddenPlayers + " hidden)";
+                msg  += ".";
 
                 $("#xedx-msg").text(msg);
+
                 if (recordStats) {
                     let totalFastReloads = GM_getValue("totalFastReloads", 0);
                     totalFastReloads = +totalFastReloads + 1;
@@ -1374,11 +1393,26 @@
     // ========= End handlers for Fast Reloading ========================
 
     // ========= HTML element building..... ========================
+
+    // Filtering change - will now return 'undefined' if under filter
+    // limit (?)
     function buildPlayerLi(player) {
 
-        let infoWrap = buildInfoWrap(player);
+
+
+        let infoWrapObj = buildInfoWrap(player);
+        let infoWrap = infoWrapObj.html; //buildInfoWrap(player);
+        let hidden = infoWrapObj.isHidden;
+
+        log("infoWrapObj: ", infoWrapObj);
+        log("infoWrap: ", $(infoWrap));
+        log("hidden: ", hidden);
+
         let buyDiv = buildBuyDiv(player);
         let bustDiv = buildBustDiv(player);
+
+        // Based on the hideLimit option, the infoWrap
+        // may be flagged as filtered....
 
         let innerHTML = "<li class='gray'>" +
             player.print_tag +
@@ -1392,7 +1426,10 @@
             '<div class="bottom-white"></div>' +
             "</li>";
 
-        return innerHTML;
+        return {
+            html: innerHTML,
+            isHidden: hidden
+        };
     }
 
     const tenPct = function (x) { x - (x * .01); }
@@ -1415,9 +1452,17 @@
         let planC = planB - diff;
 
         let separator = " | ";
-
         let hasGreen = false;
-        if (maxSR >= bustMin) {
+
+        // Do the filtering:
+        // If success rate (mxSR) under the hideLimit, flag as filtered/hidden.
+        // If maxSR over bustLimit, flaggreen, as easy bust, optionally have easy bust button.
+        // If maxSr within 10 of that, flag as yellow (medium), optional button again.
+        // 10 beneath that,orange, even less likely.
+        let hidden = false;
+        if (hideLimit > 0 && maxSR < hideLimit) {
+            hidden = true;
+        } else if (maxSR >= bustMin) {
             classStr += " xbust xbgreen";
             scoreAddlClass = "xgr";
             hasGreen = true;
@@ -1445,7 +1490,11 @@
             scoreAddlClass = "xog";
         }
 
-        let infoWrap = '<span class="' + classStr +'">' +
+        let initialSpan = '<span class="' + classStr +'">';
+        // First span, if hidden, will have a data-val to mark as such.
+        //if (hidden) initialSpan = '<span filter="yes" class="' + classStr +'">';
+
+        let infoWrap = initialSpan +
                 '<span class="time" time="' + minutes + '">' +                // For sorting
                     '<span class="title bold">TIME<span>:</span></span>' +
                          player.time +
@@ -1465,7 +1514,10 @@
                       '</span>' +
                   '</span>';
 
-        return infoWrap;
+        return {
+            html: infoWrap,
+            isHidden: hidden
+        };
     }
 
     function buildBuyDiv(player) {
@@ -1539,6 +1591,8 @@
                     <span style="width: 75%;">
                          <label for="limit">Lower limit, %:</label>
                          <input type="number" id="bust-limit" class="xlimit xml10" name="limit" min="0" max="100">
+                         <label for="hide">Filter, hide under %:</label>
+                         <input type="number" id="hide-limit" class="xlimit xml10" name="hide" min="0" max="100">
                          <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
                              <span>Quick Bust</span>
                          <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
