@@ -82,7 +82,7 @@
 
         // Temp, older names.
         if ($(myDivs).length == 0 && true) {
-            for (let idx=0; idx < oldNames; idx++) {
+            for (let idx=0; idx < oldNames.length; idx++) {
                 let sel = "#" + oldNames[idx];
                 if ($(sel).length > 0) {
                     let myNode = $(sel);
