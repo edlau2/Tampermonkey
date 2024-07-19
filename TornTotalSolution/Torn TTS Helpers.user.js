@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn TTS Helpers
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Misc. functions to run in adjunct to Torn Total Solutions
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php*
@@ -15,6 +15,8 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+
+// https://github.com/edlau2/Tampermonkey/raw/master/TornTotalSolution/Torn%20TTS%20Helpers.user.js
 
 (function() {
     'use strict';
@@ -42,7 +44,10 @@
 
     function restoreNodePositions() {
         let checkIds = ["xedx-mjailstats-ext-div", "xedx-mdrugstats-ext-div",
-                        "xedx-mstats-tracker", "xedx-mattacks-ext"];
+                        "xedx-mstats-tracker", "xedx-mattacks-ext",
+                        // Older names:
+                        "xedx-jailstats-ext-div", "xedx-drugstats-ext-div",
+                        "xedx-stats", "xedx-attacks-ext"];
 
         for (let idx=0; idx < checkIds.length; idx++) {
             let myId = checkIds[idx];
@@ -63,6 +68,8 @@
         $(sibSel).after($(nodeSel));
     }
 
+    let oldNames = ["xedx-jailstats-ext-div", "xedx-drugstats-ext-div",
+                    "xedx-stats", "xedx-attacks-ext"];
     function handleListChangeStop(event) {
         let list = event.target;
         let len = $(list).length;
@@ -71,6 +78,17 @@
         for (let idx=0; idx < $(myDivs).length; idx++) {
             let myNode = $(myDivs)[idx];
             saveNodePrevSibling(myNode);
+        }
+
+        // Temp, older names.
+        if ($(myDivs).length == 0 && true) {
+            for (let idx=0; idx < oldNames; idx++) {
+                let sel = "#" + oldNames[idx];
+                if ($(sel).length > 0) {
+                    let myNode = $(sel);
+                    saveNodePrevSibling(myNode);
+                }
+            }
         }
     }
 
@@ -81,7 +99,7 @@
         let myId = $(myNode).attr("id");
         let nodeSel = "#" + myId;
 
-        debug("saveNodePrevSibling sib data: ", myId, " ==> ", sibId);
+        log("saveNodePrevSibling sib data: ", myId, " ==> ", sibId);
 
         GM_setValue(myId, sibId);
 
