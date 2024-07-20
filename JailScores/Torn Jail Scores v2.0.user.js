@@ -2127,6 +2127,9 @@
              .xedx-torn-btn:hover {
                 filter: brightness(2.00);
              }
+             .xedx-torn-btn:active {
+                filter: brightness(0.80);
+             }
              .xedx-light:hover {
                 filter: brightness(2.00);
              }
