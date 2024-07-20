@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
-// @match        https://www.torn.com/jailview.php*
+// @match        https://www.torn.com/*
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -42,7 +42,7 @@
     var quickBustBtn = GM_getValue("quickBustBtn", true); // Change 'reload' to a bust/reload or somesuch
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
-    //const dispOptsScreen = true;                          // true to enable the experimental option bar
+    var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
     // 'hide/show' button (which will hide the un-needed UI pieces
@@ -54,6 +54,7 @@
     var livePenaltyUpdate = true;                          // Update penalty calc immediately on bust, if in pre-release.
     const uiless = false;
     const recordStats = true;
+    const contextMenuYOffset = 0;
 
     // ms between calls to the API to check/recalculate penalty.
     // Eventually refine and recalc on any new bust w/o an API call, but
@@ -73,6 +74,9 @@
     // DO NOT EDIT!
     const MAIN_DIV_ID = "xd1";
     const MAIN_DIV_SEL = "#" + MAIN_DIV_ID;
+
+    const optsDivHeightDef = 35;    // 35 per inner div
+    const optsDivHeightPreRelease = 70;
 
     // Little helpers for profiling. ex: let start = _start(); .... debug("elapsed: ", elapsed(start));
     const nowInSecs = ()=>{return Math.floor(Date.now() / 1000);}
@@ -1032,9 +1036,21 @@
     function addOptsDiv() {
         log("Adding options panel to: ", $(MAIN_DIV_SEL));
         if ($("#xedx-jail-opts").length) $("#xedx-jail-opts").remove();
+
+        attachOptsDiv(MAIN_DIV_SEL);
+        /*
         let optsDiv = getOptionsDiv();
         $(MAIN_DIV_SEL).after(optsDiv);
         log("opts panel: ", $("#xedx-jail-opts"));
+
+        if (!enablePreRelease) {
+            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
+            $("#xedx-jail-opts").css("height", "35px");
+        } else {
+            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
+            $("#xedx-jail-opts").css("height", "70px");
+        }
+        */
 
         $("#xedx-jail-opts").css("height", 0);
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
@@ -1057,6 +1073,7 @@
         quickBustYlw = $("#quick-bust-ylw").is(":checked");
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
+        tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("hideLimit", hideLimit);
@@ -1064,10 +1081,14 @@
         GM_setValue("quickBustYlw", quickBustYlw);
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
+        GM_setValue("tzDisplay", tzDisplay);
 
-        if (savedPR != enablePreRelease) {
-            addOptsDiv();
-            handleOptsBtn();
+        if (!enablePreRelease) {
+            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
+            $("#xedx-jail-opts").css("height", "35px");
+        } else {
+            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
+            $("#xedx-jail-opts").css("height", "70px");
         }
 
         $("#xedx-msg").text(" **** Options Saved! ****");
@@ -1120,9 +1141,119 @@
         if (cssHeight > 0)
             optsAnimate(0);
         else
-            optsAnimate(optsDivHeight);
+            optsAnimate(enablePreRelease ? optsDivHeightPreRelease : optsDivHeightDef);
     }
     // ========== End Options button and panel handlers ==========
+
+    // ========= Start right click handler for nerve bar
+    var nerveBarNode;
+    const jailURL = "https://www.torn.com/jailview.php";
+    const cmSel = "#x-contextMenu";
+    const cmHtml = `<div id="x-contextMenu" class="context-menu ctxhide"><ul><li><a href="` + jailURL + `">Jail</a></li></ul></div`;
+
+    function installNerveHook() {
+        log("[installNerveHook]");
+        if ($("#x-contextMenu").length) return;
+        addContextStyles();
+        nerveBarNode = $("#sidebar").find("a[class*='nerve__']");
+
+        // Put the context menu on the page, doesn't really matter where.
+        // But we need a click handler on the nerve bar.
+        $(nerveBarNode).after(cmHtml);
+
+        let crimesList = $("[id^='nav-crimes-cust']");
+        for (let idx=0; idx < $(crimesList).length; idx++) {
+            let node = $(crimesList)[idx];
+            let li = "<li><a href='" +
+                $($(node).find("a")[0]).attr("href") +
+                "'>" +
+                $($(node).find("span")[0]).text().trim() +
+                "</a></li>";
+            $("#x-contextMenu > ul").append(li);
+        }
+
+        $(nerveBarNode).on('contextmenu', handleNerveRightClick);
+        $(cmSel).on('contextmenu', handleNerveRightClick);
+
+        log("[installNerveHook] complete");
+    }
+
+    function handleNerveRightClick(event) {
+        event.preventDefault();
+        if ($(cmSel).css("display") == "block") {
+            hideMenu();
+        } else {
+            let x = $(nerveBarNode).css("left");
+            let y = +event.clientY + contextMenuYOffset;
+            $(cmSel).css("left", x.toString() + "px");
+            $(cmSel).css("top", y.toString() + "px");
+            $(cmSel).removeClass("ctxhide").addClass("ctxshow");
+        }
+    }
+
+    function hideMenu() {$(cmSel).removeClass("ctxshow").addClass("ctxhide");}
+
+    function addContextStyles() {
+        GM_addStyle(`
+            .context-wrapper {
+                border: 1px solid red;
+            }
+            .context-menu {
+                position: absolute;
+                text-align: center;
+                background: lightgray;
+                border: 1px solid blue;
+                border-radius: 5px;
+                margin: 2px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 20;
+            }
+
+            .ctxhide {display: none;}
+            .ctxshow {display: block}
+
+            .context-menu ul {
+                padding: 0px;
+                margin: 0px;
+                min-width: 150px;
+                list-style: none;
+            }
+
+            .context-menu ul li {
+                padding-bottom: 7px;
+                padding-top: 7px;
+                border: 1px solid green;
+            }
+
+            .context-menu ul li a {
+                text-decoration: none;
+                color: black;
+            }
+
+            .context-menu ul li:hover {
+                background: darkgray;
+            }
+            .x-centered {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              /* bring your own prefixes */
+              transform: translate(-50%, -50%);
+            }
+            .x-box {
+                z-index: 20;
+                width: 20px;
+                height: 20px;
+                border: 2px solid;
+                border-color: black;
+                display: block;
+            }
+        `);
+    }
+
+    // ======== End right click handler for nerve bar
 
     function setTitleColor() {
         if (autoBustOn)
@@ -1312,8 +1443,15 @@
                     msg += et + " secs.";
 
                 msg += " Got " + playerCount + " " + getCriminalName(playerCount);
-                if (hiddenPlayers) msg += " (" + hiddenPlayers + " hidden)";
+
+                let spanTxt = " (" + hiddenPlayers + " hidden)";
+                //if (hiddenPlayers) msg += spanTxt;
                 msg  += ".";
+
+                if ($("#xhidden").length)
+                    $("#xhidden").text(spanTxt);
+                else
+                    $(countNode).parent().append("<span id='xhidden'>" + spanTxt + "</span>");
 
                 $("#xedx-msg").text(msg);
 
@@ -1397,9 +1535,6 @@
     // Filtering change - will now return 'undefined' if under filter
     // limit (?)
     function buildPlayerLi(player) {
-
-
-
         let infoWrapObj = buildInfoWrap(player);
         let infoWrap = infoWrapObj.html; //buildInfoWrap(player);
         let hidden = infoWrapObj.isHidden;
@@ -1580,64 +1715,75 @@
     // =========== End handle hiding our UI elements, via the main "Hide" button ===============
 
     // =========== Div for script options panel/dashboard,down here just  to keep ot of above code.
-    var optsDivHeight = 35;    // 30 per inner div
     function getOptionsDiv() {
 
-        let optsDiv;
-        if (enablePreRelease) {
-            optsDivHeight = 70;
-            optsDiv = `
-                <div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
-                    <span style="width: 75%;">
-                         <label for="limit">Lower limit, %:</label>
-                         <input type="number" id="bust-limit" class="xlimit xml10" name="limit" min="0" max="100">
-                         <label for="hide">Filter, hide under %:</label>
-                         <input type="number" id="hide-limit" class="xlimit xml10" name="hide" min="0" max="100">
-                         <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
-                             <span>Quick Bust</span>
-                         <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
-                             <span>Pre Release</span>
-                     </span>
-                     <span class="xopt-span">
-                         <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
-                         <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
-                     </span>
-
-                     <span class="break"></span>
-
-                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30">
-                         <span>Show p0</span>
-                     <input type="checkbox" id="quick-bust-ylw" data-type="sample3" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
-                         <span>QB on Yellow</span>
-                     <!-- input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30">
-                         <span>Test 2</span -->
-                 </div>
-                 `;
-        } else {
-            optsDivHeight = 35;
-            optsDiv = `
-                <div id="xedx-jail-opts"  class="xoptwrap title-black xnb bottom-round">
+        let optsDiv = `
+            <div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
                 <span style="width: 75%;">
                      <label for="limit">Lower limit, %:</label>
-                     <input type="number" id="bust-limit" class="xlimit xml10" name="limit" min="0" max="100">
-                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
+                     <input type="number" id="bust-limit" class="xlimit" name="limit" min="0" max="100">
+                     <label for="hide" class="xml10">Filter, hide under %:</label>
+                     <input type="number" id="hide-limit" class="xlimit" name="hide" min="0" max="100">
+                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml10">
                          <span>Quick Bust</span>
                      <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
                          <span>Pre Release</span>
                  </span>
-                 <!-- span style="float: right; width: 68px; max-width: 68px; min-width: 68px;" -->
-                 <!-- span style="width: auto; min-width: 68px;" class="xfr" -->
                  <span class="xopt-span">
                      <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
                      <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
                  </span>
+
+                 <span class="break"></span>
+
+                 <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30 xprerelease">
+                     <span class="xprerelease">Show p0</span>
+                 <input type="checkbox" id="quick-bust-ylw" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
+                     <span class="xprerelease">QB on Yellow</span>
+                 <span class="xml10">Timezone:</span>
+                 <input type="checkbox" id="xtz-local" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
+                     <span class="xprerelease">Local</span>
+                 <input type="checkbox" id="xtz-tct" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
+                     <span class="xprerelease">TCT</span>
              </div>
-                 `;
-        }
-
-
+             `;
 
         return optsDiv;
+    }
+
+    function attachOptsDiv(sel) {
+        let optsDiv = getOptionsDiv();
+        $(sel).after(optsDiv);
+        log("opts panel: ", $("#xedx-jail-opts"));
+
+        if (!enablePreRelease) {
+            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
+            $("#xedx-jail-opts").css("height", "35px");
+        } else {
+            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
+            $("#xedx-jail-opts").css("height", "70px");
+        }
+
+        //tzDisplay = GM_getValue("tzDisplay", "local");
+        let useLocal = (tzDisplay == "local");
+        $("#xtz-tct").prop('checked', !useLocal);
+        $("#xtz-local").prop('checked', useLocal);
+
+        $("#xtz-tct").on('click', tzToggleHandler);
+        $("#xtz-local").on('click', tzToggleHandler);
+    }
+
+    function tzToggleHandler(event) {
+        let node = event.target;
+        let id = $(node).attr("id");
+        log("tzToggleHandler, id: ", id);
+
+        let sel = "#" + id;
+        let checked = $(sel).is(":checked");
+        log("checked: ", checked);
+
+        if (id == "xtz-tct") $("#xtz-local").prop('checked', !checked);
+        if (id == "xtz-local") $("#xtz-tct").prop('checked', !checked);
     }
 
     /*
@@ -1869,36 +2015,43 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    validateApiKey(DEV_MODE ? 'FULL' : 'LIMITED');
-    versionCheck();
 
-    // New way:
-    callOnContentLoaded(contentLoadHandler);
+    //if (enablePreRelease)
+    callOnContentComplete(installNerveHook);
 
-    addStyles();
+    if (location.href.indexOf("jailview") > -1) {
 
-    if (GM_getValue("ClearBustStats", false) == true) {
-        clearBustStats();
-    }
-    GM_setValue("ClearBustStats", false);
+        validateApiKey(DEV_MODE ? 'FULL' : 'LIMITED');
+        versionCheck();
 
-    // Idea: start adding scores ASAP, add % as API results come in?
-    // Suppress some doc load if possib;e?
-    // Want fastest load time, least delay...
+        // New way:
+        callOnContentLoaded(contentLoadHandler);
 
-    // Only query and process past busts after min one minute, or
-    // start this script on every page and just do past busts when not
-    // on jail page? Save in storage, for 72 hours?
+        addStyles();
 
-    // Install the UI
-    if (DEV_MODE) callOnContentComplete(installUI);
+        if (GM_getValue("ClearBustStats", false) == true) {
+            clearBustStats();
+        }
+        GM_setValue("ClearBustStats", false);
 
-    // Start by kicking off a few API calls.
-    if (DEV_MODE) {
-        queryPastBusts();
-    } else {
-        personalStatsQuery();
-    }
+        // Idea: start adding scores ASAP, add % as API results come in?
+        // Suppress some doc load if possib;e?
+        // Want fastest load time, least delay...
+
+        // Only query and process past busts after min one minute, or
+        // start this script on every page and just do past busts when not
+        // on jail page? Save in storage, for 72 hours?
+
+        // Install the UI
+        if (DEV_MODE) callOnContentComplete(installUI);
+
+        // Start by kicking off a few API calls.
+        if (DEV_MODE) {
+            queryPastBusts();
+        } else {
+            personalStatsQuery();
+        }
+    } // end if "jailview"
 
 })();
 
