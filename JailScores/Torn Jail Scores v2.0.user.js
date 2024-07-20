@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.9
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -55,6 +55,7 @@
     const uiless = false;
     const recordStats = true;
     const contextMenuYOffset = 0;
+    var nerveBarContext = GM_getValue("nerveBarContext", false);    // Install right-click context menu on nerve bar
 
     // ms between calls to the API to check/recalculate penalty.
     // Eventually refine and recalc on any new bust w/o an API call, but
@@ -66,6 +67,12 @@
     GM_setValue("quickBustBtn", quickBustBtn);
     GM_setValue("quickBustYlw", quickBustYlw);
     GM_setValue("dispPenalty", dispPenalty);
+    GM_setValue("nerveBarContext", nerveBarContext);
+
+    if (nerveBarContext)
+        installNerveHook();
+    else
+        $("#x-contextMenu").remove();
 
     // Console logging levels
     debugLoggingEnabled = false;
@@ -941,6 +948,7 @@
     var lastShowState = GM_getValue("lastShow", "show");
     if (lastShowState == "hide") setTimeout(doHide, 10);
 
+    var mainDivHeight;
     function installUI(forceShow=false) {
         debug('[installUI]: ', uiless, " lastShowState: ", lastShowState,
             " forceShow: ", forceShow);
@@ -967,6 +975,14 @@
 
         if (!$(MAIN_DIV_SEL).length)
             $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv3);
+
+        mainDivHeight = $(MAIN_DIV_SEL).outerHeight();
+        if (!mainDivHeight) {
+            let tmp = $(MAIN_DIV_SEL).css("display");
+            $(MAIN_DIV_SEL).css("display", "block");
+            mainDivHeight = $(MAIN_DIV_SEL).outerHeight();
+            $(MAIN_DIV_SEL).css("display", tmp);
+        }
 
         setTitleColor();
 
@@ -1060,6 +1076,7 @@
         //$("#quick-bust-ylw").prop('checked', false);
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
+        $("#x-ctx-nerve").prop('checked', nerveBarContext);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
     }
 
@@ -1074,6 +1091,7 @@
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
+        nerveBarContext = $("#x-ctx-nerve").is(":checked");
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("hideLimit", hideLimit);
@@ -1082,6 +1100,7 @@
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
         GM_setValue("tzDisplay", tzDisplay);
+        GM_setValue("nerveBarContext", nerveBarContext);
 
         if (!enablePreRelease) {
             $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
@@ -1147,12 +1166,37 @@
 
     // ========= Start right click handler for nerve bar
     var nerveBarNode;
+    var hookWaiting = false;
     const jailURL = "https://www.torn.com/jailview.php";
+    const crimeCheckKey = "crimeLinksChecked";
+    const crimesMax = 12;
+    const crimeKeyPrefix = "CrimeLink-";
     const cmSel = "#x-contextMenu";
+
     const cmHtml = `<div id="x-contextMenu" class="context-menu ctxhide"><ul><li><a href="` + jailURL + `">Jail</a></li></ul></div`;
 
     function installNerveHook() {
+        if (location.href.indexOf("sid=attack") > -1) return;
+        if (!nerveBarContext) return;
+
         log("[installNerveHook]");
+
+        // Delay long enough for custom links (if any) to
+        // be installed, unless we've saved them (TBD)
+        if (!hookWaiting) {
+            hookWaiting = true;
+            setTimeout(installNerveHook, 500);
+            return;
+        }
+
+        // If there aren't any custom crime links,
+        // just install right click handler to go
+        // right to jail.
+        let crimesList = $("[id^='nav-crimes-cust']");
+        if ($(crimesList).length == 0) {
+
+        }
+
         if ($("#x-contextMenu").length) return;
         addContextStyles();
         nerveBarNode = $("#sidebar").find("a[class*='nerve__']");
@@ -1161,7 +1205,6 @@
         // But we need a click handler on the nerve bar.
         $(nerveBarNode).after(cmHtml);
 
-        let crimesList = $("[id^='nav-crimes-cust']");
         for (let idx=0; idx < $(crimesList).length; idx++) {
             let node = $(crimesList)[idx];
             let li = "<li><a href='" +
@@ -1172,10 +1215,45 @@
             $("#x-contextMenu > ul").append(li);
         }
 
+        let linksSaved = GM_getValue(crimeCheckKey, false);
+        if ($(crimesList).length == 0 && linksSaved) {
+            for (let idx=0; idx<crimesMax; idx++) {
+                let savedLi = GM_getValue(crimeKeyPrefix + idx, undefined);
+                if (savedLi) $("#x-contextMenu > ul").append(savedLi);
+            }
+        }
+
         $(nerveBarNode).on('contextmenu', handleNerveRightClick);
         $(cmSel).on('contextmenu', handleNerveRightClick);
+        $("#x-contextMenu > ul > li").on('click', hideMenu);
 
+        setTimeout(updateCrimeLinks, 2000);
         log("[installNerveHook] complete");
+    }
+
+    function updateCrimeLinks() {
+        log("[updateCrimeLinks]");
+        let crimeCount = 0;
+        for (let idx=0; idx<crimesMax; idx++) {
+            if (GM_getValue(crimeKeyPrefix + idx, undefined)) crimeCount++;
+            GM_setValue(crimeKeyPrefix + idx, undefined);
+        }
+        let crimesList = $("[id^='nav-crimes-cust']");
+        for (let idx=0; idx < $(crimesList).length; idx++) {
+            let node = $(crimesList)[idx];
+            let li = "<li><a href='" +
+                $($(node).find("a")[0]).attr("href") +
+                "'>" +
+                $($(node).find("span")[0]).text().trim() +
+                "</a></li>";
+            //$("#x-contextMenu > ul").append(li);
+
+            let key = crimeKeyPrefix + idx;
+            GM_setValue(key, li);
+        }
+        if ($(crimesList).length == crimeCount) return;
+        setTimeout(updateCrimeLinks, 5000);
+        GM_setValue(crimeCheckKey, true);
     }
 
     function handleNerveRightClick(event) {
@@ -1202,8 +1280,8 @@
                 position: absolute;
                 text-align: center;
                 background: lightgray;
-                border: 1px solid blue;
-                border-radius: 5px;
+                border: 1px solid black;
+                border-radius: 15px;
                 margin: 2px;
                 top: 50%;
                 left: 50%;
@@ -1222,14 +1300,15 @@
             }
 
             .context-menu ul li {
-                padding-bottom: 7px;
-                padding-top: 7px;
-                border: 1px solid green;
+                border: 1px solid black;
             }
 
             .context-menu ul li a {
+                padding-bottom: 7px;
+                padding-top: 7px;
                 text-decoration: none;
                 color: black;
+                display: block;
             }
 
             .context-menu ul li:hover {
@@ -1282,11 +1361,22 @@
         $("#busts-today").text(msg);
      }
 
+    const hideWithButton = false;
     function addHideButton() {
         debug("addHideButton");
         if ($("#xhide-btn").length == 0) {
             $("#skip-to-content").append(hideBtn2);
-            $("#xhide-btn").on("click", handleHideBtn);
+
+            if (!hideWithButton) {
+                $("#skip-to-content").on("click", handleHideBtn);
+                $("#skip-to-content").css("cursor", "pointer");
+                $("#skip-to-content").addClass("xedx-light");
+                $("#xhide-btn-span").addClass("xhide").removeClass("xshow");
+            } else {
+                $("#xhide-btn").on("click", handleHideBtn);
+                $("#skip-to-content").removeClass("xedx-light");
+                $("#xhide-btn-span").addClass("xshow").removeClass("xhide");
+            }
 
             if (lastShowState == "hide") setTimeout(doHide, 10);
             else setTimeout(doShow, 10);
@@ -1671,6 +1761,44 @@
         return bustDiv;
     }
 
+    // ========== Banner button and panel handlers ==========
+    var elInAnimation = false;
+    function elementAnimate( element, size, callback) {
+        log("elementAnimate, inAnimation: ", elInAnimation, " size: ", size);
+        log("element: ", $(element));
+        elInAnimation = true;
+
+        $(element).animate({
+            height: size,
+        }, 1500, function() {
+            if (callback) callback(element);
+            elInAnimation = false;
+        });
+    }
+
+    function elementHideShow(element) {
+        let dataval = $(element).attr("data-val");
+        $(element).attr("data-val", "");
+        log("elementHideShow, dataval: ", dataval);
+        if (dataval == "none") return;
+
+        // Check for animate-specific data-val first
+        if (dataval == "hide") {
+            $(element).removeClass("xshow").addClass("xhide");
+            return;
+        }
+        if (dataval == "show") {
+            $(element).removeClass("xhide").addClass("xshow");
+            return;
+        }
+
+        if ($(element).hasClass("xshow")) {
+            $(element).removeClass("xshow").addClass("xhide");
+        } else {
+            $(element).removeClass("xhide").addClass("xshow");
+        }
+    }
+
     // =========== Handle hiding our UI elements, via the main "Hide" button ===============
     var bannerHidden = false;
     function handleHideBtn() {
@@ -1681,6 +1809,17 @@
             doShow();
             return;
         }
+
+        /*
+        log("handleHideBtn mainDivHeight: ", mainDivHeight);
+        //elementAnimate(MAIN_DIV_ID, mainDivHeight);
+        if ($(MAIN_DIV_SEL).css("height") > 0) {
+            elementAnimate(MAIN_DIV_SEL, 0);
+        } else  {
+            elementAnimate(MAIN_DIV_SEL, mainDivHeight);
+            $(MAIN_DIV_SEL).addClass("xshow");
+        }
+        */
 
         if ($(MAIN_DIV_SEL).hasClass("xshow")) doHide();
         else if ($(MAIN_DIV_SEL).hasClass("xhide")) doShow();
@@ -1725,7 +1864,7 @@
                      <label for="hide" class="xml10">Filter, hide under %:</label>
                      <input type="number" id="hide-limit" class="xlimit" name="hide" min="0" max="100">
                      <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml10">
-                         <span>Quick Bust</span>
+                         <span>Quick Bust Green</span>
                      <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
                          <span>Pre Release</span>
                  </span>
@@ -1739,12 +1878,14 @@
                  <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30 xprerelease">
                      <span class="xprerelease">Show p0</span>
                  <input type="checkbox" id="quick-bust-ylw" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
-                     <span class="xprerelease">QB on Yellow</span>
+                     <span class="xprerelease">QB Yellow</span>
                  <span class="xml10">Timezone:</span>
                  <input type="checkbox" id="xtz-local" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
                      <span class="xprerelease">Local</span>
                  <input type="checkbox" id="xtz-tct" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
                      <span class="xprerelease">TCT</span>
+                 <input type="checkbox" id="x-ctx-nerve" class="xedx-cb-opts xmb20 xmr10 xml20 xmb30 xprerelease">
+                     <span class="xprerelease">Nerve Bar Context</span>
              </div>
              `;
 
@@ -1828,7 +1969,7 @@
                height: 20px;
                width: 26px;
                border: 1px solid black;
-               border-radius: 2px;
+               border-radius: 6px;
                margin-top: 5px;
             }
             .torn-btn-override {
@@ -1982,6 +2123,12 @@
                 border: var(--btn-border);
                 display: inline-block;
                 vertical-align: middle;
+             }
+             .xedx-torn-btn:hover {
+                filter: brightness(2.00);
+             }
+             .xedx-light:hover {
+                filter: brightness(2.00);
              }
              .qreload {
 
