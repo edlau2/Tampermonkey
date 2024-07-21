@@ -1,10 +1,14 @@
 // ==UserScript==
 // @name         Torn Safe Fac Newsies, PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Try to prevent sending newsies accidentally
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
+// @icon         https://www.google.com/s2/favicons?domain=torn.com
+// @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -21,7 +25,7 @@
     function handlePageLoad() {
         // Make sure we're on the newsletter page...
         let thisHref = window.location.href;
-        let rootNode  = document.querySelector(newsieRootSel);
+        //let rootNode  = document.querySelector(newsieRootSel);
 
 
         if (thisHref.indexOf("newsletter") < 0) {
@@ -29,23 +33,28 @@
         }
 
         // Have to wait for entire page to complete.
-        if (!rootNode) {
+        if ($(newsieRootSel).length == 0) {
             if (retries++ > 20) return console.log("Torn Safe Fac Newsies: too many retries, giving up.");
             return setTimeout(handlePageLoad, 250);
         }
 
         retries = 0;
         let funkySel = "div[class^='editorRoot_'] > div[class^='toolbarWrapper_'] > div[class^='actionButtonsWrapper_'] > button";
-        let sendBtn = document.querySelector(funkySel);
-        if (!sendBtn) {
+        //let sendBtn = document.querySelector(funkySel);
+        //if (!sendBtn) {
+        let sendBtn = $(funkySel);
+        if ($(sendBtn).length == 0) {
             if (retries++ > 20) return console.log("Torn Safe Fac Newsies: too many retries, giving up.");
             return setTimeout(handlePageLoad, 250);
         }
 
-        sendBtn.addEventListener('click', interceptSend);
+        //sendBtn.addEventListener('click', interceptSend);
+        //sendBtn.style.border =  "1px solid green";
+
+        $(sendBtn).on('click', interceptSend);
 
         // Indicate with border color change we are safe
-        sendBtn.style.border =  "1px solid green";
+        $(sendBtn).css("border", "1px solid green");
     }
 
     function interceptSend(event) {
