@@ -51,10 +51,19 @@
         //sendBtn.addEventListener('click', interceptSend);
         //sendBtn.style.border =  "1px solid green";
 
+        // TBD: element.setAttribute('foo', value);
+        // Add custom attr, poll to make sure still there...
+
         $(sendBtn).on('click', interceptSend);
 
         // Indicate with border color change we are safe
         $(sendBtn).css("border", "1px solid green");
+    }
+
+    function installHashChangeHandler(callback) {
+        window.addEventListener('hashchange', function() {
+        console.log('The hash has changed! new hash: ' + location.hash);
+        callback();}, false);
     }
 
     function interceptSend(event) {
@@ -77,5 +86,7 @@
         document.addEventListener('readystatechange',
             event => {if (document.readyState == 'complete') handlePageLoad();});
     }
+
+    installHashChangeHandler(handlePageLoad);
 
 })();
