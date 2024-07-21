@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Safe Fac Newsies, PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Try to prevent sending newsies accidentally
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -20,21 +20,51 @@
     'use strict';
     const newsieRootId = "react-root-faction-newsletter";
     const newsieRootSel = "#" + newsieRootId;
+    const loggingEnabled = true;
+    var cancelHookInstall = false;
+
+    log("Script loaded...");
+
+    // ==================================
+
+    function pushStateChanged(e) {
+        log("Push state change detected...");
+        setTimeout(installBtnHooks, 250);
+    }
+
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
+
+    // =====================================
+
+    function log(...data) {
+        if (loggingEnabled) {
+            console.log(GM_info.script.name + ': ', ...data);
+        }
+    }
 
     var retries = 0;
     function handlePageLoad() {
+        log("handlePageLoad...");
         // Make sure we're on the newsletter page...
         let thisHref = window.location.href;
-        //let rootNode  = document.querySelector(newsieRootSel);
-
+        cancelHookInstall = false;
 
         if (thisHref.indexOf("newsletter") < 0) {
-            return console.log("Torn Safe Fac Newsies: Wrong page, not writing a newsletter: ", thisHref);
+            return log("Torn Safe Fac Newsies: Wrong page, not writing a newsletter: ", thisHref);
         }
 
         // Have to wait for entire page to complete.
         if ($(newsieRootSel).length == 0) {
-            if (retries++ > 20) return console.log("Torn Safe Fac Newsies: too many retries, giving up.");
+            if (retries++ > 20) return log("Torn Safe Fac Newsies: too many retries, giving up.");
             return setTimeout(handlePageLoad, 250);
         }
 
@@ -44,41 +74,73 @@
         //if (!sendBtn) {
         let sendBtn = $(funkySel);
         if ($(sendBtn).length == 0) {
-            if (retries++ > 20) return console.log("Torn Safe Fac Newsies: too many retries, giving up.");
+            if (retries++ > 20) return log("Torn Safe Fac Newsies: too many retries, giving up.");
             return setTimeout(handlePageLoad, 250);
         }
 
-        //sendBtn.addEventListener('click', interceptSend);
-        //sendBtn.style.border =  "1px solid green";
+        // Passed all tests, install hooks
+        installBtnHooks();
 
-        // TBD: element.setAttribute('foo', value);
-        // Add custom attr, poll to make sure still there...
+        
+    }
+
+    var hookRetries = 0;
+    function installBtnHooks() {
+        let funkySel = "div[class^='editorRoot_'] > div[class^='toolbarWrapper_'] > div[class^='actionButtonsWrapper_'] > button";
+        let sendBtn = $(funkySel);
+
+        if ($(sendBtn).length == 0) {
+            //if (hookRetries++ > 20) return;
+            if (cancelHookInstall) {
+                cancelHookInstall = false;
+                return;
+            }
+            setTimeout(installBtnHooks, 250);
+            return;
+        }
+
+        hookRetries = 0;
+
+        if ($(sendBtn).attr("xdata") == "yes") {
+            log("Hook already installed!");
+            $(sendBtn).css("border", "1px solid blue");
+            return;
+        }
 
         $(sendBtn).on('click', interceptSend);
+        $(sendBtn).attr("xdata", "yes");
 
         // Indicate with border color change we are safe
         $(sendBtn).css("border", "1px solid green");
     }
 
+    function hashChangeHandler() {
+        log("hashChangeHandler ", window.location.href);
+        handlePageLoad();
+    }
+
     function installHashChangeHandler(callback) {
         window.addEventListener('hashchange', function() {
-        console.log('The hash has changed! new hash: ' + location.hash);
+        log('The hash has changed! new hash: ' + location.hash);
         callback();}, false);
     }
 
     function interceptSend(event) {
         console.log("Torn Safe Fac Newsies: intercepting send");
         if (confirm("Are you sure?")) {
-            console.log("Torn Safe Fac Newsies: Sending!");
+            log("Torn Safe Fac Newsies: Sending!");
+            setTimeout(installBtnHooks, 250);
             return true; // Left for JQuery handling...
         } else {
-            console.log("Torn Safe Fac Newsies: Not Sending!!!");
+            log("Torn Safe Fac Newsies: Not Sending!!!");
             event.preventDefault();
             event.stopPropagation();
         }
 
         return false;
     }
+
+    // This is start of script execution - begin on page load complete, and page change handlers
 
     if (document.readyState == 'complete') {
         handlePageLoad();
@@ -87,6 +149,13 @@
             event => {if (document.readyState == 'complete') handlePageLoad();});
     }
 
-    installHashChangeHandler(handlePageLoad);
+    // Monitor push state
+    history.pushState = bindEventListener("pushState");
+    window.addEventListener("pushState", function (e) {
+        pushStateChanged(e);  // Could directly call addHideBannerBtn() instead
+    });
+
+    // And handle page changes
+    installHashChangeHandler(hashChangeHandler);
 
 })();
