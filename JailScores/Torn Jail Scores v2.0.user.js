@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      2.10
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -54,8 +54,6 @@
     var livePenaltyUpdate = true;                          // Update penalty calc immediately on bust, if in pre-release.
     const uiless = false;
     const recordStats = true;
-    const contextMenuYOffset = 0;
-    var nerveBarContext = GM_getValue("nerveBarContext", false);    // Install right-click context menu on nerve bar
 
     // ms between calls to the API to check/recalculate penalty.
     // Eventually refine and recalc on any new bust w/o an API call, but
@@ -67,12 +65,6 @@
     GM_setValue("quickBustBtn", quickBustBtn);
     GM_setValue("quickBustYlw", quickBustYlw);
     GM_setValue("dispPenalty", dispPenalty);
-    GM_setValue("nerveBarContext", nerveBarContext);
-
-    if (nerveBarContext)
-        installNerveHook();
-    else
-        $("#x-contextMenu").remove();
 
     // Console logging levels
     debugLoggingEnabled = false;
@@ -1076,7 +1068,6 @@
         //$("#quick-bust-ylw").prop('checked', false);
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
-        $("#x-ctx-nerve").prop('checked', nerveBarContext);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
     }
 
@@ -1091,7 +1082,6 @@
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
-        nerveBarContext = $("#x-ctx-nerve").is(":checked");
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("hideLimit", hideLimit);
@@ -1164,175 +1154,7 @@
     }
     // ========== End Options button and panel handlers ==========
 
-    // ========= Start right click handler for nerve bar
-    var nerveBarNode;
-    var hookWaiting = false;
-    const jailURL = "https://www.torn.com/jailview.php";
-    const crimeCheckKey = "crimeLinksChecked";
-    const crimesMax = 12;
-    const crimeKeyPrefix = "CrimeLink-";
-    const cmSel = "#x-contextMenu";
-
-    const cmHtml = `<div id="x-contextMenu" class="context-menu ctxhide"><ul><li><a href="` + jailURL + `">Jail</a></li></ul></div`;
-
-    function installNerveHook() {
-        if (location.href.indexOf("sid=attack") > -1) return;
-        if (!nerveBarContext) return;
-
-        log("[installNerveHook]");
-
-        // Delay long enough for custom links (if any) to
-        // be installed, unless we've saved them (TBD)
-        if (!hookWaiting) {
-            hookWaiting = true;
-            setTimeout(installNerveHook, 500);
-            return;
-        }
-
-        // If there aren't any custom crime links,
-        // just install right click handler to go
-        // right to jail.
-        let crimesList = $("[id^='nav-crimes-cust']");
-        if ($(crimesList).length == 0) {
-
-        }
-
-        if ($("#x-contextMenu").length) return;
-        addContextStyles();
-        nerveBarNode = $("#sidebar").find("a[class*='nerve__']");
-
-        // Put the context menu on the page, doesn't really matter where.
-        // But we need a click handler on the nerve bar.
-        $(nerveBarNode).after(cmHtml);
-
-        for (let idx=0; idx < $(crimesList).length; idx++) {
-            let node = $(crimesList)[idx];
-            let li = "<li><a href='" +
-                $($(node).find("a")[0]).attr("href") +
-                "'>" +
-                $($(node).find("span")[0]).text().trim() +
-                "</a></li>";
-            $("#x-contextMenu > ul").append(li);
-        }
-
-        let linksSaved = GM_getValue(crimeCheckKey, false);
-        if ($(crimesList).length == 0 && linksSaved) {
-            for (let idx=0; idx<crimesMax; idx++) {
-                let savedLi = GM_getValue(crimeKeyPrefix + idx, undefined);
-                if (savedLi) $("#x-contextMenu > ul").append(savedLi);
-            }
-        }
-
-        $(nerveBarNode).on('contextmenu', handleNerveRightClick);
-        $(cmSel).on('contextmenu', handleNerveRightClick);
-        $("#x-contextMenu > ul > li").on('click', hideMenu);
-
-        setTimeout(updateCrimeLinks, 2000);
-        log("[installNerveHook] complete");
-    }
-
-    function updateCrimeLinks() {
-        log("[updateCrimeLinks]");
-        let crimeCount = 0;
-        for (let idx=0; idx<crimesMax; idx++) {
-            if (GM_getValue(crimeKeyPrefix + idx, undefined)) crimeCount++;
-            GM_setValue(crimeKeyPrefix + idx, undefined);
-        }
-        let crimesList = $("[id^='nav-crimes-cust']");
-        for (let idx=0; idx < $(crimesList).length; idx++) {
-            let node = $(crimesList)[idx];
-            let li = "<li><a href='" +
-                $($(node).find("a")[0]).attr("href") +
-                "'>" +
-                $($(node).find("span")[0]).text().trim() +
-                "</a></li>";
-            //$("#x-contextMenu > ul").append(li);
-
-            let key = crimeKeyPrefix + idx;
-            GM_setValue(key, li);
-        }
-        if ($(crimesList).length == crimeCount) return;
-        setTimeout(updateCrimeLinks, 5000);
-        GM_setValue(crimeCheckKey, true);
-    }
-
-    function handleNerveRightClick(event) {
-        event.preventDefault();
-        if ($(cmSel).css("display") == "block") {
-            hideMenu();
-        } else {
-            let x = $(nerveBarNode).css("left");
-            let y = +event.clientY + contextMenuYOffset;
-            $(cmSel).css("left", x.toString() + "px");
-            $(cmSel).css("top", y.toString() + "px");
-            $(cmSel).removeClass("ctxhide").addClass("ctxshow");
-        }
-    }
-
-    function hideMenu() {$(cmSel).removeClass("ctxshow").addClass("ctxhide");}
-
-    function addContextStyles() {
-        GM_addStyle(`
-            .context-wrapper {
-                border: 1px solid red;
-            }
-            .context-menu {
-                position: absolute;
-                text-align: center;
-                background: lightgray;
-                border: 1px solid black;
-                border-radius: 15px;
-                margin: 2px;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                z-index: 20;
-            }
-
-            .ctxhide {display: none;}
-            .ctxshow {display: block}
-
-            .context-menu ul {
-                padding: 0px;
-                margin: 0px;
-                min-width: 150px;
-                list-style: none;
-            }
-
-            .context-menu ul li {
-                border: 1px solid black;
-            }
-
-            .context-menu ul li a {
-                padding-bottom: 7px;
-                padding-top: 7px;
-                text-decoration: none;
-                color: black;
-                display: block;
-            }
-
-            .context-menu ul li:hover {
-                background: darkgray;
-            }
-            .x-centered {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              /* bring your own prefixes */
-              transform: translate(-50%, -50%);
-            }
-            .x-box {
-                z-index: 20;
-                width: 20px;
-                height: 20px;
-                border: 2px solid;
-                border-color: black;
-                display: block;
-            }
-        `);
-    }
-
-    // ======== End right click handler for nerve bar
+   
 
     function setTitleColor() {
         if (autoBustOn)
@@ -1884,8 +1706,6 @@
                      <span class="xprerelease">Local</span>
                  <input type="checkbox" id="xtz-tct" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
                      <span class="xprerelease">TCT</span>
-                 <input type="checkbox" id="x-ctx-nerve" class="xedx-cb-opts xmb20 xmr10 xml20 xmb30 xprerelease">
-                     <span class="xprerelease">Nerve Bar Context</span>
              </div>
              `;
 
@@ -2165,9 +1985,6 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-
-    //if (enablePreRelease)
-    callOnContentComplete(installNerveHook);
 
     if (location.href.indexOf("jailview") > -1) {
 
