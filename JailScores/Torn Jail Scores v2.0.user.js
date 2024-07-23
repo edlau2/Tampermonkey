@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.10
+// @version      2.11
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1090,7 +1090,6 @@
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
         GM_setValue("tzDisplay", tzDisplay);
-        GM_setValue("nerveBarContext", nerveBarContext);
 
         if (!enablePreRelease) {
             $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
@@ -1163,6 +1162,7 @@
             $(MAIN_DIV_SEL +" > .xspleft").removeClass("xgr");
     }
 
+    var rightClicks = 0;
     function handleRightClick() {
         debug("Handle right click");
         autoBustOn = !autoBustOn;
@@ -1179,6 +1179,9 @@
         let msg = "(Today: " + numBusts +  ")";
         if (enablePreRelease && dispPenalty)
             msg = "(Today: " + numBusts + " Penalty: " + round2(totalPenalty) + ")";
+
+        let max = GM_getValue("maxDailyBusts", 0);
+        if (numBusts > max) GM_setValue("maxDailyBusts", numBusts);
 
         $("#busts-today").text(msg);
      }
@@ -1710,6 +1713,14 @@
              `;
 
         return optsDiv;
+    }
+
+    function getStatsDiv() {
+        let statsDiv = `<div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
+
+                        </div>`;
+
+        return statsDiv;
     }
 
     function attachOptsDiv(sel) {
