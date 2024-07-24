@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.11
+// @version      2.12
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -30,7 +30,7 @@
 
     const DEV_MODE = true;             // Without this, scores only, no % chance etc...
 
-    // Since tthis is a work in progress, may need to clean up old, unusd
+    // Since this is a work in progress, may need to clean up old, unusd
     // or changed stuff in storage on verion change. Need to do first
     // before the version check, which writes out this version number.
     cleanOldVersionIfo();
@@ -43,6 +43,9 @@
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
+
+    var useLocal = (tzDisplay == "local");
+    var useUTC = !useLocal;
 
     // "uiless", if true, doesn't add the minimal UI - the 'save log',
     // 'hide/show' button (which will hide the un-needed UI pieces
@@ -503,9 +506,9 @@
 
         // This is WRONG if doing reload!
         if (!doingReload) {
-            log("startAddJailScores took ", elapsed(startAddJailScores), " secs");
-            log("Sort complete, took ", elapsed(sortStart), " secs");
-            log("Script load time: ", elapsed(ScriptStartTime), " secs");
+            debug("startAddJailScores took ", elapsed(startAddJailScores), " secs");
+            debug("Sort complete, took ", elapsed(sortStart), " secs");
+            debug("Script load time: ", elapsed(ScriptStartTime), " secs");
 
             // Save stats to get averages
             if (recordStats) {
@@ -520,7 +523,7 @@
                 let loadTimeAvg = loadTime / totalLoads;
                 GM_setValue("loadTimeAvg", loadTimeAvg);
 
-                log("totalLoads: ", totalLoads, " Average time: ", loadTimeAvg, " avg to bust: ", GM_getValue("yesnoAvg", -1));
+                debug("totalLoads: ", totalLoads, " Average time: ", loadTimeAvg, " avg to bust: ", GM_getValue("yesnoAvg", -1));
             }
         }
     }
@@ -550,7 +553,7 @@
         // Process past busts
         let pastBustsStart = _start();
         processPastBusts(jsonResp);
-        log("processPastBusts took ", elapsed(pastBustsStart), " secs");
+        debug("processPastBusts took ", elapsed(pastBustsStart), " secs");
 
         // Now get personal stats, perks, level. Could do as one call.
         // Logically easier to do in two, easier to debug also.
@@ -787,16 +790,29 @@
         }
     }
 
+    let observerRetries = 0;
     function installObserver() {
         targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         observer = new MutationObserver(observerCallback);
         debug('Starting mutation observer: ', targetNode);
-        observerOn();
+        if (observerOn() == false) {
+            if (observerRetries++ > 3)
+                throw new Error("Error: Observer installation FAILED, aborting.");
+            else
+                setTimeout(installObserver, 250);
+        }
     }
 
     const observerOn = function () {
         debug('[observerOn]');
-        if (observer) observer.observe(targetNode, config);
+        if (observer && $(targetNode).length) {
+            observer.observe(targetNode, config);
+            return true;
+        }
+        else {
+            log("Unable to start observer! ", $(targetNode));
+            return false;
+        }
     }
 
     const observerOff = function () {
@@ -819,6 +835,29 @@
         }
 
         //debug("result: ", rc);
+        return rc;
+    }
+
+    function isTodayUTC(dateUTC) {
+        const now = new Date();
+
+        const yearDate = dateUTC.getUTCFullYear();
+        const monthDate = dateUTC.getUTCMonth();
+        const dayDate = dateUTC.getUTCDate();
+
+        const yearNow = now.getUTCFullYear();
+        const monthNow = now.getUTCMonth();
+        const dayNow = now.getUTCDate();
+
+        debug("isTodayUTC, date: ", dateUTC.toUTCString());
+        debug("isTodayUTC, now: ", now.toUTCString());
+
+        let rc = false;
+        if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
+            rc = true;
+        }
+
+        debug("isTodayUTC, result: ", rc);
         return rc;
     }
 
@@ -987,7 +1026,7 @@
         let temp = GM_getValue("lastBust", undefined);
         if (temp) {
             let lastBust = new Date(parseInt(temp, 10));
-            if (!isToday(lastBust))
+            if (useLocal? !isToday(lastBust) : !isTodayUTC(lastBust))
                 setTodaysBusts(0);
             else
                 setTodaysBusts(GM_getValue("currBusts", 0));
@@ -996,7 +1035,7 @@
         }
 
         // TEMP: set timer to update text for penalty/busts, won't need later
-        setInterval(updateBustsAndPenaltyText, 1000);
+        //setInterval(updateBustsAndPenaltyText, 1000);
 
         // Add the options panel
         if (/*dispOptsScreen &&*/ $("#xedx-jail-opts").length == 0) {
@@ -1082,6 +1121,9 @@
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
+
+        useLocal = (tzDisplay == "local");
+        useUTC = !useLocal;
 
         GM_setValue("bustMin", bustMin);
         GM_setValue("hideLimit", hideLimit);
@@ -1349,7 +1391,7 @@
                 }
 
                 let et = elapsed(reloadStart);
-                log("reloadUserList took ", elapsed(reloadStart), " secs");
+                debug("reloadUserList took ", elapsed(reloadStart), " secs");
 
                 let msg = "Reload complete, ";
                 if (+et == 0)
