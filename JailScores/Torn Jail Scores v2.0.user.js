@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.12
+// @version      2.13
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.42.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
@@ -43,6 +44,7 @@
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
+    var optTryLastPages = GM_getValue("optTryLastPages", true);
 
     var useLocal = (tzDisplay == "local");
     var useUTC = !useLocal;
@@ -134,9 +136,9 @@
     function cleanOldVersionIfo() {
         let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
         if (Number(curr_ver) < 2.5) {
-            log("Cleaning up version older than 2.5");
-            GM_setValue("p0low", "-1");
-            GM_setValue("p0hi", "-1");
+            //log("Cleaning up version older than 2.5");
+            //GM_setValue("p0low", "-1");
+            //GM_setValue("p0hi", "-1");
         }
     }
 
@@ -678,11 +680,11 @@
 
         if (recordStats) {
             let low = GM_getValue("p0low", -1);
-            if (totalPenalty < low || (low == -1)) {
+            if (totalPenalty < low) {
                 GM_setValue("p0low", round2(totalPenalty));
             }
             let hi = GM_getValue("p0hi", -1);
-            if (totalPenalty > hi || hi == -1) GM_setValue("p0hi", round2(totalPenalty));
+            if (totalPenalty > hi) GM_setValue("p0hi", round2(totalPenalty));
         }
 
         debug('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
@@ -822,9 +824,11 @@
 
     function isToday(date) {
         const now = new Date();
+
         const yearDate = date.getYear();
         const monthDate = date.getMonth();
         const dayDate = date.getDate();
+
         const yearNow = now.getYear();
         const monthNow = now.getMonth();
         const dayNow = now.getDate();
@@ -1023,6 +1027,13 @@
 
         // When we roll over, maybe keep a daily record?
         // such as date|busts|date|busts|date....etc. ?
+        //
+        // https://api.torn.com/user/?selections=timestamp&key=
+        //
+        // Put in lib, also other new func I forgot...decodeAjaxError
+        // Also "is date today" fn...
+        // Maybe also fn to detect JQuery....
+        //
         let temp = GM_getValue("lastBust", undefined);
         if (temp) {
             let lastBust = new Date(parseInt(temp, 10));
@@ -1074,6 +1085,9 @@
         // Add a right-click handler to the fake div, for misc custom stuff
         $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
 
+        // Swap to stats div handler
+        $("#xedx-stats-btn").on('click', swapStatsOptsView);
+
         // TEMP
         //addSortIcon();
 
@@ -1099,6 +1113,12 @@
         }
         */
 
+        setJailOptions();
+
+        $("#xedx-jail-opts").css("height", 0);
+        $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
+
+        /*
         $("#xedx-jail-opts").css("height", 0);
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
         $("#bust-limit").val(bustMin);
@@ -1108,6 +1128,35 @@
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
+        */
+    }
+
+    function setJailOptions() {
+        $("#bust-limit").val(bustMin);
+        $("#hide-limit").val(hideLimit);
+        $("#quick-bust-btn").prop('checked', true);
+        //$("#quick-bust-ylw").prop('checked', false);
+        $("#pre-release-btn").prop('checked', enablePreRelease);
+        $("#penalty-btn").prop('checked', dispPenalty);
+        $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
+        $("#xlast-page-opt").prop('checked', optTryLastPages);
+
+
+        if (!enablePreRelease) {
+            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
+            //$("#xedx-jail-opts").css("height", "35px");
+        } else {
+            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
+            //$("#xedx-jail-opts").css("height", "70px");
+        }
+
+        //tzDisplay = GM_getValue("tzDisplay", "local");
+        let useLocal = (tzDisplay == "local");
+        $("#xtz-tct").prop('checked', !useLocal);
+        $("#xtz-local").prop('checked', useLocal);
+
+        $("#xtz-tct").on('click', tzToggleHandler);
+        $("#xtz-local").on('click', tzToggleHandler);
     }
 
     // ========== Options button and panel animation and click handlers ==========
@@ -1121,6 +1170,8 @@
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
+        optTryLastPages = $("#xlast-page-opt").is(":checked");
+
 
         useLocal = (tzDisplay == "local");
         useUTC = !useLocal;
@@ -1132,6 +1183,7 @@
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
         GM_setValue("tzDisplay", tzDisplay);
+        GM_setValue("optTryLastPages", optTryLastPages);
 
         if (!enablePreRelease) {
             $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
@@ -1192,6 +1244,42 @@
             optsAnimate(0);
         else
             optsAnimate(enablePreRelease ? optsDivHeightPreRelease : optsDivHeightDef);
+    }
+
+    function swapStatsOptsView() {
+        let needStatDiv = true;
+        let currDiv = $("#xedx-jail-opts");
+        if (!$(currDiv).length) {
+            currDiv = $("#xedx-jail-stats");
+            needStatDiv = false;
+        }
+
+        if (!$(currDiv).length) {
+            log("ERROR: didn't find either div!");
+            return
+        }
+
+        let newDiv = needStatDiv ? getStatsDiv() : getOptionsDiv();
+
+        $(currDiv).replaceWith(newDiv);
+        $("#xedx-stats-btn").on('click', swapStatsOptsView);
+
+        // Need to change caret target also!
+
+        $("#xedx-stats-btn").attr('value', needStatDiv ? "Options" : "Stats");
+
+        let sel = needStatDiv ? "#xedx-jail-stats" : "#xedx-jail-opts";
+        $(sel).css("height", "75px");
+        $(sel).css("min-width", $(MAIN_DIV_SEL).css("width"));
+
+        if (needStatDiv) {
+            fillJailStatsDiv();
+        } else {
+            setJailOptions();
+        }
+
+        log("swapStatsOptsView, currDiv: ", $(currDiv));
+
     }
     // ========== End Options button and panel handlers ==========
 
@@ -1278,9 +1366,11 @@
     // ========= Handlers for Fast Reloading ========================
     // Move response handling to separate fn at some point....
     var doingReload = false;
-    function reloadUserList() {
+    var forceReloadPageNum = 0;
 
-        log("reloadUserList");
+    function reloadUserList(event) {
+
+        log("reloadUserList, page (1): ", forceReloadPageNum);
 
         // No matter result, go back to normal reload btn?
         forceReloadBtn();
@@ -1290,12 +1380,25 @@
             return;
         }
 
+        log("forceReloadPageNum: ", forceReloadPageNum);
+        let pageNum = forceReloadPageNum;
+        forceReloadPageNum = 0;
+
+        log("pageNum: ", pageNum);
+
+        var forcedPageReload = false;
+
+        if (pageNum > 0) {
+            log("Settibg forcedPageReload");
+            forcedPageReload = true;
+        }
+
         let reloadStart = _start();
         observerOff();
 
         doingReload = true;
         let useURL = reloadURL + savedHash;
-        let startNum = getStartNumFromHash(savedHash);
+        let startNum = pageNum ? pageNum : getStartNumFromHash(savedHash);
 
         log("Quick reload URL: ", useURL, " start num: ", startNum);
         $.post(
@@ -1309,6 +1412,7 @@
             function (response) {
                 let playerCount = 0;
                 let hiddenPlayers = 0;
+                let totalPlayers = 0;
                 let displayMsg = false;
                 log("Handling reloadUserList response");
                 let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
@@ -1321,7 +1425,22 @@
                 if (jsonObj.success == true) {
 
                     let players = jsonObj.data.players;
-                    if (!players) {  // Turns ou this happens when no one is in jail
+                    totalPlayers = jsonObj.data.total;
+
+                    let currPage = (getStartNumFromHash(savedHash));
+                    log("******* total: ", totalPlayers, " pageNum: ", pageNum,
+                        " optTryLastPages: ", optTryLastPages, " currPage: ", currPage,
+                        " forcedPageReload: ", forcedPageReload);
+
+                    if (+totalPlayers > 51 && /*pageNum == 0 &&*/ optTryLastPages && !forcedPageReload) {
+                        log("******* Reloading...");
+
+                        // TBD TBD TBD Need to toggle page button on top! Paginator btn!
+                        // Remember, start is 50 * (page+1) if page 0 is first page...
+                        forceReloadPageNum = 50;
+                        return setTimeout(reloadUserList, 25);
+                    }
+                    if (!players) {  // Turns out this happens when no one is in jail
                         log("Error: 'players' is undefined: ", players);
                         log("jsonObj.data: ", jsonObj.data);
 
@@ -1339,6 +1458,28 @@
 
                     }
 
+                    // Need to manually select the paginator button
+                    if (forcedPageReload && totalPlayers > 50) {
+                        log("Buttons: ", $("div.gallery-wrapper.pagination > a"));
+                        let pages = $("div.gallery-wrapper.pagination > a");
+                        let page2 = undefined;
+                        for (let idx=0; idx < $(pages).length; idx++) {
+                            let thisPage = $(pages)[idx];
+                            log("Checking: ", $(thisPage));
+                            let whichPage = $(thisPage).attr("page");
+                            if (!page2 && whichPage == '2') {
+                                log("Found page 2");
+                                page2 = $(thisPage);
+                            }
+                            $(thisPage).removeClass('active');
+                        }
+
+                        if ($(page2).length) {
+                            $(page2).addClass('active');
+                            log("Added active class to: ", $(page2));
+                        }
+                    }
+
                     $(targetUl).empty();
 
                     let player = players[0];
@@ -1347,7 +1488,7 @@
                     debug("Players: ", players);
                     debug("Player[0]: ", players[0]);
 
-                    $(countNode).text(playerCount);
+                    $(countNode).text(totalPlayers);
 
                     // May either flag HTML as hidden, give 'xhide' class,
                     // or return 'undefined' if filtered so as to not display....
@@ -1733,7 +1874,7 @@
                      <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml10">
                          <span>Quick Bust Green</span>
                      <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts xml10">
-                         <span>Pre Release</span>
+                         <span>Advanced</span>
                  </span>
                  <span class="xopt-span">
                      <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
@@ -1742,6 +1883,7 @@
 
                  <span class="break"></span>
 
+                 <span style="width: 75%;">
                  <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xmr10 xmb30 xprerelease">
                      <span class="xprerelease">Show p0</span>
                  <input type="checkbox" id="quick-bust-ylw" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
@@ -1751,15 +1893,41 @@
                      <span class="xprerelease">Local</span>
                  <input type="checkbox" id="xtz-tct" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
                      <span class="xprerelease">TCT</span>
+                 <input type="checkbox" id="xlast-page-opt" class="xedx-cb-opts xmb20 xmr10 xml10 xmb30 xprerelease">
+                     <span class="xprerelease">Page 2</span>
+                 </span>
+                 <span class="xopt-span">
+                     <input id="xedx-stats-btn" type="submit" class="xedx-torn-btn xmt5 xmr10" value="Stats">
+                 </span>
              </div>
              `;
 
         return optsDiv;
     }
 
-    function getStatsDiv() {
-        let statsDiv = `<div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
+    function fillJailStatsDiv() {
+        $("#daily-busts").text("Today's busts: " + GM_getValue("currBusts", 0));
+        $("#max-busts").text("Maximum: " + GM_getValue("maxDailyBusts", 0));
+        $("#min-p0").text("Minimum penalty: " + GM_getValue("p0low", 0));
+        $("#max-p0").text("Maximum penalty: " + GM_getValue("p0hi", 0));
+    }
 
+    function getStatsDiv() {
+        let statsDiv = `<div id="xedx-jail-stats"  class="xoptwrap flexwrap title-black xnb bottom-round">
+                             <span style="width: 100%;">
+                                 <span id="daily-busts" class="">Today's busts: 7</span>
+                                 <span id="max-busts" class="xml10">Most daily: 14</span>
+                             </span>
+
+                             <span class="break"></span>
+
+                             <span style="width: 75%; margin-bottom: 30px;">
+                                 <span id="min-p0" class="">Minimum Penalty: 0.0</span>
+                                 <span id="max-p0" class="xml10">Maximun Penalty daily: 214.36</span>
+                             </span>
+                             <span class="xopt-span">
+                                 <input id="xedx-stats-btn" type="submit" class="xedx-torn-btn xmt5 xmr10" value="Stats">
+                             </span>
                         </div>`;
 
         return statsDiv;
@@ -1770,6 +1938,7 @@
         $(sel).after(optsDiv);
         log("opts panel: ", $("#xedx-jail-opts"));
 
+        /*
         if (!enablePreRelease) {
             $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
             $("#xedx-jail-opts").css("height", "35px");
@@ -1785,6 +1954,7 @@
 
         $("#xtz-tct").on('click', tzToggleHandler);
         $("#xtz-local").on('click', tzToggleHandler);
+        */
     }
 
     function tzToggleHandler(event) {
@@ -2032,6 +2202,31 @@
         installHashChangeHandler(hashHandler);
         installObserver();
     }
+
+     // ==================================
+
+    function pushStateChanged(e) {
+        let thisCrime = getThisCrime();
+        log("PS changed! thisCrime: '", thisCrime, "'");
+        log("pushStateChanged: ", e);
+        log("hash: ", window.location.hash);
+
+        //if (autoHide) hideBanner(true);
+        //setTimeout(addHideBannerBtn, 500);
+    }
+
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
+
+    // =====================================
 
     //////////////////////////////////////////////////////////////////////
     // Main entry point.
