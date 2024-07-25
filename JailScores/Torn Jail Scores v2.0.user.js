@@ -44,7 +44,7 @@
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
-    var optTryLastPages = GM_getValue("optTryLastPages", true);
+    var optTryLastPages = GM_getValue("optTryLastPages", false);
 
     var useLocal = (tzDisplay == "local");
     var useUTC = !useLocal;
