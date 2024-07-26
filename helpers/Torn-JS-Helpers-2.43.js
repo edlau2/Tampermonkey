@@ -249,11 +249,6 @@ const separator = '<hr class = "delimiter-999 m-top10 m-bottom10">';
 // Convert a date object into a readable format
 // Note: use 'Utilities.formatDate' instead.
 function dateConverter(dateobj, format){
-
-    // I am deprecating this function, if you hit this breakpoint, let me know!!!!
-    // Thx, xedx [2100735]
-    debugger;
-
     var year = dateobj.getFullYear();
     var month= ("0" + (dateobj.getMonth()+1)).slice(-2);
     var date = ("0" + dateobj.getDate()).slice(-2);
