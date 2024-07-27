@@ -14,6 +14,11 @@
 // @license     MIT
 // ==/UserScript==
 
+// Until I figure out how to grab the metadata from this lib,
+// it's not available via GM_info, this should be the same as
+// the @version above
+const thisLibVer = 2.43;
+
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint curly: 0*/
@@ -135,7 +140,8 @@ function queryUserId(callback) {
 
 // Just spit out the name of the script at startup
 const logScriptStart = function () {
-    console.log(GM_info.script.name + ' version ' + GM_info.script.version + ' script started!');
+    console.log(GM_info.script.name + ' version ' +
+                GM_info.script.version + ' script started, library version ' + thisLibVer);
 }
 
 function enableDebugLogging(enable=true) {
@@ -224,6 +230,17 @@ function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") >
 function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
 function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
 function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
+
+//
+// Get class list for an element
+//
+function getClassList(element) {
+    let classList;
+    let list = $(element).attr("class");
+    if (list) classList = list.split(/\s+/);
+
+    return classList;
+}
 
 /* Old function to cause a beep - won't work unless initiated by an element click */
 
@@ -629,7 +646,6 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
     let url = "https://api.torn.com/" + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
-    //console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection + ' ID: ' + ID);
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -638,7 +654,6 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             'Accept': 'application/json'
         },
         onload: function(response) {
-            //console.debug('(JS-Helper) ' + GM_info.script.name + ' Response (ID=' + ID + '): ' + response.responseText);
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
@@ -692,8 +707,8 @@ function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) 
 function xedx_TornStatsSpy(ID, callback, param=null) {
     if (!ID) ID = '';
     let url = 'https://www.tornstats.com/api/v1/' + api_key + '/spy/' + ID;
-    console.debug('(JS-Helper) ' + GM_info.script.name + ' Spying ' + ID + ' via TornStats');
-    console.debug('(JS-Helper) ' + GM_info.script.name + ' url: ' + url);
+    //console.debug('(JS-Helper) ' + GM_info.script.name + ' Spying ' + ID + ' via TornStats');
+    //console.debug('(JS-Helper) ' + GM_info.script.name + ' url: ' + url);
     GM_xmlhttpRequest({
         method:"GET",
         url:url,
@@ -702,7 +717,7 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
         },
         onload: function(response) {
             // Check status code here: 429
-            console.log('TornStat response: ', response);
+            //console.log('TornStat response: ', response);
             //if (response.status != 200) {
             //} else {
                 callback(response.responseText, ID, param);
