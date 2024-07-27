@@ -134,7 +134,7 @@ function queryUserId(callback) {
 ///////////////////////////////////////////////////////////////////////////////////
 
 // Just spit out the name of the script at startup
-function logScriptStart() {
+const logScriptStart = function () {
     console.log(GM_info.script.name + ' version ' + GM_info.script.version + ' script started!');
 }
 
@@ -204,6 +204,28 @@ function debug(...data) {
         console.log(GM_info.script.name + ': ', ...data);
     }
 }
+
+/////////////////////////////////////////////////////////
+// Functions to see if on a given pag
+/////////////////////////////////////////////////////////
+
+function isIndexPage() {return (location.href.indexOf("index.php") > -1)}
+function isItemPage() {return (location.href.indexOf("item.php") > -1)}
+function isFactionPage() {return (location.href.indexOf("factions.php") > -1)}
+function isGymPage() {return (location.href.indexOf("gym.php") > -1)}
+function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&user2ID") > -1)}
+function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
+function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
+function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
+function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
+function isPointsPage() {return (location.href.indexOf("page.php?sid=points") > -1)} //https://www.torn.com/page.php?sid=points
+function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
+function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") > -1)}
+function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
+function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
+function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
+
+/* Old function to cause a beep - won't work unless initiated by an element click */
 
 // All arguments are optional:
 //   duration of the tone in milliseconds. Default is 500
