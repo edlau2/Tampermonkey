@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Proc Highlighter
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Make it obvious what bonuses proc'd in a fight
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php*
@@ -20,6 +20,13 @@
 
 (function() {
     'use strict';
+
+    let api_key = "###PDA-APIKEY###";
+    if (api_key.charAt(0) === "#") {
+        console.log("WPH: Running under Torn PDA");
+    } else {
+        console.log("WPH NOT running under Torn PDA");
+    }
 
     function getPageSid() {
         const params = new URLSearchParams(window.location.search);
