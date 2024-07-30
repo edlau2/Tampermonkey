@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Proc Highlights for PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Make it obvious what bonuses proc'd in a fight
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php*
@@ -59,6 +59,7 @@
 
     // ==========================================================================================
 
+    // Just a test, don't need it...
     let api_key = "###PDA-APIKEY###";
     if (api_key.charAt(0) === "#") {
         console.log("WPH: NOT running under Torn PDA");
@@ -127,6 +128,38 @@
     }
 
     function addProcEventIcon(event) {
+        let name = event.name;
+        let node = event.element;
+        let parent = $(node).parent();
+        let index = weaponBonuses.indexOf(name.toLowerCase());
+        let pHeight = $(parent).css("height");
+        let color = iconColors[index % iconColors.length];
+        let iconDiv = "<div class='xx-procIconClass'><span style='margin-left: 0px;'></span></div>";
+
+        // Picking colors sucks, log what I got if I need to change it...
+        log("Selected color for ", name, ": ", color);
+
+        // Add it. Modify parent LI so we can adjust spacing.
+        $(parent).css("display", "flex");
+        $(node).after(iconDiv);
+        iconDiv = $(parent).find(".xx-procIconClass")[0];
+
+        let spanText = " " + weaponBonusesFromWiki[index] + " ";
+        let innerSpan = $(iconDiv).find("span")[0];
+        $(innerSpan).text(spanText);
+
+        // Make div width a little bigger
+        let divWidth = parseInt($(iconDiv).outerWidth());
+        let newDivWidth = divWidth + 10;
+        let styleStr = "width: " + newDivWidth + "px !important;  background-color: " + color + ";";
+        $(iconDiv).attr("style", styleStr);
+
+        // Shift sib span a bit left, should really resize a bit smaller as well, or use % widths....
+        let msgNode = $(parent).find(".message")[0];
+        $(msgNode).css("margin-left", "5px");
+    }
+
+    function addProcEventIconOld(event) {
         let name = event.name;
         let node = event.element;
         let parent = node ? node.parentNode : undefined;
