@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.13
+// @version      2.14
 // @description  Add 'difficulty' to jailed people list
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.42.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.43.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @grant        GM_getValue
@@ -29,6 +30,11 @@
 (async function() {
     'use strict';
 
+    if (onAttackPage()) {
+        log("On attack page, not running.");
+        return;
+    }
+
     const DEV_MODE = true;             // Without this, scores only, no % chance etc...
 
     // Since this is a work in progress, may need to clean up old, unusd
@@ -44,6 +50,7 @@
     var quickBustYlw = GM_getValue("quickBustYlw", false);// Also on yellows
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
+    var xtraDbgLogging = GM_getValue("xtraDbgLogging", 0);
     var optTryLastPages = GM_getValue("optTryLastPages", false);
 
     var useLocal = (tzDisplay == "local");
@@ -81,6 +88,7 @@
 
     const optsDivHeightDef = 35;    // 35 per inner div
     const optsDivHeightPreRelease = 70;
+    const animateSpeed = 1200;
 
     // Little helpers for profiling. ex: let start = _start(); .... debug("elapsed: ", elapsed(start));
     const nowInSecs = ()=>{return Math.floor(Date.now() / 1000);}
@@ -120,7 +128,14 @@
     // Time script starts
     const ScriptStartTime = _start();
 
-    // Logging helpers
+    // ======================================================================
+    // Logging helpers. I have forgotten what is logged exactly since I
+    // wrote this 5 years ago, it outputs data to file to be used to
+    // fill in all the missing formulas. What is missing is the actual
+    // bust percentage reported by Torn with a certain job, and how  the
+    // penalty changes based on perks ... if I recall correctly
+    // ======================================================================
+
     var logEntries = {}; // TBD: add header?
     var logQueue = [];
 
@@ -142,7 +157,9 @@
         }
     }
 
-    setInterval(function() {_addLogEntry(logQueue.pop())}, 250); // Process log queue
+    function startLogProcessQ() {
+        setInterval(function() {_addLogEntry(logQueue.pop())}, 250); // Process log queue
+    }
 
     function addLogEntry(obj, type) {
         logQueue.push({'obj': obj, 'type': type});
@@ -157,6 +174,8 @@
         let entry = {'timestamp': timestamp, 'torntime': tornTimenow, 'type': type, 'data': obj};
         logEntries[timenow] = entry;
     }
+
+    // ======================================================================
 
     // Helper to format a Date() object as time with milliseconds, to 3 digits
     const getTimeWithMilliseconds = date => {
@@ -343,6 +362,7 @@
             debug("Wrapper: ", $(wrapper));
             debug("SR:", maxSR);
 
+            log("Checking for auto-bust, dev? ", DEV_MODE, " auto on? ", autoBustOn);
             if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
                 log("bustNode: ", $(bustNode));
@@ -353,7 +373,10 @@
                     // otherwise, we click everyone who matches!
                     // Maybe reset if we click "yes"?
                     busted = true;
-                    $(bustNode).click();
+                    //$(bustNode).click();
+                    $(bustNode)[0].click();
+
+                    // https://www.torn.com/jailview.php?XID=2278928&action=rescue&step=breakout1&rfcv=669d64dc9000a
 
                     // Now need to click "yes" ....
                     clickYesRetries = 0;
@@ -380,85 +403,44 @@
 
     const maxYesRetries = 25;    // vary big to try and find worst-case
     const retryInterval = 50;
+
     function findAndClickYes(bustNode) {
-        if (clickYesRetries++ > maxYesRetries) return;
+        log("[findAndClickYes] retries: ", clickYesRetries);
+        if (clickYesRetries++ > maxYesRetries) {
+            clickYesRetries = 0;
+            return;
+        }
 
         forceReloadBtn();
 
         let yesNode = $(bustNode).parent().find(".confirm-bust > div > .action-yes");
         let noNode = $(bustNode).parent().find(".confirm-bust > .ajax-action > .action-no");
-        log("Finding yes (retries: ", clickYesRetries, ") ", $(yesNode));
 
-        // Just pretend if retries == 6
-        let loggedYesNo = false;
-        if (recordStats && clickYesRetries == 6) {
-            // Save stats to get averages
-            let yesnoAttempts = GM_getValue("yesnoAttempts", 0);
-            yesnoAttempts = +yesnoAttempts + 1;
-            GM_setValue("yesnoAttempts", yesnoAttempts);
-
-            let yesnoTime = GM_getValue("yesnoTime", 0);
-            yesnoTime = +yesnoTime + elapsed(ScriptStartTime);
-            GM_setValue("yesnoTime", yesnoTime);
-
-            let yesnoAvg = yesnoTime / yesnoAttempts;
-            GM_setValue("yesnoAvg", yesnoAvg);
-
-            log("yesnoAttempts: ", yesnoAttempts, " Average time: ", yesnoAvg);
-            loggedYesNo = true;
-        }
+        log("node: ", bustNode);
+        //log("node: ", $(bustNode));
+        log("Yes node: ", $(yesNode));
+        log("href: ", $(bustNode).attr("href"));
 
         if ($(yesNode).length == 0) {
-            log("node: ", $(bustNode));
-            log("parent: ", $(bustNode).parent());
             return setTimeout(function() {findAndClickYes(bustNode);}, retryInterval);
         }
 
-        log("Yes node found! time: ", (clickYesRetries - 1) * retryInterval, " ms");
-        log("node text: '", $(yesNode).text(), "'");
-        log("parent text: '", $(yesNode).parent().text(), "'");
-
-        log("Clicked! Time to get yes/no: ", elapsed(ScriptStartTime), " seconds from doc start.");
-
-        // Save stats to get averages
-        if (recordStats && !loggedYesNo) {
-            let yesnoAttempts = GM_getValue("yesnoAttempts", 0);
-            yesnoAttempts = +yesnoAttempts + 1;
-            GM_setValue("yesnoAttempts", yesnoAttempts);
-
-            let yesnoTime = GM_getValue("yesnoTime", 0);
-            yesnoTime = +yesnoTime + elapsed(ScriptStartTime);
-            GM_setValue("yesnoTime", yesnoTime);
-
-            let yesnoAvg = yesnoTime / yesnoAttempts;
-            GM_setValue("yesnoAvg", yesnoAvg);
-
-            log("yesnoAttempts: ", yesnoAttempts, " Average time: ", yesnoAvg);
-        }
-
+        clickYesRetries = 0;
         if ($(yesNode).text() === "Yes" && $(yesNode).parent().text().indexOf("try and break") > 0) {
-            log("Clicking Yes....");
-            //busted = true;
             if (doClickYes) {
-                $(yesNode).click();
-                log("Clicked! Time to bust: ", elapsed(ScriptStartTime), " seconds from doc start.");
+                log("Clicking yes");
+                //$(yesNode).click();
+                $(yesNode)[0].click();
             } else {
-                $(noNode).click();
-                log("Clicked! Time to click NO: ", elapsed(ScriptStartTime), " seconds from doc start.");
+                $(noNode)[0].click();
             }
         }
     }
 
     function clearBustStats() {
-        GM_setValue("yesnoAttempts", 0);
-        GM_setValue("yesnoTime", 0);
-        GM_setValue("yesnoAvg", 0);
-
         GM_setValue("totalLoads", 0);
         GM_setValue("loadTime", 0);
         GM_setValue("loadTimeAvg", 0);
-
-        //GM_setValue("ClearBustStats", false);
     }
 
     // Handle clicking Time, Level or Score on the title bar
@@ -536,6 +518,7 @@
 
     // Query the log for past busts
     var queryPastBustsStart;
+
     function queryPastBusts(queryStats=true) {
         debug('[queryPastBusts]');
         queryPastBustsStart = _start();
@@ -545,7 +528,7 @@
 
     // Callback for above
     function queryPastBustsCB(responseText, ID, param) {
-        log('[queryPastBustsCB] took ', elapsed(queryPastBustsStart), " secs");
+        debug('[queryPastBustsCB] took ', elapsed(queryPastBustsStart), " secs");
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
             debug('Response error! ', jsonResp.error);
@@ -583,7 +566,7 @@
 
         let jobType;
         if (!useCached) {
-            log('[personalStatsQueryCB] took ', elapsed(personalStatsQueryStart), " secs");
+            debug('[personalStatsQueryCB] took ', elapsed(personalStatsQueryStart), " secs");
             let jsonResp;
             let personalstats;
 
@@ -631,7 +614,7 @@
             //log('jobPerks: ', jobPerks);
 
         } else {  // get from cache!
-            log("[personalStatsQueryCB], cached");
+            debug("[personalStatsQueryCB], cached");
             jobType = GM_getValue("jobType", jobType);
             userLvl = GM_getValue("userLvl", userLvl);
             perks.bustChanceIncrease = GM_getValue("bustChanceIncrease", perks.bustChanceIncrease);
@@ -812,7 +795,7 @@
             return true;
         }
         else {
-            log("Unable to start observer! ", $(targetNode));
+            log("Error: Unable to start observer! ", $(targetNode));
             return false;
         }
     }
@@ -822,6 +805,7 @@
         if (observer) observer.disconnect();
     }
 
+    // Move to helper lib!!!
     function isToday(date) {
         const now = new Date();
 
@@ -832,13 +816,12 @@
         const yearNow = now.getYear();
         const monthNow = now.getMonth();
         const dayNow = now.getDate();
-        //debug("isToday, date: ", date.toLocaleString());
+
         let rc = false;
         if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
             rc = true;
         }
 
-        //debug("result: ", rc);
         return rc;
     }
 
@@ -866,24 +849,21 @@
     }
 
     function handleSaveButton() {
-        // Build data to save here:
-        //let saveData = {"perks": perks, 'level': userLvl};
-
-        log("handleSaveButton");
+        debug("handleSaveButton");
         const a = document.createElement("a");
 
-        log("Adding log entries: ", logEntries);
+        debug("Adding log entries: ", logEntries);
 
         a.href = URL.createObjectURL(new Blob([JSON.stringify(logEntries, null, 2)], {
             type: "text/plain"
           }));
 
-        log("href: ", a.href);
+        debug("href: ", a.href);
 
         a.setAttribute("download", "data.txt");
         document.body.appendChild(a);
 
-        log("a: ", a);
+        debug("a: ", a);
 
         a.click();
         document.body.removeChild(a);
@@ -920,11 +900,6 @@
     }
 
     function forceReloadBtn() {
-        log("forceReloadBtn");
-        //log("reload-btn: ", $("#xedx-reload-btn"));
-        //log("reload-btn2: ", $("#xedx-reload-btn2"));
-        //log("quick bust btn: ", $("#xedx-quick-bust-btn"));
-
         if ($("#xedx-reload-btn").length) {
             return;
         } else {
@@ -935,11 +910,11 @@
     }
 
     function forceBustButton() {
-        log("forceBustButton");
+        debug("forceBustButton");
         if ($("#xedx-reload-btn").length) {
             $("#xedx-reload-btn").replaceWith(quickBustBtnHtml);
         } else if (!$("#xedx-reload-btn2").length) {
-            log("Error: btn2 not installed!")
+            debug("Error: btn2 not installed!")
         }
         addSwapBtnHandlers();
     }
@@ -1026,14 +1001,6 @@
         }
 
         // When we roll over, maybe keep a daily record?
-        // such as date|busts|date|busts|date....etc. ?
-        //
-        // https://api.torn.com/user/?selections=timestamp&key=
-        //
-        // Put in lib, also other new func I forgot...decodeAjaxError
-        // Also "is date today" fn...
-        // Maybe also fn to detect JQuery....
-        //
         let temp = GM_getValue("lastBust", undefined);
         if (temp) {
             let lastBust = new Date(parseInt(temp, 10));
@@ -1071,7 +1038,6 @@
             if (!$("#xcaret").hasClass("xtemp")) {
                 $("#xcaret").addClass("xtemp");
                 $("#xcaret").on('click', handleOptsBtn);
-                log("#x-opts-btn added");
             }
         }
 
@@ -1095,47 +1061,21 @@
     }
 
     function addOptsDiv() {
-        log("Adding options panel to: ", $(MAIN_DIV_SEL));
         if ($("#xedx-jail-opts").length) $("#xedx-jail-opts").remove();
 
         attachOptsDiv(MAIN_DIV_SEL);
-        /*
-        let optsDiv = getOptionsDiv();
-        $(MAIN_DIV_SEL).after(optsDiv);
-        log("opts panel: ", $("#xedx-jail-opts"));
-
-        if (!enablePreRelease) {
-            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
-            $("#xedx-jail-opts").css("height", "35px");
-        } else {
-            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
-            $("#xedx-jail-opts").css("height", "70px");
-        }
-        */
-
         setJailOptions();
+        addJailOptsToolTips();
 
         $("#xedx-jail-opts").css("height", 0);
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
-
-        /*
-        $("#xedx-jail-opts").css("height", 0);
-        $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
-        $("#bust-limit").val(bustMin);
-        $("#hide-limit").val(hideLimit);
-        $("#quick-bust-btn").prop('checked', true);
-        //$("#quick-bust-ylw").prop('checked', false);
-        $("#pre-release-btn").prop('checked', enablePreRelease);
-        $("#penalty-btn").prop('checked', dispPenalty);
-        $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
-        */
     }
 
     function setJailOptions() {
         $("#bust-limit").val(bustMin);
         $("#hide-limit").val(hideLimit);
-        $("#quick-bust-btn").prop('checked', true);
-        //$("#quick-bust-ylw").prop('checked', false);
+        $("#quick-bust-btn").prop('checked', quickBustBtn);
+        $("#quick-bust-ylw").prop('checked', quickBustYlw);
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
@@ -1157,6 +1097,40 @@
 
         $("#xtz-tct").on('click', tzToggleHandler);
         $("#xtz-local").on('click', tzToggleHandler);
+    }
+
+    // Move the text to the bottom later...
+    const bustLimitText = "Show in green and offer a Quick Bust button for anyone at or above this chaance percentage. " +
+          "Note that people down to 15 below this number will show as yellow, and 10% less than that, orange.";
+    const hideLimitText = "Anyone in jail with a smaller percent chance than this of being busted, won't be displayed. " +
+          "The count of people jailed will still indicate hidden people.";
+    const quickBustBtnText = "If enabled, when anyone at or above your lower bust limit (highlighted in green), will cause " +
+          "the reload button to become two buttons, Reload and Bust, so you can click right away and do a Quick Bust.";
+    const quickBustBtnYlwText = "If enabled, when anyone at or above your 2nd lower bust limit, which is 10% lower than the 'green' limit, " +
+          "which displays as yellow, will cause the reload button to become two buttons, like the Quick Bust Green option.";
+    const advFeaturestext = "This will allow you to select some advanced options, which may be just for development use, or " +
+          "pre-release - meaning not really tested, or ones just being tried out for practicality.";
+    const penaltyBtnText = "This option will display your 'penalty', a measure of how much the number of past busts you have done, " +
+          "are affecting your future success rates. This decays naturally over time, busts over 72 hours old don't count. This is called 'p0' " +
+          "as that is the name used internally as a variable name, this is used mostly for development purposes.";
+    const timeZoneText = "This option allows you to select when the count for daily busts roll over, either midnight local time, or TCT (Torn time). " +
+          "It has no effect on anything but the display in the UI,";
+    const page2optText = "The 'page 2' option is experimental and may be illegal to use, so prob don't want to turn it on. Also " +
+          "not sure it works quite right all the time....";
+
+    function addJailOptsToolTips() {
+
+        displayToolTip("#bust-limit", bustLimitText);
+        displayToolTip("#hide-limit", hideLimitText);
+        displayToolTip("#quick-bust-btn", quickBustBtnText);
+        displayToolTip("#quick-bust-ylw", quickBustBtnYlwText);
+
+        displayToolTip("#pre-release-btn", advFeaturestext);
+        displayToolTip("#penalty-btn", penaltyBtnText);
+        displayToolTip("#xtz-tct", timeZoneText);
+        displayToolTip("#xtz-local", timeZoneText);
+
+        displayToolTip("#xlast-page-opt", page2optText);
     }
 
     // ========== Options button and panel animation and click handlers ==========
@@ -1207,7 +1181,6 @@
     var inAnimation = false;
 
     function optsAnimate(size) {
-        log("optsAnimate, inAnimation: ", inAnimation, " size: ", size);
         inAnimation = true;
 
         if (size == 0) {
@@ -1218,10 +1191,13 @@
             $("#xcaret").removeClass("fa-caret-right").addClass("fa-caret-down");
         }
 
-        log("Do animate, size: ", size);
-        $( "#xedx-jail-opts" ).animate({
+        let useDiv = $("#xedx-jail-opts");
+        if (!$(useDiv).length) useDiv = $("#xedx-jail-stats");
+
+        //log("Do animate, size: ", size);
+        $( useDiv ).animate({
             height: size,
-        }, 1500, function() {
+        }, animateSpeed, function() {
             optsHideShow();
             inAnimation = false;
         });
@@ -1234,7 +1210,9 @@
     }
 
     function handleOptsBtn() {
-        let cssHeight = parseInt($("#xedx-jail-opts").css("height"), 10);
+        let useDiv = $("#xedx-jail-opts");
+        if (!$(useDiv).length) useDiv = $("#xedx-jail-stats");
+        let cssHeight = parseInt($(useDiv).css("height"), 10);
         if (inAnimation) {
             log("in animate, ret");
             return;
@@ -1263,9 +1241,6 @@
 
         $(currDiv).replaceWith(newDiv);
         $("#xedx-stats-btn").on('click', swapStatsOptsView);
-
-        // Need to change caret target also!
-
         $("#xedx-stats-btn").attr('value', needStatDiv ? "Options" : "Stats");
 
         let sel = needStatDiv ? "#xedx-jail-stats" : "#xedx-jail-opts";
@@ -1278,12 +1253,15 @@
             setJailOptions();
         }
 
+        if (!$("#xcaret").hasClass("xtemp")) {
+            $("#xcaret").addClass("xtemp");
+            $("#xcaret").on('click', handleOptsBtn);
+        }
+
         log("swapStatsOptsView, currDiv: ", $(currDiv));
 
     }
     // ========== End Options button and panel handlers ==========
-
-   
 
     function setTitleColor() {
         if (autoBustOn)
@@ -1292,12 +1270,14 @@
             $(MAIN_DIV_SEL +" > .xspleft").removeClass("xgr");
     }
 
+    // Might just return here if
+    // GM_getValue("xtraDbgLogging", 0) is < 1
     var rightClicks = 0;
     function handleRightClick() {
-        debug("Handle right click");
+        log("Handle right click");
         autoBustOn = !autoBustOn;
         setTitleColor();
-        debug("auto: ", autoBustOn);
+        log("auto: ", autoBustOn);
         return false;
     }
 
@@ -1369,8 +1349,7 @@
     var forceReloadPageNum = 0;
 
     function reloadUserList(event) {
-
-        log("reloadUserList, page (1): ", forceReloadPageNum);
+        debug("reloadUserList, page (1): ", forceReloadPageNum);
 
         // No matter result, go back to normal reload btn?
         forceReloadBtn();
@@ -1380,11 +1359,11 @@
             return;
         }
 
-        log("forceReloadPageNum: ", forceReloadPageNum);
+        debug("forceReloadPageNum: ", forceReloadPageNum);
         let pageNum = forceReloadPageNum;
         forceReloadPageNum = 0;
 
-        log("pageNum: ", pageNum);
+        debug("pageNum: ", pageNum);
 
         var forcedPageReload = false;
 
@@ -1400,7 +1379,7 @@
         let useURL = reloadURL + savedHash;
         let startNum = pageNum ? pageNum : getStartNumFromHash(savedHash);
 
-        log("Quick reload URL: ", useURL, " start num: ", startNum);
+        debug("Quick reload URL: ", useURL, " start num: ", startNum);
         $.post(
             useURL,
             {
@@ -1419,16 +1398,14 @@
                 let jsonObj = JSON.parse(response);
 
                 let countNode = $("div.users-list-title > span.title > span.total");
-                log("countNode: ", $(countNode));
 
-                log("jsonObj: ", jsonObj);
                 if (jsonObj.success == true) {
 
                     let players = jsonObj.data.players;
                     totalPlayers = jsonObj.data.total;
 
                     let currPage = (getStartNumFromHash(savedHash));
-                    log("******* total: ", totalPlayers, " pageNum: ", pageNum,
+                    debug("******* total: ", totalPlayers, " pageNum: ", pageNum,
                         " optTryLastPages: ", optTryLastPages, " currPage: ", currPage,
                         " forcedPageReload: ", forcedPageReload);
 
@@ -1441,12 +1418,12 @@
                         return setTimeout(reloadUserList, 25);
                     }
                     if (!players) {  // Turns out this happens when no one is in jail
-                        log("Error: 'players' is undefined: ", players);
-                        log("jsonObj.data: ", jsonObj.data);
+                        debug("Error: 'players' is undefined: ", players);
+                        debug("jsonObj.data: ", jsonObj.data);
 
                         let msg = "There is no one in jail at this time.";
 
-                         let et = elapsed(reloadStart);
+                        let et = elapsed(reloadStart);
                         if (+et == 0)
                             msg += " (under 1 sec)";
                         else
@@ -1516,15 +1493,17 @@
                     }
 
                     let bustable = $(targetUl).find(".xbust");
-                    debug("bustable: ", $(bustable));
+                    log("bustable: ", $(bustable));
 
                     if (DEV_MODE && autoBustOn && $(bustable).length) {
                         // Just bust the first one...
                         let wrapper = $(bustable)[0];
                         let bustNode = $(wrapper).siblings(".bust")[0];
-                        debug("Auto Bust! bustNode: ", $(bustNode));
+                        log("Auto Bust! bustNode, will click: ", $(bustNode));
 
-                        $(bustNode).click();
+                        log("***OK Clicking!***");
+                        //$(bustNode).click();
+                        $(bustNode)[0].click();
                         clickYesRetries = 0;
                         findAndClickYes(bustNode);
                     }
@@ -1595,7 +1574,7 @@
         let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         let bustable = $(targetUl).find(".xbust");
 
-        log("**** doQuickBust ****");
+        debug("**** doQuickBust ****");
         /*
         log("Bustable: ", $(bustable));
         let cl = getClassList(bustable);
@@ -1604,7 +1583,10 @@
         log("**** doQuickBust ****");
         */
 
-        if ($(bustable).hasClass("qbust-yellow") && !quickBustYlw) return;
+        if ($(bustable).hasClass("qbust-yellow") && !quickBustYlw) {
+            debug("Has yellow!");
+            return;
+        }
         debug("bustable: ", $(bustable));
 
         setTimeout(forceReloadBtn, 500);
@@ -1615,7 +1597,8 @@
             let bustNode = $(wrapper).siblings(".bust")[0];
             debug("Quick Bust! bustNode: ", $(bustNode));
 
-            $(bustNode).click();
+            //$(bustNode).click();
+            $(bustNode)[0].click();
             clickYesRetries = 0;
             findAndClickYes(bustNode);
         }
@@ -1637,9 +1620,9 @@
         let infoWrap = infoWrapObj.html; //buildInfoWrap(player);
         let hidden = infoWrapObj.isHidden;
 
-        log("infoWrapObj: ", infoWrapObj);
-        log("infoWrap: ", $(infoWrap));
-        log("hidden: ", hidden);
+        debug("infoWrapObj: ", infoWrapObj);
+        debug("infoWrap: ", $(infoWrap));
+        debug("hidden: ", hidden);
 
         let buyDiv = buildBuyDiv(player);
         let bustDiv = buildBustDiv(player);
@@ -1700,6 +1683,7 @@
             scoreAddlClass = "xgr";
             hasGreen = true;
 
+            log("Should add green button!");
             if (quickBustBtn) { // && $("#xedx-reload-btn").length) {
                 forceBustButton();
                 log("Adding GREEN button");
@@ -1787,7 +1771,7 @@
     function elementHideShow(element) {
         let dataval = $(element).attr("data-val");
         $(element).attr("data-val", "");
-        log("elementHideShow, dataval: ", dataval);
+        debug("elementHideShow, dataval: ", dataval);
         if (dataval == "none") return;
 
         // Check for animate-specific data-val first
@@ -1812,22 +1796,11 @@
     function handleHideBtn() {
         debug("handleHideBtn, ", MAIN_DIV_ID, ": ", $(MAIN_DIV_SEL), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
         if (!mainUiBtnsInstalled) {
-            log("Main UI not installed, installing now");
+            debug("Main UI not installed, installing now");
             installUI(true);
             doShow();
             return;
         }
-
-        /*
-        log("handleHideBtn mainDivHeight: ", mainDivHeight);
-        //elementAnimate(MAIN_DIV_ID, mainDivHeight);
-        if ($(MAIN_DIV_SEL).css("height") > 0) {
-            elementAnimate(MAIN_DIV_SEL, 0);
-        } else  {
-            elementAnimate(MAIN_DIV_SEL, mainDivHeight);
-            $(MAIN_DIV_SEL).addClass("xshow");
-        }
-        */
 
         if ($(MAIN_DIV_SEL).hasClass("xshow")) doHide();
         else if ($(MAIN_DIV_SEL).hasClass("xhide")) doShow();
@@ -1840,7 +1813,7 @@
         } catch (e) {
             log("Exception, prob JQuery not yet loaded: ", e);
             let jf = document.querySelector("#jailFilte");
-            log("jf: ", jf);
+            debug("jf: ", jf);
             if (!jf) return setTimeout(doHide, 250);    // Hopefully loaded next time through...
         }
         $("#jailFilter").addClass("xhide").removeClass("xshow");
@@ -1936,25 +1909,6 @@
     function attachOptsDiv(sel) {
         let optsDiv = getOptionsDiv();
         $(sel).after(optsDiv);
-        log("opts panel: ", $("#xedx-jail-opts"));
-
-        /*
-        if (!enablePreRelease) {
-            $("#xedx-jail-opts").find(".xprerelease").addClass("xhide");
-            $("#xedx-jail-opts").css("height", "35px");
-        } else {
-            $("#xedx-jail-opts").find(".xprerelease").removeClass("xhide");
-            $("#xedx-jail-opts").css("height", "70px");
-        }
-
-        //tzDisplay = GM_getValue("tzDisplay", "local");
-        let useLocal = (tzDisplay == "local");
-        $("#xtz-tct").prop('checked', !useLocal);
-        $("#xtz-local").prop('checked', useLocal);
-
-        $("#xtz-tct").on('click', tzToggleHandler);
-        $("#xtz-local").on('click', tzToggleHandler);
-        */
     }
 
     function tzToggleHandler(event) {
@@ -1970,26 +1924,9 @@
         if (id == "xtz-local") $("#xtz-tct").prop('checked', !checked);
     }
 
-    /*
-
-             </div>
-
-             <div class="break"></div>
-
-             <div>
-                <span style="width: 75%;">
-                    <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts xml20">
-                         <span>test</span>
-                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts xml10">
-                         <span class="xmr20">test2</span>
-                </span>
-             </div>
-
-             </div>
-    */
-
-    // ================ Styles used throughout this. Not that a lot of my styles are defined
-    // in other scripts as well,need to consolidate...... ==================================
+    // Styles used throughout this. Note that a lot of my styles are defined
+    // in other scripts as well,need to consolidate......
+    // I've started to by adding as function calls by category.
 
     // tmp, doesn't work...
     function addSortIcon() {
@@ -1999,6 +1936,10 @@
     }
 
     function addStyles() {
+
+      // I started to add common styles to the helper lib, v2.43
+      addTornButtonExStyles();
+
       GM_addStyle(`
             .xod {
                 min-width: 784px;
@@ -2086,6 +2027,7 @@
             }
             .xfr {
                 float: right;
+                left: 0;
             }
             .xfr2 {
                 margin-left: auto;
@@ -2143,35 +2085,6 @@
                 padding-bottom:5px;
                 padding-left:20px;
                 padding-right:10px;
-             }
-            .xedx-torn-btn {
-                height: 22px !important;
-                width: 74px;
-                line-height: 22px;
-                font-family: "Fjalla One", Arial, serif;
-                font-size: 14px;
-                font-weight: normal;
-                text-align: center;
-                text-transform: uppercase;
-                border-radius: 5px;
-                padding: 0 10px;
-                cursor: pointer;
-                color: #555;
-                color: var(--btn-color);
-                text-shadow: 0 1px 0 #FFFFFF40;
-                text-shadow: var(--btn-text-shadow);
-                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
-                background: var(--btn-background);
-                border: 1px solid #aaa;
-                border: var(--btn-border);
-                display: inline-block;
-                vertical-align: middle;
-             }
-             .xedx-torn-btn:hover {
-                filter: brightness(2.00);
-             }
-             .xedx-torn-btn:active {
-                filter: brightness(0.80);
              }
              .xedx-light:hover {
                 filter: brightness(2.00);
@@ -2234,6 +2147,8 @@
 
     logScriptStart();
 
+    startLogProcessQ();
+
     if (location.href.indexOf("jailview") > -1) {
 
         validateApiKey(DEV_MODE ? 'FULL' : 'LIMITED');
@@ -2243,6 +2158,7 @@
         callOnContentLoaded(contentLoadHandler);
 
         addStyles();
+        addToolTipStyle();
 
         if (GM_getValue("ClearBustStats", false) == true) {
             clearBustStats();
