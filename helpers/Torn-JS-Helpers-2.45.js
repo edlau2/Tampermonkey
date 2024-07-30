@@ -1097,6 +1097,20 @@ function displayToolTip(node, text, cl) {
         $(node).tooltip({
             content: text,
             classes: {
+                "ui-tooltip": cl ? cl : "tooltip3"
+            }
+        });
+    })
+}
+
+// Adds a tool tip to a node/element
+// 'cl' is the name of a custom class if you want to pass that in.
+function displayToolTip2(node, text, cl) {
+    $(document).ready(function() {
+        $(node).attr("title", "original");
+        $(node).tooltip({
+            content: text,
+            classes: {
                 "ui-tooltip": cl ? cl : "tooltip4"
             }
         });
