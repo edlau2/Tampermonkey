@@ -1215,101 +1215,108 @@ function addContextStyles() {
             display: block;
         }
     `);
+}
 
-    //
-    // Work in progress: collecting common ones used everywhere
-    //
-    function loadCommonTtsStyles() {
+//
+// Work in progress: collecting common ones used everywhere
+//
+function loadAllCommonStyles() {
 
-        loadCommonMarginStyles();
-        loadTtsColors();
+    log("Loading All Common Styles");
 
-    }
+    loadCommonMarginStyles();
+    loadTtsColors();
 
-    // General stuff without good categories
-    function loadMiscStyles() {
-        GM_addStyle(`
-            .xhide {
-                display: none;
-            }
-            .xshow {
-                display: block;
-            }
-            .xshowi {
-                display: inline-block;
-            }
-        `);
-    }
+}
 
-    // Colors, brightness, opacity...
-    function loadTtsColors() {
-        GM_addStyle(`
-            .xdim85 {
-                filter: brightness(85%);
-            }
-        `);
+// General stuff without good categories
+function loadMiscStyles() {
+    GM_addStyle(`
+        .xhide {
+            display: none;
+        }
+        .xshow {
+            display: block;
+        }
+        .xshowi {
+            display: inline-block;
+        }
+    `);
+}
 
-        GM_addStyle(`
-            .xedx-green {
-                color: limegreen;
-            }
-            .xedx-red {
-                color: red;
-            }
-            .xedx-offred {
-                color: #FF2B2B;
-            }
-        `);
-    }
+// Colors, brightness, opacity...
+function loadTtsColors() {
 
-    function loadCommonMarginStyles() {
+    log("Loading Color Styles");
 
-        GM_addStyle(`
-            .xmb3 {
-                margin-bottom: 3px;
-            }
-            .xmb5 {
-                margin-bottom: 5px;
-            }
-            .xmb10 {
-                margin-bottom: 10px;
-            }
-            .xmb30 {
-                margin-bottom: 30px;
-            }
-            .xml5 {
-                margin-left: 5px;
-            }
-            .xml10 {
-                margin-left: 10px;
-            }
-            .xml20 {
-                margin-left: 20px;
-            }
-            .xmr5 {
-                margin-right: 5px;
-            }
-            .xmr10 {
-                margin-right: 10px;
-            }
-            .xmr20 {
-                margin-right: 20px;
-            }
-            .xmt3 {
-                margin-top: 3px;
-            }
-            .xmt5 {
-                margin-top: 5px;
-            }
-            .xmt10 {
-                margin-top: 10px;
-            }
-            .xmt20 {
-                margin-top: 20px;
-            }
+    GM_addStyle(`
+        .xdim85 {
+            filter: brightness(85%);
+        }
+    `);
 
-        `);
-    }
+    GM_addStyle(`
+        .xedx-green {
+            color: limegreen;
+        }
+        .xedx-red {
+            color: red;
+        }
+        .xedx-offred {
+            color: #FF2B2B;
+        }
+    `);
+}
+
+function loadCommonMarginStyles() {
+
+    log("Loading Margin Styles");
+
+    GM_addStyle(`
+        .xmb3 {
+            margin-bottom: 3px;
+        }
+        .xmb5 {
+            margin-bottom: 5px;
+        }
+        .xmb10 {
+            margin-bottom: 10px;
+        }
+        .xmb30 {
+            margin-bottom: 30px;
+        }
+        .xml5 {
+            margin-left: 5px;
+        }
+        .xml10 {
+            margin-left: 10px;
+        }
+        .xml20 {
+            margin-left: 20px;
+        }
+        .xmr5 {
+            margin-right: 5px;
+        }
+        .xmr10 {
+            margin-right: 10px;
+        }
+        .xmr20 {
+            margin-right: 20px;
+        }
+        .xmt3 {
+            margin-top: 3px;
+        }
+        .xmt5 {
+            margin-top: 5px;
+        }
+        .xmt10 {
+            margin-top: 10px;
+        }
+        .xmt20 {
+            margin-top: 20px;
+        }
+
+    `);
 }
 
 
