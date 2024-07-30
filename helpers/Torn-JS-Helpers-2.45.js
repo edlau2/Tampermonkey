@@ -1226,6 +1226,7 @@ function loadAllCommonStyles() {
 
     loadCommonMarginStyles();
     loadTtsColors();
+    loadMiscStyles();
 
 }
 
