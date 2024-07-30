@@ -1,13 +1,12 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.14
-// @description  Add 'difficulty' to jailed people list
+// @version      2.16
+// @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.44.js
-// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.44.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -363,10 +362,9 @@
             debug("Wrapper: ", $(wrapper));
             debug("SR:", maxSR);
 
-            log("Checking for auto-bust, dev? ", DEV_MODE, " auto on? ", autoBustOn);
             if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
-                log("bustNode: ", $(bustNode));
+                debug("bustNode: ", $(bustNode));
                 if (maxSR >= bustMin && !busted) { // just do once
                     log("Auto-Bust!");
 
@@ -406,7 +404,7 @@
     const retryInterval = 50;
 
     function findAndClickYes(bustNode) {
-        log("[findAndClickYes] retries: ", clickYesRetries);
+        debug("[findAndClickYes] retries: ", clickYesRetries);
         if (clickYesRetries++ > maxYesRetries) {
             clickYesRetries = 0;
             return;
@@ -417,10 +415,10 @@
         let yesNode = $(bustNode).parent().find(".confirm-bust > div > .action-yes");
         let noNode = $(bustNode).parent().find(".confirm-bust > .ajax-action > .action-no");
 
-        log("node: ", bustNode);
+        debug("node: ", bustNode);
         //log("node: ", $(bustNode));
-        log("Yes node: ", $(yesNode));
-        log("href: ", $(bustNode).attr("href"));
+        debug("Yes node: ", $(yesNode));
+        debug("href: ", $(bustNode).attr("href"));
 
         if ($(yesNode).length == 0) {
             return setTimeout(function() {findAndClickYes(bustNode);}, retryInterval);
@@ -429,7 +427,7 @@
         clickYesRetries = 0;
         if ($(yesNode).text() === "Yes" && $(yesNode).parent().text().indexOf("try and break") > 0) {
             if (doClickYes) {
-                log("Clicking yes");
+                debug("Clicking yes");
                 //$(yesNode).click();
                 $(yesNode)[0].click();
             } else {
@@ -872,14 +870,14 @@
 
     // Adding "style="float:right;"" to the xcaret span looks kinda cool: "<span style="float:right;"><i id="xcaret" ..."
     const saveBtnDiv3 = `
-            <div id="` + MAIN_DIV_ID + `" class="xdwrap xshow xnb title-black border-round m-top10">
+            <div id="` + MAIN_DIV_ID + `" class="xjdwrap xshow xnb title-black border-round m-top10">
                 <span class="xspleft">XedX Jail Scores</span>
                 <span id="busts-today" class="xml10"></span>
                 <span id="xedx-msg" class="xml5"></span>
-                <span class="xr xedx-span btn xfr">
+                <span class="xjr btn xjfr">
                     <span><i id="xcaret" class="icon fas fa-caret-right xedx-caret"></i></span>
                     <span id="xswap" class="swap-span">
-                    <input id="xedx-reload-btn" type="submit" class="xedx-torn-btn xmt3" value="Reload">
+                    <input id="xedx-reload-btn" style="left: 0;" type="submit" class="xedx-torn-btn xmt3" value="Reload">
                     </span>
                 </span>
             </div>
@@ -1983,7 +1981,7 @@
             .flexwrap {
                 flex-wrap: wrap;
             }
-            .xdwrap {
+            .xjdwrap {
                 display: flex;
                 flex-direction: row;
                 height: 34px !important;
@@ -2008,11 +2006,12 @@
                 margin-left: 10px;
                 height: 22px;
             }
-            .xfr {
+            .xjfr {
+                margin-left: auto;
                 float: right;
                 left: 0;
             }
-            .xfr2 {
+            .xjfr2 {
                 margin-left: auto;
             }
             .flex-container {
@@ -2025,7 +2024,7 @@
                 align-items: center;
                 justify-content: space-between;
             }
-            .xr {
+            .xjr {
                 margin-left: auto;
                 margin-right: 10px;
             }
