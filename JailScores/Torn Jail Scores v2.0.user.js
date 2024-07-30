@@ -6,7 +6,8 @@
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.43.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.44.js
+// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.44.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -969,6 +970,7 @@
 
         if (uiless) return;
 
+        // WTF? I don't recall adding this back...
         if (!hideBtnInstalled) {
             addHideButton();
         }
@@ -1299,10 +1301,11 @@
     const hideWithButton = false;
     function addHideButton() {
         debug("addHideButton");
-        if ($("#xhide-btn").length == 0) {
+        if (hideWithButton && $("#xhide-btn").length == 0) //{
             $("#skip-to-content").append(hideBtn2);
 
             if (!hideWithButton) {
+                log("Adding 'click' to content title!");
                 $("#skip-to-content").on("click", handleHideBtn);
                 $("#skip-to-content").css("cursor", "pointer");
                 $("#skip-to-content").addClass("xedx-light");
@@ -1315,7 +1318,8 @@
 
             if (lastShowState == "hide") setTimeout(doHide, 10);
             else setTimeout(doShow, 10);
-        }
+        //}
+
         if ($("#xhide-btn").length) hideBtnInstalled = true;
     }
 
@@ -1940,6 +1944,12 @@
       // I started to add common styles to the helper lib, v2.43
       addTornButtonExStyles();
 
+      // New! Now in helper lib...
+      log("Trying to load common CSS styles...");
+      loadAllCommonStyles();
+      //loadMiscStyles();
+      //loadCommonMarginStyles();
+
       GM_addStyle(`
             .xod {
                 min-width: 784px;
@@ -1998,33 +2008,6 @@
                 margin-left: 10px;
                 height: 22px;
             }
-            .xmb30 {
-                margin-bottom: 30px;
-            }
-            .xml5 {
-                margin-left: 5px;
-            }
-            .xml10 {
-                margin-left: 10px;
-            }
-            .xmr10 {
-                margin-right: 10px;
-            }
-            .xml20 {
-                margin-left: 20px;
-            }
-            .xmr20 {
-                margin-right: 20px;
-            }
-            .xmt3 {
-                margin-top: 3px;
-            }
-            .xmt5 {
-                margin-top: 5px;
-            }
-            .xmt10 {
-                margin-top: 10px;
-            }
             .xfr {
                 float: right;
                 left: 0;
@@ -2061,15 +2044,6 @@
             .xedx-span {
                 margin-bottom: 5px;
                 margin-left: 20px;
-            }
-            .xhide {
-                display: none;
-            }
-            .xshow {
-                display: block;
-            }
-            .xshowi {
-                display: inline-block;
             }
             .xgr {
                 color: green;
