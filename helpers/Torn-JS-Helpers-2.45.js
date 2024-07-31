@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = 2.43;
+const thisLibVer = 2.45;
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -742,7 +742,12 @@ function awayFromHome() {
 
 // Return true if abroad (in the air or landed)
 function abroad() {
-    return $('body')[0].getAttribute('data-abroad') == 'true';
+    if ($('body')[0])
+        return $('body')[0].getAttribute('data-abroad') == 'true';
+    else {
+        log("Error! 'body' not found? Too early? ", $('body'));
+        return false;
+    }
 }
 
 // Return true if travelling (in the air)
@@ -973,6 +978,39 @@ function getPesonalStatHref(statName, userId) {
     }
 }.call(this));
 
+// Add a button on almost any page, to the right of top title.
+// Callback is required, the click handler.
+// id and title are optional.
+
+// Not sure if I'll want or need this "filter" for
+// the callback, could simply pass the callback fn
+// as param to the ".on" fn. Maybe could add a struct
+// as a param to the add btn fn for 1) addl btn style
+// params? and 2) to set up params for the callback?
+const custClickHandler = function (event) {
+    let cb = event.data.handler;
+
+    // Could do something here...
+
+    cb(event);
+}
+
+function addTopBarButton(callback, id, title) {
+
+    if (!id) id = "xedx-misc-btn";
+    if (!title) title = "Click";
+
+    let btnSel = "#" + id;
+    if ($(btnSel).length > 0) return;
+
+    let name = $("#skip-to-content");
+    let myButton = `<span><input id="` + id + `" type="submit"
+                    style="margin-left: 15px; margin-top: 2px;" class="xedx-torn-btn" value="` + title + `"></span>`;
+    $(name).after(myButton);
+    $(btnSel).on('click', { handler: callback }, custClickHandler );
+}
+
+
 // *******************************************************
 // The following can be called to add styles I use often.
 // I may move to a separate .css file, loading those is a
@@ -985,12 +1023,40 @@ function getPesonalStatHref(statName, userId) {
 // addTornButtonExStyles() - A replacement for a button class "torn-btn", won't flicker on hover
 // addContextStyles() - Styles used to build a popup context menu, see the notes
 // addToolTipStyle() - Styles to support tool tips. Be sure to read the comment about JQuery versions!
+// loadCommonMarginStyles()
+// loadTtsColors()
+// loadMiscStyles()
 //
+
+
+//
+// Work in progress: collecting common ones used everywhere
+// Eventually separate CSS from the lib functions.
+//
+// Optionally can provide an 'options' struct to selectively
+// include, or call the individual functions yourself.
+//
+// opts { margin, colors, misc, context, tooltip, button }
+function loadAllCommonStyles(opts) {
+
+    log("Loading All Common Styles");
+
+    if (!opts || opts.margin) loadCommonMarginStyles();
+    if (!opts || opts.colors) loadTtsColors();
+    if (!opts || opts.misc) loadMiscStyles();
+    if (!opts || opts.context) addContextStyles();
+    if (!opts || opts.tooltip) addToolTipStyle();
+    if (!opts || opts.button) addTornButtonExStyles();
+}
+
 
 // Replacement for class .torn-btn,which I find cab flicker
 // on hover-over sometimes, I think due to border width,
 // padding and margin issues.
 function addTornButtonExStyles() {
+
+    log("Adding Torn Button Ex styles");
+
     GM_addStyle(`
         .xedx-torn-btn {
             height: 22px !important;
@@ -1130,7 +1196,6 @@ function displayMiniToolTip(node, text) {
     })
 }
 
-
 // These classes are used to build a right-click context menu...
 //
 // context-wrapper is used in a div encompassing the context menu if desired, to see
@@ -1231,21 +1296,11 @@ function addContextStyles() {
     `);
 }
 
-//
-// Work in progress: collecting common ones used everywhere
-//
-function loadAllCommonStyles() {
-
-    log("Loading All Common Styles");
-
-    loadCommonMarginStyles();
-    loadTtsColors();
-    loadMiscStyles();
-
-}
-
 // General stuff without good categories
 function loadMiscStyles() {
+
+    log("Loading Misc Styles");
+
     GM_addStyle(`
         .xhide {
             display: none;
@@ -1256,19 +1311,16 @@ function loadMiscStyles() {
         .xshowi {
             display: inline-block;
         }
-    `);
-}
-
-// Colors, brightness, opacity...
-function loadTtsColors() {
-
-    log("Loading Color Styles");
-
-    GM_addStyle(`
-        .xdim85 {
+        .xhyperlink {
             filter: brightness(85%);
         }
     `);
+}
+
+// Colors referenced by TTS, unify all colors in all scripts eventually.
+function loadTtsColors() {
+
+    log("Loading Color Styles");
 
     GM_addStyle(`
         .xedx-green {
