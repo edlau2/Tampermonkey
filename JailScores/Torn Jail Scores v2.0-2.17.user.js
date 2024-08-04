@@ -35,7 +35,7 @@
         return;
     }
 
-    const DEV_MODE = true;             // Without this, scores only, no % chance etc...
+    const DEV_MODE = false;             // Without this, scores only, no % chance etc...
 
     // Since this is a work in progress, may need to clean up old, unusd
     // or changed stuff in storage on verion change. Need to do first
@@ -2229,16 +2229,12 @@
 
              }
              .qbust-green {
-                 height: 28px !important;
                  width: 40px !important;
-                 color: green;
-                 border: 1px solid #0D4A09;
+                 color: green !important;
              }
              .qbust-yellow {
-                 height: 28px !important;
                  width: 40px !important;
-                 color: yellow;
-                 border: 1px solid yellow;
+                 color: yellow !important;
              }
              .swap-span {
                 height: 34px;
