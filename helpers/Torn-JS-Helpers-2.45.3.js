@@ -1343,7 +1343,7 @@ function displayMiniToolTip(node, text) {
 // to display and place somewhere onscreen. Menus can be appended to the UL.
 // Sample HTML:
 /*
-    `<div id="x-contextMenu" class="context-menu ctxhide">
+    `<div id="x-contextMenu context-border" class="context-menu ctxhide">
         <ul>
             <li><a href="#">Menu 1</a></li>
             <li><a href="#">Menu 2</a></li>
@@ -1360,13 +1360,15 @@ function addContextStyles() {
             position: absolute;
             text-align: center;
             background: lightgray;
-            border: 1px solid black;
-            border-radius: 15px;
             margin: 2px;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 20;
+        }
+        .context-border {
+            border: 1px solid black;
+            border-radius: 15px;
         }
 
         .ctxhide {display: none;}
@@ -1446,7 +1448,13 @@ function addContextStyles() {
 //   xfmt-hdr-span - Creates a 'header' with an underline, on a span
 //   xfmt-span - Defines a span as min 24 pix tall.
 //
+// Simple fonts:
+//
+//   xfmt-font-blk: 14px arial black
+//   xfmt-font-blk input - 10px right margin for checkboxes, radio btns, etc.
+//
 // Misc:
+//
 //   .break: A hard line break between spans in flex boxes, to force to next row
 //
 function addFloatingOptionsStyles() {
@@ -1466,7 +1474,6 @@ function addFloatingOptionsStyles() {
             }
             .xopts-bg {
                 background: lightgray;
-                border-radius: 15px;
                 z-index: 20;
                 width: 360px !important;
                 height: 380px !important;
@@ -1477,8 +1484,20 @@ function addFloatingOptionsStyles() {
             }
             .xfmt-hdr-span {
                 border-bottom: 2px solid black;
-                margin-bottom: 10px;
-                margin-top: 10px;
+                padding-bottom: 5px;
+                margin-top: 5px;
+                margin-bottom: 5px;
+                align-items: center;
+                display: flex;
+                vertical-align: middle;
+                min-height: 24px;
+            }
+            .xfmt-font-blk {
+                color: black;
+                font: 14px Arial, sans-serif;
+            }
+            .xfmt-font-blk input {
+                margin-right: 10px;
             }
             .xfmt-span {
                 min-height: 24px;
@@ -1490,6 +1509,52 @@ function addFloatingOptionsStyles() {
             }
 
 
+        `);
+}
+
+function addBorderStyles() {
+
+        GM_addStyle(`
+            .xopts-border-insert-tl {
+                border-radius: 15px;
+                box-shadow: 0 20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
+            }
+            .xopts-border-insert-br {
+                border-radius: 15px;
+                box-shadow: 0 -20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
+            }
+            .xopt-border-ml6 {
+                border-radius: 15px;
+                box-shadow: 0 29px 52px rgba(0,0,0,0.40), 0 25px 16px rgba(0,0,0,0.20);
+            }
+            .xopt-border-ml7 {
+                border-radius: 15px;
+                box-shadow: 0 45px 65px rgba(0,0,0,0.50), 0 35px 22px rgba(0,0,0,0.16);
+            }
+            .xopt-border-ml8 {
+                border-radius: 15px;
+                box-shadow: 0 60px 80px rgba(0,0,0,0.60), 0 45px 26px rgba(0,0,0,0.14);
+            }
+            .xopts-border-10 {
+                border-radius: 15px;
+                box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+            }
+            .xopts-border-27 {
+                border-radius: 15px;
+                box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px inset, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px inset;
+            }
+            .xopts-border-87 {
+                border-radius: 15px;
+                box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
+            }
+            .xopts-border-89 {
+                border-radius: 15px;
+                border 3px solid darkslategray;
+            }
+            .xopts-border-89 {
+                border-radius: 15px;
+                box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
+            }
         `);
 }
 
@@ -1525,6 +1590,12 @@ function loadMiscStyles() {
         }
         .x-unset {
             all: unset;
+        }
+        .x-ez-scroll {
+            overflow: auto;
+            padding: 20px;
+            overflow-y: auto;
+            top: 0px;
         }
     `);
 }
