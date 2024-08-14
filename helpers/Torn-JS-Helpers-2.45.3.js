@@ -71,8 +71,8 @@ var api_key = GM_getValue('gm_api_key');
 
 async function validateApiKey(type = null) {
     let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
-                         "Your key will be saved locally so you won't have to be asked again.\n" +
-                         "Your key is kept private and not shared with anyone.";
+        "Your key will be saved locally so you won't have to be asked again.\n" +
+        "Your key is kept private and not shared with anyone.";
     if (type == 'FULL')
         text += '\n\nA full access key is required!';
     else
@@ -127,9 +127,9 @@ function queryUserId(callback) {
             }
         }
         try {
-          return callback(jsonResp.player_id);
+            return callback(jsonResp.player_id);
         } catch (e) {
-          debugger;
+            debugger;
         }
     }, callback);
 }
@@ -153,6 +153,9 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const toggleClass = function(sel, classA, classB) {
+    if ($(sel).hasClass(classA)) {$(sel).removeClass(classA).addClass(classB);} else {$(sel).removeClass(classB).addClass(classA);}}
+
 // Call the callback once page content loaded (readystate is still interactive)
 function callOnContentLoaded(callback) {
     if (document.readyState == 'loading') {
@@ -168,7 +171,7 @@ function callOnContentComplete(callback) {
         callback();
     } else {
         document.addEventListener('readystatechange',
-            event => {if (document.readyState == 'complete') callback();});
+                                  event => {if (document.readyState == 'complete') callback();});
     }
 }
 
@@ -179,8 +182,8 @@ function callOnHashChange(callback) {
 
 function installHashChangeHandler(callback) {
     window.addEventListener('hashchange', function() {
-    log('The hash has changed! new hash: ' + location.hash);
-    callback();}, false);
+        log('The hash has changed! new hash: ' + location.hash);
+        callback();}, false);
 }
 
 // Store latest version info and notify if updated.
@@ -189,7 +192,7 @@ function versionCheck(silent=false) {
     let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
     if (Number(GM_info.script.version) > Number(curr_ver)) {
         let msg = 'Your version of ' + GM_info.script.name + ' has been updated to version ' + GM_info.script.version +
-              ' ! Press OK to continue.';
+            ' ! Press OK to continue.';
         if (!silentUpdates && !silent) {alert(msg);}
         console.log(msg);
     }
@@ -344,15 +347,15 @@ function asCurrency(num) {
         maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
     });
 
-  return formatter.format(num);
-  }
+    return formatter.format(num);
+}
 
 // Function used to get time formatted for the running averages sheet
 // Formatted as: mm/dd/yyyy 00:00:00 TCT
 // This is stolenn from one of my Google Sheets App Scripts, never
 // tried in pure Javascript. This is in TCT, which is the same as UTC/GMT
 function timenow() {
-  return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
+    return Utilities.formatDate(new Date(), "GMT", "MM/dd/yyy HH:mm:ss");
 }
 
 // Add commas at thousand place - works with decimal numbers
@@ -372,7 +375,7 @@ function validPointer(val, dbg = false) {
 
 // Return a random int, 0 up to 'max', inclusive.
 function getRandomInt(max) {
-  return Math.floor(Math.random() * (max+1));
+    return Math.floor(Math.random() * (max+1));
 }
 
 //////////////////////////////////////////////////////////////////
@@ -473,31 +476,31 @@ function numericRankFromFullRank(fullRank) {
 //////////////////////////////////////////////////////////////////////
 
 var _ranks = ['Absolute beginner',
-             'Beginner',
-             'Inexperienced',
-             'Rookie',
-             'Novice',
-             'Below average',
-             'Average',
-             'Reasonable',
-             'Above average',
-             'Competent',
-             'Highly competent',
-             'Veteran',
-             'Distinguished',
-             'Highly distinguished',
-             'Professional',
-             'Star',
-             'Master',
-             'Outstanding',
-             'Celebrity',
-             'Supreme',
-             'Idolized',
-             'Champion',
-             'Heroic',
-             'Legendary',
-             'Elite',
-             'Invincible'];
+              'Beginner',
+              'Inexperienced',
+              'Rookie',
+              'Novice',
+              'Below average',
+              'Average',
+              'Reasonable',
+              'Above average',
+              'Competent',
+              'Highly competent',
+              'Veteran',
+              'Distinguished',
+              'Highly distinguished',
+              'Professional',
+              'Star',
+              'Master',
+              'Outstanding',
+              'Celebrity',
+              'Supreme',
+              'Idolized',
+              'Champion',
+              'Heroic',
+              'Legendary',
+              'Elite',
+              'Invincible'];
 
 /////////////////////////////////////////////////////////////////////////////////
 // Functions to query the Torn API (and a few others)
@@ -645,7 +648,7 @@ function xedx_TornStatsSpy(ID, callback, param=null) {
             //console.log('TornStat response: ', response);
             //if (response.status != 200) {
             //} else {
-                callback(response.responseText, ID, param);
+            callback(response.responseText, ID, param);
             //}
         },
         onerror: function(response) {
@@ -694,7 +697,7 @@ function xedx_YataForeignStocks(callback, param=null) {
             console.log('TornStat response: ', response);
             //if (response.status != 200) {
             //} else {
-                callback(response.responseText, param);
+            callback(response.responseText, param);
             //}
         },
         onerror: function(response) {
@@ -857,10 +860,10 @@ function addLoadingLights() {
                     filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
     `);
     const miniUI = '<div id="xedx-lights" class="topcorner">' +
-                   '<i id="xloading" class="icon-disabled"></i>' +
-                   '<i id="xinteractive" class="icon-disabled"></i>' +
-                   '<i id="xcomplete" class="icon-disabled"></i>' +
-               '</div>';
+          '<i id="xloading" class="icon-disabled"></i>' +
+          '<i id="xinteractive" class="icon-disabled"></i>' +
+          '<i id="xcomplete" class="icon-disabled"></i>' +
+          '</div>';
     const toggleLightIcon = function (id) {
         let node = document.getElementById('x' + id);
         $(node).removeClass('icon-disabled');
@@ -938,8 +941,8 @@ function getPesonalStatHref(statName, userId) {
 
         for (var index in getAllMethods) {
             if (getAllMethods[index] === 'setUserAgent' || getAllMethods[index] === 'getUserAgent' ||
-                    getAllMethods[index] === 'isAny' || getAllMethods[index] === 'isWindows' ||
-                    getAllMethods[index] === 'isIOS') {
+                getAllMethods[index] === 'isAny' || getAllMethods[index] === 'isWindows' ||
+                getAllMethods[index] === 'isIOS') {
                 continue;
             }
             if (SmartPhone[getAllMethods[index]]()) {
@@ -1033,14 +1036,17 @@ function addTopBarButton(callback, id, title) {
 // menu selector, and target selector, passed when the menu was creatwd.
 //
 function installContextMenu(selector, menuId, noSample=true) {
-     const cmHtml = `<div id="` + menuId + `" class="context-menu ctxhide">
+    const cmHtml = `<div id="` + menuId + `" class="context-menu ctxhide">
                         <ul><li class="x-sample"><a href="#">Sample</a></li></ul>
                     </div`;
 
+    // This doesn't seem to work quite right yet...
+    // Maybe wrap in exception handlers?
+    //
     // If context menu css not yet included, add it
-    if (!getDefinedCss("context-menu")) {
-        addContextStyles();
-    }
+    //if (!getDefinedCss("context-menu")) {
+    //    addContextStyles();
+    //}
 
     let menuSelector = "#" + menuId;
     if ($(menuSelector).length) {return log("Element ", menuId, " Already exists!");}
@@ -1067,6 +1073,23 @@ function installContextMenu(selector, menuId, noSample=true) {
     log("Context menu '", menuSelector, " installed!");
 }
 
+// Helper for LI's in the list. If the menu has a border-radius, matching
+// it on the first and last LI's in the menu looks much nicer when hovering.
+// These calls set that. The target is the LI to set the radius on, the
+// matchSel is the elementto get the radius from. Can be elements or
+// selectors.
+function matchTopBorderRadius(targetSel, matchSel) {
+    let radius = $(matchSel).css("border-radius");
+    let radiusStr = radius + " " + radius + " 0px 0px";
+    $(targetSel).css("border-radius", radiusStr);
+}
+
+function matchBottomBorderRadius(targetSel, matchSel) {
+    let radius = $(matchSel).css("border-radius");
+    let radiusStr = "0px 0px " + radius + " " + radius;
+    $(targetSel).css("border-radius", radiusStr);
+}
+
 function handleCmRightClick(event) {
     let menuSel = event.data.cmSel;
     let targetSel = event.data.targetSel;
@@ -1083,8 +1106,10 @@ function cmHideShow(cmSelector, targetSelector) {
         let x = $(targetSelector).css("left");
         let y = event.clientY;
 
-        $(cmSelector).css("left", x.toString() + "px");
-        $(cmSelector).css("top", y.toString() + "px");
+        if (!$(cmSelector).hasClass("no-pos")) {
+            $(cmSelector).css("left", x.toString() + "px");
+            $(cmSelector).css("top", y.toString() + "px");
+        }
 
         $(cmSelector).removeClass("ctxhide").addClass("ctxshow");
     }
@@ -1092,7 +1117,7 @@ function cmHideShow(cmSelector, targetSelector) {
 
 function cmHandleOutsideClicks(cmId) {
     $("html").click(function (e)
-    {
+                    {
         let menu = document.getElementById(cmId)
         if (e.target != menu) {
             if ($(menu).hasClass("ctxshow"))
@@ -1117,26 +1142,34 @@ function cmRemoveSample(event) {
 
 // Determine if a CSS style has already been defined.
 // Returns an array of all the defined rules
-function getDefinedCss(s){
+//
+// This doesn't seem to work quite right yet...
+// Maybe wrap in exception handlers?
+//
+function getDefinedCss(s) {
+
+    // Until fixed, just return.
+    return;
+
     if(!document.styleSheets) return '';
     if(typeof s== 'string') s= RegExp('\\b'+s+'\\b','i'); // IE capitalizes html selectors
 
     //try {
-        var A, S, DS= document.styleSheets, n= DS.length, SA= [];
-        while(n){
-            S= DS[--n];
-            try {
-                A= (S.rules)? S.rules: S.cssRules;
-                for(var i= 0, L= A.length; i<L; i++){
-                    let tem= A[i].selectorText? [A[i].selectorText, A[i].style.cssText]: [A[i]+''];
-                    if(s.test(tem[0])) SA[SA.length]= tem;
-                }
-            } catch (ex) {
-                log("exception ", ex);
-                debugger;
-                continue;
+    var A, S, DS= document.styleSheets, n= DS.length, SA= [];
+    while(n){
+        S= DS[--n];
+        try {
+            A= (S.rules)? S.rules: S.cssRules;
+            for(var i= 0, L= A.length; i<L; i++){
+                let tem= A[i].selectorText? [A[i].selectorText, A[i].style.cssText]: [A[i]+''];
+                if(s.test(tem[0])) SA[SA.length]= tem;
             }
+        } catch (ex) {
+            log("exception ", ex);
+            debugger;
+            continue;
         }
+    }
     //} catch (ex) {
     //    log("exception ", ex);
     //    debugger;
@@ -1239,54 +1272,54 @@ function addTornButtonExStyles() {
 function addToolTipStyle() {
     GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
     GM_addStyle(".tooltip2 {" +
-              "radius: 4px !important;" +
-              "background-color: #ddd !important;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid white;" +
-              "border-radius: 10px;" +
-              "width: 300px;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "}");
+                "radius: 4px !important;" +
+                "background-color: #ddd !important;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid white;" +
+                "border-radius: 10px;" +
+                "width: 300px;" +
+                "margin: 50px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "}");
 
     GM_addStyle(".tooltip3 {" +
-              "radius: 4px !important;" +
-              "background-color: #000000 !important;" +
-              "filter: alpha(opacity=80);" +
-              "opacity: 0.80;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid gray;" +
-              "border-radius: 10px;" +
-              "width: 300px;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "color: #FFF;" +
-              "font-size: 1em;" +
-              "}");
+                "radius: 4px !important;" +
+                "background-color: #000000 !important;" +
+                "filter: alpha(opacity=80);" +
+                "opacity: 0.80;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid gray;" +
+                "border-radius: 10px;" +
+                "width: 300px;" +
+                "margin: 50px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "color: #FFF;" +
+                "font-size: 1em;" +
+                "}");
 
     GM_addStyle(".tooltip4 {" +
-              "radius: 4px !important;" +
-              "background-color: #000000 !important;" +
-              "filter: alpha(opacity=80);" +
-              "opacity: 0.80;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid gray;" +
-              "border-radius: 10px;" +
-              "width: auto;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "color: #FFF;" +
-              "font-size: 1em;" +
-              "}");
+                "radius: 4px !important;" +
+                "background-color: #000000 !important;" +
+                "filter: alpha(opacity=80);" +
+                "opacity: 0.80;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid gray;" +
+                "border-radius: 10px;" +
+                "width: auto;" +
+                "margin: 50px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "color: #FFF;" +
+                "font-size: 1em;" +
+                "}");
 
 }
 
@@ -1432,6 +1465,57 @@ function addContextStyles() {
 }
 
 //
+// Styles to add a range slider. Example HTML:
+//
+// <span id="opts-bg-slider" class="slidecontainer xfmt-span">
+//    <input class="slider2" type="range" min="56" max="232" value="211">
+// </span>
+//
+function addRangeSliderStyles() {
+
+    GM_addStyle(`
+        .slidecontainer {
+            width: 100%;
+        }
+
+        .slider2 {
+            width: 100%;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 25px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #04AA6D;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: #04AA6D;
+            cursor: pointer;
+        }
+    `);
+}
+
+//
 // These styles are used to create a 'floating' centered options dialog.
 //
 // Outermost styles:
@@ -1459,7 +1543,7 @@ function addContextStyles() {
 //
 function addFloatingOptionsStyles() {
 
-        GM_addStyle(`
+    GM_addStyle(`
             .xopts-ctr-screen {
                 position: fixed !important;
                 top: 50%  !important;
@@ -1514,7 +1598,7 @@ function addFloatingOptionsStyles() {
 
 function addBorderStyles() {
 
-        GM_addStyle(`
+    GM_addStyle(`
             .xopts-border-insert-tl {
                 border-radius: 15px;
                 box-shadow: 0 20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
@@ -1581,6 +1665,9 @@ function loadMiscStyles() {
         }
         .xshowi {
             display: inline-block;
+        }
+        .xshowif {
+            display: inline-flex;
         }
         .xhyperlink {
             filter: brightness(85%);
