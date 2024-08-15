@@ -144,6 +144,17 @@ const logScriptStart = function () {
                 GM_info.script.version + ' script started, library version ' + thisLibVer);
 }
 
+// See if cloudflare is challenging - do I have to wait for page load?
+function checkCloudFlare() {
+    if ($("#challenge-form").length > 0) {
+        console.log(GM_info.script.name + " Cloudflare challenge active!");
+        return true;
+    } else {
+        console.log(GM_info.script.name + " no active Cloudflare challenge detected.");
+    }
+    return false;
+}
+
 function enableDebugLogging(enable=true) {
     debugLoggingEnabled = enable;
 }
@@ -1684,6 +1695,9 @@ function loadMiscStyles() {
             overflow-y: auto;
             top: 0px;
         }
+        .xedx-bdr {
+            border: solid 1px red;
+        }
     `);
 }
 
@@ -1701,6 +1715,11 @@ function loadTtsColors() {
         }
         .xedx-offred {
             color: #FF2B2B;
+        }
+        .xedx-green-b {
+            background: lime;
+            -webkit-animation: highlight-active 1s linear 0s infinite normal;
+            animation: highlight-active 1s linear 0s infinite normal;
         }
     `);
 }
