@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -47,6 +47,13 @@
     function handlePageLoaded() {
         log('handlePageLoaded');
 
+        // If here via adv mini profile jail click, highlight user.
+        if (location.href.indexOf('jailview') > -1) {
+            let urlParams = new URLSearchParams(window.location.search);
+            let userXid = urlParams.get('XID');
+            if (userXid) processUserXid(userXid);
+        }
+
         let node = document.getElementById('profile-mini-root');
         if (node) {
             target = node;
@@ -65,8 +72,36 @@
             }
           })
         });
-
         observeOn();
+    }
+
+    function processUserXid(userXid) {
+        let liList = $("[class^='user-info-list-wrap'] > li");
+        for (let idx=0; idx < liList.length; idx++) {
+            let li = liList[idx];
+            let elem = $(li).find("a.user.name");
+            let title = $(elem).attr("title");
+            if (title && title.indexOf(userXid) > -1) {
+                log("Found user!!!");
+                $(li).css("background", "red");
+                $(li).css("opacity", .4);
+                li.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'center',
+                    inline: 'center'
+                });
+                setTimeout(opacityLess, 250, li);
+                break;
+            }
+        }
+    }
+
+    function opacityMore(elem) {
+        $(elem).animate({"opacity": .4}, 1600, function () {setTimeout(opacityLess, 500, elem);});
+    }
+
+    function opacityLess(elem) {
+        $(elem).animate({"opacity": .1}, 1600, function () {setTimeout(opacityMore, 500, elem);});
     }
 
     function queryUserProfile(node, id) {
@@ -143,48 +178,50 @@
         log('handleMiniProfileChange');
         let node = target;
 
-        // profile-mini-_userImageLink___dXxCP
         let idNode = node.querySelectorAll('[class*="userImageLink"]')[0];
         if (!idNode) {
-            log('Mini-profile closing - no id');
-            log("target: ", target);
+            debug('Mini-profile closing - no id');
+            debug("target: ", target);
 
             profileQueried = false;
             return;
         }
         let href = $(idNode).attr('href');
-        log("idNode: ", idNode);
-        log("href: ", href);
+        debug("idNode: ", idNode);
+        debug("href: ", href);
         if (!href)
         {
             log("Can't find href or ID!! Closing.");
             return;
         }
+
+        // experimental
+        let jailIcon = $(target).find("[class*='-Jail']");
+        if ($(jailIcon).length) {
+            let link = $(jailIcon).find('a');
+            let jailHref = $(link).attr("href");
+            if ($(jailIcon).hasClass("xdummy")) {
+            } else {
+                let userLink = $(target).find("[class^='profile-mini-_userImageLink__']");
+                let xidHref = $(userLink).attr("href");
+                if (xidHref) {
+                    let parts = xidHref.split('=');
+                    if (parts[1]) {
+                        $(link).attr("href", (jailHref + "?XID=" + parts[1]));
+                        $(jailIcon).addClass("xdummy");
+                    }
+                }
+            }
+        }
+
         if (!profileQueried && href) {
-            log("href: ", href);
+            debug("href: ", href);
             let id = xidFromProfileURL(href);
-            log('User ID = ' + id);
+            debug('User ID = ' + id);
 
             xedx_TornStatsSpy(id, getTornSpyCB, node);
             profileQueried = true;
         }
-
-        /* Old method, page changed 11/23/2023 (fix is above)
-        let idNode = node.querySelectorAll('[id$=-user]')[0];
-        if (!idNode) {
-            log('Mini-profile closing - no id');
-            log("target: ", target);
-
-            profileQueried = false;
-            return;
-        }
-        if (!profileQueried) {
-            let id = idNode.id.replace('-user', '');
-            log('User ID = ' + id);
-            xedx_TornStatsSpy(id, getTornSpyCB, node);
-            profileQueried = true;
-        }
-        */
     }
 
     function getTornSpyCB(respText, ID, node) {
@@ -446,14 +483,6 @@
                 "tr:last-child td:first-child { border-bottom-left-radius: 10px; }" +
                 "tr:last-child td:last-child { border-bottom-right-radius: 10px; }");
 
-    if (document.readyState == "complete") {
-        handlePageLoaded();
-    }
-
-    document.onreadystatechange = function () {
-      if (document.readyState == "complete") {
-        handlePageLoaded();
-      }
-    };
+    callOnContentComplete(handlePageLoaded);
 
 })();
