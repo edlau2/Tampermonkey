@@ -145,8 +145,9 @@ const logScriptStart = function () {
 }
 
 // See if cloudflare is challenging - do I have to wait for page load?
-function checkCloudFlare() {
-    if ($("#challenge-form").length > 0) {
+function checkCloudFlare(clickIt) {
+    //if ($("#challenge-form").length > 0) {
+    if (document.querySelector("#challenge-form")) {
         console.log(GM_info.script.name + " Cloudflare challenge active!");
         return true;
     } else {
@@ -387,6 +388,18 @@ function validPointer(val, dbg = false) {
 // Return a random int, 0 up to 'max', inclusive.
 function getRandomInt(max) {
     return Math.floor(Math.random() * (max+1));
+}
+
+// Return an arbitrary (not int) number between min and max, inclusive.
+function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+// Return a random int between min and max, inclusive
+function getRandomIntEx(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 //////////////////////////////////////////////////////////////////
@@ -1046,10 +1059,27 @@ function addTopBarButton(callback, id, title) {
 // can call "cmHideShow(menuSel, targetSel);", the two params are the
 // menu selector, and target selector, passed when the menu was creatwd.
 //
-function installContextMenu(selector, menuId, noSample=true) {
+// An options object may be passed in. Options that are understood:
+// options  [
+//  filter: <function>
+//  noSample: true to insert sample LI
+// }
+//
+// The filter function will be called first, if it return true
+// then nothing else is done.
+// Otherwise, event propogation is stopped
+// and the menu is hidden.
+//
+function installContextMenu(selector, menuId, options) {
     const cmHtml = `<div id="` + menuId + `" class="context-menu ctxhide">
                         <ul><li class="x-sample"><a href="#">Sample</a></li></ul>
                     </div`;
+    let noSample = true;
+    let filterCb = undefined;
+    if (options) {
+        noSample = (options.noSample == undefined) ? true : options.noSample;
+        filterCb = options.filter;
+    };
 
     // This doesn't seem to work quite right yet...
     // Maybe wrap in exception handlers?
@@ -1066,7 +1096,7 @@ function installContextMenu(selector, menuId, noSample=true) {
     $(selector).after(cmHtml);
 
     // Add handlers for right-click - hide or show the menu
-    let params = {cmSel: menuSelector, targetSel: selector};
+    let params = {cmSel: menuSelector, targetSel: selector, filter: filterCb};
     $(selector).on('contextmenu', params, handleCmRightClick);
     $(menuSelector).on('contextmenu', params, handleCmRightClick);
 
@@ -1104,6 +1134,15 @@ function matchBottomBorderRadius(targetSel, matchSel) {
 function handleCmRightClick(event) {
     let menuSel = event.data.cmSel;
     let targetSel = event.data.targetSel;
+    let filterFn = event.data.filter;
+
+    if (filterFn) {
+        if (filterFn(event)) {
+            //event.preventDefault();
+            return;
+        }
+    }
+
     event.preventDefault();
 
     cmHideShow(menuSel, targetSel);
@@ -1238,7 +1277,7 @@ function addTornButtonExStyles() {
 
     GM_addStyle(`
         .xedx-torn-btn {
-            height: 22px !important;
+            height: 24px;
             width: 74px;
             line-height: 22px;
             font-family: "Fjalla One", Arial, serif;
@@ -1348,6 +1387,20 @@ function displayToolTip(node, text, cl) {
     })
 }
 
+function displayHtmlToolTip(node, text, cl) {
+    $(document).ready(function() {
+        $(node).attr("title", "original");
+        $(node).attr("data-html", "true");
+        $(node).attr("style", "white-space: pre-line;");
+        $(node).tooltip({
+            content: text,
+            classes: {
+                "ui-tooltip": cl ? cl : "tooltip3"
+            }
+        });
+    })
+}
+
 // Adds a tool tip to a node/element
 // 'cl' is the name of a custom class if you want to pass that in.
 function displayToolTip2(node, text, cl) {
@@ -1408,7 +1461,7 @@ function addContextStyles() {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 20;
+            z-index: 999999;
         }
         .context-border {
             border: 1px solid black;
@@ -1541,6 +1594,7 @@ function addRangeSliderStyles() {
 // For spans organized in rows or colums:
 //
 //   xfmt-hdr-span - Creates a 'header' with an underline, on a span
+//   xfmt-hdr-span-c - same, but centered
 //   xfmt-span - Defines a span as min 24 pix tall.
 //
 // Simple fonts:
@@ -1559,7 +1613,6 @@ function addFloatingOptionsStyles() {
                 position: fixed !important;
                 top: 50%  !important;
                 left: 50% !important;
-
                 -ms-transform: translateX(-50%) translateY(-50%)  !important;
                 -webkit-transform: translate(-50%,-50%) !important;
                 transform: translate(-50%,-50%) !important;
@@ -1569,7 +1622,7 @@ function addFloatingOptionsStyles() {
             }
             .xopts-bg {
                 background: lightgray;
-                z-index: 20;
+                z-index: 999999;
                 width: 360px !important;
                 height: 380px !important;
             }
@@ -1579,13 +1632,22 @@ function addFloatingOptionsStyles() {
             }
             .xfmt-hdr-span {
                 border-bottom: 2px solid black;
-                padding-bottom: 5px;
                 margin-top: 5px;
                 margin-bottom: 5px;
                 align-items: center;
                 display: flex;
                 vertical-align: middle;
                 min-height: 24px;
+            }
+            .xfmt-hdr-spanc {
+                border-bottom: 2px solid black;
+                margin-top: 5px;
+                margin-bottom: 5px;
+                align-items: center;
+                display: flex;
+                vertical-align: middle;
+                min-height: 24px;
+                justify-content: center;
             }
             .xfmt-font-blk {
                 color: black;
@@ -1749,6 +1811,9 @@ function loadCommonMarginStyles() {
         }
         .xml10 {
             margin-left: 10px;
+        }
+        .xml14 {
+            margin-left: 14px;
         }
         .xml20 {
             margin-left: 20px;
