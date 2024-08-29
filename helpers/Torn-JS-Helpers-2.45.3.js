@@ -227,7 +227,7 @@ function debug(...data) {
 }
 
 /////////////////////////////////////////////////////////
-// Functions to see if on a given pag
+// Functions to see if on a given page
 /////////////////////////////////////////////////////////
 
 function isIndexPage() {return (location.href.indexOf("index.php") > -1)}
@@ -256,33 +256,6 @@ function getClassList(element) {
 
     return classList;
 }
-
-/* Old function to cause a beep - won't work unless initiated by an element click */
-
-// All arguments are optional:
-//   duration of the tone in milliseconds. Default is 500
-//   frequency of the tone in hertz. default is 440
-//   volume of the tone. Default is 1, off is 0.
-//   type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
-//   callback to use on end of tone
-/*
-var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
-function beep(duration=500, frequency=440, volume=1, type='sine', callback) {
-    var oscillator = audioCtx.createOscillator();
-    var gainNode = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    if (volume){gainNode.gain.value = volume;}
-    if (frequency){oscillator.frequency.value = frequency;}
-    if (type){oscillator.type = type;}
-    if (callback){oscillator.onended = callback;}
-
-    oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + ((duration || 500) / 1000));
-};
-*/
 
 // Date formatting 'constants'
 const date_formats = ["YYYY-MM-DD",
@@ -337,14 +310,6 @@ function dateConverter(dateobj, format){
 // Check if a var is numeric
 function isaNumber(x)
 {
-    /*
-    var regex=/^[0-9]+$/;
-    if (!validPointer) {return false;}
-    if (x.match(regex)) { // Will crash on undefined, null, etc. The above checks for that
-        return true;
-    }
-    return false;
-    */
     return !isNaN(x);
 }
 
@@ -445,6 +410,7 @@ function xidFromProfileURL(URL) {
 // More accurately, "XID=" must be present :-)
 // We need the XID; the trailing '#' may not be present.
 function idFromURL(URL) {
+    if (!URL) return;
     var n = URL.indexOf('ID='); // Find the 'ID=' token
     if (n == -1) {return null;}
     var n2 = URL.slice(n).indexOf('#'); // Find the next '#' sign (may not exist)
@@ -493,6 +459,10 @@ function numericRankFromFullRank(fullRank) {
 
     return numeric_rank;
 }
+
+// Open a new tab to a given URL. Will get focus by default
+const openInNewTab = (url, focus=true) => {focus ? window.open(url, '_blank').focus() :
+                                                   window.open(url, '_blank');}
 
 
 //////////////////////////////////////////////////////////////////////
@@ -706,9 +676,6 @@ function xedx_YataForeignStocks(callback, param=null) {
     const stocksURL = "/api/v1/travel/export/";
     let url = yataHost + stocksURL;
 
-    //console.debug('(JS-Helper) ' + GM_info.script.name + ' Spying ' + ID + ' via TornStats');
-    //console.debug('(JS-Helper) ' + GM_info.script.name + ' url: ' + url);
-
     log("xedx_YataForeignStocks: url is ", url);
     GM_xmlhttpRequest({
         method:"GET",
@@ -717,12 +684,8 @@ function xedx_YataForeignStocks(callback, param=null) {
             'Accept': '*/*'
         },
         onload: function(response) {
-            // Check status code here: 429
             console.log('TornStat response: ', response);
-            //if (response.status != 200) {
-            //} else {
             callback(response.responseText, param);
-            //}
         },
         onerror: function(response) {
             console.debug('(JS-Helper) ' + GM_info.script.name + ': onerror');
@@ -911,18 +874,6 @@ function addLoadingLights() {
     }
 }
 
-/*
-//
-// Get an element that is an a href for a personal stat. Can wrap a div/span/etc.
-// by using JQuery .wrap: $(yourNode).wrap(thisNode)
-//
-function getPesonalStatHref(statName, userId) {
-    let newNode = '<a href="https://www.torn.com/personalstats.php?ID=' +
-                        userId + '&stats=' + statName + '&from=1%20month" class="xdim85 href t-blue"></a>';
-
-    return newNode;
-}
-*/
 
 /**
  * @auther SM@K<smali.kazmi@hotmail.com>
@@ -1008,6 +959,56 @@ function getPesonalStatHref(statName, userId) {
         root.SmartPhone = SmartPhone;
     }
 }.call(this));
+
+//
+// Nifty UI stuff
+//
+
+// See if a click is on top of an element
+function isClickInElement(event, elem) {
+    let xOK = false, yOK = false;
+    let xClick = event.clientX, yClick = event.clientY;
+    let elemTop = $(elem).offset().top, elemLeft = $(elem).offset().left;
+    let elemBottom = elemTop + $(elem).height(), elemRight = elemLeft + $(elem).width();
+    let pos = $(elem).position();
+
+    if (xClick >= elemLeft && xClick <= elemRight) xOK = true;
+    if (yClick >= elemTop && yClick <= elemBottom) yOK = true;
+
+    // Compensation for sidebar scrolling.
+    if (yClick >= pos.top && yClick <= (pos.top + $(elem).height())) yOK = true;
+
+    return (xOK && yOK);
+}
+
+// Determines the current crimes available - display name, internal name,and ID
+// Keeps a cached version
+var gCrimeList = undefined;
+function doCrimeLoad(callback) {
+    if (gCrimeList != undefined && callback) {
+        callback(gCrimeList);
+        return;
+    }
+    const crimeURL = "https://www.torn.com/loader.php?sid=crimes";
+    $.ajax({
+        url: crimeURL,
+        type: 'GET',
+        success: function (response, status, xhr) {
+            var ct = xhr.getResponseHeader("content-type") || "";
+            if (ct.indexOf('html') > -1) {
+                let dataset = $(response)[0] ? $(response)[0].dataset : undefined;
+                gCrimeList = dataset? dataset.availableCrimes : undefined;
+                if (callback) callback(gCrimeList);
+                //processCrimeLoadHTMLResponse(response, status, xhr);
+            } else {
+                log("error: unexpected content type");
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            log("Error in crimeLoad: ", textStatus);
+        }
+    });
+}
 
 // Add a button on almost any page, to the right of top title.
 // Callback is required, the click handler.
