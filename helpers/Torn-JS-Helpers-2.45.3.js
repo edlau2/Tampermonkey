@@ -1063,24 +1063,32 @@ function addTopBarButton(callback, id, title) {
 // An options object may be passed in. Options that are understood:
 // options  [
 //  filter: <function>
-//  noSample: true to insert sample LI
+//  classOverRide: <class name>
+//  noSample: true to remove sample LI (default)
 // }
 //
 // The filter function will be called first, if it return true
-// then nothing else is done.
-// Otherwise, event propogation is stopped
+// then nothing else is done. Otherwise, event propogation is stopped
 // and the menu is hidden.
 //
+// classOverRide, if provided, will replacethe default .context-menu
+// class and it's descendents, .context-menu > ul and ul > li
+//
+// Returns the menu's selector on success, undefined otherwise.
+//
 function installContextMenu(selector, menuId, options) {
-    const cmHtml = `<div id="` + menuId + `" class="context-menu ctxhide">
-                        <ul><li class="x-sample"><a href="#">Sample</a></li></ul>
-                    </div`;
-    let noSample = true;
-    let filterCb = undefined;
+    let noSample = true, filterCb = undefined, customClass = undefined;
     if (options) {
         noSample = (options.noSample == undefined) ? true : options.noSample;
         filterCb = options.filter;
+        customClass = options.classOverRide;
     };
+
+    const cmHtml = `<div id="` + menuId + `" class="` +
+                        (customClass ? customClass : "context-menu") +
+                        ` ctxhide">
+                        <ul><li class="x-sample"><a href="#">Sample</a></li></ul>
+                    </div`;
 
     // This doesn't seem to work quite right yet...
     // Maybe wrap in exception handlers?
@@ -1113,6 +1121,8 @@ function installContextMenu(selector, menuId, options) {
     cmHandleOutsideClicks(menuId);
 
     log("Context menu '", menuSelector, " installed!");
+
+    return ($(menuSelector).length > 0) ? menuSelector : undefined;
 }
 
 // Helper for LI's in the list. If the menu has a border-radius, matching
@@ -1370,6 +1380,7 @@ function addToolTipStyle() {
                 "text-decoration: none;" +
                 "color: #FFF;" +
                 "font-size: 1em;" +
+                "z-index: 999999;" +
                 "}");
 
 }
