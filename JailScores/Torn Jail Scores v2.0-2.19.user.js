@@ -1908,6 +1908,12 @@
 
     // ================= Scroll to a user by XID, centering in view ========================
 
+    function scrollTo (elem) {
+       $('html,body').animate({
+          scrollTop: $(elem).offset().top - $(window).height()/2
+       }, 500);
+    }
+
     function scrollToXID(xid) {
         debug("scrollToXID: ", xid);
 
