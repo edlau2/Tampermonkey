@@ -111,16 +111,16 @@
     }
 
     function facFilter(e) {
-        //log("'facFilter: ", e);
-        //log("coords: ", e.clientX, " - ", e.clientY);
+        log("'facFilter: ", e);
+        log("coords: ", e.clientX, " - ", e.clientY);
         let el = $(e.currentTarget);
-        //log("el : ", $(el));
+        log("el : ", $(el));
         let parent = $(el).parent();
-        //log("parent: ", $(parent));
-        //log("pos p: ", $(parent).position());
-        //log("pos ct: ", $("#xfac-chat-ctx").position());
+        log("parent: ", $(parent));
+        log("pos p: ", $(parent).position());
+        log("pos ct: ", $("#xfac-chat-ctx").position());
 
-        $("#xfac-chat-ctx").css("top", e.clientY);
+        $("#xfac-chat-ctx").addClass("x-ctx-pos"); //css("top", e.clientY);
     }
 
     function doMenuClick(e) {
@@ -161,7 +161,7 @@
         installContextMenu(destNode, "xfac-chat-ctx", {filter: facFilter});
         //log("CTX menu: ", $("#xfac-chat-ctx"));
 
-        let testLi = `<li id="xkcd"><a>test</a></li>`;
+        let testLi = `<li id="xkcd"><a>On/Off</a></li>`;
         $("#xfac-chat-ctx > ul").append(testLi);
         $("#xkcd").on('click', doMenuClick);
         if (!menusOnly)
@@ -251,6 +251,10 @@
 
     // Temp for menu on/off
     GM_addStyle(".x-on-menu {background: #ffc926;} .xlg {color: limegreen !important;}");
+
+    // temp context positioniing
+    GM_addStyle(".x-ctx-pos {left: 40px !important; top: 50px !important; position: absolute !important;}");
+    left: '40px'
 
     // If on the jail page and we got here from a right-click,
     // will have an "?XID=<...> appended
