@@ -198,6 +198,26 @@ function installHashChangeHandler(callback) {
         callback();}, false);
 }
 
+// ==================== PushState handler installation ==================
+const bindEventListener = function (type) {
+    const historyEvent = history[type];
+    return function () {
+        const newEvent = historyEvent.apply(this, arguments);
+        const e = new Event(type);
+        e.arguments = arguments;
+        window.dispatchEvent(e);
+        return newEvent;
+    };
+};
+
+function installPushStateHandler(pushStateChangedHandler) {
+    history.pushState = bindEventListener("pushState");
+    window.addEventListener("pushState", function (e) {
+        pushStateChangedHandler(e);
+    });
+}
+// ========================================================================
+
 // Store latest version info and notify if updated.
 var silentUpdates = false;
 function versionCheck(silent=false) {
@@ -1399,6 +1419,27 @@ function displayToolTip(node, text, cl) {
     })
 }
 
+// $().tooltip seems to be a JQuery UI function. There are lots of attributes:
+// {
+//   content:
+//   disabled:
+//   hide:
+//   items:
+//   position:
+//   show:
+//   tooltipClass:
+//   track:
+// }
+//
+// Didn't find "classes" doumentation. Position may be usefull!
+// Instead of just passing one class here, pass array -
+// or pass in an attributes object, and merge into the one we
+// use here?
+//
+// Also has a for taking an "action" ! can change options dynamically,
+// open/close, enable/disable, etc.
+// Also can be set up to call functions on create, open, close!!
+//
 function displayHtmlToolTip(node, text, cl) {
     $(document).ready(function() {
         $(node).attr("title", "original");
@@ -1771,6 +1812,9 @@ function loadMiscStyles() {
         }
         .xedx-bdr {
             border: solid 1px red;
+        }
+        .xz {
+            z-index: 999999;
         }
     `);
 }
