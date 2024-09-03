@@ -172,7 +172,9 @@
     function addColorClass(tcell, respType) {
         //Congratulatory: [30,57], Considerate: [9,21], Realistic
         if (respType == "Congratulatory") $(tcell).addClass("xcellC").removeClass("xcellD").removeClass("xcellR");
+        if (respType == "Professional") $(tcell).addClass("xcellC").removeClass("xcellD").removeClass("xcellR");
         if (respType == "Considerate") $(tcell).addClass("xcellD").removeClass("xcellC").removeClass("xcellR");
+        if (respType == "Reassuring") $(tcell).addClass("xcellD").removeClass("xcellC").removeClass("xcellR");
         if (respType == "Realistic") $(tcell).addClass("xcellR").removeClass("xcellD").removeClass("xcellD");
     }
 
