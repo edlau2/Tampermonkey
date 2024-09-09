@@ -265,6 +265,7 @@ function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") >
 function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
 function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
 function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
+function isApiPage() {return (location.href.toLowerCase().indexOf("api.htm") > -1)};
 
 //
 // Get class list for an element
@@ -1030,6 +1031,18 @@ function doCrimeLoad(callback) {
     });
 }
 
+// Add my own custom section in the sidebar
+function makeXedxSidebarContentDiv() {
+    if ($("#x-scrollbar-content").length > 0) return;
+    let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]');
+    if ($(node).length < 1) return;
+
+    let clone = $(node).clone();
+    $(clone).children().remove();
+    $(node).after(clone);
+    $(clone).attr("id", "x-scrollbar-content");
+}
+
 // Add a button on almost any page, to the right of top title.
 // Callback is required, the click handler.
 // id and title are optional.
@@ -1197,8 +1210,7 @@ function cmHideShow(cmSelector, targetSelector) {
 }
 
 function cmHandleOutsideClicks(cmId) {
-    $("html").click(function (e)
-                    {
+    $("html").click(function (e) {
         let menu = document.getElementById(cmId)
         if (e.target != menu) {
             if ($(menu).hasClass("ctxshow"))
