@@ -487,6 +487,7 @@
                 clearInterval(intervalTimer);
                 intervalTimer = 0;
                 enableAlert(true);
+                alertActive = false;
                 //$("#xmenu1").removeClass("flash-red");
                 log("handleIntTimer - return");
                 return;
