@@ -308,6 +308,15 @@
                     animation-play-state: running;
                     font-size: 18px !important;
                 }
+                .flash-red-at {
+                   animation-name: flash-red;
+                    animation-duration: 0.8s;
+                    animation-timing-function: linear;
+                    animation-iteration-count: infinite;
+                    animation-direction: alternate;
+                    animation-play-state: running;
+                    font-size: 14px !important;
+                }
                 .alert-red {
                     border: 2px solid red;
                 }
@@ -430,7 +439,7 @@
         log("enableAlert: force off? ", (disable == true));
         if (alertActive == false) alertClickDone = false;
         if (disable || options.showAlert == false || alertActive == false) {
-            $("#xmenu1").removeClass("flash-red");
+            $("#xmenu1").removeClass("flash-red").removeClass("flash-red-at");
             $("#xedxNPCAlert").parent().removeClass("alert-red");
             alertActive = false;
             return;
@@ -438,7 +447,8 @@
         }
 
         if (alertActive == true) {
-            $("#xmenu1").addClass("flash-red").addClass("df");
+            let classToAdd = (options.atOrUntil == "timeuntil") ? "flash-red" : "flash-red-at";
+            $("#xmenu1").addClass(classToAdd).addClass("df");
             //$("#xclick").addClass("xhide").removeClass("df");
             $("#xedxNPCAlert").parent().addClass("alert-red");
             if (alertClickDone == false && $("#xclick").hasClass("df")) {
