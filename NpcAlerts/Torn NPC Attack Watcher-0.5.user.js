@@ -27,6 +27,7 @@
 
     var local = false;
     const format = 24;
+    const dbgBorders = true;
 
     // Various (mostly display) options
     var options = {
@@ -401,6 +402,12 @@
                     height=22px;
                     min-height: 22px;
                 }
+                .uber-nb {
+                    background: transparent;
+                    border-radius: 0px;
+                    height=22px;
+                    min-height: 22px;
+                }
                 .uber:hover {
                     background-border: 2px solid red !important;
                 }
@@ -618,6 +625,7 @@
     const hideOpts = function () {log("hideOpts"); $(".xrflex").removeClass("xshow-flex").addClass("ctxhide");}
 
     const uberDiv = `<div id="uber-alert" class="uber"></div>`;
+    const uberDiv2 = `<div id="uber-alert" class="uber-nb"></div>`;
         //style="background: transparent; border: 1px solid green;border-radius: 0px;height=22px;min-height: 22px;"></div>`;
 
     function installUI() {
@@ -646,7 +654,7 @@
         $("#x-scrollbar-content").css("padding-top", "0px");
 
         // This allow us to hide and show the div, unobtrusively
-        let uber = $(uberDiv);
+        let uber = dbgBorders ? $(uberDiv) : $(uberDiv2);
         $("#xedxNPCAlert").parent().wrap(uber);
         $("#uber-alert").on('click', handleBtnClick);
         doNpcHideShow();
