@@ -69,6 +69,25 @@
     const lvl80arr = ["romance", "investment"];     // Unknown ATM...
     const idxMoveArray80 = idxMoveArray60;
 
+    // ===================================================
+
+    function pushStateChanged(e) {
+        log("pushStateChanged: ", e);
+        setTimeout(handlePageLoad, 500);
+    }
+
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
+
+
     // ================================== helper functions ==========================================
     function getRespBtnArrayIdx(btn) {
         let parent = $(btn).parent();
@@ -781,8 +800,9 @@
     }
 
     function hashChangeHandler() {
+        log("Hash change detected...");
         if (location.hash.indexOf("scamming") > -1 || location.href.indexOf("crimes#/scamming") > -1)
-            callOnContentComplete(handlePageLoad);
+            setTimeout(handlePageLoad, 500);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -800,6 +820,11 @@
     addToolTipStyle();
 
     callOnHashChange(hashChangeHandler);
+
+    history.pushState = bindEventListener("pushState");
+    window.addEventListener("pushState", function (e) {
+        pushStateChanged(e);  // Could directly call handlePageLoad() instead
+    });
 
     if (location.hash.indexOf("scamming") < 0) return log("Not on scamming...");
     if (location.href.indexOf("crimes#/scamming") < 0) return log("Not on scamming...");
