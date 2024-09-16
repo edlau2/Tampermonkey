@@ -87,7 +87,7 @@
 
     function addNodeClickHandler(node, id) {
         if (id) $(node).attr('XID', id);
-        $(node).on('contextmenu', handleChatClick2);
+        $(node).on('contextmenu', handleChatClick);
     }
 
     // Handle right-click on user name
