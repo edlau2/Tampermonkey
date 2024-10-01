@@ -4,8 +4,6 @@
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
-// @require     http://code.jquery.com/jquery-3.4.1.min.js
-// @require     http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @connect     api.torn.com
 // @connect     www.tornstats.com
 // @exclude     *
