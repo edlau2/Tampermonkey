@@ -7,8 +7,8 @@
 // @match        https://www.torn.com/loader.php?sid=crimes*
 // @match        https://torn.com/loader.php?sid=crimes*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
-// @xrequire      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.5.js
-// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.45.5.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.5.js
+// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.45.5.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
