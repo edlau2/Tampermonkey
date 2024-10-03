@@ -103,7 +103,7 @@
 
     // 40: vacation, tax
     const lvl40arr = ["vacation", "tax"];
-    const idxMoveArray40 = { 0: [[6,12], [3,7], [-2,-4]],          // back isn't knownn for any of these?
+    const idxMoveArray40 = { 0: [[8,16], [3,7], [-2,-4]],          // back isn't knownn for any of these?
                            1: [[11,21], [5,9], [-3,-6]],
                            2: [[13,25], [6,11], [-4,-7]],
                            3: [[14,28], [6,12], [-4,-8]],
@@ -174,6 +174,7 @@
         availableScams = $("[class^='virtualList__'] > [class^='virtualItem__']").length;
         if (availableScams >= 3) availableScams = availableScams - 3;
         if (availableScams < 0) availableScams = 0;
+        $("#xavail").text("Avail: " + availableScams);
         setTimeout(updateAvailable, 3000);
     }
 
@@ -264,7 +265,7 @@
 
     var lastIdx;
     function handleResponseClick(e, param) {     
-        logt("handleResponseClick: ", inRespHandler);
+        //logt("handleResponseClick: ", inRespHandler);
         if (inRespHandler == true) return;
         inRespHandler = true;
         setTimeout(clearRespFlag, 300);
@@ -814,7 +815,7 @@
             div += "</ul></div>";
 
             var newWin = open("", "_blank",
-                  "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=780,height=200");
+                  "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=760,height=450");
             newWin.document.body.innerHTML = `
                         <h1>Test Result</h1><br><input id="btn1" type="button" value="save">` + div;
 
