@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = 2.45;
+const thisLibVer = "2.45.7";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
