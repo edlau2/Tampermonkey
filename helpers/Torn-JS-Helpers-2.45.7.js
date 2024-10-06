@@ -2069,9 +2069,6 @@ function loadTtsColors() {
 }
 
 function loadCommonMarginStyles() {
-
-    log("Loading Margin Styles");
-
     GM_addStyle(`
         .xmb3 {
             margin-bottom: 3px;
