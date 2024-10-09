@@ -1518,6 +1518,33 @@ function addTornButtonExStyles() {
          .xedx-torn-btn:active {
             filter: brightness(0.80);
          }
+         .xedx-torn-btn-raw {
+            line-height: 22px;
+            font-family: "Fjalla One", Arial, serif;
+            font-size: 14px;
+            font-weight: normal;
+            text-align: center;
+            text-transform: uppercase;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #555;
+            color: var(--btn-color);
+            text-shadow: 0 1px 0 #FFFFFF40;
+            text-shadow: var(--btn-text-shadow);
+            background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
+            background: var(--btn-background);
+            border: 1px solid #333;
+            display: inline-block;
+            vertical-align: middle;
+         }
+         .xedx-torn-btn-raw:hover {
+            filter: brightness(1.50);
+            border: 1px solid #222;
+         }
+         .xedx-torn-btn-raw:active {
+            filter: brightness(0.80);
+            border: 1px solid #111;
+         }
      `);
 }
 
