@@ -357,7 +357,6 @@
             let urlParams = new URLSearchParams(window.location.search);
             $("#btn1").on('click', packAnEmptyBox);
 
-            debugger;
             if (urlParams.get("qp") == "true") {
                 secondEvent = true;
                 callOnContentComplete(packAnEmptyBox);
