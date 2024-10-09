@@ -23,6 +23,12 @@
 (function() {
     'use strict';
 
+    // Enable to skip success confirmation and jump right back to
+    // items page, where new XID's will already be grabbed and
+    // just need to press Go! again.
+    // Set to false to get the confirmational message instead.
+    const fasterMode = true;
+
     debugLoggingEnabled = false;
 
     // No longer dashboards, just som small DIVs....
@@ -151,6 +157,10 @@
 
         let tryAgain = false;
         if (jsonObj.success == true) {
+            if (fasterMode == true) {
+                location.href = itemsURL + "?qp=true";
+                return;
+            }
             let Q = "\r\n\r\nPress OK to go pack another,\r\nCancel to simply return to the items page.";
             tryAgain = confirm("Success!" +
                                (jsonObj.text ? ("\r\n\r\n" + jsonObj.text) : "") + Q);
@@ -273,6 +283,7 @@
         } else {
             if (secondEvent == true) {
                 if (reactRetries++ < 10) return setTimeout(locateReactXids, 250);
+                return;
             }
             if (reactRetries++ > 5 && reactRetries < 10) {
                 if (confirm("Something went wrong!\r\n" +
