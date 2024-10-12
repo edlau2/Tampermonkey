@@ -1125,8 +1125,8 @@ function doCrimeLoad(callback, full=false) {
 // maxRetries - default is 8 (~2 secs)
 //
 const iconIndices = {"donator": 4, "subscriber": 4, "donators": 4, "subscribers": 4,
-                     "level": 5, "gender" : 6, "marriage": 8, "faction": 9,
-                     "edu": 19, "education": 19, "company": 27,
+                     "level": 5, "gender" : 6, "marriage": 8, "faction": 9, "hospital": 15,
+                     "hosp": 15, "edu": 19, "education": 19, "company": 27,
                      "bank": 29, "interest": 29, "caymans": 31, "vault": 32,
                      "stocks": 38, "stock": 38, "booster":39, "boostercd": 39,
                      "med": 44, "medical": 44, "drug": 49, "drugcd": 49, "oc": 85, "organized": 85,
