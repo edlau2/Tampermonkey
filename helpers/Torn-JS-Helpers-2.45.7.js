@@ -1235,12 +1235,15 @@ function removeSpinner(spinnerId) {
 // DIVs, seethe dragElement() for details on doing that also. Torn Hospital
 // Timer, Torn Blood Bag Reminder, Torn War Timer on Every Page all use  both fns.
 //
-function startSavingPos(interval, outerDivId) {
+// The optional 'stayInWindow' param, if true, will try to force the window to
+// stay within the window extents.
+//
+function startSavingPos(interval, outerDivId, stayInWindow) {
     var posTimer = 0;
     if (!interval) return console.error("[startSavingPos] interval is required!");
     if (!outerDivId) return console.error("[startSavingPos] outerDivId is required!");
     restoreSavedPos(outerDivId);
-    posTimer = setInterval(savePosition, 1500, outerDivId);
+    posTimer = setInterval(savePosition, 1500, outerDivId, stayInWindow);
 
     function getPosSelector(outerDivId) {
         return "#" + outerDivId;
@@ -1272,9 +1275,27 @@ function startSavingPos(interval, outerDivId) {
         return off;
     }
 
-    function savePosition(outerDivId) {
+    function checkExtents(outerDivSelector, off) {
+        let changed = false;
+        if (off.left < 0) {off.left = 0; changed = true;}
+        if (off.left > (window.innerWidth - 20)) {off.left =
+            (window.innerWidth - $(outerDivSelector).width());
+            changed = true;}
+        if (off.top < 0) {off.top = 0; changed = true;}
+        if (off.top > window.innerHeight - 30) {off.top =
+            (window.innerHeight - 30); changed = true;}
+
+        if (changed) $(outerDivSelector).offset(off);
+    }
+
+    function savePosition(outerDivId, stayInWindow) {
         let outerDivSelector = getPosSelector(outerDivId);
         let off = $(outerDivSelector).offset();
+
+        if (stayInWindow == true) {
+            checkExtents(outerDivSelector, off);
+        }
+
         let key = getPosKey(outerDivId);
         GM_setValue(key, JSON.stringify(off));
     }
