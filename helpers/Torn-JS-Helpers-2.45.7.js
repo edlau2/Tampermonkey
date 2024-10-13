@@ -1228,6 +1228,64 @@ function removeSpinner(spinnerId) {
     $(sel).remove();
 }
 
+// ===================== Save/restore actual position =======================
+// I typically use with floating divs that are children of a very high
+// level element, such as #mainContainer. Pass the id of the outermost
+// div and frequency at which to poll for changes. Only usefull with draggable
+// DIVs, seethe dragElement() for details on doing that also. Torn Hospital
+// Timer, Torn Blood Bag Reminder, Torn War Timer on Every Page all use  both fns.
+//
+function startSavingPos(interval, outerDivId) {
+    var posTimer = 0;
+    if (!interval) return console.error("[startSavingPos] interval is required!");
+    if (!outerDivId) return console.error("[startSavingPos] outerDivId is required!");
+    restoreSavedPos(outerDivId);
+    posTimer = setInterval(savePosition, 1500, outerDivId);
+
+    function getPosSelector(outerDivId) {
+        return "#" + outerDivId;
+    }
+
+    function getDefPos(outerDivId) {
+        let outerDivSelector = getPosSelector(outerDivId);
+        let l = parseInt($("#mainContainer").outerWidth(true)) -
+            ($(outerDivSelector).outerWidth() + 50);
+        let t = 80;
+        let off = {left: l, top: t};
+        return off;
+    }
+
+    function getPosKey(outerDivId) {
+        let key = outerDivId + "-lastPos";
+        return key;
+    }
+
+    function getSavedPosition(outerDivId) {
+        let key = getPosKey(outerDivId);
+        let off;
+        let tmp = GM_getValue(key, undefined);
+        if (tmp) {
+            off = JSON.parse(tmp);
+        } else {
+            off = getDefPos(outerDivId);
+        }
+        return off;
+    }
+
+    function savePosition(outerDivId) {
+        let outerDivSelector = getPosSelector(outerDivId);
+        let off = $(outerDivSelector).offset();
+        let key = getPosKey(outerDivId);
+        GM_setValue(key, JSON.stringify(off));
+    }
+
+    function restoreSavedPos(outerDivId) {
+        let outerDivSelector = getPosSelector(outerDivId);
+        let off = getSavedPosition(outerDivId);
+        $(outerDivSelector).offset(off);
+    }
+}
+
 //
 // Functions to attach a context menu to an element.
 
