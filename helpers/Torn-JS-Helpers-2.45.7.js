@@ -1290,8 +1290,14 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
 
     function savePosition(outerDivId, stayInWindow) {
         let outerDivSelector = getPosSelector(outerDivId);
-        let off = $(outerDivSelector).offset();
+        if ($(outerDivSelector).length == 0) {        // Element is gone
+            console.log(GM_info.script.name + ': ' + outerDivSelector + " not found! Stopping position timer.");
+            clearInterval(posTimer);
+            posTimer = 0;
+            return;
+        }
 
+        let off = $(outerDivSelector).offset();
         if (stayInWindow == true) {
             checkExtents(outerDivSelector, off);
         }
