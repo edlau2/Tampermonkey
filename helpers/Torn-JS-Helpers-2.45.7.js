@@ -1010,7 +1010,7 @@ function addLoadingLights() {
 //
 // Outermost div (elmt is ID of the div) must have position: absolute or fixed
 // Inside that must be a div called <outer-id>header ...
-// See "Torn Hospiral Timer" as anexample.
+// See "Torn Hospiral Timer" as an example.
 //
 function dragElement(elmnt) {
   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -2086,6 +2086,54 @@ function addBorderStyles() {
                 box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
             }
         `);
+}
+
+// Styles for all sorts of cursors
+function addCursorMovingStyles() {
+    GM_addStyle(`
+        .grab {cursor: -webkit-grab; cursor: grab;}
+        .grabbing {cursor: -webkit-grabbing; cursor: grabbing;}
+        .move {cursor: move;}
+
+        .col-resize {cursor: col-resize;}
+        .e-resize {cursor: e-resize;}
+        .ew-resize {cursor: ew-resize;}
+        .n-resize {cursor: n-resize;}
+        .ne-resize {cursor: ne-resize;}
+        .nesw-resize {cursor: nesw-resize;}
+        .ns-resize {cursor: ns-resize;}
+        .nw-resize {cursor: nw-resize;}
+        .nwse-resize {cursor: nwse-resize;}
+        .row-resize {cursor: row-resize;}
+        .s-resize {cursor: s-resize;}
+        .se-resize {cursor: se-resize;}
+        .sw-resize {cursor: sw-resize;}
+        .w-resize {cursor: w-resize;}
+    `);
+}
+
+function addCursorStyles() {
+    GM_addStyle(`
+        .alias {cursor: alias;}
+        .all-scroll {cursor: all-scroll;}
+        .auto {cursor: auto;}
+        .cell {cursor: cell;}
+        .context-menu {cursor: context-menu;}
+        .copy {cursor: copy;}
+        .crosshair {cursor: crosshair;}
+        .default {cursor: default;}
+        .help {cursor: help;}
+        .no-drop {cursor: no-drop;}
+        .none {cursor: none;}
+        .not-allowed {cursor: not-allowed;}
+        .pointer {cursor: pointer;}
+        .progress {cursor: progress;}
+        .text {cursor: text;}
+        .url {cursor: url(myBall.cur),auto;}
+        .wait {cursor: wait;}
+        .zoom-in {cursor: zoom-in;}
+        .zoom-out {cursor: zoom-out;}
+    `);
 }
 
 // General stuff without good categories
