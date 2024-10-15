@@ -21,7 +21,7 @@
         }`;
     document.head.appendChild(style);
 
-    const item = document.getElementbyId('mainContainer');
+    const item = document.getElementById('mainContainer');
     const st = getComputedStyle(item);
     const margin = st.margin;
     const marginLeft = st.marginLeft;
