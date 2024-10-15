@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  Align left on iPad desktop mode
-// @run-at       document-body
+// @run-at       document-end
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @grant        none
@@ -18,8 +18,13 @@
         #mainContainer {
             display: flex;
             justify-content: left;
-            margin-left: 20px;
         }`;
     document.head.appendChild(style);
+
+    const item = document.getElementbyId('mainContainer');
+    const st = getComputedStyle(item);
+    const margin = st.margin;
+    const marginLeft = st.marginLeft;
+    console.log("margin: ", margin, " left: ", marginLeft);
 
 })();
