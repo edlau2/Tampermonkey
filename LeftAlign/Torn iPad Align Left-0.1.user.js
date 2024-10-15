@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  Align left on iPad desktop mode
-// @run-at       document-start
+// @run-at       document-body
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @grant        none
