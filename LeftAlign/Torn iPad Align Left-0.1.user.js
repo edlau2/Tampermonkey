@@ -18,6 +18,7 @@
         #mainContainer {
             display: flex;
             justify-content: left;
+            margin-left: 0px !important;
         }`;
     document.head.appendChild(style);
 
