@@ -17,32 +17,29 @@
 (function() {
     'use strict';
 
-    console.log("Torn PDA Sidebar Scroll-Lock starting.");
+    console.log("Torn PDA Sidebar Scroll-Lock started.");
 
     addStyles();
-    handlePageLoad();
 
-    function handlePageLoad() {
-        console.log("Torn PDA SSL: handlePageLoad");
-
-        let sidebar = $("#sidebarroot");
-        $(sidebar).addClass("disable-scrollbars");
-        $(sidebar).css("max-height", "95vh"); // bottom margin for TTS footer.
-        $(sidebar).css("overflow-y", "auto");
-        $(sidebar).css("top", "0px");
-        $(sidebar).css("position", "sticky");
-    }
+    let sidebar = $("#sidebarroot");
+    $(sidebar).addClass("disable-scrollbars");
+    $(sidebar).addClass("scroll-lock");
 
     function addStyles() {
-        console.log("Torn PDA SSL: addStyles");
         GM_addStyle(`
-           .disable-scrollbars::-webkit-scrollbar {
+            .scroll-lock {
+                max-height: 95vh;
+                overflow-y: auto;
+                top: 0px;
+                position: sticky;
+            }
+            .disable-scrollbars::-webkit-scrollbar {
                 background: transparent; /* Chrome/Safari/Webkit */
                 width: 0px;
             }
             .disable-scrollbars {
-              scrollbar-width: none; /* Firefox */
-              -ms-overflow-style: none;  /* IE 10+ */
+                scrollbar-width: none; /* Firefox */
+                -ms-overflow-style: none;  /* IE 10+ */
             }
         `);
     }
