@@ -1300,12 +1300,15 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
         // Account for scroll!
         let off = $(outerDivSelector).offset();
         let scr = $(window).scrollTop();
-        off.top = off.top - scr;
+        console.log(GM_info.script.name + " off: ", off, " scr: ", scr);
+
+        off.top = parseInt(off.top) - parseInt(scr);
         if (stayInWindow == true) {
             checkExtents(outerDivSelector, off);
         }
 
         let key = getPosKey(outerDivId);
+        console.log(GM_info.script.name + " off: ", off);
         GM_setValue(key, JSON.stringify(off));
     }
 
