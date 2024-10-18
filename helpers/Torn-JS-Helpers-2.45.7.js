@@ -1297,7 +1297,10 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
             return;
         }
 
+        // Account for scroll!
         let off = $(outerDivSelector).offset();
+        let scr = $(window).scrollTop();
+        off.top = off.top - scr;
         if (stayInWindow == true) {
             checkExtents(outerDivSelector, off);
         }
