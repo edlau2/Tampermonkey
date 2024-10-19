@@ -1672,7 +1672,7 @@ function addToolTipStyle() {
                 "padding: 5px 20px;" +
                 "border: 2px solid gray;" +
                 "border-radius: 10px;" +
-                "width: 300px;" +
+                "width: auto;" +
                 "margin: 50px;" +
                 "text-align: left;" +
                 "font: bold 14px ;" +
