@@ -1238,6 +1238,24 @@ function removeSpinner(spinnerId) {
 // The optional 'stayInWindow' param, if true, will try to force the window to
 // stay within the window extents.
 //
+function isInViewport(element) {
+    let elementTop = $(element).offset().top;
+    let elementBottom = elementTop + $(element).outerHeight();
+    let viewportTop = $(window).scrollTop();
+    let viewportBottom = viewportTop + $(window).height();
+
+    return elementBottom > viewportTop && elementTop < viewportBottom;
+}
+
+function isOffsetInViewport(element, off) {
+    let elementTop = off.top;
+    let elementBottom = elementTop + $(element).outerHeight();
+    let viewportTop = $(window).scrollTop();
+    let viewportBottom = viewportTop + $(window).height();
+
+  return elementBottom > viewportTop && elementTop < viewportBottom;
+}
+
 function startSavingPos(interval, outerDivId, stayInWindow) {
     var posTimer = 0;
     if (!interval) return console.error("[startSavingPos] interval is required!");
@@ -1297,11 +1315,11 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
             return;
         }
 
-        // Account for scroll!
+        // Account for scroll! This will be offset to *unscrolled*
         let off = $(outerDivSelector).offset();
         let scr = $(window).scrollTop();
-
         off.top = parseInt(off.top) - parseInt(scr);
+
         if (stayInWindow == true) {
             checkExtents(outerDivSelector, off);
         }
@@ -1313,6 +1331,10 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
     function restoreSavedPos(outerDivId) {
         let outerDivSelector = getPosSelector(outerDivId);
         let off = getSavedPosition(outerDivId);
+
+        let scr = $(window).scrollTop();
+        off.top = parseInt(off.top) + parseInt(scr);
+
         $(outerDivSelector).offset(off);
     }
 }
