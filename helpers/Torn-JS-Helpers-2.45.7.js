@@ -1321,7 +1321,7 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
         off.top = parseInt(off.top) - parseInt(scr);
 
         if (stayInWindow == true) {
-            checkExtents(outerDivSelector, off);
+        //    checkExtents(outerDivSelector, off);
         }
 
         let key = getPosKey(outerDivId);
@@ -1334,6 +1334,9 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
 
         let scr = $(window).scrollTop();
         off.top = parseInt(off.top) + parseInt(scr);
+        if (off.top < 0) {
+            off.top = 50;
+        }
 
         $(outerDivSelector).offset(off);
     }
