@@ -1715,8 +1715,27 @@ function addToolTipStyle() {
                 "padding: 5px 20px;" +
                 "border: 2px solid gray;" +
                 "border-radius: 10px;" +
-                "width: auto;" +
+                "width: fit-content;" +
                 "margin: 50px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "color: #FFF;" +
+                "font-size: 1em;" +
+                "z-index: 999999;" +
+                "}");
+
+    GM_addStyle(".tooltip5 {" +
+                "radius: 4px !important;" +
+                "background-color: #000000 !important;" +
+                "filter: alpha(opacity=80);" +
+                "opacity: 0.80;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid gray;" +
+                "border-radius: 10px;" +
+                "width: fit-content;" +
+                "margin: 10px;" +
                 "text-align: left;" +
                 "font: bold 14px ;" +
                 "font-stretch: condensed;" +
@@ -1900,6 +1919,15 @@ function addContextStyles() {
             border: 2px solid;
             border-color: black;
             display: block;
+        }
+    `);
+}
+
+function addBackgroundStyles () {
+    GM_addStyle(`
+        .xmed-li-rad {
+            background: linear-gradient(180deg, #999999 0%, #333333 100%);
+            border-top: 2px solid #111111;
         }
     `);
 }
