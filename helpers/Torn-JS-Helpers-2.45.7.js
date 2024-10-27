@@ -1659,6 +1659,16 @@ function addTornButtonExStyles() {
             filter: brightness(0.80);
             border: 1px solid #111;
          }
+
+
+        .x-rt-btn {
+            display: flex;
+            justify-content: center;
+            width: 30px;
+            border-radius: 30px;
+            cursor: pointer;
+            background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+        }
      `);
 }
 
@@ -1796,6 +1806,20 @@ function displayHtmlToolTip(node, text, cl) {
     })
 }
 
+function addDraggableStyles() {
+    GM_addStyle(`
+        .x-drag {
+            position: fixed;
+            display: flex;
+            z-index: 999998;
+            overflow: scroll;
+            border: 1px solid steelblue;
+            border-radius: 10px;
+            background: var(--default-bg-panel-color) none repeat scroll 0% 0% / auto padding-box border-box;
+        }
+    `);
+}
+
 // Adds a tool tip to a node/element
 // 'cl' is the name of a custom class if you want to pass that in.
 function displayToolTip2(node, text, cl) {
@@ -1929,6 +1953,14 @@ function addBackgroundStyles () {
             background: linear-gradient(180deg, #999999 0%, #333333 100%);
             border-top: 2px solid #111111;
         }
+
+        .xbgb-var {background: var(--page-background-color) !important;}
+        .xbgb {background: black !important;}
+        .xbgb2 {background: rgba(0, 0, 0, .2) !important;}
+        .xbgb4 {background: black; opacity: 0.4 !important;}
+        .xbgb6 {background: black; opacity: 0.6 !important;}
+        .xbgb8 {background: black; opacity: 0.8 !important;}
+        .xbgt {background: transparent !important;}
     `);
 }
 
@@ -2287,6 +2319,12 @@ function loadTtsColors() {
 
 function loadCommonMarginStyles() {
     GM_addStyle(`
+
+        .x-margin3 {
+            border-left: 2px solid steelblue;
+            border-right: 2px solid steelblue;
+            border-bottom: 2px solid steelblue;
+        }
         .xmb3 {
             margin-bottom: 3px;
         }
