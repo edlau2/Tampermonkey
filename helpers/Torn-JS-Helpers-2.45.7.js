@@ -1806,20 +1806,6 @@ function displayHtmlToolTip(node, text, cl) {
     })
 }
 
-function addDraggableStyles() {
-    GM_addStyle(`
-        .x-drag {
-            position: fixed;
-            display: flex;
-            z-index: 999998;
-            overflow: scroll;
-            border: 1px solid steelblue;
-            border-radius: 10px;
-            background: var(--default-bg-panel-color) none repeat scroll 0% 0% / auto padding-box border-box;
-        }
-    `);
-}
-
 // Adds a tool tip to a node/element
 // 'cl' is the name of a custom class if you want to pass that in.
 function displayToolTip2(node, text, cl) {
@@ -2374,6 +2360,20 @@ function loadCommonMarginStyles() {
             margin-top: 20px;
         }
 
+    `);
+}
+
+function addDraggableStyles() {
+    GM_addStyle(`
+        .x-drag {
+            position: fixed;
+            display: flex;
+            z-index: 999998;
+            overflow: scroll;
+            border: 1px solid steelblue;
+            border-radius: 10px;
+            background: var(--default-bg-panel-color) none repeat scroll 0% 0% / auto padding-box border-box;
+        }
     `);
 }
 
