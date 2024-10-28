@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chain Watcher v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  Make the chain timeout/count blatantly obvious.
 // @author       xedx [2100735]
 // @include      https://www.torn.com/factions.php*
@@ -237,8 +237,10 @@
     }
 
     function startTimer() {
-        targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
-        chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+        //targetNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-timeleft____259L");
+        targetNode = document.querySelector("[class*='bar-timeleft__']");
+        //chainNode = document.querySelector("#barChain > div.bar-stats___pZpNX > p.bar-value___HKzIH");
+        chainNode = document.querySelector("[class*='bar-value__']");
 
         if (!targetNode || !chainNode) {
             log('Unable to find target nodes! ', targetNode, chainNode);
@@ -364,10 +366,6 @@
     versionCheck();
     addStyles();
     callOnContentLoaded(handlePageLoad);
-
-    // 609926
-    // 5b9224
-    // 0CB814
 
     function addStyles() {
         GM_addStyle(`.xedx-chain {text-align: center;
