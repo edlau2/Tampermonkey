@@ -104,19 +104,22 @@
         let seconds = Number(parts[0]) * 60 + Number(parts[1]);
 
         // Check for chain drop/end
-        let count = Number(chainNode.textContent.split('/')[0]);
+        let count = Number(chainCount().split('/')[0]);
         if (count == 0) {
-            $("#xedx-chain-span")[0].textContent = "No Chain!";
-            if (intTimer) clearInterval(intTimer);
-            intTimer = null;
+            //$("#xedx-chain-span")[0].textContent = "No Chain?";
+            //if (intTimer) clearInterval(intTimer);
+            //intTimer = null;
             return;
         }
+
+        /*
         if (parts.len > 2 || Number(parts[0]) > 5 || count == 0) {
             $("#xedx-chain-span")[0].textContent = "Over!";
             if (intTimer) clearInterval(intTimer);
             intTimer = null;
             return;
         }
+        */
 
         // Handle audio
         if (checkBeep(seconds)) {
