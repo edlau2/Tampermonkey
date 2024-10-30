@@ -1047,10 +1047,6 @@ function dragElement(elmnt) {
     //GM_setValue("lastPosition", $("#x-hosp-watch").position());
     let curPos = {top: elmnt.style.top, left: elmnt.style.left};
     GM_setValue("lastPosition", curPos);
-
-    log("end drag, pos: ", $(elmnt).position());
-    log("top, left: ", elmnt.style.top, ", ", elmnt.style.left);
-    log("curPos: ", curPos);
   }
 }
 
