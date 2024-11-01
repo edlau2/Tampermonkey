@@ -1,0 +1,120 @@
+// ==UserScript==
+// @name         Torn Sticky Chain Report
+// @namespace    http://tampermonkey.net/
+// @version      0.2
+// @description  Make header sticky on war/chain report
+// @author       xedx [2100735]
+// @match        https://www.torn.com/war.php*
+// @icon         https://www.google.com/s2/favicons?domain=torn.com
+// @connect      api.torn.com
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
+// ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint curly: 0*/
+/*eslint no-multi-spaces: 0*/
+
+// Sample URL: https://www.torn.com/war.php?step=chainreport&chainID=41832240
+
+(function() {
+    'use strict';
+
+    var userId = GM_getValue("userId", undefined);
+    var myLi;
+
+    // Move to shared lib...
+    function getId() {
+        if (userId) {
+            return;
+        }
+        let tmp = $("#torn-user").val();
+        if (!tmp) return;
+        let parts = tmp.split('"');
+        if (!parts || parts.length < 4) return;
+        userId = parts[3];
+        GM_setValue("userId", userId);
+
+    }
+
+    function handleSortClick(e) {
+        if (findMyLi()) {
+            scrollTo(myLi);
+        }
+    }
+
+    function scrollTo(elem) {
+        let target = $(".report-members-stats-content")[0];
+        let scrollTo = $(elem);
+        let pos = $(elem).offset().top - $(target).offset().top + $(target).scrollTop() - 150;
+        displayHtmlToolTip($(elem), ("#" + $(elem).index()), "tooltip4");
+
+       $(target).animate({
+          scrollTop: pos
+       });
+    }
+
+    var classAdded = false;
+    function findMyLi() {
+        let honors = $("[class^='honorWrap_'] > a");
+        for (let idx=0; idx < $(honors).length; idx++) {
+            let node = $(honors)[idx];
+            let href = $(node).attr("href");
+            if (href.indexOf(userId) > -1) {
+                myLi = $(node).parent().parent().parent();
+
+                /*
+                if (classAdded == false) {
+                    let h = $(myLi).height();
+                    let w = $(myLi).width();
+                    let newH = parseInt(h) - 2 + "px !important;";
+                    let newW = parseInt(w) - 2 + "px;";
+                    let style = ".xdyno {width: " + newW + " height: " + newH + "}";
+                    GM_addStyle(style);
+                    classAdded = true;
+                }
+
+                $(myLi).addClass("xdyno");
+                $(myLi).addClass("xbgreen");
+                */
+
+                return myLi;
+            }
+        }
+    }
+
+    function handlePageLoad(retries=0) {
+
+        let target = $(".report-members-stats-content")[0];
+        if(!$(target).length) {
+            if (retries++ < 10) return setTimeout(handlePageLoad, 250);
+            return log("Too many attempts...");
+        } else {
+            $(target).css("max-height", "90vh"); // bottom margin for TTS footer.
+            $(target).css("overflow-y", "auto");
+            $(target).css("top", "0px");
+            $(target).css("position", "sticky");
+            let hdrs = $("ul.report-stats-titles").css({"position": "sticky", "top": 0});
+        }
+
+        if (findMyLi()) scrollTo(myLi);
+        $(".c-pointer").on('click', function(e) {
+            setTimeout(handleSortClick, 250);
+        });
+    }
+
+    logScriptStart();
+
+    addToolTipStyle();
+    addBorderStyles();
+    callOnContentLoaded(getId);
+    callOnContentComplete(handlePageLoad);
+
+})();
