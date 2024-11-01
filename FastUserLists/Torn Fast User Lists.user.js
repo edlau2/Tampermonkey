@@ -333,6 +333,8 @@
     }
 
     function addBtn(retries=0) {
+        if ($("#xusers-btns").length > 0) return;
+        
         let buttonsDiv = `
                         <span id="xusers-btns" style="position: absolute; left: 0;">
                             <input id="xedx-reload" type="submit" class="xedx-torn-btn"
