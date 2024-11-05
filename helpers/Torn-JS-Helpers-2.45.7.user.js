@@ -1666,6 +1666,36 @@ function addAlignmentStyles() {
     `);
 }
 
+// 'Floating' divs, see wartimer, hops timer, treat counter, blood bags...
+function addFloatStyles() {
+    GM_addStyle(`
+         .x-float-outer {
+            -ms-transform: translateX(-20%) translateY(-95%)  !important;
+            -webkit-transform: translate(-20%,-95%) !important;
+            transform: translate(-20%,-95%) !important;
+            background: transparent;
+            top: 32%;
+            left: 84%;
+        }
+        .x-float-header {
+            border-radius: 5px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+        .x-float-inner {
+            border-radius: 5px;
+            width: 200px;
+            height: 40px;
+            align-content: center;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+        }
+    `);
+}
+
 // Replacement for class .torn-btn,which I find cab flicker
 // on hover-over sometimes, I think due to border width,
 // padding and margin issues.
