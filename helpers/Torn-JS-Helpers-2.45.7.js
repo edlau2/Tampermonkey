@@ -432,6 +432,23 @@ function getPageSid() {
     return params.get('sid');
 }
 
+// ===================== User ID functions ===========================
+
+// Return own user ID
+function getUserId() {
+    let userId = GM_getValue("userId", undefined);
+    if (userId) {
+        return userId;
+    }
+    let tmp = $("#torn-user").val();
+    if (!tmp) return;
+    let parts = tmp.split('"');
+    if (!parts || parts.length < 4) return;
+    userId = parts[3];
+    GM_setValue("userId", userId);
+    return userId;
+}
+
 // The URL expected is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
 // More accurately, "XID=" must be present :-)
 // We need the XID; the trailing '#' may not be present.
@@ -1124,8 +1141,10 @@ const iconIndices = {"donator": 4, "subscriber": 4, "donators": 4, "subscribers"
                      "level": 5, "gender" : 6, "marriage": 8, "faction": 9, "hospital": 15,
                      "hosp": 15, "edu": 19, "education": 19, "company": 27,
                      "bank": 29, "interest": 29, "caymans": 31, "vault": 32,
-                     "stocks": 38, "stock": 38, "booster":39, "boostercd": 39,
-                     "med": 44, "medical": 44, "drug": 49, "drugcd": 49, "oc": 85, "organized": 85,
+                     "stocks": 38, "stock": 38, "booster":39, "boostercd": 43,
+                     "book": 68,
+                     "med": 44, "medical": 44, "drug": 49, "drugcd": 49,
+                     "oc": 85, "organized": 85,
                      "organizedcrime": 85};
 
 function getSidebarIcon(iconName, callback, maxRetries=8) {
@@ -1209,6 +1228,32 @@ function addTopBarButton(callback, id, title) {
     $(name).after(myButton);
     $(btnSel).on('click', { handler: callback }, custClickHandler );
 }
+
+/* Old function to cause a beep - won't work unless initiated by an element click */
+
+// All arguments are optional:
+//   duration of the tone in milliseconds. Default is 500
+//   frequency of the tone in hertz. default is 440
+//   volume of the tone. Default is 1, off is 0.
+//   type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
+//   callback to use on end of tone
+//
+var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+function beep(duration=500, frequency=440, volume=1, type='sine', callback) {
+    var oscillator = audioCtx.createOscillator();
+    var gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    if (volume){gainNode.gain.value = volume;}
+    if (frequency){oscillator.frequency.value = frequency;}
+    if (type){oscillator.type = type;}
+    if (callback){oscillator.onended = callback;}
+
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + ((duration || 500) / 1000));
+};
 
 //
 // Display a 'spinner'/'spin loader'/'loader' as an indication of a lengthy process
@@ -1590,6 +1635,63 @@ function addSpinLoaderStyles() {
         @keyframes spin {
           0% { transform:  translate(-50%,-50%) rotate(0deg); }
           100% { transform:  translate(-50%,-50%) rotate(360deg); }
+        }
+    `);
+}
+
+// Some quick alignment styles
+//
+// xfixed-vert - Align fixed vertical center screen
+// xfixed-horiz - Fixed horizontal center
+// xfixed-both - fixed both center - see also .xopts-ctr-screen
+//
+function addAlignmentStyles() {
+    GM_addStyle(`
+        .xfixed-vert {
+            position: fixed;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .xfixed-horiz {
+            position: fixed;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .xfixed-both {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    `);
+}
+
+// 'Floating' divs, see wartimer, hops timer, treat counter, blood bags...
+function addFloatStyles() {
+    GM_addStyle(`
+         .x-float-outer {
+            -ms-transform: translateX(-20%) translateY(-95%)  !important;
+            -webkit-transform: translate(-20%,-95%) !important;
+            transform: translate(-20%,-95%) !important;
+            background: transparent;
+            top: 32%;
+            left: 84%;
+        }
+        .x-float-header {
+            border-radius: 5px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+        .x-float-inner {
+            border-radius: 5px;
+            width: 200px;
+            height: 40px;
+            align-content: center;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
         }
     `);
 }
