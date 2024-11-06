@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Makes Item Market sections independently scrollable - and more!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
@@ -12,16 +12,23 @@
 // ==/UserScript==
 
 /*eslint no-undef: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
+
+    // selling
+    // input-money-group
 
     var cashOnHand = 0;
 
     function log(...data) {console.log(GM_info.script.name + ': ', ...data);}
     log(" script Started");
 
-    function handleDblClick(e) {
+    const isBuy = function () {return location.hash.indexOf("market") > -1;}
+    const isSell = function () {return location.hash.indexOf("addListing") > -1;}
+
+    function processMarketBuy(e) {
         let target = e.currentTarget;
         let sellRow = $(target).closest("div [class^='sellerRow_']");
         let price = $(sellRow).find("[class^='price_']");
@@ -35,6 +42,30 @@
         let qty = parseInt(qtyStr);
         if (canGet > qty) canGet = qty;
         $(target).val(canGet);
+
+        return false;  // Don't propogate
+    }
+
+    function processMarketSell(e) {
+        let target = e.currentTarget;
+        let infoDiv = $(target).closest("div [class^='info_']");
+        let itemRow = $(target).closest("div [class^='itemRow_']");
+        let priceSpan = $(infoDiv).find("[class^='price_'] > span")[0];
+        let price = $(priceSpan).text();
+        if (price) price = price.replace("$", '').replaceAll(',', '');
+        $(target).val(price);
+
+        return false;  // Don't propogate
+    }
+
+    function handleDblClick(e) {
+        if (isBuy() == true) {
+            return processMarketBuy(e);
+        }
+        if (isSell() == true) {
+            return processMarketSell(e);
+        }
+        console.error("Market Assist: unknown page?");
     }
 
     function addClickHandlers() {
