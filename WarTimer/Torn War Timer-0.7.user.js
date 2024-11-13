@@ -5,7 +5,7 @@
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.3.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
@@ -41,6 +41,23 @@
     var timeSpans;
 
     var clickState = GM_getValue("clickState", 0);
+
+    function pushStateChanged(e) {
+        log("pushStateChanged: ", e);
+        log("hash: ", window.location.hash);
+        handlePageLoad();
+    }
+
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
 
     function handleHashChange() {
         debug("hashChangeHandler: ", location.hash);
@@ -187,6 +204,8 @@
 
     logScriptStart();
     versionCheck();
+
+    history.pushState = bindEventListener("pushState");
 
     GM_addStyle(`
         .xedx-bgblack {

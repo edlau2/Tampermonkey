@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
@@ -22,12 +22,12 @@
     'use strict';
 
     // Enable for debug logging...
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
 
     // 'Mode' of operation - tooltip, or click to toggle to local start time.
     const doToolTip = true;           // Display local start time as tool tip.
     const doDisplayStart = true;      // Toggle display type on right click, time until or local start time
-    const useLongDate = true;        // For display in window, use long or short format
+    const useLongDate = true;         // For display in window, use long or short format
 
     var retries = 0;
     var titleRetries = 0;
@@ -39,6 +39,25 @@
     var warList;
     var timer;
     var timeSpans;
+
+    var clickState = GM_getValue("clickState", 0);
+
+    function pushStateChanged(e) {
+        log("pushStateChanged: ", e);
+        log("hash: ", window.location.hash);
+        handlePageLoad();
+    }
+
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
 
     function handleHashChange() {
         debug("hashChangeHandler: ", location.hash);
@@ -53,15 +72,6 @@
             return false;
         }
 
-        // #react-root > div > div > div.f-msg.m-top10 > span
-        // During war, ".red" class is there... I'm just comparing text.
-        //let titleBarText = $("#react-root > div > div > div.f-msg.m-top10.red > span").text();
-        // When matched (note "waiting"):
-        //
-        // #faction_war_list_id > li:nth-child(2) > div > ul
-        // <ul class="statsBox___zH9Ai waiting___CKbCz">
-
-        // This is when war ended, so not in war and not enlisted.
         let titleBarText = $("#react-root > div > div > div.f-msg.m-top10 > span").text();
 
         debug("titleBarText, retries: ", titleRetries, " text: ", titleBarText);
@@ -95,10 +105,6 @@
             debug("has 'war-new' class!");
         }
 
-        // Test these two:
-        // $('#faction_war_list_id').attr('class').split(/\s+/);
-        // $("#react-root > div > div > div.f-msg.m-top10").attr('class').split(/\s+/);
-
         timer = $(warList).find("[class*='timer_']");
         debug("timer: ", $(timer));
         if ($(timer).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
@@ -129,50 +135,68 @@
         shortFormattedDate = startTime.toLocaleString(undefined, {weekday: 'long'}) + ", " +
             startTime.toLocaleString(undefined, {timeStyle: 'medium'});
 
-        debug("start: ", formattedDate);
+        debug("start: ", formattedDate, " clickState: ", clickState);
 
         if (doToolTip) addToolTip();
         if (doDisplayStart) addTimeDisplay();
+
+        if (clickState > 0) {
+            let tmp = clickState;
+            clickState = 0;
+            for (let idx=0; idx < tmp; idx++) {
+                handleTimeFormatChange(true);
+            }
+        }
     }
 
     function addTimeDisplay() {
         if ($("#xtime").length) return;
-        $(timer).on('contextmenu', handleTimeFormatChange);
-        GM_addStyle(".xnone {display: none !important; width: 0px !important;} .xblock {display: block !important; width: auto !important;}");
+        $(timer).parent().parent().on('contextmenu', handleTimeFormatChange);
+        GM_addStyle(".xnone {display: none !important; width: 0px !important;}" +
+                    ".xflex {display: flex !important; flex-wrap: wrap; width: 232px !important; " +
+                    "justify-content: center; position: absolute; margin-top: 2px; margin-left: 10px;}");
         GM_addStyle(".snone {display: none !important;} .sblock {display: inline-block !important;}");
-        let timeSpan = '<span id="xtime" class="xnone">' + (useLongDate ? formattedDate : shortFormattedDate) + '</span>';
-        $(timer).append(timeSpan);
+        let timeSpan = '<div id="xtime" class="xnone">' + (useLongDate ? formattedDate : shortFormattedDate) + '</div>';
+        $(timer).parent().after(timeSpan);
     }
 
-    function handleTimeFormatChange() {
+    // First click: time only.
+    // 2nd: color.
+    // 3rd: time back.
+    // 4th: color back.
+    function handleTimeFormatChange(onInit=false) {
         debug("handleTimeFormatChange");
-        if ($("#xtime").hasClass("xnone")) {
-            $(timeSpans).addClass("snone").removeClass("sblock");
-            $("#xtime").addClass("xblock").removeClass("xnone");
-        } else {
-            $(timeSpans).addClass("sblock").removeClass("snone");
-            $("#xtime").addClass("xnone").removeClass("xblock");
+        if (clickState == 0 || clickState == 2) {
+            if ($("#xtime").hasClass("xnone")) {
+                $(timeSpans).addClass("snone").removeClass("sblock");
+                $("#xtime").addClass("xflex").removeClass("xnone");
+            } else {
+                $(timeSpans).addClass("sblock").removeClass("snone");
+                $("#xtime").addClass("xnone").removeClass("xflex");
+            }
         }
+        if (clickState == 1 || clickState == 3) {
+            if (!$(timer).parent().parent().parent().hasClass("xedx-bgblack")) {
+                $("#xtime").addClass("xedx-bgblack1");
+                $(timer).parent().parent().parent().addClass("xedx-bgblack");
+            } else {
+                $("#xtime").removeClass("xedx-bgblack1");
+                $(timer).parent().parent().parent().removeClass("xedx-bgblack");
+            }
+        }
+
+        clickState++;
+        if (clickState == 4) clickState = 0;
+
+        GM_setValue("clickState", clickState);
+        debug("clickState: ", clickState);
         return false;
     }
 
     function addToolTip() {
         addToolTipStyle();
-        displayToolTip2(timer, formattedDate);
+        displayToolTip(timer, formattedDate, "tooltip4");
     }
-
-    function displayToolTip2(node, text, cl) {
-    $(document).ready(function() {
-        $(node).attr("title", "original");
-        $(node).tooltip({
-            content: text,
-            classes: {
-                "ui-tooltip": "xedx-tooltip"
-            }
-        });
-    })
-}
-
 
     //////////////////////////////////////////////////////////////////////
     // Main.
@@ -180,6 +204,24 @@
 
     logScriptStart();
     versionCheck();
+
+    history.pushState = bindEventListener("pushState");
+
+    GM_addStyle(`
+        .xedx-bgblack {
+            background: black !important;
+            box-shadow: inset 0 0 5px #ff3333;
+            border-radius: 10px;
+        }
+        .xedx-bgblack1 {
+            background: black;
+        }
+        .xedx-bgblack2 {
+            background: black !important;
+            border: 1px solid #ff3333;
+            border-radius: 10px;
+        }
+    `);
 
     GM_addStyle(".xedx-tooltip {" +
               "radius: 4px !important;" +
