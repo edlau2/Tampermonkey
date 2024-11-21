@@ -28,7 +28,7 @@
     // Target to look for. Case insensitive. Will do partial match, so
     // "police" will match "Police officer". Can set to "man" to convince yourself
     // it's working...
-    const target = "man";
+    const target = "mob";
 
     // Seconds for notificationto timeout.
     // Won't display another until this one goes away...
