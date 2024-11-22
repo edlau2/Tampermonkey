@@ -110,7 +110,7 @@ function getPlayerFullName() {
 
 function getThisUserId() {
     let thisUserId = GM_getValue("thisUserId", undefined);
-    if (!userId) {
+    if (!thisUserId) {
         let tmp = $("#torn-user").val();
         if (!tmp) return;
         let parts = tmp.split('"');
@@ -118,7 +118,7 @@ function getThisUserId() {
         thisUserId = parts[3];
         GM_setValue("thisUserId", thisUserId);
     }
-    return userId;
+    return thisUserId;
 }
 
 function queryUserId(callback, retries=0) {
