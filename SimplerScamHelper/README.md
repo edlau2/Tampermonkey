@@ -1,8 +1,9 @@
-# Torn Simpler Scam Ranger Helper
+# Torn Simpler Scam Range Helper
 This script was originally wtitten to show the predictions of where you would land when scamming, before clicking the 'commit' button. 
 Then I finished the edu before I finished the script, and had a way to easily see if my predictions matched what the Torn predictor displayed,
 and found a much easier way to do a lot of the things the script was doing, it used to intercept Torn result messages to gather data to
-see how accurate I was. This version no longer does that, but did evolve to do a lot of other things.
+see how accurate I was. This version no longer does that, but did evolve to do a lot of other things. Which although features were added, in general 
+it became 'simple', internally, hence the title change.
 
 Installation link:
 - [Torn Simpler Scam Range Helper-2.0](https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/SimplerScamHelper/Torn%20Simpler%20Scam%20Range%20Helper-2.0.user.js)
