@@ -4,6 +4,11 @@ Then I finished the edu before I finished the script, and had a way to easily se
 and found a much easier way to do a lot of the things the script was doing, it used to intercept Torn result messages to gather data to
 see how accurate I was. This version no longer does that, but did evolve to do a lot of other things.
 
+Installation link:
+- [Torn Simpler Scam Range Helper-2.0](https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/SimplerScamHelper/Torn%20Simpler%20Scam%20Range%20Helper-2.0.user.js)
+
+Eventually I will document all the options, some may have tool tip help already. Until then, here is an overview:
+
 When you click on the 'accelerate' button, it will now show you where the accelerated movement option - fast forward, slow forward,
 or backwards - would place you once commited.
 
