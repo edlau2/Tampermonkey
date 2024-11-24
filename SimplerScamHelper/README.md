@@ -17,33 +17,33 @@ current release, 2.11, but will fix soon.
 Some examples of what it looks like. This is the main window at the top, note the tooltip indicating what
 clickin the small little 'halo' does.
 
-![Main Window](SimplerScamHelper/main-window-no-banner.png)
+![Main Window](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/main-window-no-banner.png)
 
 Options screen you see when you right-click the halo:
 
-![Options](SimplerScamHelper/Options.png)
+![Options](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/Options.png)
 
 The prediction - mine is the magenta bar, Torn's is the white one:
 
-![Prediction](SimplerScamHelper/sample-prediction.png)
+![Prediction](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/sample-prediction.png)
 
 A prediction with acceleration, the cyan bar:
 
-![Acceleration](SimplerScamHelper/sample-accel.png)
+![Acceleration](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/sample-accel.png)
 
 The menu to allow you to see where additional acceleration will put you. That pops up when
 you have selected the accel button, and then right-click it.
 
-![More-Acceleration](SimplerScamHelper/accel-option.png)
+![More-Acceleration](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/accel-option.png)
 
 After capitalizing (commiting and getting paid) with the option to hide all outcomes will show this at the top.
 Note I got .02 CS
 
-![More-Acceleration](SimplerScamHelper/after-commit.png)
+![More-Acceleration](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/after-commit.png)
 
 There's a 'funky bubble' option which fades in a little bubble showing your gain, same as the green number at the top:
 
-![More-Acceleration](SimplerScamHelper/funky-bubble.png)
+![More-Acceleration](https://github.com/edlau2/Tampermonkey/blob/master/SimplerScamHelper/funky-bubble.png)
 
 
 # Installation
