@@ -187,6 +187,18 @@ function registerWithScriptDb() {
     $("#xedx-loaded-scripts > ul").append(thisScriptLi);
 }
 
+function logScriptDb() {
+    let registeredScripts = $("#xedx-loaded-scripts > ul > li");
+    if ($(registeredScripts).length > 0)
+        console.log("Registered scripts:");
+    else
+        console.log("No registered scripts!");
+    for (let idx=0; idx < $(registeredScripts).length; idx++) {
+        console.log("    Name: ", $($(registeredScripts)[idx]).attr('name'),
+                    " Version: ", $($(registeredScripts)[idx]).attr('version'));
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////
 // Miscellaneous utilities
 ///////////////////////////////////////////////////////////////////////////////////
