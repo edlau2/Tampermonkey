@@ -2411,7 +2411,7 @@ function loadMiscStyles() {
             display: inline-flex;
         }
         .xhyperlink {
-            filter: brightness(85%);
+            /*filter: brightness(85%);*/
         }
         .x-init {
             all: initial;
