@@ -6,7 +6,7 @@
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -119,7 +119,7 @@
     var sinceLastStats = lastStatsCheck ? nowInSecs() - lastStatsCheck : 0;
     var doStatsCheck = true; // sinceLastStats ? sinceLastStats > cachedStatExpire : true;
 
-    log("doStatsCheck: ", doStatsCheck, " sinceLastStats: ", sinceLastStats, " cachedStatExpire: ", cachedStatExpire );
+    debug("doStatsCheck: ", doStatsCheck, " sinceLastStats: ", sinceLastStats, " cachedStatExpire: ", cachedStatExpire );
 
     // Cached personal stats
     var perks = {"bustChanceIncrease": 0, "bustSkillIncrease": 0, "lawPerk": false, 'totalBusts': 0};
@@ -479,7 +479,7 @@
     // Sort jail list, by 'sel' (time, level, or score) and attr
     // May get rid of internal profiling.....
     function sortPage(sel, attr, ord) {
-        log('***** [sortPage] *****');
+        debug('***** [sortPage] *****');
         let sortStart = _start();
         let jailList = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
         let matches = $(jailList).children("li");
@@ -713,7 +713,7 @@
                         debug('Added node: ', node);
                         if ($(node).hasClass('ajax-action')) {
                             let text = node.textContent;
-                            log('Bust action: ', text);
+                            debug('Bust action: ', text);
 
                             // Need to get info from parent node - level, name, time, etc...
                             let li = node.parentNode.parentNode;
@@ -742,7 +742,7 @@
                                 let lastBust;
                                 if (temp) {
                                     lastBust = new Date(parseInt(temp, 10));
-                                    log("last bust: ", lastBust.toLocaleString());
+                                    debug("last bust: ", lastBust.toLocaleString());
                                     if (!isToday(lastBust)) {
                                         dateOlderThanDay = true;
                                     }
@@ -752,16 +752,15 @@
 
                                 temp = GM_getValue("lastBust", undefined);
                                 lastBust = new Date(parseInt(temp, 10));
-                                log("Set lastBust to: ", lastBust.toLocaleString());
+                                debug("Set lastBust to: ", lastBust.toLocaleString());
 
                                 // Update perks.totalBusts also for stats? Calcs?
                                 perks.totalBusts++;
 
                                 // Update highest score
                                 let hiScore = GM_getValue("hiScore", 0);
-                                log("Score: ", score, " hiScore: ", hiScore);
+                                debug("Score: ", score, " hiScore: ", hiScore);
                                 if (score > hiScore) {
-                                    log("Replacing ", hiScore, " with ", score, " as hiScore");
                                     GM_setValue("hiScore", score);
                                 }
 
@@ -769,12 +768,9 @@
 
                                 let currBustsToday = 0;
                                 if (dateOlderThanDay) {
-                                    log("Set busts todat to 1");
                                     currBustsToday = 1;
                                 } else {
-                                    log("cuBusts: ", GM_getValue("currBusts", 0));
                                     currBustsToday = GM_getValue("currBusts", 0) + 1;
-                                    log("cuBustsToday: ", currBustsToday);
                                 }
 
                                 GM_setValue("currBusts", currBustsToday);
@@ -787,8 +783,8 @@
                                     let tmp = totalPenalty;
                                     let sep = " | ";
                                     totalPenalty += indPenalty;
-                                    log("Live penalty update, wrapper: ", $(wrapper));
-                                    log("penalties: ", tmp, sep, totalPenalty, sep, indPenalty, sep, minutes);
+                                    debug("Live penalty update, wrapper: ", $(wrapper));
+                                    debug("penalties: ", tmp, sep, totalPenalty, sep, indPenalty, sep, minutes);
                                 } else {
                                     setTimeout(queryPastBusts, 1000, false);
                                 }
@@ -956,10 +952,10 @@
 
     // 'force', if true, goes to reg. reload btn
     function swapReloadBtn(force) {
-        log("swapReloadBtn, force: ", force);
-        log("reload-btn: ", $("#xedx-reload-btn"));
-        log("reload-btn2: ", $("#xedx-reload-btn2"));
-        log("quick bust btn: ", $("#xedx-quick-bust-btn"));
+        debug("swapReloadBtn, force: ", force);
+        debug("reload-btn: ", $("#xedx-reload-btn"));
+        debug("reload-btn2: ", $("#xedx-reload-btn2"));
+        debug("quick bust btn: ", $("#xedx-quick-bust-btn"));
 
         if (force) {
             if ($("#xedx-reload-btn").length) {
@@ -998,7 +994,6 @@
         debug('[installUI]: ', uiless, " lastShowState: ", lastShowState,
             " forceShow: ", forceShow);
         if ($("#xedx-reload-btn").length || $("#xedx-save-btn").length || $(MAIN_DIV_SEL).length ) {
-            //log("Exit installUI, main div exists.");
             return;
         }
 
@@ -1040,17 +1035,17 @@
         let temp = GM_getValue("lastBust", undefined);
         if (temp) {
             let lastBust = new Date(parseInt(temp, 10));
-            log("lastBust: ", lastBust.toLocaleString());
+            debug("lastBust: ", lastBust.toLocaleString());
             if (useLocal? !isToday(lastBust) : !isTodayUTC(lastBust)) {
                 setTodaysBusts(0);
-                log("setTodaysBusts(0) - 1");
+                debug("setTodaysBusts(0) - 1");
             } else {
                 setTodaysBusts(GM_getValue("currBusts", 0));
-                log("setTodaysBusts(0) - 2");
+                debug("setTodaysBusts(0) - 2");
             }
         } else {
             setTodaysBusts(0);
-            log("setTodaysBusts(0) - 3");
+            debug("setTodaysBusts(0) - 3");
         }
 
         // TEMP: set timer to update text for penalty/busts, won't need later
@@ -1094,9 +1089,6 @@
 
         // Swap to stats div handler
         $("#xedx-stats-btn").on('click', swapStatsOptsView);
-
-        // TEMP
-        //addSortIcon();
 
         debug("Exit installUI");
     }
@@ -1143,7 +1135,7 @@
 
         if (DEV_MODE == false) {
             $("#xedx-jail-opts").find(".dev-mode").addClass("xhide");
-            log("Nodes: ", $("#xedx-jail-opts").find(".dev-mode"));
+            debug("Nodes: ", $("#xedx-jail-opts").find(".dev-mode"));
         } else if (DEV_MODE == true) {
             $("#xedx-jail-opts").find(".dev-mode").removeClass("xhide");
         }
@@ -1261,7 +1253,7 @@
         if (!$(useDiv).length) useDiv = $("#xedx-jail-stats");
         let cssHeight = parseInt($(useDiv).css("height"), 10);
         if (inAnimation) {
-            log("in animate, ret");
+            debug("in animate, ret");
             return;
         }
 
@@ -1305,7 +1297,7 @@
             $("#xcaret").on('click', handleOptsBtn);
         }
 
-        log("swapStatsOptsView, currDiv: ", $(currDiv));
+        debug("swapStatsOptsView, currDiv: ", $(currDiv));
 
     }
     // ========== End Options button and panel handlers ==========
@@ -1321,10 +1313,8 @@
     // GM_getValue("xtraDbgLogging", 0) is < 1
     var rightClicks = 0;
     function handleRightClick() {
-        log("Handle right click");
         autoBustOn = !autoBustOn;
         setTitleColor();
-        log("auto: ", autoBustOn);
         return false;
     }
 
@@ -1353,7 +1343,6 @@
 
             if (!hideHandlerAdded) {
                 if (!hideWithButton) {
-                    log("Adding 'click' to content title!");
                     $("#skip-to-content").on("click", handleHideBtn);
                     $("#skip-to-content").css("cursor", "pointer");
                     $("#skip-to-content").addClass("xedx-light");
@@ -1481,8 +1470,6 @@
     // After a reload, go through the returned HTML and build
     // the LI's for each player, inserting into the list.
     function insertPlayers(players) {
-        log("insertPlayers, ", players);
-
         $(targetUlSel).empty();
         for (let idx=0; idx < players.length; idx++) {
             let liObj = buildPlayerLi(players[idx]);
@@ -1502,8 +1489,8 @@
         $(currPage).removeClass('active');
         $(activePage).addClass('active');
 
-        log("setActivePage: curr: ", $(currPage));
-        log("setActivePage: active: ", $(activePage));
+        debug("setActivePage: curr: ", $(currPage));
+        debug("setActivePage: active: ", $(activePage));
 
         /*
         log("Buttons: ", $("div.gallery-wrapper.pagination > a"));
@@ -1529,7 +1516,7 @@
     }
 
     function doLastPageJump() {
-        log("doLastPageJump");
+        debug("doLastPageJump");
 
         if (!DEV_MODE || !optTryLastPages) {
             log("Jumping not allowed!");
@@ -1553,22 +1540,18 @@
             let thisPageNum = $(currPgBtn).attr("page");
 
             if (lastPageNum == thisPageNum) {
-                log("On last page already! Pages: ", thisPageNum, "|", lastPageNum);
+                debug("On last page already! Pages: ", thisPageNum, "|", lastPageNum);
                 return false;
             }
 
-            log("Pages: ", thisPageNum, " | ", lastPageNum);
-            log("currPgBtn: ", $(currPgBtn));
-            log("clickBtn: ", $(clickBtn));
+            debug("Pages: ", thisPageNum, " | ", lastPageNum);
+            debug("currPgBtn: ", $(currPgBtn));
+            debug("clickBtn: ", $(clickBtn));
 
             // Note: this doesn't do scores!!!!
             if (confirm("Jump to last page?")) {
-                //$(lastPgBtn2)[0].click();
-                //reloadUserList(forceReloadPageNum);
-                //$(lastPgBtn2).click();
-
                 $(clickBtn)[0].click();
-                log("Clicked clickBtn: ", $(clickBtn));
+                debug("Clicked clickBtn: ", $(clickBtn));
 
                 setActivePage(currPgBtn, lastPgBtn)
                 return true;
@@ -1590,7 +1573,7 @@
     }
 
     function doReloadPageSort() {
-        log("doReloadPageSort");
+        debug("doReloadPageSort");
 
         savedSortId = GM_getValue('savedSortId', savedSortId);
         if (savedSortId) {
@@ -1602,8 +1585,6 @@
     }
 
     function updateMsgLineText() {
-        log("updateMsgLineText");
-
         let et = elapsed(reloadStart);
         debug("reloadUserList took ", elapsed(reloadStart), " secs");
 
@@ -1627,8 +1608,6 @@
 }
 
     function recordReloadStats() {
-        log("recordReloadStats");
-
         let et = elapsed(reloadStart);
         let totalFastReloads = GM_getValue("totalFastReloads", 0);
         totalFastReloads = +totalFastReloads + 1;
@@ -1640,8 +1619,6 @@
 
         let fastReloadTimeAvg = fastReloadTime / totalFastReloads;
         GM_setValue("fastReloadTimeAvg", fastReloadTimeAvg);
-
-        log("totalFastReloads: ", totalFastReloads, " Average time: ", fastReloadTimeAvg);
     }
 
     function doQuickBust() {
@@ -1668,7 +1645,7 @@
 
     function processResponse(response, pageNum) {
         let displayMsg = false;
-        log("Handling reloadUserList response");
+        debug("Handling reloadUserList response");
         let targetUl = $(targetUlSel);
         let jsonObj = JSON.parse(response);
 
@@ -1693,7 +1670,7 @@
                 $("#xedx-msg").text(msg);
                 $(playersInJailSel).text("0");      // TBD: change text also
 
-                 log("No one in jail. Obs on? ", isObserverOn);
+                 debug("No one in jail. Obs on? ", isObserverOn);
                  if (isObserverOn) {
                      debugger;
                      observerOff();
@@ -1807,24 +1784,18 @@
 
             if (quickBustBtn) { // && $("#xedx-reload-btn").length) {
                 forceBustButton();
-                log("Adding GREEN button");
                 $(".xbyellow").removeClass("xbust").removeClass("xbyellow");
                 $("#xedx-quick-bust-btn").removeClass('qbust-yellow').addClass('qbust-green');
             }
 
         } else if (maxSR >= planB && maxSR < bustMin && !hasGreen && planB > 0) { // 10% of initial min
             scoreAddlClass = "xylw";
-            log("Adding YELLOW class, ",
-                maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
             if (quickBustYlw && quickBustBtn && $("#xedx-reload-btn").length && !hasGreen) {
                 forceBustButton();
-                log("Adding YELLOW button, ", maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
                 classStr += " xbust xbyellow";
                 $("#xedx-quick-bust-btn").removeClass('qbust-green').addClass('qbust-yellow');
             }
         } else if (maxSR >= planC && maxSR < planB && !hasGreen && planC > 0) { // 10% less than above
-            log("Adding ORANGE class, ",
-                maxSR, separator, bustMin, separator, diff, separator, planB, separator, planC);
             scoreAddlClass = "xog";
         }
 
@@ -1878,8 +1849,8 @@
 
     var elInAnimation = false;
     function elementAnimate( element, size, callback) {
-        log("elementAnimate, inAnimation: ", elInAnimation, " size: ", size);
-        log("element: ", $(element));
+        debug("elementAnimate, inAnimation: ", elInAnimation, " size: ", size);
+        debug("element: ", $(element));
         elInAnimation = true;
 
         $(element).animate({
@@ -1949,7 +1920,7 @@
 
     var bannerHidden = false;
     function handleHideBtn() {
-        log("handleHideBtn, ", MAIN_DIV_ID, ": ", $(MAIN_DIV_SEL), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
+        debug("handleHideBtn, ", MAIN_DIV_ID, ": ", $(MAIN_DIV_SEL), " mainUiBtnsInstalled: ", mainUiBtnsInstalled);
         if (hideWithButton && !mainUiBtnsInstalled) {
             log("Main UI not installed, installing now");
             installUI(true);
@@ -1958,13 +1929,10 @@
         }
 
         if ($(MAIN_DIV_SEL).hasClass("xshow")) {
-            log("Going to hide");
             doHide();
         } else if ($(MAIN_DIV_SEL).hasClass("xhide")) {
-            log("Going to show");
             doShow();
         } else {
-            log("default to show");
             doShow();
         }
         return false;
@@ -1975,7 +1943,6 @@
     var clickProtectOn = false;
     const clearClickProtect = function () {
         clickProtectOn=false;
-        log("clearClickProtect: ", clickProtectOn);
     }
 
     function dblClickProtect() {
@@ -1983,14 +1950,12 @@
         return;
 
         clickProtectOn = true;
-        log("dblClickProtect: ", clickProtectOn);
         setTimeout(clearClickProtect, 500);
         return false;
     }
 
     var dh = 0;
     function doHide() {
-        log("doHide :", clickProtectOn, " ", dh++);
         if (clickProtectOn) return false;
 
         $("#jailFilter").addClass("xhide").removeClass("xshow");
@@ -2067,7 +2032,7 @@
     const endSpan = "</span>";
 
     function fillJailStatsDiv() {
-        log("[fillJailStats]");
+        debug("[fillJailStats]");
 
         $("#daily-busts").text(/*"Today's busts: " +*/ GM_getValue("currBusts", 0));
         $("#max-busts").text(/*"Maximum: " +*/ GM_getValue("maxDailyBusts", 0));
@@ -2149,11 +2114,9 @@
     function tzToggleHandler(event) {
         let node = event.target;
         let id = $(node).attr("id");
-        log("tzToggleHandler, id: ", id);
 
         let sel = "#" + id;
         let checked = $(sel).is(":checked");
-        log("checked: ", checked);
 
         if (id == "xtz-tct") $("#xtz-local").prop('checked', !checked);
         if (id == "xtz-local") $("#xtz-tct").prop('checked', !checked);
@@ -2162,14 +2125,6 @@
     // Styles used throughout this. Note that a lot of my styles are defined
     // in other scripts as well,need to consolidate......
     // I've started to by adding as function calls by category.
-
-    // tmp, doesn't work... For one thing, those classes are dynamic (sortIcon...)
-    // Figure out whatthey are....
-    function addSortIcon() {
-        if (!$("#score").length) return setTimeout(addSortIcon, 100);
-        $("#score").append('<div class="sortIcon___ALgdi desc___bb84w finally-bs-activeIcon activeIcon___h2CBt finally-bs-desc"></div>');
-        log("addSortIcon: ", $("#score"));
-    }
 
     function addStyles() {
 
@@ -2315,8 +2270,8 @@
 
     function pushStateChanged(e) {
         let thisCrime = getThisCrime();
-        log("pushStateChanged: ", e);
-        log("hash: ", window.location.hash);
+        debug("pushStateChanged: ", e);
+        debug("hash: ", window.location.hash);
 
         //setTimeout(functionToCall, 500);
     }
