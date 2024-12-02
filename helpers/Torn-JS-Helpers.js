@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.11
+// @version     2.45.13
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.11";
+const thisLibVer = "2.45.13";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -625,67 +625,6 @@ var _ranks = ['Absolute beginner',
 // Functions to query the Torn API (and a few others)
 /////////////////////////////////////////////////////////////////////////////////
 
-
-// Get current Torn time, secs since epoch
-// Usually, Date() works just as well, just be
-// aware of secsvs ms...
-//
-//https://api.torn.com/user/?selections=timestamp&key=
-function GetTornTime(callback) {
-    xedx_TornGenericQuery('user', 0, "timestamp", callback);
-}
-
-//
-// Callback should have the following signature: callback(responseText, ID, (optional)param)
-//
-function xedx_TornUserQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('user', ID, selection, callback, param);
-}
-
-function xedx_TornUserQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('user', ID, selection, callback, param);
-}
-
-function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('property', ID, selection, callback, param);
-}
-
-function xedx_TornPropertyQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('property', ID, selection, callback, param);
-}
-
-function xedx_TornFactionQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('faction', ID, selection, callback, param);
-}
-
-function xedx_TornFactionQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('faction', ID, selection, callback, param);
-}
-
-function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('company', ID, selection, callback, param);
-}
-
-function xedx_TornCompanyQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('company', ID, selection, callback, param);
-}
-
-function xedx_TornMarketQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('market', ID, selection, callback, param);
-}
-
-function xedx_TornMarketQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('market', ID, selection, callback, param);
-}
-
-function xedx_TornTornQuery(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('torn', ID, selection, callback, param);
-}
-
-function xedx_TornTornQueryDbg(ID, selection, callback, param=null) {
-    xedx_TornGenericQueryDbg('torn', ID, selection, callback, param);
-}
-
 const baseTornURL = "https://api.torn.com/";
 const baseTornURLv2 = "https://api.torn.com/v2/";
 
@@ -693,6 +632,34 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
     let url = baseTornURL + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
+    let details = GM_xmlhttpRequest({
+        method:"POST",
+        url:url,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+        },
+        onload: function(response) {
+            callback(response.responseText, ID, param);
+        },
+        onerror: function(response) {
+            handleSysError(response);
+        },
+        onabort: function(response) {
+            console.debug('(JS-Helper) ' + GM_info.script.name + ': onabort');
+            handleSysError(response);
+        },
+        ontimeout: function(response) {
+            console.debug('(JS-Helper) ' + GM_info.script.name +': ontimeout');
+            handleSysError(response);
+        }
+    });
+}
+
+function xedx_TornGenericQueryv2(section, ID, selection, callback, param=null) {
+    if (ID == null) ID = '';
+    let comment = GM_info.script.name.replace('Torn', 'XedX');
+    let url = baseTornURLv2 + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -747,6 +714,95 @@ function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) 
     });
 }
 
+
+// Get current Torn time, secs since epoch
+// Usually, Date() works just as well, just be
+// aware of secsvs ms...
+//
+//https://api.torn.com/user/?selections=timestamp&key=
+function GetTornTime(callback) {
+    xedx_TornGenericQuery('user', 0, "timestamp", callback);
+}
+
+//
+// Callback should have the following signature: callback(responseText, ID, (optional)param)
+// Duplicated for v2 to preserve backwards-compatibility. (non-debug versions only)
+//
+// Callback sig: callback(response.responseText, ID, param);
+//
+// ---------------------
+function xedx_TornUserQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('user', ID, selection, callback, param);
+}
+
+function xedx_TornUserQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryv2('user', ID, selection, callback, param);
+}
+
+function xedx_TornUserQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('user', ID, selection, callback, param);
+}
+
+// --------------------
+function xedx_TornPropertyQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('property', ID, selection, callback, param);
+}
+
+function xedx_TornPropertyQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryv2('property', ID, selection, callback, param);
+}
+
+function xedx_TornPropertyQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('property', ID, selection, callback, param);
+}
+
+// --------------------
+function xedx_TornFactionQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('faction', ID, selection, callback, param);
+}
+function xedx_TornFactionQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryv2('faction', ID, selection, callback, param);
+}
+
+function xedx_TornFactionQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('faction', ID, selection, callback, param);
+}
+
+// ---------------------
+function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('company', ID, selection, callback, param);
+}
+function xedx_TornCompanyQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('company', ID, selection, callback, param);
+}
+
+function xedx_TornCompanyQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('company', ID, selection, callback, param);
+}
+
+// -----------------------
+function xedx_TornMarketQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('market', ID, selection, callback, param);
+}
+function xedx_TornMarketQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('market', ID, selection, callback, param);
+}
+
+function xedx_TornMarketQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('market', ID, selection, callback, param);
+}
+
+// ----------------------
+function xedx_TornTornQuery(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('torn', ID, selection, callback, param);
+}
+function xedx_TornTornQueryv2(ID, selection, callback, param=null) {
+    xedx_TornGenericQuery('torn', ID, selection, callback, param);
+}
+
+function xedx_TornTornQueryDbg(ID, selection, callback, param=null) {
+    xedx_TornGenericQueryDbg('torn', ID, selection, callback, param);
+}
 //////////////////////////////////////////////////////////////////
 // Function to do a TornStats bat stats spy
 //////////////////////////////////////////////////////////////////
@@ -1119,8 +1175,18 @@ function dragElement(elmnt) {
     pos2 = pos4 - e.clientY;
     pos3 = e.clientX;
     pos4 = e.clientY;
-    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+
+    let t = (elmnt.offsetTop - pos2);
+    if (t < 0) t = 0;
+    if (t > window.innerHeight)
+        t = window.innerHeight - (event.target.offsetHeight);
+    elmnt.style.top = t + "px";
+
+    let l = (elmnt.offsetLeft - pos1);
+    if (l < 0) l = 0;
+    if (l > window.innerWidth)
+        l = window.innerWidth - (event.target.offsetWidth);
+    elmnt.style.left = l + "px";
   }
 
   function closeDragElement() {
