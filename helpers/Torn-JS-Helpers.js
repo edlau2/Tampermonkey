@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.14
+// @version     2.45.15
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.14";
+const thisLibVer = "2.45.15";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -660,7 +660,7 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
     //let url = baseTornURLv2 + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
-    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "&key=" + api_key;
+    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
