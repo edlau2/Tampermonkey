@@ -24,6 +24,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Sample URL: https://www.torn.com/war.php?step=chainreport&chainID=41832240
+// 41964765 <-- 100k
 
 (function() {
     'use strict';
@@ -83,6 +84,38 @@
         }
     }
 
+    function getSpanForChainId() {
+        GM_addStyle(`
+            #xchain-span {
+                display: inline-flex;
+                /*flex-wrap: wrap;*/
+                padding-left: 10px;
+                padding-top: 6px;
+            }
+            #chain-id {
+                margin-left: 10px;
+                margin-top: -2px;
+            }
+        `);
+        let element = `
+            <span id='xchain-span'><label for="chain-id">Chain ID:</label><input type="text" id="chain-id" name="chain-id"></span>
+        `;
+        return element;
+    }
+
+    // War report - add area to enter chain ID
+    function doWarPageLoad(retries=0) {
+        if ($("#xchain-span").length > 0) return;
+        let title = $("#skip-to-content");
+        if (!$(title).length) {
+            if (retries++ < 20) return setTimeout(doWarPageLoad, 500, retries);
+            return log("Too many retries!");
+        }
+        let node = getSpanForChainId();
+        $(title).after(node);
+    }
+
+    // Look for chain report link to open in new tab
     function doFacPageLoad(retries=0) {
         let link = $(".report-link");
         if (!$(link).length) {
@@ -102,12 +135,19 @@
         });
     }
 
-    // report-link
+    // Main entry once page loads
     function handlePageLoad(retries=0) {
         let href = location.href;
         if (href.indexOf("factions.php") > -1) {
             doFacPageLoad();
             return;
+        }
+
+        // Ranked War report - can lookup chain IDs?
+        // Iterate backwards, use "to="
+        // https://api.torn.com/faction/?selections=chains&to=1729850258&key=
+        if (href.indexOf("war.php?step=rankreport" > -1)) {
+            doWarPageLoad();
         }
 
         let target = $(".report-members-stats-content")[0];
