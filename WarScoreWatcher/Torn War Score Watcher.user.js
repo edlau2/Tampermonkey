@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Score Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Notify on any page when war is almost over.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -72,18 +72,44 @@
         GM_setValue("savedVer", GM_info.script.version);
     }
 
-    function logHelpToConsole() {
-        log("timerInterval: ", timerInterval, " Frequency of updating and checking data, ms");
-        log("notifyWhenReaches: ", notifyWhenReaches, " Notify when a set score is reached");
-        log("notifyScore: ", notifyScore, " Score to notify at");
-        log("notifyValue: ", notifyValue, " What score part to compare: ourScore, theirScore, lead, remains");
-        log("notifyWhenNearEnd: ", notifyWhenNearEnd, " Notify when near the end (close to target score)");
-        log("notifyDuration: ", notifyDuration, " Time before notification is auto-closed, ms");
-        log("notifyWaitTime: ", notifyWaitTime, " Time to wait after a notification is closed before another can go out");
-        log("logScoreUpdates: ", logScoreUpdates, " Log score data at each update");
-        log("showHelpInConsole: ", showHelpInConsole, " Show this help in the console at script start");
-    }
+    const optsHelp = [{name: "timerInterval", value: timerInterval,
+                       desc: "Frequency of updating and checking data, ms"},
+                      {name: "notifyWhenReaches", value: notifyWhenReaches,
+                       desc: "Notify when a set score is reached"},
+                      {name: "notifyScore", value: notifyScore,
+                       desc: "Score to notify at"},
+                      {name: "notifyValue", value: notifyValue,
+                       desc: "What score part to compare: ourScore, theirScore, lead, remains"},
+                      {name: "notifyWhenNearEnd", value: notifyWhenNearEnd,
+                       desc: "Time before notification is auto-closed, ms"},
+                      {name: "notifyDuration", value: notifyDuration,
+                       desc: "Time before notification is auto-closed, ms"},
+                      {name: "notifyWaitTime", value: notifyWaitTime,
+                       desc: "Time to wait after a notification is closed before another can go out"},
+                      {name: "logScoreUpdates", value: logScoreUpdates,
+                       desc: "Log score data at each update"},
+                      {name: "showHelpInConsole", value: timerInterval,
+                       desc: "Show this help in the console at script start"}
+                      ];
 
+    function logHelpToConsole() {
+        console.groupCollapsed(GM_info.script.name + ' Options');
+
+        for (let idx=0; idx<optsHelp.length; idx++) {
+            let obj = optsHelp[idx];
+            if (!obj) {
+                console.error("Options help is corrupted!");
+                break;
+            }
+            console.groupCollapsed(obj.name);
+            console.info("Current value: ", obj.value);
+            console.info(obj.desc);
+            console.groupEnd();
+        }
+
+
+        console.groupEnd();
+    }
     function logScoreData() {
         logt("Us: ", ourScore, " Them:", theirScore, " Lead: ", lead, " Remains: ", remains, "/", targetScore);
     }
@@ -235,7 +261,7 @@
         scoreBlock = $("[class*='scoreBlock_']");
         if (!$(scoreBlock).length) {
             if (retries++ < 20) return setTimeout(handlePageLoad, 250, retries);
-            return log("Too many retries, I quit.");
+            return log("Can't find sccores, not in a war?");
         }
         debug("scoreBlock: ", $(scoreBlock));
 
