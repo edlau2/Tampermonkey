@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Score Watcher
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Notify on any page when war is almost over.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
