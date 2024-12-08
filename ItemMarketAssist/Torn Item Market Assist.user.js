@@ -2,7 +2,7 @@
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
 // @version      1.4
-// @description  Makes Item Market sections independently scrollable - and more!
+// @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/page.php?sid=ItemMarket*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -13,6 +13,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_listValues
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -40,10 +41,39 @@
     var quickBuy = GM_getValue("quickBuy", false);
     var enableScrollLock = GM_getValue("enableScrollLock", true);
 
-    if (enableScrollLock == true)
-        addScrollStyle();
+    if (enableScrollLock == true) addScrollStyle();
 
-    var tmp = GM_getValue("favorites", undefined);
+    // Load previous sell prices, migrate older version if needed
+    var needPriceMigration = GM_getValue("needPriceMigration", true);
+    var tmp = GM_getValue("previousPriceList", undefined);
+    var previousPriceList = tmp ? JSON.parse(tmp) : {};
+
+    if (needPriceMigration == true) migrateOldPriceFormat();
+
+    function migrateOldPriceFormat() {
+        let prices = GM_listValues();
+        debug("Migrating price info: ", prices);
+        for (let idx=0; idx<prices.length; idx++) {
+            let key = prices[idx];
+            if (key.indexOf("lastPrice-") < 0) continue;
+            let parts = key.split('-');
+            let id = parts[1];
+            let price = GM_getValue(key, 0);
+            if (!price) continue;
+            price = price.toString().replaceAll(',', '');
+            let obj = {price: price};
+            previousPriceList[id] = obj;
+            GM_deleteValue(key);
+        }
+
+        GM_setValue("previousPriceList", JSON.stringify(previousPriceList));
+        GM_setValue("needPriceMigration", false);
+
+        debug("Saved migrated prices: ", previousPriceList);
+    }
+
+    // Load favorites
+    tmp = GM_getValue("favorites", undefined);
     var favorites = tmp ? JSON.parse(tmp) : {};
 
     // For the favorites list we need the item type, so get item list
@@ -134,9 +164,6 @@
     const isBuy = function () {return location.hash.indexOf("market") > -1;}
     const isSell = function () {return location.hash.indexOf("addListing") > -1;}
     const isItemMarket = function () {return location.href.indexOf("sid=ItemMarket") > -1;}
-    //const formatter = new Intl.NumberFormat('en-US', {style: 'currency',
-    //    currency: 'USD', maximumFractionDigits: 0,});
-    //const asCurrency = function(num) {return formatter.format(num);}
 
     // Options handlers
     function handleOptCbChange(e) {
@@ -277,13 +304,13 @@
     // Save price with ID for later use.
     function writePrice(price, id) {
         debug("Write price for id: ", id, " price: ", price);
-        let key = "lastPrice-" + id;
+
         if (price && id) {
-            price = price.replace("$", '').replaceAll(',', '');
-            debug("Saving price ", price, " for key: ", key);
-            GM_setValue(key, price);
+            let obj = {price: price};
+            previousPriceList[id] = obj;
+            GM_setValue("previousPriceList", JSON.stringify(previousPriceList));
         } else {
-            debug("No price saved for ID ", id, " price: ", price);
+            log("Error: missing price info! id: '", id, "' price: '", price, "'");
         }
     }
 
@@ -308,7 +335,9 @@
             debug("subtractMargin pct price: ", price, " minus pct ", autoPricePctLessValue, " (", pctOff, ") return: ", newPrice);
             return newPrice;
         }
-        log("No price adjust set!");
+        if (autoPriceAmtLess == true || autoPricePctLess == true)
+            log("No price adjust set!");
+
         return price;
     }
 
@@ -332,10 +361,8 @@
     function processMarketSell(e) {
         let target = e.currentTarget;
 
-        // What is this for? I forgot...
         let nickname = $(target).attr("placeholder");
         if (nickname != "Price")return;
-
 
         let infoDiv = $(target).closest("div [class^='info_']");
         let itemRow = $(target).closest("div [class^='itemRow_']");
@@ -350,21 +377,12 @@
         }
         debug("ID: ", itemId);
 
-
-        /*
-        let checkId = idFromSellNode(target);
-        log("checkId: ", checkId, " itemId: ", itemId);
-        if (checkId != itemId) debugger;
-
-        // Save ID for later, on blur or change
-        $(target).attr('data-id', itemId);
-        */
-
         let usePrice = 0;    // Will be price to fill in, could be low, RSP, last sale
 
         if (rememberLastPrice == true) {
-            let key = "lastPrice-" + itemId;
-            usePrice = GM_getValue(key, undefined);
+            let obj = previousPriceList[itemId];
+            usePrice = obj ? obj.price : 0;
+            log("Reading price for ", itemId, " got ", obj);
             if (!usePrice) usePrice = 0;
         }
 
