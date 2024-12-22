@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.15
+// @version     2.45.16
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.15";
+const thisLibVer = "2.45.16";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -656,11 +656,17 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     });
 }
 
-function xedx_TornGenericQueryv2(section, ID, selection, callback, param=null) {
+// The v2 version takes an 'options' param now, an object whose key-value
+// pairs are appended to the query string. It also may contain a 'param'
+// member to pass to the callback.
+function xedx_TornGenericQueryv2(section, ID, selection, callback, options) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
     //let url = baseTornURLv2 + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
-    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key;
+    let addlArgs = "";
+    if (options)
+        addlArgs = buildArgStr(options);
+    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key + addlArgs;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -669,6 +675,8 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, param=null) {
             'Accept': 'application/json'
         },
         onload: function(response) {
+            let param = null;
+            if (options && options.param) param = options.param;
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
@@ -683,6 +691,18 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, param=null) {
             handleSysError(response);
         }
     });
+
+    function buildArgStr(options) {
+        if (!options) return;
+        let argStr = "";
+        let keys = Object.keys(options);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            let value = options[key];
+            argStr += "&" + key +"=" + value;
+        }
+        return argStr;
+    }
 }
 
 function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) {
@@ -1742,7 +1762,9 @@ function loadAllCommonStyles(opts) {
     if (!opts || opts.misc == true) loadMiscStyles();
     if (!opts || opts.context == true) addContextStyles();
     if (!opts || opts.tooltip == true) addToolTipStyle();
-    if (!opts || opts.button == true) addTornButtonExStyles();
+    if (!opts || opts.button == true) addButtonStyles();
+    if (!opts || opts.flex == true) addFlexStyles();
+    if (!opts || opts.border == true) addBorderStyles();
     //if (!opts || opts.spinLoader == true) addSpinLoaderStyles();
 }
 
@@ -1892,16 +1914,40 @@ function addTornButtonExStyles() {
             border: 1px solid #111;
          }
 
-
         .x-rt-btn {
             display: flex;
+            flex-wrap: wrap;
+            align-content: center;
             justify-content: center;
             width: 30px;
             border-radius: 30px;
             cursor: pointer;
             background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
         }
+        .x-rt-btn.r20 {
+            width: 20px !important;
+            border-radius: 20px !important;
+        }
      `);
+}
+
+function addButtonStyles() {
+    addTornButtonExStyles();
+
+    // Add a width style to this to over-ride 20px if you want...
+    GM_addStyle(`
+        .x-round-btn {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            cursor: pointer;
+            background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+            width: 20px;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+        }
+    `);
 }
 
 
@@ -2485,7 +2531,7 @@ function addCursorStyles() {
 //   xhyperlink - Dims hyperlins a tad. Likely will change...
 //   xinit, xunset - supposed to unset or re-init alll inherited styles.
 //                   Not supported everywhere, look up "all: unset" or "all: init"
-//
+//   wnnnp - width nnn%
 function loadMiscStyles() {
     GM_addStyle(`
         .xhide {
@@ -2518,6 +2564,17 @@ function loadMiscStyles() {
         .xz {
             z-index: 999999;
         }
+
+        .w20p {width: 20%;}
+        .w25p {width: 25%;}
+        .w30p {width: 30%;}
+        .w35p {width: 35%;}
+        .w40p {width: 40%;}
+        .w45p {width: 45%;}
+        .w50p {width: 50%;}
+        .w60p {width: 60%;}
+        .w70p {width: 70%;}
+        .w80p {width: 80%;}
     `);
 }
 
