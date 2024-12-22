@@ -23,7 +23,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
 
     const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
     const hashChangeHandler = function () {handlePageLoad();}
