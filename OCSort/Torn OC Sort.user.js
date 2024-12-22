@@ -195,6 +195,7 @@
             .xoc-myself {
                 border: 1px solid green;
                 filter: brightness(1.5);
+                z-index: 9;
             }
             .x-oc-wrap {
                 padding: 10px 0px 10px 0px;
