@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Sort crimes in planning by time remaining
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -30,9 +30,16 @@
     const sortList = function () {tinysort($(scenarios), {attr:'data-time'});}
     const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
 
+    var userId;
     var scenarios;
     var scrollTimer;
     var sortTimer;
+
+    function highlightSelf() {
+        let me = $(`a[class^="slotMenu"][href*="XID=${userId}"]`);
+        let wrapper = $(me).closest("[class^='wrapper_']");
+        $(wrapper).addClass("xoc-myself");
+    }
 
     function tagAndSortScenarios() {
         scenarios = $("[class^='scenario_']");
@@ -45,7 +52,7 @@
             let elem = $(scenario).find("[class^='wrapper_'] > div > p");
             let text = $(elem).text();
             if (text) {
-                text = text.slice(0, 12);
+                text = text.slice(0, 11);
                 let parts = text.split(":");
                 let totalSecs = (parts[0] * 24 * 60 * 60) + (parts[1] * 60 * 60) +
                     (parts[2] * 60) + parts[3];
@@ -54,16 +61,17 @@
             }
         }
         sortList();
+
+        if (!$(".xoc-myself").length) highlightSelf();
     }
 
     function initialScenarioLoad(retries=0) {
         scenarios = $("[class^='scenario_']");
         if ($(scenarios).length == 0) {
             if (retries++ < 20) return setTimeout(initialScenarioLoad, 250, retries);
-            return log("Didn't find any scenarios!");
+            return debug("Didn't find any scenarios!");
         }
 
-        debug("Scenario count: ", $(scenarios).length);
         tagAndSortScenarios();
 
         $(window).on('scroll', function() {
@@ -92,14 +100,28 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    userId = getThisUserId();
+    debug("User ID: ", userId);
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     versionCheck();
+    addStyles();
 
     callOnHashChange(hashChangeHandler);
 
     if (!isOcPage()) return log("Not on crimes page, going home");
 
     callOnContentComplete(handlePageLoad);
+
+    // Styles just stuck at the end, out of the way
+    function addStyles() {
+        GM_addStyle(`
+            .xoc-myself {
+                border: 1px solid green;
+                filter: brightness(1.5);
+            }
+        `);
+    }
+
 
 })();
