@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Adv Mini Profile
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Adds additional stats to the mini profiles on a page.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @connect      www.tornstats.com
 // @connect      18.119.136.223
@@ -468,6 +468,11 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    if (checkCloudFlare()) {
+        log("Won't run while challenge active!");
+        return;
+    }
+
     validateApiKey();
     versionCheck();
 
