@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.17
+// @version      1.18
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -32,7 +32,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
 
     const xedxDevMode = true;
     const pageId = getRandomIntEx(1000, 9999);
@@ -246,12 +246,10 @@
     // disconnect the listener for a bit so we don't respond to
     // other tabs making changes.
     function toggleStorageKey(key, val) {
-
         if (tabVisible == false) return;
         GM_setValue(key, val);
         if (val == true) setTimeout(toggleStorageKey, 250, key, false);
-
-        log("storageChange changed key ", key, " to ", val, " by: ", pageId);
+        debug("storageChange changed key ", key, " to ", val, " by: ", pageId);
     }
 
     function saveCbOpts(init) {
@@ -334,21 +332,16 @@
     function storageChangeCallback(key, oldValue, newValue, remote) {
         // Don't process if changed to 'undefined', isn't a remote
         // tab (meaning it's us), or we are the visible tab/page.
-        log("storageChangeCallback: ", key, " old: ", oldValue, " new: ", newValue, " remote: ", remote, " visible: ", tabVisible);
-        if (!newValue || remote == false || tabVisible == true) return;
-
-        //log("storageChangeCallback: ", key, "|", oldValue, "|", newValue, "|", remote);
+        debug("storageChangeCallback: ", key, " old: ", oldValue, " new: ", newValue, " remote: ", remote, " visible: ", tabVisible);
 
         // Ignore resetting the value or local change
         if (newValue == undefined || remote == false) return;
 
-        log("storageChange processing key '", key, "'");
+        debug("storageChange processing key '", key, "'");
         let processed = false;
         switch (key) {
             case mwItemsKey: {
-                log("storageChange found key '", key, "'");
                 removeStorageListener(mwItemsListener);
-
                 tmp = GM_getValue("watchList", undefined);
                 watchList = tmp ? JSON.parse(tmp) : {};
                 updateMarketWatchOpts();
@@ -357,7 +350,6 @@
                 break;
             }
             case favesKey: {
-                log("storageChange found key '", key, "'");
                 removeStorageListener(favesListener);
                 tmp = GM_getValue("favorites", undefined);
                 favorites = tmp ? JSON.parse(tmp) : {};
@@ -366,7 +358,6 @@
                 break;
             }
             case priceKey: {
-                log("storageChange found key '", key, "'");
                 removeStorageListener(priceListener);
                 tmp = GM_getValue("previousPriceList", undefined);
                 previousPriceList = tmp ? JSON.parse(tmp) : {};
@@ -375,18 +366,17 @@
                 break;
             }
             case optionsKey: {
-                log("storageChange found key '", key, "'");
                 removeStorageListener(optionsListener);
                 updateCbOpts();
                 processed = true;
                 break;
             }
             default:
-                log("storageChange key not found! key: ", key);
+                debug("storageChange key not found! key: ", key);
                 return;
         }
 
-        log("storageChange Setting ", key, " to false? ", processed);
+        debug("storageChange Setting ", key, " to false? ", processed);
         if (processed == true)
             GM_setValue(key, false);
     }
@@ -466,6 +456,7 @@
 
     const isBuy = function () {return location.hash.indexOf("market") > -1;}
     const isSell = function () {return location.hash.indexOf("addListing") > -1;}
+    const isView = function () {return location.hash.indexOf("viewListing") > -1;}
 
     // Result procssing for low price query, similar to but separate
     // from the market watch version. Th UniqueId portion of the key
@@ -764,11 +755,8 @@
         let uniqueId;
         if (controls) {
             let parts = controls.split('-');
-            log("xxx parts: ", parts);
             itemId = parts[3];
-            log("xxx id: ", itemId);
             uniqueId = parts[4];
-            log("xxx unique id: ", uniqueId);
         }
         debug("ID: ", itemId, " unique: ", uniqueId);
 
@@ -866,7 +854,7 @@
         if (isBuy() == true) {
             return processMarketBuy(e);
         }
-        if (isSell() == true) {
+        if (isSell() == true || isView() == true) {
             return processMarketSell(e);
         }
         console.error("Market Assist: unknown page?");
@@ -901,6 +889,13 @@
                 }
             }
         }
+    }
+
+    function doViewPageInstall() {
+        // Handlers for sell price
+        addClickHandlers();
+
+        // Add right-click to go to buy page for item? To check price?
     }
 
     // ============== UI installation and handlers ===================
@@ -1138,9 +1133,15 @@
         let page = 'unknown';
         if (location.hash.indexOf("market/view") > -1) page = 'buy';
         else if (location.hash.indexOf("addListing") > -1) page = 'sell';
+        else if (location.hash.indexOf("viewListing") > -1) page = 'view';
         else return log("not on buy or sell! ", location.hash);
 
         debug("installUI: ", page, "|", $("#xma-help-btn").length);
+
+        if (page == "view") {
+            doViewPageInstall();
+            return;
+        }
 
         if ($("#xma-help-btn").length == 0) {
             if (page == 'buy') {
@@ -1401,6 +1402,19 @@
         */
     }
 
+    function handleWatchImgClick(e) {
+        let target = $(e.currentTarget);
+        let key = $(target).closest("li").attr("data-id");
+        let obj = watchList[key];
+        let encName = obj.name.trim().replaceAll(' ', '%20');
+        let URL = "https://www.torn.com/page.php?sid=ItemMarket#/market/view=search&" +
+                      "itemID=" + obj.id  + "&itemName=" + encName +
+                      (obj.type ? ("&type=" + obj.type) : "") +
+                      "&fromTima=true";
+        location.href = URL;
+        //window.open(URL, '_blank');
+    }
+
     function addWatchObjToUI(item, fromStgHandler) {
         debug("addWatchObjToUI, obj: ", item);
 
@@ -1415,6 +1429,19 @@
 
         $("#xwatches").append(li);
         $(li).find(".x-watch-remove").on('click', removeWatch);
+
+        $(li).find("img").on('click', handleWatchImgClick);
+        /*
+        // Add click handler to image....
+        $(newFav).on('click', function () {
+            closeAnyTooltips();
+            const URL = "https://www.torn.com/page.php?sid=ItemMarket#/market/view=search&" +
+                      "itemID=" + id  + "&itemName=" + encName +
+                      (type ? ("&type=" + type) : "") +
+                      "&fromTima=true";
+            location.href = URL;
+        });
+        */
 
         let cb = $(li).find(".xma-disable-cb");
         $(cb).change(disableWatchItem);
@@ -2452,14 +2479,22 @@
                 top: -30px;
                 display: flex;
                 justify-content: center;
-                width: 15px;
-                height: 15px;
+
+                /*width: 15px;*/
+                /*height: 15px;*/
+                aspect-ratio: 1;
+
                 border-radius: 15px;
                 border: 1px solid black;
                 cursor: pointer;
                 padding-top: 3px;
                 margin-left: 3px;
                 background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+
+                height: 0px;
+                opacity: 0;
+                visibility: hidden;
+                transition: all .2s ease-in-out;
             }
             body:not(.dark-mode) .x-remove-fav {
                 background-image: radial-gradient(rgba(255, 255, 255, 0.2) 0%, rgba(50, 50, 50, 0.6) 100%);
@@ -2477,6 +2512,13 @@
             .xfav-item:hover {
                 filter: brightness(1.6);
             }
+
+            .xfav-item:hover .x-remove-fav {
+                height: 15px;
+                opacity: 1;
+                visibility: visible;
+            }
+
             .xwatch-item {
                border: var(--item-tile-image-border);
                cursor: pointer;
