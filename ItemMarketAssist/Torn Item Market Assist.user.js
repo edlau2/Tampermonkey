@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.18
+// @version      1.19
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -65,8 +65,9 @@
     if (!isItemMarket() && marketWatch != true) letMWRun = false;
     if (!isItemMarket() && marketWatch == true && marketWatchAnyPage != true) letMWRun = false;
 
-    if (letMWRun == false) {
+    if (letMWRun == false && !isItemMarket()) {
         log("Not at market, not watching...goodbye.");
+        log("Location: ", location.href);
         return;
     }
 
