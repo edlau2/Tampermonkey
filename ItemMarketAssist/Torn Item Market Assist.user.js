@@ -32,7 +32,8 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = false;
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
 
     const xedxDevMode = true;
     const pageId = getRandomIntEx(1000, 9999);
@@ -48,10 +49,8 @@
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             tabVisible = true;
-            log('visibilitychange: Tab is active');
         } else {
             tabVisible = false;
-            log('visibilitychange: Tab is inactive');
         }
     });
 
