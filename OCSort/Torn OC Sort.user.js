@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Sort crimes in planning by time remaining
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -25,6 +25,9 @@
     'use strict';
 
     debugLoggingEnabled = false;
+
+    // Not used yet...
+    const enableReadyAlert = false;
 
     const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
     const hashChangeHandler = function () {handlePageLoad();}
@@ -146,8 +149,11 @@
         let membersArray = jsonObj.members;
         membersArray.forEach(function (member, index) {
             if (member.id) {
-                facMembersArray.push(member.id);
-                facMembersJson[member.id] = member.name;
+                let state = member.status.state;
+                if (state.toLowerCase() != "fallen") {
+                    facMembersArray.push(member.id);
+                    facMembersJson[member.id] = member.name;
+                }
             }
         });
 
@@ -189,6 +195,11 @@
 
     callOnContentComplete(handlePageLoad);
 
+    // ========================= UI stuff ===============================
+
+    const membersTextClosed = "Available Members (click to show)";
+    const membersTextOpen = "Available Members (click to hide)";
+
     // Styles just stuck at the end, out of the way
     function addStyles() {
         GM_addStyle(`
@@ -221,7 +232,9 @@
                 flex-wrap: wrap;
                 justify-content: center;
                 text-align: center;
-                color: rgb(221, 221, 221);
+                /*color: rgb(221, 221, 221);*/
+                /*color: var(--tabs-color);*/
+                color: var(--default-color);
                 width: 20%;
                 border: 1px solid #666;
                 cursor: pointer;
@@ -233,8 +246,26 @@
                 display: flex;
                 align-items: center;
             }
+            #x-oc-can-click {
+                height: 38px;
+                display: flex;
+                align-content: center;
+                flex-wrap: wrap;
+                background: var(--tabs-bg-gradient);
+                border: none;
+                color: var(--tabs-color);
+                font-weight: 700;
+                font-size: 14px;
+            }
             #x-oc-can-click > div > span {
                 cursor: pointer;
+            }
+            #x-oc-click {
+                border-radius: 4px;
+                padding: 10px 20px 10px 20px;
+            }
+            #x-oc-click:hover {
+                box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
             }
         `);
     }
@@ -242,10 +273,15 @@
     function doAnimateTable(e) {
         if ($("#x-oc-tbl-wrap").length) {
             $("#x-oc-tbl-wrap").animate({height: "0px"}, 500);
-            $("#x-oc-tbl-wrap").animate({opacity: 0}, 200, function () {$("#x-oc-tbl-wrap").remove();});
+            $("#x-oc-tbl-wrap").animate({opacity: 0}, 200, function () {
+                $("#x-oc-tbl-wrap").remove();
+                $("#x-oc-click").text(membersTextClosed);
+            });
         } else {
             installTableWrap();
-            $("#x-oc-tbl-wrap").animate({opacity: 1}, 200);
+            $("#x-oc-tbl-wrap").animate({opacity: 1}, 200, function () {
+                $("#x-oc-click").text(membersTextOpen);
+            });
         }
     }
 
@@ -301,8 +337,8 @@
     function buildMissingMembersUI() {
         let membersDiv = `
             <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
-              <div id="x-oc-can-click" class="title-black hospital-dark top-round scroll-dark" role="table" aria-level="5">
-                  <div class="box"><span>Available Members (click to show)</span></div>
+              <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
+                  <div class="box"><span id='x-oc-click'>${membersTextClosed}</span></div>
               </div>
           </div>
          `;
