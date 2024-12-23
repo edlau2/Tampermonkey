@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.19
+// @version      1.20
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -55,7 +55,7 @@
         }
     });
 
-    const isItemMarket = function () {return location.href.indexOf("sid=ItemMarket") > -1;}
+    const isItemMarket = function () {return location.href.toLowerCase().indexOf("itemmarket") > -1;}
     const searchBaseURL = "https://api.torn.com/v2/market/?selections=itemmarket&id=";
     var marketWatch = GM_getValue("marketWatch", false);
     var marketWatchAnyPage = GM_getValue("marketWatchAnyPage", false);
@@ -65,11 +65,13 @@
     if (!isItemMarket() && marketWatch != true) letMWRun = false;
     if (!isItemMarket() && marketWatch == true && marketWatchAnyPage != true) letMWRun = false;
 
+    /*
     if (letMWRun == false && !isItemMarket()) {
         log("Not at market, not watching...goodbye.");
         log("Location: ", location.href);
         return;
     }
+    */
 
     // Keys for flags indicating changes possibly made by
     // other instances...
@@ -1799,6 +1801,12 @@
 
     callOnHashChange(hashChangeHandler);
     installPushStateHandler(pushStateChanged);
+
+    if (!isItemMarket()) {
+        log("Not at market, not running...goodbye.");
+        log("Seem to be at this location: ", location.href);
+        return;
+    }
 
     callOnContentLoaded(handlePageLoad);
 
