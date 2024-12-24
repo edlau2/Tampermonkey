@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.8
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -43,7 +43,15 @@
     const caretNode = '<span style="float:right;"><i id="xedx-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
     var caretState = 'fa-caret-right';
     var statCaretState = 'fa-caret-right';
-    const custBatStatsEnabled = true; // Turn off if my IP (18.119.136.223) goes away, it's at AWS
+
+    // This feature uses my batstats server, which gets estimates based
+    // on FF calculations. It's still a WIP, my bats stat estimator script
+    // is required to update the DB, but not required to read. If enabled,
+    // my server IP must  be put in the script header:
+    // @connect      18.119.136.223
+    // The "// @connect      localhost" line is there for testing with my
+    // local DB. Turn off if my IP (18.119.136.223) goes away, it's at AWS
+    const custBatStatsEnabled = GM_getValue("custBatStatsEnabled", false);
 
     const displayCustomStats = true;
 
@@ -179,6 +187,9 @@
     const statCaretNode = '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
 
     // height in px, eg, "160px;"
+
+    // NO NO NO! Don't call this more than once, make two styles -
+    // open and closed....
     var numStatsAdded = 0;
     function setInfoSize(height) {
         log("[setInfoSize] ", height);
@@ -188,6 +199,52 @@
             background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
             background-color: var(--default-bg-panel-color);
         }`);
+    }
+
+    function placeholderToFixAboveEventually() {
+    // height in px, eg, "160px;"
+        /* uncomment these...
+        var numStatsAdded = 0;
+        var baseHeight = 0;
+        var stylesSet = false;
+        */
+        function setInfoSizeStyles(closedHeight, openHeight) {
+            log("[setInfoSizeStyles] closed: ", closedHeight, " open: ", openHeight);
+            if (stylesSet == true) {
+                console.error("Should not set style twice!");
+                debugger;
+                return;
+            }
+            stylesSet = true;
+
+            // Could do this with a var.....
+            GM_addStyle(`
+                .cust-stat-open {
+                    height: ` + openHeight + `
+                }
+                .cust-stat-closed {
+                    height: ` + closedHeight + `
+                }
+                .comp-class-open {
+                    position: relative;
+                    top: ` + openHeight + `
+                }
+                .d .profile-wrapper .profile-container.personal-info {
+                    line-height: 15px;
+                    background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
+                    background-color: var(--default-bg-panel-color);
+                }
+            `);
+
+            /*
+            GM_addStyle(`.d .profile-wrapper .profile-container.personal-info {
+                height: ` + height +
+                `line-height: 15px;
+                background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
+                background-color: var(--default-bg-panel-color);
+            }`);
+            */
+        }
     }
 
     var notSharing = false;
@@ -212,7 +269,7 @@
         let li = getCustStatsBody(personalStats);
         $(table).append(li);
 
-        if (document.getElementById("xedx-stats-caret") && !abroad()) {
+        if (document.getElementById("xedx-stats-caret")) {
             $("#xedx-stats-caret").on('click', {fromId: "xedx-stats-caret"}, handleClick);
 
             statCaretState = (statCaretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
@@ -693,6 +750,11 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    if (checkCloudFlare()) {
+        log("Won't run while challenge active!");
+        return;
+    }
+
     validateApiKey();
     versionCheck();
 
