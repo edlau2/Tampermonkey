@@ -1,17 +1,17 @@
 // ==UserScript==
 // @name         Torn NPC Attack Watcher
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Experiment, for now...
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @connect      api.lzpt.io
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
-// @xrequire      file:////Users/edlau/Documents/Tampermonkey Scripts/Helpers/Torn-JS-Helpers-2.45.7.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_notification
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
@@ -25,6 +25,9 @@
 (function() {
     'use strict';
 
+    const debugAlerts = false;
+    debugLoggingEnabled = false;
+
     var local = false;
     const format = 24;
     const dbgBorders = false;
@@ -32,15 +35,22 @@
     // Various (mostly display) options
     var options = {
         atOrUntil: GM_getValue("showUntilOrAt", "timeuntil"),
-        timeFormat: "24",   // 12 or 24
-        timeZone: GM_getValue("timeZone", "fmt-local"),  // local, TCT
+        timeFormat: "24",                                    // 12 or 24
+        timeZone: GM_getValue("timeZone", "fmt-local"),      // local, TCT
         showAlert: GM_getValue("showAlert", false),
         minBefore:  GM_getValue("minBefore", 30),
-        alertFormat: "highlight", // blink, notification, Discord....
+        alertFormat: "highlight",                            // blink, notification, Discord....
         hideUntil: GM_getValue("hideUntil", false),
         hideMinUntil: GM_getValue("hideMinUntil",60),        // minutes
         showUntilMsg: GM_getValue("showUntilMsg", true),
+        showBrowserNotifications: GM_getValue("showBrowserNotifications", true),
+        notificationTimeoutMs: GM_getValue("notificationTimeoutMs", 20000),
+        notifyOnce: GM_getValue("notifyOnce", false),
+        notifyBefore: GM_getValue("notifyBefore", 15),
+        showNpcLinksWin: GM_getValue("showNpcLinksWin", true),
     };
+
+    var savedOpts = options;  // For Cancel btn support
 
     GM_setValue("showUntilOrAt", options.atOrUntil);
     GM_setValue("timeZone", options.timeZone);
@@ -49,6 +59,15 @@
     GM_setValue("hideUntil", options.hideUntil);
     GM_setValue("hideMinUntil", options.hideMinUntil);
     GM_setValue("showUntilMsg", options.showUntilMsg);
+    GM_setValue("showBrowserNotifications", options.showBrowserNotifications);
+    GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
+    GM_setValue("notifyOnce", options.notifyOnce);
+    GM_setValue("notifyBefore", options.notifyBefore);
+    GM_setValue("showNpcLinksWin", options.showNpcLinksWin)
+
+    function restoreSavedOpts() {
+        options = savedOpts;
+    }
 
     var startTimes = {
         until: {hrs: 0, mins: 0, secs: 0},
@@ -57,11 +76,29 @@
         valid: false
     }
 
+    function timeNow() {
+        let now = new Date().getTime();
+        let date = new Date(now);
+        return date.toLocaleTimeString();
+    }
+
+    // =============== NPC info ================
+    const npcIds = {
+        "Fernando": 20, "Tiny": 21, "Duke": 4, "Jimmy": 19, "Leslie": 15, "Scrooge": 10,
+        "Easter Bunny": 17 };
+    const baseAttackUrl = "https://www.torn.com/loader.php?sid=attack&user2ID=";
+
+    //const li1="<li href='https://www.torn.com/loader.php?sid=attack&user2ID=20'>Fernando</li>";
+    //const li2="<li>blah blah</li>";
+    //const li3="<li>blah blah</li>";
+    //const li4="<li>blah blah</li>";
+    //const li5="<li>blah blah</li>";
+
     // ============================= Called on push state change ================
 
     // Verify I don't get two copies!!!!
     function pushStateChanged(e) {
-        log("pushStateChanged: ", e);
+        debug("pushStateChanged: ", e);
         setTimeout(handlePageLoad, 250);
     }
 
@@ -75,6 +112,7 @@
     var timesAreGood = false;
     var timesNoGoodReason;
     var intervalTimer = 0;
+    var attackOrder = '';
 
     function queryLootRangers() {
         const request_url = `https://api.lzpt.io/loot`;
@@ -104,20 +142,21 @@
         });
 
         function processLootRangerResult(result) {
-            var attackOrder = '';
+            attackOrder = '';
             var attackString = '';
             var attackLink = '';
             var attackTarget = 0;
+            attackOrder = '';
             timesAreGood = false;
 
-            log("processLootRangerResult: ", result);
+            debug("processLootRangerResult: ", result);
 
             // If there's no clear time set
             if(result.time.clear == 0  && result.time.attack === false) {
                 attackString = result.time.reason ? 'NPC attacking will resume after '+result.time.reason : 'No attack currently set.';
-                log("attackString: ", attackString);
+                debug("attackString: ", attackString);
                 timesNoGoodReason = result.time.reason;
-                log("timesNoGoodReason: ", timesNoGoodReason);
+                debug("timesNoGoodReason: ", timesNoGoodReason);
             } else {
                 // Build the string for the attack order
                 $.each(result.order, function(key, value) {
@@ -151,6 +190,9 @@
                 // Clean up the attack order string
                 attackOrder = attackOrder.slice(0, -2)+'.';
 
+                // Update list in UI, if present
+                updateAttackLinks();
+
                 // Check if an attack is currently happening and adjust the message accordingly
                 if(result.time.attack === true) {
                     attackString = 'NPC attack is underway! Get in there and get some loot!';
@@ -178,16 +220,9 @@
 
             let now = new Date();
             let epoch = now.getTime();
-
-            log("Start Time: ", new Date(+startTimeRaw * 1000));
-            log("Start Time, local: ", new Date(+startTimeRaw * 1000).toLocaleString());
-            log("timesAreGood: ", timesAreGood);
             timesNoGoodReason = result.time.reason;
-            log("timesNoGoodReason: ", timesNoGoodReason);
 
-            log("Now time: ", new Date(+epoch).toLocaleString());
             let startsAt = new Date(+startTimeRaw * 1000);
-            log("startsAt: ", startsAt);
 
             // Fills in the 'timeuntil' part of start times.
             timeDifference(startsAt);
@@ -197,7 +232,6 @@
             startTimes.atTCT = new Date(+startTimeRaw * 1000).toString();
             startTimes.atUTC = startTimeUTC;
             startTimes.valid = timesAreGood;
-            log("startTimes: ", startTimes);
         }
 
         callOnContentLoaded(handlePageLoad);
@@ -210,79 +244,95 @@
 
         // Test
         let lastUpdate = new Date(GM_getValue("lastUpdate"));
-        log("**** lastUpdate: ", lastUpdate, " | ", lastUpdate.toLocaleString());
+        debug("**** lastUpdate: ", lastUpdate, " | ", lastUpdate.toLocaleString());
 
     }
 
+    function timeDifference(date) {
+        let now = new Date();
+        var difference =  date.getTime() - now.getTime();
 
-        // Returns HH:MM:SS from now...
-        //function fromNowFormatted(date) {
-        //    let now = new Date();
-       // }
+        var daysDifference = Math.floor(difference/1000/60/60/24);
+        difference -= daysDifference*1000*60*60*24
 
-        function timeDifference(date) {
-            let now = new Date();
-            var difference =  date.getTime() - now.getTime();
+        var hoursDifference = Math.floor(difference/1000/60/60);
+        difference -= hoursDifference*1000*60*60
 
-            var daysDifference = Math.floor(difference/1000/60/60/24);
-            difference -= daysDifference*1000*60*60*24
+        var minutesDifference = Math.floor(difference/1000/60);
+        difference -= minutesDifference*1000*60
 
-            var hoursDifference = Math.floor(difference/1000/60/60);
-            difference -= hoursDifference*1000*60*60
+        var secondsDifference = Math.floor(difference/1000);
 
-            var minutesDifference = Math.floor(difference/1000/60);
-            difference -= minutesDifference*1000*60
+        startTimes.until.hrs = hoursDifference;
+        startTimes.until.mins = minutesDifference;
+        startTimes.until.secs = secondsDifference;
 
-            var secondsDifference = Math.floor(difference/1000);
-
-            startTimes.until.hrs = hoursDifference;
-            startTimes.until.mins = minutesDifference;
-            startTimes.until.secs = secondsDifference;
-
-            if (timesAreGood && intervalTimer == 0)
-                intervalTimer = setInterval(handleIntTimer, 1000);
-            else {
-                log("Tims no good: ", timesNoGoodReason);
-                // Set longer timer?
-                setTimeDisplay();
-                setTimeout(handleIntTimer, 30000);
-            }
-
-            log("until: ",  startTimes.until);
+        if (timesAreGood && intervalTimer == 0)
+            intervalTimer = setInterval(handleIntTimer, 1000);
+        else {
+            debug("Times no good: ", timesNoGoodReason);
+            // Set longer timer?
+            setTimeDisplay();
+            setTimeout(handleIntTimer, 30000);
         }
 
-        function utcformat(d){
-            d= new Date(d * 1000);
-            if(local) {
-                var tail= ' LT', D= [d.getFullYear(), d.getMonth()+1, d.getDate()],
-                    T= [d.getHours(), d.getMinutes(), d.getSeconds()];
-            } else {
-                var tail= ' TCT', D= [d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate()],
-                    T= [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()];
-            }
-            if(format == 12) {
-                /* 12 hour format */
-                if(+T[0]> 12){
-                    T[0]-= 12;
-                    tail= 'PM '+tail;
-                }
-                else tail= 'AM '+tail;
-            }
-            var i= 3;
-            while(i){
-                --i;
-                if(D[i]<10) D[i]= '0'+D[i];
-                if(T[i]<10) T[i]= '0'+T[i];
-            }
-            return T.join(':')+ tail;
+        debug("until: ",  startTimes.until);
+    }
+
+    function utcformat(d){
+        d= new Date(d * 1000);
+        if(local) {
+            var tail= ' LT', D= [d.getFullYear(), d.getMonth()+1, d.getDate()],
+                T= [d.getHours(), d.getMinutes(), d.getSeconds()];
+        } else {
+            var tail= ' TCT', D= [d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate()],
+                T= [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()];
         }
+        if(format == 12) {
+            /* 12 hour format */
+            if(+T[0]> 12){
+                T[0]-= 12;
+                tail= 'PM '+tail;
+            }
+            else tail= 'AM '+tail;
+        }
+        var i= 3;
+        while(i){
+            --i;
+            if(D[i]<10) D[i]= '0'+D[i];
+            if(T[i]<10) T[i]= '0'+T[i];
+        }
+        return T.join(':')+ tail;
+    }
 
     //
     // ============================== UI and options, display functions =====================
     //
 
+
+    function addAlignmentStyles() {
+        GM_addStyle(`
+            .xfixed-vert {
+                position: fixed;
+                top: 50%;
+                transform: translate(-50%, -50%);
+            }
+            .xfixed-horiz {
+                position: fixed;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            .xfixed-both {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+        `);
+    }
+
     // TBD: figure out which ones I'm actually using, coalesce, see
-    // what I canuse or put into core lib,,,
+    // what I can use or put into core lib,,,
     function addNpcStyles() {
 
         // For the options dialog?
@@ -293,15 +343,26 @@
         addFloatingOptionsStyles();
         addTornButtonExStyles();
         loadCommonMarginStyles();
+        addAlignmentStyles();
 
         // Added just for this...
          GM_addStyle(`
+             .x-rt-btn {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+                }
                 div.xnpc {
                     padding-bottom: 0px;
                     padding-top: 0px;
                     display: flex;
                     justify-content: center;
-                    flex-direction: column;
+                    flex-direction: row;
                 }
                 .xnpcs {
                      font-weight: 700;
@@ -321,6 +382,12 @@
                 .xtime {
                      justify-content: center;
                      font-size: 14px;
+                     width: 90%;
+                     cursor: pointer;
+                }
+                .xtime:hover {
+                    filter: brightness(1.7);
+                    background-image: radial-gradient(rgba(93, 248, 0, 0.4) 40%, transparent 60%);
                 }
                 .xnpc-inner span {
                     width: auto;
@@ -405,27 +472,6 @@
     //
     function getNPCDiv() {
 
-        function getMiniOpts() {
-            const miniOptsSection = `
-               <hr class="xhide-show xhide delimiter___neME6">
-               <div class="xhide-show xnpc-inner xhide">
-                   <span class="xhide-show xhide">
-                       <input id="xuntil" name="def-go" type="radio" value="until" checked>Until
-                   </span>
-                   <span class="xhide-show xhide">
-                       <input id="xat" name="def-go" type="radio" value="at">At
-                   </span>
-                   <span class="xhide-show xhide">
-                       <input type="checkbox" id="xchk-box" class="">Alert
-                   </span>
-                   <span class="xhide-show xhide" style="float:right;">
-                       <i id="npccaret" class="icon fas fa-caret-down npc-caret"></i>
-                   </span>
-               </div>
-               `;
-            return miniOptsSection;
-        }
-
         GM_addStyle(`
             .xtest1 {
                 padding-bottom: 3px;
@@ -468,8 +514,6 @@
                    <span class="xncpi">
                    <span class="break"></span>` +
 
-                  // getMiniOpts()
-
                   `<hr class="xhide-show2 xhide delimiter___neME6">
                    <div id="xnpc-aw-2" class="xnpc xhide xhide-show2">
                        <span id="xmenu1" class="xtime xhide-show2 xhide">menu 1</span>
@@ -491,34 +535,68 @@
                    </div>
                </div>`;
 
-       const div3 =  `
-               <div id="xedxNPCAlert" class="xnpc">
-                   <!-- span id="xclick" class="xtouch xtest2 df">NPC - click to open</span -->
-                   <span id="xmenu1" class="xtime xtest2 xhide">menu 1</span>
-                   <!-- span class="xncpi"><span class="break"></span -->
+         const div3 =  `
+               <div id="xedxNPCAlert" class="xnpc faraway">` +
+                   npcLinksButton() +
+                   `<span id="xmenu1" class="xtime xtest2 xhide">menu 1</span>
                </div>`;
 
 
         return div3;
     }
 
+    // ======================= Browser Notification =========================
+
+    var notifyOpen = false;
+    const resetNotifyFlag = function () {notifyOpen = false;}
+    function doBrowserNotify() {
+        if (notifyOpen == true) return;
+        debug("Browser alert: ", timeNow());
+
+        notifyOpen = true;
+        let msgText = "NPCs coming soon!\n\n" +
+            startTimes.until.hrs + ":" + startTimes.until.mins + ":" + startTimes.until.secs +
+            " until start!";
+
+        GM_notification ( {
+            title: 'NPC Alert!',
+            text: msgText,
+            image: 'https://imgur.com/QgEtwu3.png',
+            timeout: options.notificationTimeoutMs,
+            onclick: () => {
+                setTimeout(resetNotifyFlag, 30000);
+                window.focus ();
+            },
+            ondone: () => {setTimeout(resetNotifyFlag, 30000);}
+        } );
+    }
+
+    // ======================= Alerts =========================
+
     var alertClickDone = false;  // I think I use this to let me know I displayed a hidden time window
 
     function disableAlert() {
-         $("#xmenu1").removeClass("flash-red").removeClass("flash-red-at");
-
-        log("removing alert: ", $("#xedxNPCAlert"), " parent: ", $("#xedxNPCAlert").parent());
-
-         $("#xedxNPCAlert").parent().removeClass("alert-red");
-         alertActive = false;
+        $("#xmenu1").removeClass("flash-red").removeClass("flash-red-at");
+        $("#xnpx-t2").removeClass("flash-red-at");
+        $("#uber-alert > div").removeClass("alert-red");
+        $("#xedxNPCAlert").parent().removeClass("alert-red");
+        alertActive = false;
     }
 
+    var notifyShown = false;
     function enableAlert(disable) {
         if (alertActive == false) alertClickDone = false;
 
         if (manuallyHidAlerts) {
             // remind that manually hidden? or show anyways?
-            log("manuallyHidAlerts !!!!!!");
+            //log("manuallyHidAlerts !!!!!!");
+        }
+
+        if (disable != true && options.showBrowserNotifications && notifyOpen == false) {
+            if ((options.notifyOnce && !notifyShown) || !options.notifyOnce) {
+                doBrowserNotify();
+                notifyShown = true;
+            }
         }
 
         if (manuallyHidAlerts || disable || options.showAlert == false || alertActive == false) {
@@ -537,8 +615,16 @@
 
         // Private to here...
         function turnOnAlerts() {
+            // If hidden and not going to unhide, don't ant to do this...
+            // But check time first?
+            if ($("#xedxNPCAlert").hasClass("xopacity") || $("#uber-alert").css('margin-top').indexOf('-') > -1) {
+                if (debugAlerts == true) debugger;
+                disableAlert();
+                return;
+            }
             let classToAdd = (options.atOrUntil == "timeuntil") ? "flash-red" : "flash-red-at";
             $("#xmenu1").addClass(classToAdd).addClass("df");
+            $("#xnpx-t2").addClass(classToAdd);
             $("#xedxNPCAlert").parent().addClass("alert-red");
             if (alertClickDone == false && $("#xclick").hasClass("df")) {
                 $("#xclick")[0].click();
@@ -560,13 +646,11 @@
         let m1 = t1.getUTCMinutes();
         let s1 = t1.getUTCSeconds();
         let t1secs = s1 + m1*secsmin + h1*secshr;
-        log("[debugIntTimer] h1: ", h1, " m1: ", m1, " s1: ", s1, " t1secs: ", t1secs);
 
         let h2 = t2.getUTCHours();
         let m2 = t2.getUTCMinutes();
         let s2 = t2.getUTCSeconds();
         let t2secs = s2 + m2*secsmin + h2*secshr;
-        log("[debugIntTimer] h2: ", h2, " m2: ", m2, " s2: ", s2, " t2secs: ", t2secs);
 
         // Tomorrow: add t2 secs + (fullDaySecs - t1 secs)
         // Same day: t2 secs - t1 secs
@@ -577,21 +661,16 @@
         } else {
             secsdiff = t2secs - t1secs;
         }
-        log("[debugIntTimer] istomorrow: ", ist2tomorrow, " diff: ", secsdiff);
 
         let d = new Date(secsdiff * 1000);
-        log("D: ", d);
-        log("To ISO: ", d.toISOString());
-
         let fmtdiff = new Date(secsdiff * 1000).toISOString().slice(11, 19);
-        debug("[debugIntTimer] fmt: ", fmtdiff);
 
         return secsdiff;
     }
 
     function fmtSecsDiff(secsdiff) {
         if (timesAreGood == false) {
-            log("timesNoGoodReason: ", timesNoGoodReason);
+            debug("timesNoGoodReason: ", timesNoGoodReason);
             return timesNoGoodReason ? timesNoGoodReason : "00:00:00";
         }
         return new Date(secsdiff * 1000).toISOString().slice(11, 19);
@@ -602,9 +681,6 @@
         let now = new Date();
         let when = startTimes.startsAt;
 
-        log("Get secsdiff, startTimes: ", startTimes);
-        log("Get secsdiff, when: ", when);
-
         let secsdiff = diffSecs(now, when);
         startTimes.minutesUntil = secsdiff/60;
         let fmted = fmtSecsDiff(secsdiff);
@@ -613,13 +689,10 @@
         startTimes.until.hrs = timeParts[0];
         startTimes.until.mins = timeParts[1];
         startTimes.until.secs = timeParts[2];
-
-        debug("[debugIntTimer] hrs: ", startTimes.until.hrs,
-            " mins: ", startTimes.until.mins, " secs: ", startTimes.until.secs, " min until: ", startTimes.minutesUntil);
     }
 
     function invalidate() {
-        log("[invalidate] startTimes: ", startTimes);
+        debug("[invalidate] startTimes: ", startTimes);
         startTimes.valid = false;
         startTimes.until.hrs =
             startTimes.until.mins =
@@ -685,33 +758,32 @@
         }
 
         if (doLog == true)
-            log("[handleIntTimer] Display alerts? ", options.showAlert, " until: ", minsUntil, " before: ", options.minBefore);
+            debug("[handleIntTimer] Display alerts? ", options.showAlert, " until: ", minsUntil, " before: ", options.minBefore);
 
         if (options.atOrUntil == "timeuntil")
             setTimeDisplay();
 
-        if (didUnhide == false && !manuallyHidAlerts)
+        if (didUnhide == false && !manuallyHidAlerts && alertActive == true)
             enableAlert();
     }
 
     // Not working so well. Possible alternative - clone, and remove existing
     // div. On restore, re-add and restore click handlers?
-    function doHideAll() {
-        //$("#xedxNPCAlert").parent().removeClass("alert-red");
+    function doHideAll(instantly) {
         enableAlert(true);
         if ($("#xedxNPCAlert").height() == 0) {
-            debug("doHideAll: already hidden");
+            $("#uber-alert > div").removeClass("alert-red");
             animateDone("#xedxNPCAlert", 0);
 
             $("#xmenu1").addClass("xhide").removeClass("df");
             $("#xclick").addClass("xhide").removeClass("df");
             return;
         }
-        doAnimate("#xedxNPCAlert", 0);
+        doAnimate("#xedxNPCAlert", 0, instantly);
     }
 
     function redisplayAndAlert(alsoAlert) {
-        log("[redisplayAndAlert]");
+        debug("[redisplayAndAlert]");
         doAnimate("#xedxNPCAlert", 22);
 
         // Set active here?
@@ -721,8 +793,7 @@
     }
 
     // 2 second slide, will call animateDone at end.
-    function doAnimate(sel, size) {
-        log("doAnimate: ", size);
+    function doAnimate(sel, size, instantly) {
         if (size > 0) {
             $(".xhide-show2").removeClass("xhide");
             $(".xtouch").removeClass("xhide").addClass("xnpcs");
@@ -730,30 +801,37 @@
             $("#xnpcdelim").removeClass("xhide");
         }
 
-        //let op = (size==0) ? 0 : 1;
-        //log("Animate: size is ", size, " opacity is ", op);
-        $(sel).animate({
-            height: (size + "px"),
-            //opacity: ((size==0) ? 0.0 : 1.0),
-        }, 1000, function() {
-            animateDone(sel, size);
+        if (instantly == true) {
             $(sel).toggleClass("xopacity");
-        });
+            $(sel).css("height", (size + "px"));
+            animateDone(sel, size);
+        } else {
+            $(sel).animate({
+                height: (size + "px"),
+            }, 1000, function() {
+                animateDone(sel, size);
+                $(sel).toggleClass("xopacity");
+            });
+        }
 
         let margin = (size == 0) ? "-22px" : "0px"; //(-1 * size) + "px";
-        $("#uber-alert").animate({
-            marginTop: margin,
-        });
+        if (instantly == true) {
+            $("#uber-alert").css("margin-top", margin);
+        } else {
+            $("#uber-alert").animate({
+                marginTop: margin,
+            }, 250);
+        }
     }
 
     function animateDone(sel, size) {
-        log("Animation complete: ", $(sel), " size: ", size);
         if (size == 0) {
             $(".xhide-show2").addClass("xhide");
             $(".xhide-show").addClass("xhide");
             $(".xtouch").addClass("xhide").removeClass("xnpcs");
             $(".xtime").removeClass("df");
             $("#xnpcdelim").addClass("xhide");
+            $("#uber-alert > div").removeClass("alert-red");
         } else {
             $("#xedxNPCAlert").css("height", "auto");
             enableAlert();
@@ -772,19 +850,133 @@
     //const caretNode = `<span style="float:right;"><i id="npccaret" class="icon fas fa-caret-down xedx-caret"></i></span>`;
     var installRetries = 0;
     var useTestDiv = true;
-    const showOpts = function () {log("showOpts"); $(".xrflex").removeClass("ctxhide").addClass("xshow-flex");}
-    const hideOpts = function () {log("hideOpts"); $(".xrflex").removeClass("xshow-flex").addClass("ctxhide");}
-    const uberDiv = `<div id="uber-alert" class="uber"></div>`;
-    const uberDiv2 = `<div id="uber-alert" class="uber-nb"></div>`;
+    const showOpts = function () {$(".xrflex").removeClass("ctxhide").addClass("xshow-flex");}
+    const hideOpts = function () {$(".xrflex").removeClass("xshow-flex").addClass("ctxhide");}
+
+    // Outermost wrapper. Class is just for install, remove once decided
+    // wether to hide or not.
+    //GM_addStyle(".faraway {position: absolute; top: -2000px; left: -2000px;}");
+    const uberDiv = `<div id="uber-alert" class="uber faraway"></div>`;
+    const uberDiv2 = `<div id="uber-alert" class="uber-nb faraway"></div>`;
     var hiddenAtStart = false;
 
-    function handleDblClick(e) {
-        let tmpUrl = "https://www.torn.com/loader.php?sid=attack&user2ID=20";
-        window.open(tmpUrl, '_blank').focus();
+    // Div for dbl-click, list of NPC hyper-links
+    const npcList = `
+        <div id="npcList" class="xfixed-vert"><ul></ul></div>
+    `;
+
+    function getLinksDiv() {
+        // inner see x-hosp-inner-flex?
+        const linksDiv = `
+            <div id="x-npc-links" class="x-float-outer xfixed-vert x-drag xbgb-var">
+                <div class="xflexc-center" style="width: 100%;">
+                    <div id="x-npc-linksheader" class="grab title-black hospital-dark top-round">
+                        <div class="xhding-flex" role="heading">
+                            <span>NPC Links</span>
+                            <span id="x-npc-links-close" class="x-rt-btn x-inner-span xml5 xmr5">X</span>
+                        </div>
+                    </div>
+                    <div id="x-npc-links-inner" class="">
+                        <ul id="x-npc-links-ul">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        return linksDiv;
+    }
+
+    function handleLiBtnClick(e) {
+        e.preventDefault();
+        let target = $(e.currentTarget);
+        let url = $(target).attr("href");
+
+        window.open(url, '_blank').focus();
+        return false;
+    }
+
+    function buildAttackUrl(npcName) {
+        let id = npcIds[npcName];
+        if (!id) return;
+        return baseAttackUrl + id;
+    }
+
+    function buildAttackLi(npcName) {
+        let href = buildAttackUrl(npcName);
+        debug("HREF for ", npcName, ": ", href);
+        if (!href) return;
+        let li = "<li href='" + href + "'>" + npcName + "</li>";
+        return li;
+    }
+
+    function updateAttackLinks() {
+        debug("updateAttackLinks: ", attackOrder, " UL: ", $("#x-npc-links-ul"));
+        if (!$("#x-npc-links-ul").length) return;
+        if (!attackOrder || !attackOrder.length)
+            attackOrder = "Fernando, Tiny, Duke, Jimmy, Leslie";
+
+
+        let npcs = attackOrder.split(',');
+        let ulClone = $("#x-npc-links-ul").clone(true);
+        $(ulClone).find("li").remove();
+
+
+        // Temp li for time to go...
+        let testLi = "<li id='xnpx-t2'>00:00:00</li>";
+        $(ulClone).append(testLi);
+
+        for (let idx=0; idx<npcs.length; idx++) {
+            let npcName = npcs[idx].trim().replace('.', '');
+            let li = buildAttackLi(npcName);
+            $(ulClone).append(li);
+        }
+        $("#x-npc-links-ul").replaceWith($(ulClone));
+        $("#x-npc-links-ul > li").on('click', handleLiBtnClick);
+    }
+
+    function installLinkHandlers() {
+        //$("#x-npc-links-ul > li").on('click', handleLiBtnClick);
+
+        dragElement(document.getElementById("x-npc-links"));
+
+        $("#x-npc-links-close").on('click.xedx', function(){
+            $("#x-npc-links").remove();
+        });
+    }
+
+    function installLinksUi() {
+        if ($("#x-npc-links").length > 0) return;
+        let linksDiv = getLinksDiv();
+        $('body').append(linksDiv);
+
+        let t = $("#x-npc-links").position().top;
+        if (t < 0) {
+            log("Adjusting top: ", t);
+            $("#x-npc-links").css("top", ("180px"));
+        }
+
+        displayHtmlToolTip($("#x-npc-links-close"), "Click to close.", "tooltip4");
+
+        updateAttackLinks();
+        installLinkHandlers();
+    }
+
+    // =====================================================================================
+
+    // Propogating is kinda neat, also closes tiny window...
+    function handleLinksBtn(e) {
+        installLinksUi();
+        return false;
+    }
+
+    function removeFarAway() {
+        $("#uber-alert").removeClass("faraway");
+        $("#xedxNPCAlert").removeClass("faraway");
     }
 
     function installUI() {
-        log("NPC Alert installUI");
+        debug("NPC Alert installUI");
         if ($('#xedxNPCAlert').length) {
             return log("NPC Alert Already installed!");
         }
@@ -797,6 +989,14 @@
             return setTimeout(installUI, 250);
         }
 
+        GM_addStyle(".faraway {position: absolute; top: -2000px; left: -2000px;}");
+        addNpcListStyles();
+        addFloatStyles();
+
+        // TEST
+        //if (options.showNpcLinksWin == true)
+        //    installLinksUi();
+
 
         $("#sidebarNpcTimers").attr("style", "display: none;");
         $("#sidebarNpcTimers").prev().attr("style", "display: none;");
@@ -804,14 +1004,19 @@
         setTimeout(hideSidebarNpcTimers, 250);
 
         let elem = getNPCDiv();
+        //$(elem).addClass('faraway');
         makeXedxSidebarContentDiv();
         $("#x-scrollbar-content").append(elem);
-        $("#x-scrollbar-content").css("padding-top", "0px");
+        $("#x-scrollbar-content").css("padding", "0px");
 
         // This allow us to hide and show the div, unobtrusively
         let uber = dbgBorders ? $(uberDiv) : $(uberDiv2);
         $("#xedxNPCAlert").parent().wrap(uber);
         $("#uber-alert").on('click', handleBtnClick);
+
+        // Handler/help for the 'links' button
+        $("#xnpc-links").on('click', handleLinksBtn);
+        displayHtmlToolTip($("#xnpc-links"), "Left-click to get<br>target attack links", "tooltip4");
 
         // Display if not set to 'hide-until'
         //if (options.hideUntil == false)
@@ -820,11 +1025,8 @@
         $("#xedxNPCAlert > span.xtouch").on('contextmenu', handleRightClick);
         $("#xmenu1").on('contextmenu', handleRightClick);
 
-        $("#xedxNPCAlert").dblclick(handleDblClick);
-        $("#xmenu1").dblclick(handleDblClick);
-
         displayToolTip($("#uber-alert"), "Click to open the NPC Alert display.");
-        displayHtmlToolTip($("#xedxNPCAlert"), "Left-click to hide.<br>Right-click for options.", "tooltip4");
+        displayHtmlToolTip($("#xedxNPCAlert"), "Left-click to show/hide.<br>Right-click for options.", "tooltip4");
         setOptionsState();
 
         if (options.hideUntil == true && alertActive == false) {
@@ -837,9 +1039,11 @@
             }
 
             // Maybe do this once we get initial resp. from loot rangers?
-            handleBtnClick();
+            handleBtnClick(true);
             hiddenAtStart = true;
         }
+
+        setTimeout(removeFarAway, 1100);
 
         function saOkHandler(checked) {
             options.showUntilMsg = !checked;
@@ -902,36 +1106,17 @@
         doHide = !doHide;
     }
 
-    // UNUSED ???
-    // This handles the caret click, opens the alert area.
-    function handleCaretClick(e) {
-        let node = e.currentTarget;
-        log("caret click: ", $(node));
-
-        if ($(node).hasClass('fa-caret-down')) {
-            $(node).removeClass("fa-caret-down").addClass("fa-caret-right");
-        } else {
-            $(node).removeClass("fa-caret-right").addClass("fa-caret-down");
-        }
-
-        toggleTimeDisplay();
-    }
-
     function toggleTimeDisplay() {
         let list = $(".xhide-show2");
-        log("list: ", $(list));
         for (let idx=0; idx < $(list).length; idx++) {
             let elem = $(list)[idx];
-            log("elem: ", $(elem));
             if ($(elem).hasClass("xhide")) {
-                log("Removing class");
                 $(elem).removeClass("xhide");
                 if ($(elem).hasClass("xtime")) $(elem).addClass("df");
 
                 // ????
                 setTimeDisplay();
             } else {
-                log("Adding class");
                 $(elem).addClass("xhide").removeClass("df");
             }
         }
@@ -959,6 +1144,9 @@
         }
 
         $("#xmenu1").text(timeText);
+
+        // Testing...
+        $("#xnpx-t2").text(timeText);
     }
 
     function setOptionsState() {
@@ -972,8 +1160,6 @@
             options.atOrUntil = value;
             GM_setValue("showUntilOrAt", value);
             setTimeDisplay();
-            //$("#xmenu1").text(value);
-            log("radio clicked, value = ", value);
         });
     }
 
@@ -1037,7 +1223,6 @@
         let optsDiv = getGeneralOptsDiv();
 
         $("body").prepend(optsDiv);
-        log("Prepended: ", $(myOptsSel));
 
         initSavedOpts();
         addGeneralHandlers();
@@ -1046,63 +1231,81 @@
 
     function initSavedOpts() {
 
-        log("[initSavedOpts] ");
+        debug("[initSavedOpts] ");
         options.atOrUntil = GM_getValue("showUntilOrAt", "timeuntil");
         let isChecked = (options.atOrUntil == "timeuntil");
-        log("[initSavedOpts] showUntilOrAt val: ", options.atOrUntil, " isChecked: ", isChecked);
         $("input[name=opt-when][value=timeuntil]").prop('checked', isChecked);
         $("input[name=opt-when][value=timeat]").prop('checked', !isChecked);
         GM_setValue("showUntilOrAt", options.atOrUntil);
 
         options.timeZone = GM_getValue("timeZone", "fmt-local");
         isChecked = (options.timeZone == "fmt-local");
-        log("[initSavedOpts] timeZone val: ", options.timeZone, " isChecked: ", isChecked);
         $("input[name=opt-fmt][value=fmt-local]").prop('checked', isChecked);
         $("input[name=opt-fmt][value=fmt-tct]").prop('checked', !isChecked);
         GM_setValue("timeZone", options.timeZone);
 
+        // Hide alerts until X min before checkbox
         options.hideUntil = GM_getValue("hideUntil", false);
         isChecked = (options.hideUntil == true);
-        log("[initSavedOpts] hideUntil val: ", options.hideUntil, " isChecked: ", isChecked);
         $("input[name=hideUntil]").prop('checked', isChecked);
         GM_setValue("hideUntil", options.hideUntil);
 
+        // Hide alerts until X min before time input
         options.hideMinUntil = GM_getValue("hideMinUntil", 60);
-        log("[initSavedOpts] minBefore val: ", options.hideMinUntil);
-        $("input[name=minBefore]").val(options.hideMinUntil);
-        GM_setValue("minBefore", options.hideMinUntil);
+        $("input[name=hideMinUntil]").val(options.hideMinUntil);
+        GM_setValue("hideMinUntil", options.hideMinUntil);
 
+        // Show alerts X min before checkbox
         options.showAlert = GM_getValue("showAlert", false);
         isChecked = (options.showAlert == true);
-        log("[initSavedOpts] showAlert val: ", options.showAlert, " isChecked: ", isChecked);
         $("input[name=showAlert]").prop('checked', isChecked);
         GM_setValue("showAlert", options.showAlert);
+
+        // Show alerts X min before time input
+        options.minBefore = GM_getValue("minBefore", 60);
+        $("input[name=minBefore]").val(options.minBefore);
+        GM_setValue("minBefore", options.hideMinUntil);
+
+        // Show browser notifications for X secnds checkbox
+        options.showBrowserNotifications = GM_getValue("showBrowserNotifications", true);
+        isChecked = (options.showBrowserNotifications == true);
+        $("input[name=showBrowserNotifications]").prop('checked', isChecked);
+        GM_setValue("showBrowserNotifications", options.showBrowserNotifications);
+
+        // Show browser notifications for X secnds timeout field
+        options.notificationTimeoutMs = GM_getValue("notificationTimeoutMs", 20000);
+        $("input[name=notificationTimeoutMs]").val(options.notificationTimeoutMs / 1000);
+        GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
+
+        // Show notification once cb
+        options.notifyOnce = GM_getValue("notifyOnce", true);
+        isChecked = (options.notifyOnce == true);
+        $("input[name=notifyOnce]").prop('checked', isChecked);
+        GM_setValue("notifyOnce", options.notifyOnce);
+
+        // Show notification X min before input
+        options.notifyBefore = GM_getValue("notifyBefore", 20);
+        $("input[name=notifyBefore]").val(options.notifyBefore);
+        GM_setValue("notifyBefore", options.notifyBefore);
     }
 
     function addGeneralHandlers() {
-        log("addGeneralHandlers: ",$(myOptsSel));
-
-        // Cancel and save buttons save: doSave, cancel: doSwap
-        /*
-        $("#opts-save").on('click', function() {
-            log("onSave");
-            //doSave(activeCtxMenuSel);
-            hideOpts();
-        });
-        */
-
         $("#opts-refresh").on('click', doTimeRefresh);
 
-        $("#opts-cancel").on('click', function() {
-            log("[onCancel] (close button) opts: ", options);
-
-            let entered = $("input[name=minBefore]").val();
-            GM_setValue("minBefore", entered);
-            options.minBefore  = entered;
+        $("#opts-save").on('click', function () {
+            saveOptions();
             hideOpts();
         });
 
-        $(".gen-cb").on("click", handleGeneralCbClick);
+        $("#opts-cancel").on('click', function() {
+            restoreSavedOpts();
+            hideOpts();
+        });
+
+        $(".gen-cb").on('click', handleGeneralCbClick);
+        $(".gen-inp").on('change', handleGenInpChange);
+
+        $("#opts-tst").on('click', doBrowserNotify);
     }
 
     function closeOnOutsideClicks() {
@@ -1126,7 +1329,54 @@
         });
     }
 
-    // Handle anything on the general page..
+    function saveOpt(name, modFn) {
+        let sel = '[name="' + name + '"]';
+        let node = $(sel);
+        let val = modFn ? modFn($(node).val()) : $(node).val();
+        GM_setValue(name, val);
+    }
+
+    function saveOptions() {
+        saveOpt("minBefore");
+        saveOpt("hideMinUntil");
+        saveOpt("notificationTimeoutMs", function(x){return x*1000;});
+        saveOpt("notifyBefore");
+        savedOpts = options;
+    }
+
+    function handleGenInpChange(e) {
+        let node = $(e.currentTarget);
+        let val = $(node).attr("value");
+        let entered = $(node).val();
+        let name = $(node).attr("name");
+
+        // Show alert X min before option
+        if (name == "minBefore") {
+            options.minBefore = entered;
+            GM_setValue("minBefore", entered);
+        }
+
+        // Hide alerts until X min before
+        if (name == "hideMinUntil") {
+            options.hideMinUntil = entered;
+            GM_setValue("hideMinUntil", entered);
+        }
+
+        // Browser notifications
+        if (name == "notificationTimeoutMs") {
+            options.notificationTimeoutMs = entered * 1000;
+            GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
+        }
+
+        // Browser notify X min before
+        if (name == "notifyBefore") {
+            options.notifyBefore = entered;
+            GM_setValue("notifyBefore", options.notifyBefore);
+        }
+
+    }
+
+    // Handle any CB on the general page..
     function handleGeneralCbClick(e) {
         let node = $(e.currentTarget);
         let val = $(node).attr("value");
@@ -1135,39 +1385,114 @@
         let name = $(node).attr("name");
 
         if (name == 'opt-when') {
-            log("handleGeneralCbClick opt-when clicked, val: ", val);
             options.atOrUntil = val;
             GM_setValue("showUntilOrAt", val);
             setTimeDisplay();
         }
 
         if (name == 'opt-fmt') {
-            log("handleGeneralCbClick opt-fmt clicked, val: ", val);
             options.timeZone = val;
             GM_setValue("timeZone", val);
             setTimeDisplay();
         }
 
         if (name == "hideUntil") {
-            log("handleGeneralCbClick hideUntil clicked, val: ", val);
             options.hideUntil = checked;
             GM_setValue("hideUntil", checked);
         }
 
-        // Either add event listener for "blur" or save when close clicked...
-        if (name == "minBefore") {
-            log("handleGeneralCbClick minBefore clicked, val: ", entered);
-            options.minBefore = entered;
-            GM_setValue("minBefore", entered);
-        }
-
         if (name == "showAlert") {
-            log("handleGeneralCbClick showAlert clicked, val: ", val);
             options.showAlert = checked;
             GM_setValue("showAlert", checked);
         }
 
-        log("handleGeneralCbClick options: ", options);
+        if (name == "hideUntil") {
+            options.hideUntil = checked;
+            GM_setValue("hideUntil", checked);
+        }
+
+        if (name == "showBrowserNotifications") {
+            options.showBrowserNotifications = checked;
+            GM_setValue("showBrowserNotifications", checked);
+        }
+
+        if (name == "notifyOnce") {
+            options.notifyOnce = checked;
+            GM_setValue("notifyOnce", checked);
+        }
+    }
+
+    function addNpcListStyles() {
+        const sidebarWidth = $("#sidebarroot").width();
+        const leftPos = $(window).width() - sidebarWidth;
+        GM_addStyle(`
+            .npc-link-btn {
+                align-items: center;
+                cursor: pointer;
+                display: flex;
+                flex-shrink: 0;
+                justify-content: center;
+                background-color: transparent;
+                border-color: transparent;
+                vertical-align: middle;
+                position: relative;
+                left: 0;
+                margin-top: -5px;
+            }
+            .npc-link-btn:hover {
+                filter: brightness(1.7);
+                background-image: radial-gradient(rgba(93, 248, 0, 0.4) 40%, transparent 60%);
+            }
+            #x-npc-links {
+                width: ${sidebarWidth}px;
+                height: auto;
+                left: ${leftPos}px;
+                top: 180px;
+            }
+            #x-npc-links ul {
+                border-radius: 10px;
+                width: 100%;
+                /*margin-top: 30px;*/
+            }
+            #x-npc-links li {
+                display: flex;
+                flex-wrap: wrap;
+                height: 22px;
+                width: 100%;
+                align-items: center;
+                justify-content: center;
+                border-top: 1px solid darkblue;
+                cursor: pointer;
+            }
+            #x-npc-links ul li:first-child {
+                height: 24px !important;
+                margin-top: 2px;
+                font-size: 16px;
+                border: 1px solid green !important;
+            }
+
+            .xhding-flex {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .xlinks-scroll {
+                overflow-y: scroll;
+                max-height: 80px;
+            }
+
+            #x-npc-links-inner {
+                border-radius: 5px;
+                width: 100%;
+                align-content: center;
+                justify-content: center;
+                display: flex;
+                flex-direction: column;
+                flex-wrap: wrap;
+            }
+        `);
     }
 
     function addGenOptStyles() {
@@ -1212,6 +1537,14 @@
                 width: 360px !important;
                 height: 300px !important;
             }
+            #opts-tst {
+                width: 14px;
+                height: 14px;
+                margin-left: -20px;
+                margin-top: 5px;
+                margin-right: 6px;
+                background: green;
+            }
         `);
 
         // Used by left, right table cells on opts pages
@@ -1227,8 +1560,8 @@
                 padding: 6px 12px 6px 12px !important;
             }
             .inp-minute {
-                width: 50px;
-                margin-left: 10px;
+                width: 40px;
+                margin-left: 8px;
                 border-radius: 5px;
                 border: 1px solid;
             }
@@ -1240,7 +1573,7 @@
 
             .x-groupbox-p20 {
                 margin-top: 10px;
-                padding: 20px;
+                padding: 0px 20px 0px 20px;
                 border-radius: 15px;
                 width: auto;
                 border: 1px solid #383838;
@@ -1339,7 +1672,7 @@
         const generalOptsDiv = `
              <div id="xedx-npc-opts"
                  class="x-attk-test-bdr2 xopts-ctr-screen xfmt-font-blk x-ez-scroll xopts-bg xopts-cust-size xrflex ctxhide"
-                 style="height: 360px !important; ` + paddingTop + `">
+                 style="height: 384px !important; ` + paddingTop + `">
 
                  <div class="xshow-flex lb-flex xrflex" style="` + flexCol + `">
 
@@ -1352,42 +1685,83 @@
                              <div class="xshow-flex xrflex x-groupbox-p20 flex-start">
                                  <table class="gen-table-wt xmt5 xml14">
                                      <tr>
-                                         <td class="xntcl"><span class="xfmt-span">
-                                             <input class="gen-cb" type="radio" name="opt-when" value="timeat">Time At
-                                         </span></td>
-                                         <td class="xntcr"><span class="xfmt-span">
-                                             <input class="gen-cb" type="radio" name="opt-when" value="timeuntil">Time Until
-                                         </span></td>
+                                         <td class="xntcl">
+                                             <span class="xfmt-span">
+                                                 <input class="gen-cb" type="radio" name="opt-when" value="timeat">Time At
+                                             </span>
+                                         </td>
+                                         <td class="xntcr">
+                                             <span class="xfmt-span">
+                                                 <input class="gen-cb" type="radio" name="opt-when" value="timeuntil">Time Until
+                                             </span>
+                                         </td>
                                      </tr>
                                      <tr>
-                                         <td class="xntcl"><span class="xfmt-span">
-                                             <input class="gen-cb" type="radio" name="opt-fmt" value="fmt-tct">Time in TCT
-                                         </span></td>
-                                         <td class="xntcr"><span class="xfmt-span">
-                                             <input class="gen-cb" type="radio" name="opt-fmt" value="fmt-local">Local Time
-                                         </span></td>
+                                         <td class="xntcl">
+                                             <span class="xfmt-span">
+                                                 <input class="gen-cb" type="radio" name="opt-fmt" value="fmt-tct">Time in TCT
+                                             </span>
+                                         </td>
+                                         <td class="xntcr">
+                                             <span class="xfmt-span">
+                                                 <input class="gen-cb" type="radio" name="opt-fmt" value="fmt-local">Local Time
+                                             </span>
+                                         </td>
                                      </tr>
                                  </table>
                              </div>
 
-                             <span class="x-attk-hdr xpb10 xpt10">
+                             <span class="x-attk-hdr xpt10">
                                  Select which alerts, if any, to enable:
                              </span>
 
                              <div class="xshow-flex xrflex x-groupbox-p20 flex-start">
                                  <table class="gen-table-cds xmt5 xml20">
                                      <tr>
-                                         <td class="xntcg"><span class="xfmt-span hide-until">
-                                             <input class="gen-cb" type="checkbox" name="showAlert" value="show-alerts">Show alerts
-                                             <input class="gen-cb inp-minute" type="number" name="minBefore" value="min-before">minutes before.
-                                         </span></td>
+                                         <td class="xntcg">
+                                             <span class="xfmt-span hide-until">
+                                                 <input class="gen-cb" type="checkbox" name="showAlert" value="show-alerts">
+                                                     Show alerts
+                                                 <input class="gen-inp inp-minute" type="number" name="minBefore" value="minBefore">
+                                                     minutes before.
+                                             </span>
+                                         </td>
                                      </tr>
                                      <tr>
-                                         <td class="xntcg"><span class="xfmt-span show-alert">
-                                             <input class="gen-cb" type="checkbox" name="hideUntil" value="hide-until">Hide until
-                                             <input class="gen-cb inp-minute" type="number"
-                                                name="hideMinBefore" value=hide-"min-before">minutes before.
-                                         </span></td>
+                                         <td class="xntcg">
+                                             <span class="xfmt-span show-alert">
+                                                 <input class="gen-cb" type="checkbox" name="hideUntil" value="hide-until">
+                                                     Hide until
+                                                 <input class="gen-inp inp-minute" type="number"name="hideMinUntil" value="hideMinUntil">
+                                                     minutes before.
+                                             </span>
+                                         </td>
+                                     </tr>
+                                     <tr>
+                                         <td class="xntcg">
+                                             <span class="xfmt-span show-alert">
+                                                 <input class="gen-cb" type="checkbox" name="showBrowserNotifications" value="browser-alert">
+                                                     Browser Notifications
+                                                 <input class="gen-inp inp-minute" type="number" name="notifyBefore" value="notifyBefore">
+                                                     min before.
+                                             </span>
+                                         </td>
+                                     </tr>
+                                     <tr>
+                                         <td class="xntcg">
+                                             <span class="xfmt-span show-alert">
+                                                 <input class="gen-inp inp-minute" type="number" name="notificationTimeoutMs" value="notificationTimeoutMs">
+                                                    second notification timeout.
+                                             </span>
+                                         </td>
+                                     </tr>
+                                     <tr>
+                                         <td class="xntcg">
+                                             <span class="xfmt-span show-alert">
+                                                 <input class="gen-cb" type="checkbox" name="notifyOnce" value="notifyOnce">
+                                                     Only show notification once
+                                             </span>
+                                         </td>
                                      </tr>
                                   </table>
                              </div>
@@ -1395,9 +1769,10 @@
                          </div>
 
                      <div class="xbtn-wrap xshow-flex xrflex" style="` + flexRowStyle + flexRow + alignCenter + justifyCenter + `">
-
-                         <button id="opts-refresh" class="xedx-torn-btn xmr10">Refresh</button>
-                         <button id="opts-cancel" class="xedx-torn-btn xml10">Close</button>
+                         <button id="opts-tst" style="width:14px; height:14px; margin-left: -14px;"></button>
+                         <button id="opts-refresh" class="xedx-torn-btn">Refresh</button>
+                         <button id="opts-save" class="xedx-torn-btn xml10 xmr10">Save</button>
+                         <button id="opts-cancel" class="xedx-torn-btn">Cancel</button>
                      </div>
 
 
@@ -1488,6 +1863,35 @@
                               inset -10px -10px 3px -5px #fff;
                 }
         `);
+    }
+
+    function npcLinksButton() {
+        let linksBtn = `
+            <button type="button" id="xnpc-links" class="npc-link-btn" i-data="i_827_4456_34_34">
+                <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <clipPath id="link_svg__a">
+                            <path d="M0 0h24v24H0z">
+                            </path>
+                        </clipPath>
+                        <filter id="link_svg__b" width="16" height="17" x="4" y="4" filterUnits="userSpaceOnUse">
+                            <feOffset dy="1"></feOffset>
+                            <feGaussianBlur result="blur"></feGaussianBlur>
+                            <feFlood flood-color="#fff"></feFlood>
+                            <feComposite in2="blur" operator="in"></feComposite>
+                            <feComposite in="SourceGraphic"></feComposite>
+                        </filter>
+                    </defs>
+                    <g clip-path="url(#link_svg__a)" filter="url(#link_svg__b)">
+                        <path d="M1675.13 987.812a4.127 4.127 0 0 1 .96-.725 4.282 4.282 0 0 1 5.63 1.38l-1.5 1.5a2.257 2.257 0 0 0-2.56-1.3 2.234 2.234 0 0 0-1.08.6l-2.87 2.87a2.235 2.235 0 0 0 3.16 3.161l.88-.885a5.7 5.7 0 0 0 2.52.383l-1.95 1.953a4.286 4.286 0 0 1-6.06-6.062Zm4.55-4.557-1.95 1.953a5.715 5.715 0 0 1 2.52.382l.88-.884a2.234 2.234 0 0 1 3.16 3.16l-2.87 2.87a2.239 2.239 0 0 1-3.16 0 2.428 2.428 0 0 1-.48-.7l-1.5 1.5a4.145 4.145 0 0 0 .53.655 4.3 4.3 0 0 0 5.1.724 4.1 4.1 0 0 0 .96-.724l2.87-2.87a4.286 4.286 0 0 0-6.06-6.062Z"
+                        data-name="Path 4" transform="translate(-1667 -978)">
+                        </path>
+                    </g>
+                </svg>
+            </button>
+            `;
+
+        return linksBtn;
     }
 
     function getShowAgainDiv() {
