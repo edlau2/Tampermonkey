@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Sort crimes in planning by time remaining
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -33,10 +33,6 @@
     GM_setValue("logFullApiResponses", logFullApiResponses);
     GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
 
-    // Not used yet...
-    const xedxDevMode = false;
-    const enableReadyAlert = false;
-
     const keepLastStateKey = "keepLastState";
     const lastStateKey = "lastState";
     const stateOpen = "visible";
@@ -45,6 +41,13 @@
     // Can edit this, but there's a hidden checkbox for it.
     var keepLastState = GM_getValue(keepLastStateKey, false);
     var lastState = GM_getValue(lastStateKey, stateClosed);
+
+    // Will reset at page refresh, not permanent cache
+    const cacheCompletedCrimes = true;
+
+    // Not used yet...
+    const xedxDevMode = false;
+    const enableReadyAlert = false;
 
     debug("keepLastState: ", keepLastState, " lastState: ", lastState);
 
@@ -56,12 +59,13 @@
     const hashChangeHandler = function () {handlePageLoad();}
     const sortList = function () {tinysort($(scenarios), {attr:'data-time'});}
     const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
-    const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_'] > button");}
+    const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
     const isSortablePage = function () {return (btnIndex() == 1) ? true : false;}
     const sortPage = function () {tagAndSortScenarios();}
     const getPlannedCrimes = function () { doFacOcQuery('planning'); }
     const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
-    const getCompletedCrimes = function () { doFacOcQuery('completed'); }
+    //const hideCompletedBtn = function () {$("#xcsvbtn").addClass("vhide"); }
+
 
     var userId;
     var scenarios;
@@ -85,6 +89,7 @@
                 return;
             case completedIdx:
                 getCompletedCrimes();
+                installCompletedPageButton(true);
                 return;
         }
 
@@ -93,7 +98,13 @@
     }
 
     function pageBtnClicked(e) {
-        debug("pageBtnClicked: ", e);
+        debug("pageBtnClicked, idx: ", btnIndex(), "|", e);
+
+        if (btnIndex() != completedIdx) {
+            $("#xcsvbtn").addClass("vhide");
+            //hideCompletedBtn();
+        }
+
         logCurrPage();
         handlePageChange();
     }
@@ -165,6 +176,15 @@
         });
     }
 
+    function writeCompletedCrimesAsCsv(e) {
+        log("Writing crimes as CSV...", e);
+        if (e) {
+            e.stopPropogation();
+            e.preventDefault();
+        }
+        return false;
+    }
+
     function handlePageLoad(retries=0) {
         debug("handlePageLoad");
         if (!isOcPage()) return log("Not on crimes page, going home");
@@ -176,6 +196,7 @@
         }
 
         addPageBtnHandlers();
+        installCompletedPageButton();
         logCurrPage();
 
         setTimeout(initialScenarioLoad, 500);
@@ -189,10 +210,18 @@
     var facMembersArray = [];
 
     var completedCrimesSynced = false;
-    var completedCrimesArray;
+    var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
 
     var facMembersDone = false;
     var crimeMembersDone = false;
+
+
+    function getCompletedCrimes() {
+        if (cacheCompletedCrimes == true && completedCrimesArray)
+            completedCrimesCb(completedCrimesArray);
+        else
+            doFacOcQuery('completed');
+    }
 
     // 'crimes' is parsed array of JSON crime objects
     function completedCrimesCb(crimes) {
@@ -323,7 +352,26 @@
 
     // Styles just stuck at the end, out of the way
     function addStyles() {
+        let shadowColor = darkMode() ? "#555" : "#ccc";
+        loadMiscStyles();
         GM_addStyle(`
+            .csv-btn {
+               color: green;
+               border-radius: 14px;
+               padding: 0px 8px 0px 8px;
+               position: absolute;
+               display: flex;
+               flex-wrap: wrap;
+               justify-content: center;
+               align-content: center;
+               top: 0;
+               left: 82%;
+               height: 34px;
+            }
+            .csv-btn:hover  {
+                color: limegreen;
+                box-shadow: inset 6px 4px 2px 1px ${shadowColor};
+            }
             .xoc-myself {
                 border: 1px solid green;
                 filter: brightness(1.5);
@@ -418,11 +466,47 @@
             #oc-opt-wrap:hover input {
                 opacity: 1;
             }
+            .vhide {visibility: hidden;}
+            .vshow {visibility: visible;}
         `);
     }
 
     const lastStateOptCb = `<span id='oc-opt-wrap'><input type="checkbox" id="oc-opt-last-pos" class=""></span>`;
+    const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
 
+    function installCompletedPageButton(visible=false, retries=0) {
+
+        log("installCompletedPageButton, len: ", $("#xcsvbtn").length);
+        if ($("#xcsvbtn").length == 0) {
+            log("installCompletedPageButton, adding");
+            // Should just start a mutation observer...
+            let cBtn = pageBtnsList()[2];
+            if (!$(cBtn).length) {
+                if (retries++ < 20) return setTimeout(installCompletedPageButton, 200, visible, retries);
+                return log("ERROR: didn't find the Completed button!");
+            }
+
+            debug("Completed button: ", $(cBtn));
+            $(cBtn).append(csvBtn);
+
+            $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
+
+            displayHtmlToolTip($("#xcsvbtn"),
+                           "Click here to view and save data<br>" +
+                           "in CSV format, to import into any<br>" +
+                           "spreadsheet program later.", "tooltip4");
+        }
+
+        if (visible == true)
+            $("#xcsvbtn").removeClass("vhide");
+        else
+            $("#xcsvbtn").addClass("vhide");
+
+        log("installCompletedPageButton, visible? ", visible);
+        log("installCompletedPageButton, has class? ", $("#xcsvbtn").hasClass("xhide"));
+    }
+
+    // Helper to save (in order to restore at start) state
     function writeCurrState(state) {
         debug("writeCurrState: ", state, " len > 0 ? ", ($("#x-oc-tbl-wrap").length > 0));
         if (state) {
