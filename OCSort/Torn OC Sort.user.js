@@ -450,7 +450,6 @@
 
     // Kick off calls to get fac members in an OC as well
     // as all our current members, diff is those not in an OC.
-    // https://api.torn.com/v2/faction/crimes?key=4ZMAvIBON4zZLrd9&cat=planning&offset=0
     getFacMembers();
     getPlannedCrimes();
 
