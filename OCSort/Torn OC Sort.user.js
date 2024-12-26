@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.8
 // @description  Sort crimes in planning by time remaining
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -46,7 +46,10 @@
     const cacheCompletedCrimes = true;
 
     // Not used yet...
-    const xedxDevMode = false;
+
+    const userId = getThisUserId();
+
+    const xedxDevMode = false; //(userId == 2100735);
     const enableReadyAlert = false;
 
     debug("keepLastState: ", keepLastState, " lastState: ", lastState);
@@ -55,9 +58,13 @@
     const planningIdx = 1;
     const completedIdx = 2;
 
+    var scenarios;
+    var listRoot;        // root div above scenarios
+    var scrollTimer;
+    var sortTimer;
+
     const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
     const hashChangeHandler = function () {handlePageLoad();}
-    const sortList = function () {tinysort($(scenarios), {attr:'data-time'});}
     const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
     const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
     const isSortablePage = function () {return (btnIndex() == 1) ? true : false;}
@@ -67,16 +74,10 @@
     //const hideCompletedBtn = function () {$("#xcsvbtn").addClass("vhide"); }
 
 
-    var userId;
-    var scenarios;
-    var listRoot;        // root div above scenarios
-    var scrollTimer;
-    var sortTimer;
-
     function logCurrPage() {
         let idx = btnIndex();
         let page = (idx == 0 ? "Recruiting" : idx == 1 ? "Planning" : idx == 2 ? "Completed": "Unknown");
-        log("On index ", idx, " page is '", page, "'", " sortable? ", isSortablePage());
+        debug("On index ", idx, " page is '", page, "'", " sortable? ", isSortablePage());
     }
 
     function handlePageChange() {
@@ -88,6 +89,7 @@
                 sortPage();
                 return;
             case completedIdx:
+                debug("**** getCompletedCrimes ****");
                 getCompletedCrimes();
                 installCompletedPageButton(true);
                 return;
@@ -95,6 +97,14 @@
 
         log("ERROR: Unknown page, idx = ", btnIndex(), " sortable? ", isSortablePage(), " (",
            recruitingIdx, "|", planningIdx, "|", completedIdx);
+    }
+
+
+    function sortList() {
+        let grandparent = $(scenarios).parent().parent();
+        let list = $(grandparent).children("[class^='wrapper_']");
+        tinysort($(list), {attr:'data-time'});
+        //tinysort($(scenarios), {attr:'data-time'});
     }
 
     function pageBtnClicked(e) {
@@ -130,6 +140,19 @@
     }
 
     // Do the sorting
+    var doSort = true;
+    var hasBeenSorted = false;
+
+    // Debugging aid
+    var colorIndex = 0;
+    var colors = ["red", "yellow", "blue", "white", "aqua", "blueviolet", "chocolate",
+                  "cyan", "darkblue", "crimson", "darkorange", "darkseagreen", "darkorchid",
+                  "deeppink", "indigo", "lawngreen"];
+    function nextColor() {
+        if (++colorIndex == colors.length) colorIndex = 0;
+        return colors[colorIndex];
+    }
+
     function tagAndSortScenarios() {
         if (!isSortablePage()) {
             debug("This page isn't sortable (by definition)");
@@ -142,20 +165,66 @@
 
         for (let idx=0; idx<$(scenarios).length; idx++) {
             let scenario = $(scenarios)[idx];
-            let elem = $(scenario).find("[class^='wrapper_'] > div > p");
+            let elem = $(scenario).find("[class^='wrapper_'] > div > p")[0];
             let text = $(elem).text();
-            if (text) {
-                text = text.slice(0, 11);
-                let parts = text.split(":");
-                let totalSecs = (parts[0] * 24 * 60 * 60) + (parts[1] * 60 * 60) +
-                    (parts[2] * 60) + parts[3];
 
-                $(scenario).attr("data-time", totalSecs);
+            if (xedxDevMode == true) {
+                if (!$(scenario).attr("data-time")) {
+                    let color = nextColor();
+                    debug("Elem: ", $(elem), " scenario: ", $(scenario));
+                    $(elem).css("border", ("1px solid " + color));
+                    $(scenario).css("border", ("1px solid " + color));
+                    $(scenario).next().css("border", ("1px solid " + color));
+                }
+            }
+
+            if (text) {
+                let tmp = text.slice(0, 11);
+                let parts = tmp.split(":");
+                debug("Text: ", text, " Text, sliced: ", tmp, " parts: ", parts);
+                text = tmp;
+
+                let secsDays = (+parts[0] * 24 * 60 * 60);
+                let secsHrs = (+parts[1] * 60 * 60);
+                let secsMins = (+parts[2] * 60);
+                let secs = +parts[3];
+                let totalSecs = secsDays + secsHrs + secsMins + secs;
+
+                debug("secsDays: ", secsDays, " secsHrs: ",
+                      secsHrs, " secsMins: ", secsMins, " secs: ", secs, " Total secs: ", totalSecs);
+
+                let secsDays2 = parseInt(parts[0]) * 24 * 60 * 60;
+                let secsHrs2 = parseInt(parts[1]) * 60 * 60;
+                let secsMins2 = parseInt(parts[2]) * 60;
+                let secs2 = parseInt(parts[3]);
+                let totalSecs2 = secsDays2 + secsHrs2 + secsMins2 + secs2;
+
+                debug("secsDays2: ", secsDays2, " secsHrs2: ",
+                      secsHrs2, " secsMins2: ", secsMins2, " secs2: ", secs2, " Total secs2: ", totalSecs2);
+
+                debug("Curr data-time: ", $(scenario).parent().attr("data-time"));
+                $(scenario).parent().attr("data-time", totalSecs);
             }
         }
-        sortList();
+
+        if (doSort == true)
+            sortList();
 
         if (!$(".xoc-myself").length) highlightSelf();
+    }
+
+    function onScrollTimer() {
+        switch (btnIndex()) {
+            case recruitingIdx:
+                break;
+            case planningIdx:
+                tagAndSortScenarios();
+                break;
+            case completedIdx:
+                getCompletedCrimes();
+                break
+        }
+
     }
 
     function initialScenarioLoad(retries=0) {
@@ -171,13 +240,13 @@
             clearTimeout(sortTimer);
             clearTimeout(scrollTimer);
             scrollTimer = setTimeout(function() {
-                sortTimer = setTimeout(tagAndSortScenarios, 250);
+                sortTimer = setTimeout(onScrollTimer, 250);
             }, 250);
         });
     }
 
     function writeCompletedCrimesAsCsv(e) {
-        log("Writing crimes as CSV...", e);
+        debug("Writing crimes as CSV...", e);
         if (e) {
             e.stopPropogation();
             e.preventDefault();
@@ -210,6 +279,8 @@
     var facMembersArray = [];
 
     var completedCrimesSynced = false;
+    var completedScenarios;
+    var completedScenariosLastLen = 0;
     var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
 
     var facMembersDone = false;
@@ -217,10 +288,13 @@
 
 
     function getCompletedCrimes() {
-        if (cacheCompletedCrimes == true && completedCrimesArray)
+        debug("getCompletedCrimes, completedCrimesArray", completedCrimesArray);
+        if (cacheCompletedCrimes == true && completedCrimesArray) {
+            debug("using cached version: ", completedCrimesArray);
             completedCrimesCb(completedCrimesArray);
-        else
+        } else {
             doFacOcQuery('completed');
+        }
     }
 
     // 'crimes' is parsed array of JSON crime objects
@@ -228,36 +302,75 @@
 
         completedCrimesArray = crimes;
 
-        debug("Completed crimes: ", crimes.length);
+        debug("Completed crimes CB: ", crimes.length);
 
         if (logFullApiResponses == true) {
             crimes.forEach(function (crime, index) {
                 logCompletedCrime(crime);
             });
+        } else {
+            debug("Not logging details, 'logFullApiResponses' is off.");
         }
+
+        syncCompletedCrimeData();
 
         // Local functions..
 
-        // Seems that the crimes in the UI don't list crime ID from the API.
-        // But, seem to go in order. Can do sanity check - crime participant
-        // must be in the list from the API and can't be in two...well, guess they
-        // could if they don't roll over fast enough.
-        //
-        function syncCompletedCrimeData() {
+        var state = 0;
+        function syncCompletedCrimeData(retries=0) {
+            debug("syncCompletedCrimeData: ", retries);
 
+            completedScenarios = $("[class^='scenario_']");
+            debug("completedScenarios: ", $(completedScenarios));
+            if (!$(completedScenarios).length) {
+                if (retries++ < 20) return setTimeout(syncCompletedCrimeData, 250, retries);
+                return log("Too many sync retries");
+            }
 
-            completedCrimesSynced = true;
+            for (let idx=0; idx < $(completedScenarios).length; idx++) {
+                let scenario = $(completedScenarios)[idx];
+                let desc = getCompCrimeDesc(idx);
+                let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
+                let prevDiv = $(rewardDiv).find(".xsort");
+                if ($(prevDiv).length) continue;
+
+                let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
+                let className = "";
+                let classList = $(item).attr('class').split(/\s+/);
+                if (classList) className = classList[0];
+                let newDiv = `<div class="${className} xsort">${desc}</div>`;
+                $(rewardDiv).append(newDiv);
+
+                //
+            }
         }
 
         function tm_str(tm) {
             let dt = new Date(tm*1000);
-            return dt.toString();
+            const mediumTime = new Intl.DateTimeFormat("en-GB", {
+              timeStyle: "medium",
+              hourCycle: "h24",
+            });
+            const shortDate = new Intl.DateTimeFormat("en-GB", {
+              dateStyle: "short",
+            });
+            const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
+            return formattedDate;
         }
 
         function logCompletedCrime(crime) {
             log("Completed crime, id: ", crime.id, " status: ", crime.status,
                 " created: ", tm_str(crime.created_at), " initiated: ", tm_str(crime.initiated_at),
                 " ready at: ", tm_str(crime.ready_at), " expired_at: ", tm_str(crime.expired_at));
+        }
+
+        function getCompCrimeDesc(idx) {
+            debug("getCompCrimeDesc: ", idx, "|", completedCrimesArray, "|", completedCrimesArray[idx]);
+            let crime = completedCrimesArray[idx];
+            let payout = asCurrency(crime.rewards.money);
+            let initiated = tm_str(crime.initiated_at);
+            let span = `<span class="oc-comp-span1">Initiated:</span><span class="oc-comp-span2">${initiated}</span>`;
+            return span;
         }
     }
 
@@ -290,6 +403,8 @@
 
 
     function doFacOcQuery(category) {
+        debug("doFacQuery: ", category);
+
         var options = {"cat": category, "offset": "0", "param": category};
         xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
     }
@@ -325,7 +440,7 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    userId = getThisUserId();
+    //userId = getThisUserId();
     debug("User ID: ", userId);
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
@@ -355,6 +470,18 @@
         let shadowColor = darkMode() ? "#555" : "#ccc";
         loadMiscStyles();
         GM_addStyle(`
+            .oc-comp-span1 {
+                 color: var(--oc-respect-reward-text-color);
+                 font-family: Arial;
+                 font-size: 12px;
+                 padding-top: 2px;
+                 margin-left: 150px;
+             }
+             .oc-comp-span2 {
+                 font-family: Fjalla One;
+                 margin-left: 5px;
+                 padding-top: 2px;
+             }
             .csv-btn {
                color: green;
                border-radius: 14px;
@@ -475,10 +602,7 @@
     const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
 
     function installCompletedPageButton(visible=false, retries=0) {
-
-        log("installCompletedPageButton, len: ", $("#xcsvbtn").length);
         if ($("#xcsvbtn").length == 0) {
-            log("installCompletedPageButton, adding");
             // Should just start a mutation observer...
             let cBtn = pageBtnsList()[2];
             if (!$(cBtn).length) {
@@ -486,11 +610,8 @@
                 return log("ERROR: didn't find the Completed button!");
             }
 
-            debug("Completed button: ", $(cBtn));
             $(cBtn).append(csvBtn);
-
             $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
-
             displayHtmlToolTip($("#xcsvbtn"),
                            "Click here to view and save data<br>" +
                            "in CSV format, to import into any<br>" +
@@ -501,14 +622,10 @@
             $("#xcsvbtn").removeClass("vhide");
         else
             $("#xcsvbtn").addClass("vhide");
-
-        log("installCompletedPageButton, visible? ", visible);
-        log("installCompletedPageButton, has class? ", $("#xcsvbtn").hasClass("xhide"));
     }
 
     // Helper to save (in order to restore at start) state
     function writeCurrState(state) {
-        debug("writeCurrState: ", state, " len > 0 ? ", ($("#x-oc-tbl-wrap").length > 0));
         if (state) {
             GM_setValue(lastStateKey, state);
             return;
@@ -517,13 +634,9 @@
             GM_setValue(lastStateKey, stateOpen);
         else
             GM_setValue(lastStateKey, stateClosed);
-
-        debug("saved state: ", GM_getValue(lastStateKey, "Unknown"));
     }
 
     function doAnimateTable(e) {
-        debug("doAnimateTable, len: ", $("#x-oc-tbl-wrap").length);
-
         if ($("#x-oc-tbl-wrap").length) {
             $("#x-oc-tbl-wrap").animate({height: "0px"}, 500);
             $("#x-oc-tbl-wrap").animate({opacity: 0}, 200, function () {
