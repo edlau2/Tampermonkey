@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.16
+// @version     2.45.17
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.16";
+const thisLibVer = "2.45.17";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -44,7 +44,7 @@ if (abortOnAttackPage) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-// Validate an API key and prompt if misssing
+// Debugging, error handling (more later on...)
 ///////////////////////////////////////////////////////////////////////////////////
 
 var debugLoggingEnabled = false;
@@ -52,6 +52,7 @@ var loggingEnabled = true;
 var alertOnRetry = false;
 var alertOnError = false;
 var Torn_JS_Helpers_Installed = true;
+var xedxDevMode = GM_getValue("xedxDevMode", false);
 
 // I haven't tested this yet, is meant
 // for systems (such as Greasemonkey) that don't
@@ -66,6 +67,10 @@ alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
 
 GM_setValue("alertOnError", alertOnError);
 GM_setValue("alertOnRetry", alertOnRetry);
+
+///////////////////////////////////////////////////////////////////////////////////
+// Validate an API key and prompt if misssing
+///////////////////////////////////////////////////////////////////////////////////
 
 var api_key = GM_getValue('gm_api_key');
 
@@ -2073,9 +2078,11 @@ function displayToolTip(node, text, cl) {
 //
 function displayHtmlToolTip(node, text, cl) {
     $(document).ready(function() {
+        let currAttr = $(node).attr("style");
+        currAttr += " white-space: pre-line;";
         $(node).attr("title", "original");
         $(node).attr("data-html", "true");
-        $(node).attr("style", "white-space: pre-line;");
+        $(node).attr("style", currAttr);
         $(node).tooltip({
             content: text,
             classes: {
