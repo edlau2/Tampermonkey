@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.20
+// @version      1.21
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -40,7 +40,7 @@
 
     logScriptStart();
     if (xedxDevMode == true)
-        log("Page ID: ", pageId);
+        debug("Page ID: ", pageId);
 
     // If not in the item market, but have 'market watch' enabled,
     // just run that portion of the script...
@@ -111,6 +111,7 @@
 
     var needsSave = GM_getValue("needsSave", true);
     var rememberLastPrice = GM_getValue("rememberLastPrice", false);
+    var lastPriceExpireHrs = GM_getValue("lastPriceExpireHrs", 48);
     var autoPricePctLess = GM_getValue("autoPricePctLess", false);
     var autoPricePctLessValue = GM_getValue("autoPricePctLessValue", 0);
     var autoPriceAmtLess = GM_getValue("autoPriceAmtLess", false);
@@ -231,6 +232,7 @@
 
     function logOpts() {
         log("rememberLastPrice: ", rememberLastPrice);
+        log("lastPriceExpireHrs: ", lastPriceExpireHrs);
         log("autoPricePctLess: ", autoPricePctLess);
         log("autoPricePctLessValue: ", autoPricePctLessValue);
         log("autoPriceAmtLess: ", autoPriceAmtLess);
@@ -256,6 +258,7 @@
 
     function saveCbOpts(init) {
         GM_setValue("rememberLastPrice", rememberLastPrice);
+        GM_setValue("lastPriceExpireHrs", lastPriceExpireHrs);
         GM_setValue("autoPricePctLess", autoPricePctLess);
         GM_setValue("autoPricePctLessValue", autoPricePctLessValue);
         GM_setValue("autoPriceAmtLess", autoPriceAmtLess);
@@ -279,6 +282,7 @@
 
     function updateCbOpts() {
         rememberLastPrice = GM_getValue("rememberLastPrice", rememberLastPrice);
+        lastPriceExpireHrs = GM_getValue("lastPriceExpireHrs", lastPriceExpireHrs);
         autoPricePctLess = GM_getValue("autoPricePctLess", autoPricePctLess);
         marketWatch = GM_getValue("marketWatch", marketWatch);
         enableFavs = GM_getValue("enableFavs", enableFavs);
@@ -494,7 +498,7 @@
     function clearAjax(){inAjax = false;}
 
     function findLowPriceOnMarket(itemId, target, callback) {
-        logt("findLowPriceOnMarket");
+        //logt("findLowPriceOnMarket");
         if (inAjax == true) return;
         inAjax = true;
         setTimeout(clearAjax, 500);
@@ -573,9 +577,18 @@
         let node = $(e.currentTarget);
         let key = $(node).attr("name");
         let value = $(node).val();
+
+        let lastVal = GM_getValue(key, null);
         GM_setValue(key, value);
 
-        updateMarketWatchOpts();
+        if (key == "lastPriceExpireHrs") {
+            if (lastVal != value) {
+                lastPriceExpireHrs = value;
+                resetAllExpireTimes();
+            }
+        }
+
+        updateCbOpts();
 
         debug("change input, key: ", key, " value: ", value);
         return false;
@@ -700,6 +713,17 @@
         let item = tornItemsList[id];
         let newObj = {id: id, price: price, unique: uniqueId, type: item.type};
         let newKey = id + '-' + uniqueId;
+
+        // Calculate expire time
+        // See if old obj exists, save exp. time?
+        let oldObj = previousPriceList[newKey];
+        if (oldObj) debug("has old object: ", oldObj);
+
+        if (lastPriceExpireHrs == 0)
+            newObj.expDate = 0;
+        else
+           setExpireDate(newObj, false);
+
         previousPriceList[newKey] = newObj;
         writePriceList();
 
@@ -768,6 +792,69 @@
         return {id: itemId, unique: uniqueId};
     }
 
+    function setExpireDate(item, write=true) {
+        debug("setExpireDate: ", lastPriceExpireHrs, "|", item);
+        if (lastPriceExpireHrs == 0) {
+            item.expDate = 0;
+            log("The last sell price won't expire, hrs set to 0");
+            return;
+        }
+
+        let expDate = new Date();
+        let newHrs = +expDate.getHours() + +lastPriceExpireHrs;
+        expDate.setHours(newHrs);
+        item.expDate = expDate.getTime();
+
+        // And write back
+        if (write == true) writePriceList();
+    }
+
+    function resetAllExpireTimes() {
+        let keys = Object.keys(previousPriceList);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            let item = previousPriceList[key];
+            setExpireDate(item, false);
+        }
+        writePriceList();
+        restorePriceList();
+    }
+
+    // See if a sell price for an item has expired. If so,
+    // return true, otherwise false. If no exp time is set,
+    // one is added. If 0, never expires.
+    function isExpiredItem(item, write=true) {
+        if (!item) {
+            debug("isExpiredItem: invalid item, null");
+            return false;
+        }
+
+        if (lastPriceExpireHrs == 0) {
+            log("The last sell price won't expire, hrs set to 0");
+            item.expDate = 0; // set in item also, just in case
+            return false;
+        }
+
+        let now = new Date();
+        let nowTime = now.getTime();
+
+        debug("isExpiredItem: ", item, " item exp date: ", item.expDate,
+              " now: ", nowTime, " exp hrs: ", lastPriceExpireHrs, " expired? ", (nowTime > item.expDate), " write: ", write);
+
+        if (item.expDate == 0) return false;
+        if (!item.expDate) {
+            setExpireDate(item, write);
+            debug("isExpiredItem: set date");
+            return false;
+        }
+        if (nowTime > item.expDate) {
+            debug("isExpiredItem: expired!", nowTime, item.expDate);
+            return true;
+        }
+
+        return false;
+    }
+
     var inSell = false;
     function resetSellFlag(){inSell = false;}
 
@@ -804,6 +891,16 @@
         if (rememberLastPrice == true) {
             let newKey = itemId + '-' + uniqueId;
             let obj = previousPriceList[newKey];
+
+            // Check for an expired price
+            debug("processMarketSell: check expired: ", obj);
+            if (obj && isExpiredItem(obj) == true) {
+                // remove object
+                delete previousPriceList[newKey];
+                writePriceList();
+                obj = null;
+            }
+
             usePrice = obj ? obj.price : 0;
             log("Reading price for ", itemId, "-", uniqueId, " got ", obj);
             if (usePrice != 0) {
@@ -832,7 +929,16 @@
     }
 
     function handleSellItemSelect(e) {
+        if (inSell) return;
 
+        let thisTarget = $(e.currentTarget);
+        let parent3 = $(thisTarget).closest("[class^='info_']");
+        let moneyNode = $(parent3).find(".input-money-group input")[0];
+        log("handleSellItemSelect: ", $(thisTarget), $(parent3), $(moneyNode));
+
+        let newE = {};  // e;
+        newE.currentTarget = moneyNode;
+        processMarketSell(newE);
     }
 
     function waitForBtnsAndClick(retries=0) {
@@ -928,14 +1034,19 @@
                    "If never priced before will<br>" +
                    "display '0'.",
              disabled: false, page: "sell"},
+        {value: "lastPriceExpireHrs", type: "input", label: "Price expires after # hours", listItemId: "expireHrs",
+             help: "After so manyy hours, the<br>" +
+                   "last sell price becomes<br>" +
+                   "invalid, and won't be used.",
+             disabled: false, page: "sell"},
         {value: "autoPriceRSP", type: "cb", label: "Use RSP", listItemId: "rspPrice",
              help: "Auto-fill with shown RSP.",
              disabled: false, page: "sell"},
         {value: "autoPriceLowest", type: "cb", label: "Use Lowest (needs API)", listItemId: "lowPrice",
-             help: "TBD: Auto-fill with lowest current<br>" +
-                   "TBD: price. Requires an API key and<br>"+
-                   "TBD: will be slightly slower than the<br>" +
-                   "TBD: other options.",
+             help: "Auto-fill with lowest current<br>" +
+                   "price. Requires an API key and<br>"+
+                   "will be slightly slower than the<br>" +
+                   "other options.",
              disabled: false, page: "sell"},
         {value: "autoPricePctLess", type: "combo", label: "Price # % Less", listItemId: "pctPricing",
              help: "Make the price X percent<br>" +
@@ -1350,9 +1461,9 @@
     }
 
     const watchNameW1 = "45%";
-    const watchPriceW1 = "25%";
-    const watchNameW2 = "45%";
-    const watchPriceW2 = "25%";
+    const watchPriceW1 = "35%";
+    const watchNameW2 = "35%";
+    const watchPriceW2 = "30%";
 
     function removeWatch(e) {
         let target = e.currentTarget;
@@ -1536,6 +1647,7 @@
 
     // ========================= Market Watch, can run independently ===============
     //
+    var logWatchList = false;
     function startMarketWatch() {
         log("startMarketWatch, running: ", marketWatchRunning);
         if (marketWatchRunning == true) return;
@@ -1551,15 +1663,15 @@
 
         function refreshWatchList() {
             if (GM_getValue("watchListDisabled", false) == true) {
-                log("watchlist disabled");
+                if (logWatchList == true) log("watchlist disabled");
                 setTimeout(refreshWatchList, 10000);
                 return;
             }
-            logt("refreshWatchList");
+            if (logWatchList == true) log("refreshWatchList");
             let delay = mwBetweenCallDelay * 1000;
             let keys = Object.keys(watchList);
 
-            log("Refreshing ", keys.length, " watched items");
+            if (logWatchList == true) log("Refreshing ", keys.length, " watched items");
 
             for (let idx=0; idx < keys.length; idx++) {
                 let itemId = keys[idx];
@@ -1574,7 +1686,7 @@
 
         // Process ajax result, similar to low price finder
         function processMwResult(jsonObj, status, xhr) {
-            logt("processMwResult");
+            if (logWatchList == true) log("processMwResult");
             let listings, item, cheapest, name, itemId;
             let market = jsonObj.itemmarket;
             if (market) item = market.item;
@@ -1587,14 +1699,14 @@
             if (market) listings = market.listings;
             if (listings) cheapest = listings[0];
 
-            log("processMwResult: ", name, " id: ", itemId, " cheapest: ", cheapest.price);
+            if (logWatchList == true) log("processMwResult: ", name, " id: ", itemId, " cheapest: ", cheapest.price);
             if (cheapest && itemId) {
                 let price = cheapest.price;
                 watchList[itemId].currLow = price;
                 let limit = watchList[itemId].limit;
                 let priceStr = asCurrency(price);
 
-                log("processMwResult: ", price, "|", limit, "|", doNotShowAgain, "|", (price <= limit));
+                if (logWatchList == true) log("processMwResult: ", price, "|", limit, "|", doNotShowAgain, "|", (price <= limit));
 
                 if (price <= limit) {
                     //if (doNotShowAgain == false)
@@ -1606,7 +1718,7 @@
 
         function isNotifyOpen() {
             let ret = GM_getValue(notifyOpenKey, false);
-            log ("isNotifyOpen: ", ret);
+            if (logWatchList == true) log ("isNotifyOpen: ", ret);
 
             return ret;
         }
@@ -1622,17 +1734,17 @@
         }
 
         function doBrowserNotify(item, cost) {
-            debug("doBrowserNotify, open: ", isNotifyOpen(), " do not show:", doNotShowAgain);
+            if (logWatchList == true) log("doBrowserNotify, open: ", isNotifyOpen(), " do not show:", doNotShowAgain);
 
             if (isNotifyOpen() == true) {
-                log("doBrowserNotify: not showing, open or quit");
+                if (logWatchList == true) log("doBrowserNotify: not showing, open or quit");
                 return; // || doNotShowAgain == true) return;
             }
 
             let now = new Date().getTime();
             let diff = (now - item.lastNotify) / 1000;
             if (diff < mwNotifyTimeBetweenSecs) {
-                log("doBrowserNotify: not showing, diff: ", diff, " time between: ", mwNotifyTimeBetweenSecs);
+                if (logWatchList == true) log("doBrowserNotify: not showing, diff: ", diff, " time between: ", mwNotifyTimeBetweenSecs);
                 return;
             }
 
@@ -1672,7 +1784,7 @@
             };
 
             let noTO = false;
-            if (+item.id == 330) {
+            if (+item.id == 330 && noTO == true) {   // was a test, forgot result...
                 log("****  Boxing gloves!  No timeout! ****");
             } else {
                 log(" Setting timout");
@@ -1688,17 +1800,17 @@
 
             function handleNotifyClick(context) {
                 let inNotify = GM_getValue("inNotify", false);
-                logt("handleNotifyClick: ", inNotify, "|", context );
+                if (logWatchList == true) log("handleNotifyClick: ", inNotify, "|", context );
 
                 if (inNotify == true) return;
-                logt("handleNotifyClick: inNotify is false!");
+                if (logWatchList == true) log("handleNotifyClick: inNotify is false!");
                 //if (GM_getValue("inNotify", false) == true) return;
                 GM_setValue("inNotify", true);
 
                 let id = context.tag;
                 setTimeout(notifyReset, 5000);
                 let url = "https://www.torn.com/page.php?sid=ItemMarket#/market/view=search&itemID=" + id + "&impw=1";
-                logt("handleNotifyClick: opening tab");
+                if (logWatchList == true) log("handleNotifyClick: opening tab");
                 window.open(url, '_blank').focus();
             }
         }
@@ -1901,26 +2013,91 @@
         return favesDiv;
     }
 
+    function toShortDateStr(date) {
+        const mediumTime = new Intl.DateTimeFormat("en-GB", {
+          timeStyle: "medium",
+          hourCycle: "h24",
+        });
+        const shortDate = new Intl.DateTimeFormat("en-GB", {
+          dateStyle: "short",
+        });
+
+        let dt = shortDate.format(date);
+        let parts = dt.split('/');
+        let yr = parts[2].slice(2);
+        dt = parts[0] + "/" + parts[1] + "/" + yr;
+
+        const formattedDate = dt + ", " + mediumTime.format(date);
+        return formattedDate;
+    }
+
     function buildPricingLi(key, name, price, uniqueId) {
         let tmp = price.toString().replaceAll(',', '').replaceAll('$', '');
         let usePrice = parseInt(tmp);
         let obj = previousPriceList[key];
         let id = obj.id;
         let fmtPrice = asCurrency(usePrice);
+
+        let expDate = new Date(obj.expDate);  // do short date!!!
+        debug("buildPricingLi: ", obj.expDate, "|", expDate.toString, "|", toShortDateStr(expDate));
+        let expires = obj.expDate ? toShortDateStr(expDate) : "N/A";
+
         let li2 = `<li data-id="${key}">
                       <div class="xwatch-item">
                           <img src="/images/items/${id}/small.png">
                       </div>
-                      <span class='xwatchsp xml10' style="width: ${watchNameW1};">${name}</span>
-                      <span class='w35p'>
+                      <span class='xprice-name xwatchsp xml10' style="width: ${watchNameW1};">${name}</span>
+                      <span class='xprice-price' style="width: ${watchPriceW1}">
                           <input class='xpinput' type='text' value='${fmtPrice}' name='${key}'>
                       </span>
+                      <span class="xexpires xhide">${expires}</span>
                       <div class="watch4" style="position: absolute; left: 93%; display:flex;">
                           <span class="x-round-btn x-sellprice-remove" style="width: 20px;">X</span>
                       </div>
                   </li>`;
 
         return li2;
+    }
+
+    // Move to addStyles...
+    GM_addStyle(`
+        #xprice-list-hdr {
+            display: flex;
+            flex-direction: row;
+        }
+        #xprice-list-hdr span {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: left;
+            border-bottom: 2px solid var(--default-color);
+        }
+
+    `);
+
+    function insertPricingHdr() {
+        let hdr = `<li id="xprice-list-hdr" style="margin-bottom: 10px;">
+                      <span style="min-width: 56px;"></span>
+                      <span id="iph-1" style="width: 268px;">Item Name</span>
+                      <span id="iph-2" style="width: 30%;">Last Price</span>
+                      <span id="iph-3" style="width: 142px;">Expires</span>
+                      <span id="iph-4" style="margin-right: 10px;">Remove</span>
+                  </li>`;
+
+        $("#xprices").prepend(hdr);
+
+        displayHtmlToolTip($("#iph-1"), "Name of this item.", "tooltip4");
+        displayHtmlToolTip($("#iph-2"), "Last price entered for this item.", "tooltip4");
+        displayHtmlToolTip($("#iph-3"),
+                           "The saved price is removed<br>" +
+                           "this date. Mainly used when<br>" +
+                           "using the lowest market price,<br>" +
+                           "so that it will reset.<br>" +
+                           "Removing the entry has the<br>" +
+                           "same effect.", "tooltip4");
+        displayHtmlToolTip($("#iph-4"),
+                           "Remove from list.<br>" +
+                           "Does not remove listing,<br>" +
+                           "just saved price.", "tooltip4");
     }
 
     function buildItemWatchLi(key, name, price) {
@@ -1993,6 +2170,12 @@
             shrink = true;
         }
 
+        //let target = e ? $(e.currentTarget) : undefined;
+
+        let isPrices = isSell(); //$("#xprices").length > -1;
+        let isWatches = isBuy(); //$("#xwatches").length > -1;
+        debug("doSlideOpts, prices? ", isPrices, " watches? ", isWatches);
+
         $("#xleft-opts").animate({width: newWidthL}, 500);
         $("#xright-opts").animate(
             {width: newWidthR},
@@ -2000,19 +2183,34 @@
             function () {
                 $("#xpand-rt-opts").val(newVal);
                 if (shrink == true) {
-                    log("Setting LIs to flex");
-                    $("#xwatches > li .watch0").css("display", "flex");
-                    $("#xwatches > li .watch4").css("display", "flex");
+                    if (isWatches == true) {
+                        log("Setting LIs to flex");
+                        $("#xwatches > li .watch0").css("display", "flex");
+                        $("#xwatches > li .watch4").css("display", "flex");
+                    } else {
+                        $(".xexpires").removeClass("xhide");
+                        insertPricingHdr();
+                        $("#xprices .xprice-name").css("width", watchNameW2);
+                        $("#xprices .xprice-price").css("width", watchPriceW2);
+                    }
                 } else {
-                    log("Setting LIs to none");
-                    $("#xwatches > li .watch0").css("display", "none");
-                    $("#xwatches > li .watch4").css("display", "none");
+                    if (isWatches == true) {
+                        log("Setting LIs to none");
+                        $("#xwatches > li .watch0").css("display", "none");
+                        $("#xwatches > li .watch4").css("display", "none");
+                    } else {
+                        $("#xprice-list-hdr").remove();
+                        $(".xexpires").addClass("xhide");
+                        $("#xprices .xprice-name").css("width", watchNameW1);
+                        $("#xprices .xprice-price").css("width", watchPriceW1);
+                    }
                 }
         });
     }
 
     function restorePriceList() {
         // Populate the editable saved price list
+        // Remove expired ones while at it...
         $("#xprices").empty();
         let keys = Object.keys(previousPriceList);
         let delKeys = [];
@@ -2031,7 +2229,9 @@
             obj.price = priceAsNum(obj.price);
             previousPriceList[key] = obj;
 
-            if (obj.price == 0) {
+            debug("restorePriceList: check expire: ", obj);
+            if (obj.price == 0 || isExpiredItem(obj, false) == true) {
+                debug("Deleting object: ", obj);
                 delKeys.push(key);
                 continue;
             }
@@ -2568,6 +2768,9 @@
 
             .custom-menu li:hover {
                 background-color: #DEF;
+            }
+            .xexpire {
+                display: none;
             }
         `);
 
