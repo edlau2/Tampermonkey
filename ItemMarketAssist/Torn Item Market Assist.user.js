@@ -122,8 +122,11 @@
     var fillMaxCanGet = GM_getValue("fillMaxCanGet", true);
     var quickBuy = GM_getValue("quickBuy", false);
     var enableScrollLock = GM_getValue("enableScrollLock", true);
+    var logOptions = GM_getValue("logOptions", false);
 
     if (enableScrollLock == true) addScrollStyle();
+
+    if (logOptions == true) logOpts();
 
     // Selector for cash on hand
     const cash = $("#user-money");
@@ -203,15 +206,11 @@
     GM_setValue("savedVer", currVer);
 
     function saveMarketWatchOpts(init) {
-        log("saveMarketWatchOpts");
         GM_setValue("mwNotifyTimeSecs", mwNotifyTimeSecs);
         GM_setValue("mwNotifyTimeBetweenSecs", mwNotifyTimeBetweenSecs);
         GM_setValue("mwItemCheckInterval", mwItemCheckInterval);
         GM_setValue("mwBetweenCallDelay", mwBetweenCallDelay);
         GM_setValue("mwMaxWatchListLength", mwMaxWatchListLength);
-
-        //if (!init) GM_setValue(mwItemsKey, true);
-        //logMarketWatchOpts();
     }
 
     function updateMarketWatchOpts() {
@@ -271,6 +270,7 @@
         GM_setValue("quickBuy", quickBuy);
         GM_setValue("enableScrollLock", enableScrollLock);
         GM_setValue("marketWatchAnyPage", marketWatchAnyPage);
+        GM_setValue("logOptions", logOptions);
 
         saveMarketWatchOpts(init);
         if (!init) toggleStorageKey(optionsKey, true);
@@ -448,12 +448,11 @@
 
     // Install storage change listeners
     function installStorageChangeListeners() {
-        log("storageChange adding listeners");
         mwItemsListener = GM_addValueChangeListener(mwItemsKey, storageChangeCallback);
         favesListener = GM_addValueChangeListener(favesKey, storageChangeCallback);
         priceListener = GM_addValueChangeListener(priceKey, storageChangeCallback);
         optionsListener = GM_addValueChangeListener(optionsKey, storageChangeCallback);
-        log("storageChange install listeners: ", mwItemsListener, "|", favesListener, "|", priceListener, "|", optionsListener);
+        debug("storageChange added listeners: ", mwItemsListener, "|", favesListener, "|", priceListener, "|", optionsListener);
     }
 
     // ============================================================================
@@ -1185,6 +1184,7 @@
     function installItemContextMenus(retries=0) {
         //log("installItemContextMenus: ", marketWatch, "|", enableFavs);
         if (marketWatch != true && enableFavs != true) return;
+        if (isSell()) return;
 
         let selector = "div[class^='imageWrapper_']";
 
@@ -1198,12 +1198,9 @@
         $("div[class^='imageWrapper_']").each(function(index, element) {
             if (!$(element).hasClass("xf")) {
                 $(element).addClass("xf");
-                //log("installItemContextMenus, adding handler to ", $(element));
                 $(element).on("contextmenu", function(e) {
                     let target = e.currentTarget;
                     e.preventDefault(); // Prevent default right-click menu
-
-                    //debug("Right-click target: ", $(target));
 
                     let menuHtml = getItemsContextMenu();
                     let menu = $(menuHtml);
@@ -1301,8 +1298,6 @@
                 $(element).on("change", handleOptInputChange);
                 let key = $(element).attr("name");
                 let value = GM_getValue(key, 0);
-
-                log("Read value for ", key, ": ", value);
                 $(element).val(value);
             });
 
@@ -1311,8 +1306,6 @@
                 $(element).on("change", handleOptComboChange);
                 let key = $(element).attr("name") + "Value";
                 let value = GM_getValue(key, 0);
-
-                log("Read value for ", key, ": ", value);
                 $(element).val(value);
             });
 
@@ -1652,7 +1645,7 @@
         log("startMarketWatch, running: ", marketWatchRunning);
         if (marketWatchRunning == true) return;
 
-        logMarketWatchOpts();
+        if (logOptions) logMarketWatchOpts();
 
         const notifyOpenKey = "notifyOpen";
         var doNotShowAgain = false;
