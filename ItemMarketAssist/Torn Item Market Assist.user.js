@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.21
+// @version      1.22
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -32,20 +32,27 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
-    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
-
-    const xedxDevMode = true;
-    const pageId = getRandomIntEx(1000, 9999);
-
     logScriptStart();
-    if (xedxDevMode == true)
-        debug("Page ID: ", pageId);
+    const userId = getThisUserId();
 
-    // If not in the item market, but have 'market watch' enabled,
-    // just run that portion of the script...
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    var logWatchList = GM_getValue("logWatchList", false);
+    var logStorage = GM_getValue("logStorage", false);
+
+    const getShortTornTitle =
+          function () {return $("title").text() ? $('title').text().split('|')[0].trim() : "";}
+    const xedxDevMode = (userId == "2100735");
+    const pageId = getRandomIntEx(1000, 9999);
+    const title = getShortTornTitle();
+
+    if (xedxDevMode == true) {
+        //log("Page ID: ", pageId);
+        let t = $("title").text();
+        $("title").text(t + " | " + pageId);
+        log("On page: ", $("title").text());
+    }
+
     var tabVisible = true;
-
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             tabVisible = true;
@@ -54,23 +61,34 @@
         }
     });
 
+    // Browser notification
+    const notifyOpenKey = "notifyOpen";
+
+    function isNotifyOpen() {
+        let ret = GM_getValue(notifyOpenKey, false);
+        if (logWatchList == true) log ("isNotifyOpen: ", ret);
+        return ret;
+    }
+    function setNotifyOpen() {
+        GM_setValue(notifyOpenKey, true);
+        GM_setValue("notifyLastOpenedBy", pageId);
+    }
+    const notifyReset = function(){logt("handleNotifyClick: notifyReset"); GM_setValue(notifyOpenKey, false);}
+
     const isItemMarket = function () {return location.href.toLowerCase().indexOf("itemmarket") > -1;}
     const searchBaseURL = "https://api.torn.com/v2/market/?selections=itemmarket&id=";
     var marketWatch = GM_getValue("marketWatch", false);
     var marketWatchAnyPage = GM_getValue("marketWatchAnyPage", false);
     var marketWatchRunning = false;
 
+    // If not in the item market, but have 'market watch' enabled,
+    // just run that portion of the script...
     var letMWRun = true;
     if (!isItemMarket() && marketWatch != true) letMWRun = false;
     if (!isItemMarket() && marketWatch == true && marketWatchAnyPage != true) letMWRun = false;
 
-    /*
-    if (letMWRun == false && !isItemMarket()) {
-        log("Not at market, not watching...goodbye.");
-        log("Location: ", location.href);
-        return;
-    }
-    */
+    if (logWatchList == true) log("isNotifyOpen? ", isNotifyOpen());
+    notifyReset();
 
     // Keys for flags indicating changes possibly made by
     // other instances...
@@ -98,13 +116,13 @@
     var watchList = tmp ? JSON.parse(tmp) : {};
 
     if (!isItemMarket() && marketWatch == true) {
-        log("Not at market, running market watch only!");
+        if (logWatchList == true) log("Not at market, running market watch only!");
         validateApiKey();
         //installStorageChangeListeners();
         startMarketWatch();
 
         mwItemsListener = GM_addValueChangeListener(mwItemsKey, storageChangeCallback);
-        log("market watch only, storage listener installed: ", mwItemsListener);
+        if (logWatchList == true) log("market watch only, storage listener installed: ", mwItemsListener);
 
         return;
     }
@@ -252,7 +270,7 @@
         if (tabVisible == false) return;
         GM_setValue(key, val);
         if (val == true) setTimeout(toggleStorageKey, 250, key, false);
-        debug("storageChange changed key ", key, " to ", val, " by: ", pageId);
+        if (logStorage == true) log("storageChange changed key ", key, " to ", val, " by: ", pageId);
     }
 
     function saveCbOpts(init) {
@@ -271,6 +289,8 @@
         GM_setValue("enableScrollLock", enableScrollLock);
         GM_setValue("marketWatchAnyPage", marketWatchAnyPage);
         GM_setValue("logOptions", logOptions);
+        GM_setValue("logWatchList", logWatchList);
+        GM_setValue("logStorage", logStorage);
 
         saveMarketWatchOpts(init);
         if (!init) toggleStorageKey(optionsKey, true);
@@ -323,11 +343,11 @@
         if (marketWatch == true) {
             $("#xwatches").empty();
             let keys = Object.keys(watchList);
-            debug("restoreWatchList, len:  ", keys.length);
+            if (logWatchList == true) log("restoreWatchList, len:  ", keys.length);
             for (let idx=0; idx<keys.length; idx++) {
                 let key = keys[idx];
                 let item = watchList[key];
-                log("Adding watch list itm: ", item);
+                if (logWatchList == true) log("Adding watch list itm: ", item);
                 addWatchObjToUI(item, fromStgHandler);
             }
         }
@@ -338,15 +358,16 @@
     function storageChangeCallback(key, oldValue, newValue, remote) {
         // Don't process if changed to 'undefined', isn't a remote
         // tab (meaning it's us), or we are the visible tab/page.
-        debug("storageChangeCallback: ", key, " old: ", oldValue, " new: ", newValue, " remote: ", remote, " visible: ", tabVisible);
+        if (logStorage == true) log("storageChangeCallback: ", key, " old: ", oldValue, " new: ", newValue, " remote: ", remote, " visible: ", tabVisible);
 
         // Ignore resetting the value or local change
         if (newValue == undefined || remote == false) return;
 
-        debug("storageChange processing key '", key, "'");
+        if (logStorage == true) log("storageChange processing key '", key, "'");
         let processed = false;
         switch (key) {
             case mwItemsKey: {
+                if (logWatchList) log("WatchList changed: updating");
                 removeStorageListener(mwItemsListener);
                 tmp = GM_getValue("watchList", undefined);
                 watchList = tmp ? JSON.parse(tmp) : {};
@@ -382,7 +403,7 @@
                 return;
         }
 
-        debug("storageChange Setting ", key, " to false? ", processed);
+        if (logStorage == true) log("storageChange Setting ", key, " to false? ", processed);
         if (processed == true)
             GM_setValue(key, false);
     }
@@ -415,7 +436,7 @@
 
         setTimeout(restoreStorageListener, 2000, key, true);
 
-        log("storageChange listener removed for ", key, " timeout set");
+        if (logStorage == true) log("storageChange listener removed for ", key, " timeout set");
     }
 
     function restoreStorageListener(key, timer) {
@@ -443,7 +464,7 @@
             default:
                 return;
         }
-        log("storageChange listener restored: ", key, " timer? ", timer);
+        if (logStorage == true) log("storageChange listener restored: ", key, " timer? ", timer);
     }
 
     // Install storage change listeners
@@ -452,7 +473,7 @@
         favesListener = GM_addValueChangeListener(favesKey, storageChangeCallback);
         priceListener = GM_addValueChangeListener(priceKey, storageChangeCallback);
         optionsListener = GM_addValueChangeListener(optionsKey, storageChangeCallback);
-        debug("storageChange added listeners: ", mwItemsListener, "|", favesListener, "|", priceListener, "|", optionsListener);
+        if (logStorage == true) log("storageChange added listeners: ", mwItemsListener, "|", favesListener, "|", priceListener, "|", optionsListener);
     }
 
     // ============================================================================
@@ -1473,7 +1494,7 @@
         let id = $(target).attr('name');
         let value = $(target).val();
         let limit = priceAsNum(value); //.replaceAll('$', '').replaceAll(',', '');
-        debug("onChangeWatchLimit, id: ", id, " value: ", value, " target: ", $(target));
+        if (logWatchList == true) log("onChangeWatchLimit, id: ", id, " value: ", value, " target: ", $(target));
 
         watchList[id].limit = limit;
         $(target).val(asCurrency(limit));
@@ -1640,14 +1661,12 @@
 
     // ========================= Market Watch, can run independently ===============
     //
-    var logWatchList = false;
     function startMarketWatch() {
         log("startMarketWatch, running: ", marketWatchRunning);
         if (marketWatchRunning == true) return;
 
         if (logOptions) logMarketWatchOpts();
 
-        const notifyOpenKey = "notifyOpen";
         var doNotShowAgain = false;
         var canShowAfterMinutes = 10;
 
@@ -1679,7 +1698,10 @@
 
         // Process ajax result, similar to low price finder
         function processMwResult(jsonObj, status, xhr) {
-            if (logWatchList == true) log("processMwResult");
+            if (logWatchList == true) {
+                log("processMwResult");
+                log("isNotifyOpen? ", isNotifyOpen());
+            }
             let listings, item, cheapest, name, itemId;
             let market = jsonObj.itemmarket;
             if (market) item = market.item;
@@ -1692,7 +1714,9 @@
             if (market) listings = market.listings;
             if (listings) cheapest = listings[0];
 
-            if (logWatchList == true) log("processMwResult: ", name, " id: ", itemId, " cheapest: ", cheapest.price);
+            if (logWatchList == true) {
+                log("processMwResult: ", name, " id: ", itemId, " cheapest: ", cheapest.price);
+            }
             if (cheapest && itemId) {
                 let price = cheapest.price;
                 watchList[itemId].currLow = price;
@@ -1700,6 +1724,7 @@
                 let priceStr = asCurrency(price);
 
                 if (logWatchList == true) log("processMwResult: ", price, "|", limit, "|", doNotShowAgain, "|", (price <= limit));
+                if (logWatchList == true) log("isNotifyOpen? ", isNotifyOpen());
 
                 if (price <= limit) {
                     //if (doNotShowAgain == false)
@@ -1709,28 +1734,13 @@
             }
         }
 
-        function isNotifyOpen() {
-            let ret = GM_getValue(notifyOpenKey, false);
-            if (logWatchList == true) log ("isNotifyOpen: ", ret);
-
-            return ret;
-        }
-        function setNotifyOpen() {
-            GM_setValue(notifyOpenKey, true);
-            GM_setValue("notifyLastOpenedBy", pageId);
-        }
         const resetShowAgain = function() {doNotShowAgain = false;}
 
-        // Browser notification
-        function resetNotify() {
-            GM_setValue(notifyOpenKey, false);
-        }
-
         function doBrowserNotify(item, cost) {
-            if (logWatchList == true) log("doBrowserNotify, open: ", isNotifyOpen(), " do not show:", doNotShowAgain);
+            if (logWatchList == true) log("doBrowserNotify, isNotifyOpen: ", isNotifyOpen(), " do not show:", doNotShowAgain);
 
             if (isNotifyOpen() == true) {
-                if (logWatchList == true) log("doBrowserNotify: not showing, open or quit");
+                if (logWatchList == true) log("doBrowserNotify: not showing, is open");
                 return; // || doNotShowAgain == true) return;
             }
 
@@ -1751,7 +1761,7 @@
 
             let smMsgText = item.name + " available now for " + asCurrency(cost);
             if (xedxDevMode == true)
-                smMsgText = "[" + pageId + "]" + item.name + ": " + asCurrency(cost);
+                smMsgText = item.name + ": " + asCurrency(cost) + " [" + pageId + "-" + title + "]";
 
             // For now just show once. Make an option later
             /*
@@ -1769,10 +1779,10 @@
                 image: 'https://imgur.com/QgEtwu3.png',
                 //timeout: item.timeout ? item.timeout * 1000 : mwNotifyTimeSecs * 1000,
                 onclick: (context) => {
-                    setTimeout(resetNotify, 10000); // ??? not needed???
+                    setTimeout(notifyReset, mwItemCheckInterval*1000); // ??? not needed???
                     handleNotifyClick(context);
                 }, ondone: () => {
-                    setTimeout(resetNotify, 5000);
+                    setTimeout(notifyReset, mwItemCheckInterval*1000);
                 }
             };
 
@@ -1789,19 +1799,18 @@
 
             // This is supposed to keep multiple tabs from opening...
             // maybe multiple windows causes this to happen?
-            const notifyReset = function(){logt("handleNotifyClick: notifyReset"); GM_setValue("inNotify", false);}
+            //const notifyReset = function(){logt("handleNotifyClick: notifyReset"); GM_setValue("inNotify", false);}
 
             function handleNotifyClick(context) {
-                let inNotify = GM_getValue("inNotify", false);
-                if (logWatchList == true) log("handleNotifyClick: ", inNotify, "|", context );
+                //let inNotify = GM_getValue("inNotify", false);
+                //if (logWatchList == true) log("handleNotifyClick: ", inNotify, "|", context );
 
-                if (inNotify == true) return;
-                if (logWatchList == true) log("handleNotifyClick: inNotify is false!");
-                //if (GM_getValue("inNotify", false) == true) return;
-                GM_setValue("inNotify", true);
+                //if (inNotify == true) return;
+                //if (logWatchList == true) log("handleNotifyClick: inNotify is false!");
+                //GM_setValue("inNotify", true);
+                //setTimeout(notifyReset, 5000);
 
-                let id = context.tag;
-                setTimeout(notifyReset, 5000);
+                let id = context ? context.tag : pageId;
                 let url = "https://www.torn.com/page.php?sid=ItemMarket#/market/view=search&itemID=" + id + "&impw=1";
                 if (logWatchList == true) log("handleNotifyClick: opening tab");
                 window.open(url, '_blank').focus();
@@ -1886,7 +1895,7 @@
 
     function handlePageUnload() {
         log("Handle page unload, resetting notify flag");
-        resetNotify();
+        notifyReset();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -2378,7 +2387,7 @@
 
         $("#xinner-opts").append($(span));
         $("#ResetOptsData").on('click', function() {
-            resetNotify();
+            notifyReset();
 
             // Clear lists....
             // Reset ll the "favesItemsChanged" etc
