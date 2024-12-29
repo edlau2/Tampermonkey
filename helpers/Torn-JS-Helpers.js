@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.18
+// @version     2.45.19
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -289,6 +289,11 @@ function callWhenElementExists(selector, callback, freq=250, max=20) {
 function callWhenElementExistsEx(closestRoot, selector, callback) {
     if (!$(closestRoot).length)
         return console.error("ERROR: observer root does not exist!");
+
+    if ($(selector).length > 0) {
+        callback($(selector));
+        return;
+    }
 
     const context = { sel: selector, cb: callback, found: false };
     const observer = new MutationObserver((mutations, observer) => {
