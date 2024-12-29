@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.17
+// @version     2.45.18
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.17";
+const thisLibVer = "2.45.18";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -255,6 +255,53 @@ function callOnContentComplete(callback) {
     } else {
         document.addEventListener('readystatechange',
                                   event => {if (document.readyState == 'complete') callback();});
+    }
+}
+
+// Notify when an element exits, via polling. If possible,
+// use callWhenElementExistsEx(...) instead
+//
+// Callback signature: callback(success, element, selector, retries)
+// Success is true if found, false if timed out
+// Of course you could call again from the callback....
+// Freq is how often to check for element, ms
+// max is max attempts, defaults are 5 seconds total.
+//
+function callWhenElementExists(selector, callback, freq=250, max=20) {
+    if (!selector || !callback) return console.error("Invalid function params!");
+    if ($(selector).length) {callback(true, $(selector), selector, 0); return;}
+    findElement({sel: selector, cb: callback, timeout: freq, maxRetries: max});
+
+    function findElement(options, retries=0) {
+        if (xedxDevMode == true) log("findElement: ", retries);
+        let target = $(options.sel);
+        if (!$(target).length) {
+            if (retries++ < options.maxRetries) return setTimeout(findElement, options.timeout, options, retries);
+            options.cb(false, null, options.sel, retries);
+        } else {
+            options.cb(true, $(target), options.sel, retries);
+        }
+    }
+}
+
+// Mutation observer method, used if you have a parent to observe
+// callback sig: callback(node)
+function callWhenElementExistsEx(closestRoot, selector, callback) {
+    if (!$(closestRoot).length)
+        return console.error("ERROR: observer root does not exist!");
+
+    const context = { sel: selector, cb: callback, found: false };
+    const observer = new MutationObserver((mutations, observer) => {
+       localMutationCb(mutations, observer, context)
+    });
+
+    observer.observe($(closestRoot)[0], { attributes: false, childList: true, subtree: true });
+
+    function localMutationCb(mutations, observer, context) {
+        if ($(context.sel).length > 0) {
+            observer.disconnect();
+            context.cb($(context.sel));
+        }
     }
 }
 
@@ -2079,10 +2126,10 @@ function displayToolTip(node, text, cl) {
 function displayHtmlToolTip(node, text, cl) {
     $(document).ready(function() {
         let currAttr = $(node).attr("style");
-        currAttr += " white-space: pre-line;";
+        let newAttr = "white-space: pre-line;" + (currAttr ? currAttr : "");
         $(node).attr("title", "original");
         $(node).attr("data-html", "true");
-        $(node).attr("style", currAttr);
+        $(node).attr("style", newAttr);
         $(node).tooltip({
             content: text,
             classes: {
