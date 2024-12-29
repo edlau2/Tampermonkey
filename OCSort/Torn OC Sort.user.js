@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  Sort crimes in planning by time remaining
+// @version      1.2
+// @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -36,6 +36,11 @@
     const lastStateKey = "lastState";
     const stateOpen = "visible";
     const stateClosed = "hidden";
+    const sortKey = 'data-sort';
+
+    // Sorting criteria
+    const sortByTime = 1;
+    const sortByLevel = 2;
 
     // Can edit this, but there's a hidden checkbox for it.
     var keepLastState = GM_getValue(keepLastStateKey, false);
@@ -44,11 +49,8 @@
     // Will reset at page refresh, not permanent cache
     const cacheCompletedCrimes = true;
 
-    // Not used yet...
-    const xedxDevMode = false; //(userId == 2100735); // I can turn this on for dev-only stuff,
-    const enableReadyAlert = false;                   // that will not appear when uploaded - just for me.
-
-    debug("keepLastState: ", keepLastState, " lastState: ", lastState);
+    const xedxDevMode = (userId == 2100735); // I can turn this on for dev-only stuff, only I will see
+    const enableReadyAlert = false;          // Not implemented yet...
 
     const recruitingIdx = 0;
     const planningIdx = 1;
@@ -59,14 +61,21 @@
     var scrollTimer;
     var sortTimer;
 
+    const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
+    const getRecruitingTab = function () { return $(getBtnSel(recruitingIdx));}
+    const getPlanningTab = function () { return $(getBtnSel(planningIdx));}
+    const getCompletedTab = function () { return $(getBtnSel(completedIdx));}
     const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
     const hashChangeHandler = function () {handlePageLoad();}
     const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
     const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
-    const isSortablePage = function () {return (btnIndex() == 1) ? true : false;}
-    const sortPage = function () {tagAndSortScenarios();}
+    const isSortablePage = function () {return (btnIndex() != completedIdx);}
+    const sortPage = function (c=sotByTime) {tagAndSortScenarios(c);}
     const getPlannedCrimes = function () { doFacOcQuery('planning'); }
     const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
+    const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
+    const onPlanningPage = function () {return (btnIndex() == planningIdx);}
+    const onCompletedPage = function () {return (btnIndex() == completedIdx);}
 
     function logCurrPage() {
         let idx = btnIndex();
@@ -78,9 +87,10 @@
         logCurrPage();
         switch (btnIndex()) {
             case recruitingIdx:
+                sortPage(sortByLevel);
                 return;
             case planningIdx:
-                sortPage();
+                sortPage(sortByTime);
                 return;
             case completedIdx:
                 getCompletedCrimes();
@@ -92,13 +102,13 @@
            recruitingIdx, "|", planningIdx, "|", completedIdx);
     }
 
-
     function sortList() {
         let scenario1 = $(scenarios)[0];
         let grandparent = $(scenario1).parent().parent();
-        debug("sortList: ", $(scenario1), $(grandparent));
         let list = $(grandparent).children("[class^='wrapper_']");
-        tinysort($(list), {attr:'data-time'});
+        let sortOrder = 'asc';
+        if (onRecruitingPage()) sortOrder = 'desc';
+        tinysort($(list), {attr: sortKey, order: sortOrder});
     }
 
     function pageBtnClicked(e) {
@@ -139,9 +149,9 @@
         return totalSecs;
     }
 
-    // Do the sorting
-    function tagAndSortScenarios() {
-        debug("tagAndSortScenarios");
+    // Do the sorting. On Planning page, by time. Recruiting page, by level.
+    // sortCriteria over-rides....
+    function tagAndSortScenarios(sortCriteria=sortByTime) {
         if (!isSortablePage()) {
             debug("This page isn't sortable (by definition)");
             logCurrPage();
@@ -153,13 +163,27 @@
 
         for (let idx=0; idx<$(scenarios).length; idx++) {
             let scenario = $(scenarios)[idx];
-            let elem = $(scenario).find("[class^='wrapper_'] > div > p")[0];
-            let text = $(elem).text();
-
-            if (text) {
-                let totalSecs = secsFromeTimeStr(text);
-                $(scenario).parent().attr("data-time", totalSecs);
+            let sortVal = -1; // -1 means invalid
+            switch (sortCriteria) {
+                case sortByTime: {
+                    let elem = $(scenario).find("[class^='wrapper_'] > div > p")[0];
+                    let text = $(elem).text();
+                    if (text) sortVal = secsFromeTimeStr(text);
+                    break;
+                }
+                case sortByLevel: {
+                    let elem = $(scenario).find("[class^='wrapper_'] > div > div > div > [class^='textLevel_'] [class^='levelValue_']");
+                    if ($(elem).length)
+                        sortVal = parseInt($(elem).text());
+                    break;
+                }
+                default: {
+                    console.error("ERROR: invalid sort criteria!");
+                    debugger;
+                    return;
+                }
             }
+            $(scenario).parent().attr(sortKey, sortVal);
         }
 
         if (!$(".xoc-myself").length) highlightSelf();
@@ -168,17 +192,15 @@
     }
 
     function onScrollTimer() {
-        debug("onScrollTimer: ", btnIndex());
+        //debug("onScrollTimer: ", btnIndex());
         switch (btnIndex()) {
             case recruitingIdx:
-                debug("recruiting");
+                tagAndSortScenarios(sortByLevel);
                 break;
             case planningIdx:
-                debug("planning");
-                tagAndSortScenarios();
+                tagAndSortScenarios(sortByTime);
                 break;
             case completedIdx:
-                debug("complete");
                 getCompletedCrimes();
                 break;
             default:
@@ -188,23 +210,25 @@
     }
 
     function initialScenarioLoad(retries=0) {
-        scenarios = $("[class^='scenario_']");
-        if ($(scenarios).length == 0) {
-            if (retries++ < 20) return setTimeout(initialScenarioLoad, 250, retries);
-            return debug("Didn't find any scenarios!");
+        let rootSelector = "#factions";
+        if ($("#faction-crimes-root").length)
+            rootSelector = "#faction-crimes-root";
+        else if ($("#faction-crimes").length)
+            rootSelector = "#faction-crimes-root";
+
+        callWhenElementExistsEx(rootSelector, "[class^='scenario_']:nth-child(1)", localLoadCb);
+
+        function localLoadCb(node) {
+            scenarios = $("[class^='scenario_']");
+            if ($(scenarios).length == 0) {
+                console.error("ERROR: Scenarios not found!");
+                debugger;
+                //if (retries++ < 20) return setTimeout(initialScenarioLoad, 250, retries);
+                //return debug("Didn't find any scenarios!");
+            }
+
+            tagAndSortScenarios(onRecruitingPage() ? sortByLevel : sortByTime);
         }
-
-        tagAndSortScenarios();
-
-        /*
-        $(window).on('scroll', function() {
-            clearTimeout(sortTimer);
-            clearTimeout(scrollTimer);
-            scrollTimer = setTimeout(function() {
-                sortTimer = setTimeout(onScrollTimer, 250);
-            }, 250);
-        });
-        */
     }
 
     // Build a CSV to download, as well as an HTML table to display
@@ -258,10 +282,6 @@
         // Display/download
         var newWin = open("", "_blank",
                   "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=760,height=450");
-
-        //let now = new Date();
-        //let ts = toCsvDateStr(now);
-        //$($(theTable)[0]).find('title').text(('Completed Crimes, ' + ts));
 
         const style = newWin.document.createElement("style");
         style.textContent = `
@@ -357,14 +377,16 @@
         }
     }
 
-    function handlePageLoad(retries=0) {
+    function handlePageLoad(node /*retries=0*/) {
         debug("handlePageLoad");
         if (!isOcPage()) return log("Not on crimes page, going home");
 
         let root = $("#faction-crimes");
         if ($(root).length == 0) {
-            if (retries++ < 20) return setTimeout(handlePageLoad, 250, retries);
-            return log("Didn't find root!");
+            callWhenElementExistsEx("document", "#faction-crimes", handlePageLoad);
+            return debug("Root not found, started observer...");
+            //if (retries++ < 20) return setTimeout(handlePageLoad, 250, retries);
+            //return log("Didn't find root!");
         }
 
         $(window).on('scroll', function() {
@@ -398,7 +420,6 @@
     var crimeMembersDone = false;
 
     function getCompletedCrimes() {
-        //debug("getCompletedCrimes, completedCrimesArray", completedCrimesArray);
         if (cacheCompletedCrimes == true && completedCrimesArray) {
             debug("using cached version..."); //, completedCrimesArray);
             completedCrimesCb(completedCrimesArray);
@@ -481,7 +502,6 @@
 
         // Build the span to display in a div on completed crime panel
         function getCompCrimeDesc(idx) {
-            //debug("getCompCrimeDesc: ", idx, "|", completedCrimesArray, "|", completedCrimesArray[idx]);
             let crime = completedCrimesArray[idx];
             let payout = asCurrency(crime.rewards.money);
             let initiated = tm_str(crime.initiated_at);
@@ -519,7 +539,6 @@
 
     function doFacOcQuery(category) {
         debug("doFacQuery: ", category);
-
         var options = {"cat": category, "offset": "0", "param": category};
         xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
     }
@@ -583,28 +602,6 @@
         let shadowColor = darkMode() ? "#555" : "#ccc";
         loadMiscStyles();
 
-        // Table styles
-        /*
-        GM_addStyle(`
-            #comp-crimes {
-                border-collapse: collapse;
-                tr:nth-child(even) {background-color: #f2f2f2;}
-            }
-            #comp-crimes th {
-                padding: 2px 15px 2px 15px;
-                text-align: center;
-                border: 2px solid black;
-                background-color: #04AA6D;
-                color: white;
-            }
-            #comp-crimes td {
-                padding: 2px 15px 2px 15px;
-                text-align: left;
-                border: 1px solid black;
-            }
-
-        `);
-        */
         GM_addStyle(`
             .oc-comp-span1 {
                  color: var(--oc-respect-reward-text-color);
@@ -730,20 +727,17 @@
     }
 
     const lastStateOptCb = `<span id='oc-opt-wrap'><input type="checkbox" id="oc-opt-last-pos" class=""></span>`;
-    //const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
-
     function installCompletedPageButton(visible=false, retries=0) {
-        //const lastStateOptCb = `<span id='oc-opt-wrap'><input type="checkbox" id="oc-opt-last-pos" class=""></span>`;
         const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
 
         if ($("#xcsvbtn").length == 0) {
             // Should just start a mutation observer...
-            let cBtn = pageBtnsList()[2];
+            // Added callWhenElementExistsEx() for just that purpose
+            let cBtn = getCompletedTab();
             if (!$(cBtn).length) {
                 if (retries++ < 20) return setTimeout(installCompletedPageButton, 200, visible, retries);
                 return log("ERROR: didn't find the Completed button!");
             }
-
             $(cBtn).append(csvBtn);
             $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
             displayHtmlToolTip($("#xcsvbtn"),
