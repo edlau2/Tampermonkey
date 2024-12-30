@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.35
+// @version      4.36
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -27,6 +27,8 @@
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
 /*eslint curly: 0*/
+
+// ********************************** TBD FIX FOR API V2 *************************************
 
 //
 // This script combines several scripts that were previously only available individually.
@@ -254,6 +256,8 @@
     //////////////////////////////////////////////////////////////////////
     // API calls (profile, attacks, personalstats, honors)
     //////////////////////////////////////////////////////////////////////
+
+    // TBD FIX FOR API V2
 
     // Get data used for most of the handlers in here, in one call.
     // Note: The 'User->Inventory' API call has been removed, perhaps
@@ -751,6 +755,8 @@
         // This returns a struct with both massaged value (if any), to be displayed as is, or
         // the non-massaged numeric value.
         function n(n){return n > 9 ? "" + n: "0" + n;}
+
+        // TBD FIX FOR API V2
         function massageStat(statName) {
             debug("tornStatTracker massageStat: ", statName, ": ", personalStats[statName]);
             if (statName == 'traveltime') {  // Display says/hrs/mins/secs
@@ -921,6 +927,8 @@
     // See above, "categoryColors", for categories.
     function initOptStats() {
 
+        // TBD FIX FOR API V2
+
         function addOptStat(name, desc, category, required=null) {
             optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category, req: required};
         }
@@ -1017,6 +1025,8 @@
         debug('[handleStatsConfigPage]');
 
         initOptStats();
+
+        // TBD FIX FOR API V2
 
         // Insert table rows
         let html = '';
@@ -1164,11 +1174,14 @@
             rejectDebug(error);
         });
 
+        // TBD FIX FOR API V2
         function installDrugStats(stats) {
             let knownSpans = ['cantaken', 'exttaken', 'kettaken', 'lsdtaken',
                               'opitaken', 'shrtaken', 'spetaken',
                               'pcptaken', 'xantaken', 'victaken', 'drugsused',
                               'overdosed', 'rehabs', 'rehabcost'];
+
+            // TBD FIX FOR API V2
 
             // Add right-click, go to stats pages...
             // https://www.torn.com/personalstats.php?ID=2100735&stats=kettaken&from=1%20month
@@ -1200,6 +1213,7 @@
             addDrugToolTips();
         }
 
+        // TBD FIX FOR API V2
         function addDrugToolTips() {
             addToolTipStyle();
 
@@ -1396,6 +1410,7 @@
             return result;
         }
 
+        // TBD FIX FOR API V2
         function populateJailDiv() {
             debug("jailstats populateJailDiv");
             let jailStatArray = ['peoplebusted', 'failedbusts','peoplebought','peopleboughtspent',
@@ -1570,6 +1585,8 @@
         }
 
         // Returns null on success, string error otherwise...
+        // TBD FIX FOR API V2
+        // TBD Add money in vault...
         function buildPersonalRespectLi() {
             let respect = personalStats.respectforfaction;
             let children = document.querySelector("#column0").children;
@@ -1598,6 +1615,7 @@
             return null;
         }
 
+        // TBD FIX FOR API V2
         function addFacToolTip(li) {
             addToolTipStyle();
 
@@ -3990,6 +4008,7 @@
             return output;
         }
 
+        // TBD FIX FOR API V2
         // Function to build the table rows from our arrays for Finishing Hits
         function buildFhTableRows(obj) { // obj is a personalstats object
             let result = '<tr>';
@@ -4330,16 +4349,25 @@
 
         function addCheckBox() {
             let root = $("#stockmarketroot > div[class^='appHeaderWrapper_'] > " +
-                  " div[class^='topSection_'] > div[class^='titleContainer_'] > h4");
-            let width = $(root).outerWidth();
-            GM_addStyle(`.stk-cb { float: right; margin-left: 20px; margin-top: 8px;}`);
-            let cb = $('<span><input class="stk-cb" type="checkbox">Only Ready</span>');
+                  " div[class^='topSection_'] > div[class^='titleContainer_']"); // > h4");
+            //let width = $(root).outerWidth();
+
+            GM_addStyle(`
+                .stk-cb {float: right; margin-left: 20px; margin-top: 8px;}
+                .xblack {background: #111}
+                .xact {border: 1px solid green; background: #111;}
+                .xin {border: 1px solid red; opacity: .5;  background: #ccc;}
+                .lime{border: 3px solid limegreen;  background: #111;}
+                .stk-cb-wrap {display:flex; flex-flow: row wrap;font-size: 14px;float:right;}
+                .stk-cb-wrap label {margin: 0px 5px 0px 20px;}
+             `);
+
+            //let cb = $('<span><input class="stk-cb" type="checkbox">Only Ready</span>');
+            let cb = $(`<span class="stk-cb-wrap">
+                            <label for="ready">Only ready: </label>
+                            <input type="checkbox" name="ready">
+                        </span>`);
             $(root).append(cb);
-
-            GM_addStyle(".xblack {background: #111} .xact {border: 1px solid green; background: #111;} " +
-                        " .xin {border: 1px solid red; opacity: .5;  background: #ccc;} " +
-                        " .lime{border: 3px solid limegreen;  background: #111;}");
-
 
             Object.defineProperty(String.prototype, "has", {
                 value: function (word) {
