@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.21
+// @version     2.45.22
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.18";
+const thisLibVer = "2.45.22";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
