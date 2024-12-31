@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.19
+// @version     2.45.21
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -1393,15 +1393,18 @@ function getIcon(params, retries) {
 }
 
 // Add my own custom section in the sidebar
-function makeXedxSidebarContentDiv() {
-    if ($("#x-scrollbar-content").length > 0) return;
+function makeXedxSidebarContentDiv(elemId) {
+    let newElemId = "x-scrollbar-content" + (elemId ? ("-" + elemId) : "");
+    let selector = '#'+ newElemId;
+    if ($(selector).length > 0) return;
     let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]');
     if ($(node).length < 1) return;
 
     let clone = $(node).clone();
     $(clone).children().remove();
     $(node).after(clone);
-    $(clone).attr("id", "x-scrollbar-content");
+    $(clone).attr("id", newElemId);
+    return selector;
 }
 
 // Add a button on almost any page, to the right of top title.
