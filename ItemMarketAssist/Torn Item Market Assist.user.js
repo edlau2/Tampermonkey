@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.22
+// @version      1.24
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -142,6 +142,10 @@
     var enableScrollLock = GM_getValue("enableScrollLock", true);
     var logOptions = GM_getValue("logOptions", false);
 
+    tmp = GM_getValue("itemCategories", undefined);
+    var itemCategories = tmp ? JSON.parse(tmp) : [];
+
+
     if (enableScrollLock == true) addScrollStyle();
 
     if (logOptions == true) logOpts();
@@ -193,6 +197,7 @@
         }
     }
 
+    // Move to shared lib...
     function isVersionOlder(savedVer) {
         const currVer = GM_info.script.version;
 
@@ -355,6 +360,10 @@
 
     // ======================== callback to handle all storage changes ===============================
 
+    // When some options, namely market watch prices, are changed in the
+    // visible/active page, need to be propogated to any pages also
+    // running this script in the background, otherwise notifications
+    // may be for invalid prices...
     function storageChangeCallback(key, oldValue, newValue, remote) {
         // Don't process if changed to 'undefined', isn't a remote
         // tab (meaning it's us), or we are the visible tab/page.
@@ -485,7 +494,7 @@
     const isView = function () {return location.hash.indexOf("viewListing") > -1;}
 
     // Result procssing for low price query, similar to but separate
-    // from the market watch version. Th UniqueId portion of the key
+    // from the market watch version. The UniqueId portion of the key
     // will be 0 in this case.
     function processResult(jsonObj, status, xhr, target) {
         debug("processResult: ", $(target));
@@ -517,6 +526,7 @@
     var inAjax = false; // prevent dbl-click from firing twice
     function clearAjax(){inAjax = false;}
 
+    // API call to getcurr lowest price of one item
     function findLowPriceOnMarket(itemId, target, callback) {
         //logt("findLowPriceOnMarket");
         if (inAjax == true) return;
@@ -675,10 +685,6 @@
         target.select();
         $(target).val(canGet);
         target.dispatchEvent(new Event("input"));
-
-        /*
-        $(target).tooltip("open");
-        */
         $(target).on('input', handleQtyChange);
 
         return false;  // Don't propogate
@@ -954,7 +960,7 @@
         let thisTarget = $(e.currentTarget);
         let parent3 = $(thisTarget).closest("[class^='info_']");
         let moneyNode = $(parent3).find(".input-money-group input")[0];
-        log("handleSellItemSelect: ", $(thisTarget), $(parent3), $(moneyNode));
+        debug("handleSellItemSelect: ", $(thisTarget), $(parent3), $(moneyNode));
 
         let newE = {};  // e;
         newE.currentTarget = moneyNode;
@@ -1175,7 +1181,7 @@
     function closeAnyTooltips() {
         // close any tooll tips floating around
         let ttList = $("[id^='ui-id-'][role='tooltip']");
-        log("Tooltips: ", $(ttList));
+        debug("Tooltips: ", $(ttList));
         for (let idx=0; idx<$(ttList).length; idx++) {
             log("Removing tool tip: ", $(ttList)[idx], "|", $($(ttList)[idx]));
             $($(ttList)[idx]).remove();
@@ -1200,7 +1206,25 @@
 
     // =================================== UI components ===================================
     //
-    const getHelpBtnElement = function () {return `<div id="xma-help-btn"><span>Market Assist</span></div>`;}
+
+    function callWhenElementExistsEx(closestRoot, selector, callback) {
+        if (!$(closestRoot).length)
+            return console.error("ERROR: observer root does not exist!");
+
+        const context = { sel: selector, cb: callback, found: false };
+        const observer = new MutationObserver((mutations, observer) => {
+           localMutationCb(mutations, observer, context)
+        });
+
+        observer.observe($(closestRoot)[0], { attributes: false, childList: true, subtree: true });
+
+        function localMutationCb(mutations, observer, context) {
+            if ($(context.sel).length > 0) {
+                observer.disconnect();
+                context.cb($(context.sel));
+            }
+        }
+    }
 
     function installItemContextMenus(retries=0) {
         //log("installItemContextMenus: ", marketWatch, "|", enableFavs);
@@ -1260,12 +1284,135 @@
 
     }
 
+    // On the seller's (add listing) page, categories, tabs, etc to allow us
+    // to put current low prices by items.
+    //
+    // Selector for list of tabs/buttons
+    const tabButtonsSel = "#item-market-root [class^='addListingWrapper_'] [class^='tabsWrapper_'] > div > button";
+    const tabBtnChildSel = "#item-market-root [class^='addListingWrapper_'] [class^='tabsWrapper_'] > div > button > i";
+    const tabWrapSel = "#item-market-root [class^='addListingWrapper_'] [class^='tabsWrapper_']";
+    const activeBtnSel = "#item-market-root [class^='addListingWrapper_'] [class^='tabsWrapper_'] > div > [aria-selected='true']";
+    const itemListRootSel = "#item-market-root [class^='addListingWrapper_'] [class^='panels_'] > div";
+    const controlsSel = "[class^='addListingWrapper_'] > div > [class^='controls_']";
+
+    var activeCategoryBtn;
+
+    // Categories, index by tab position
+    //var categoriesIndexed = [];
+
+    // Add curr lowest price to items on sell page
+    function getLowPricesForSellItems() {
+
+    }
+
+    // Handle changing category via top row of tabs
+    function handleSellCatSelect(e) {
+        let target = $(e.currentTarget);
+        let index = $(target).index();
+        let category = itemCategories[index];
+
+        if (xedxDevMode == true) {
+            log("handleSellCatSelect: ", $(target),
+                " index: ", $(target).index(), " category: ", category);
+        }
+    }
+
+    // Wait until the item category tabs exist before continuing
+    function installSellTabHandlersEx() {
+        log("installSellTabHandlersEx");
+        callWhenElementExistsEx("#item-market-root", activeBtnSel, itemTabsCb);
+        callWhenElementExistsEx("#item-market-root", controlsSel, controlsCb);
+
+        function controlsCb(node) {
+            log("controlsCb");
+            installSellPageCtrls(node);
+        }
+
+        function itemTabsCb(node) {
+            activeCategoryBtn = $(node);
+            addLowPriceSellPageHandlers();
+        }
+    }
+
+    // Move to addStyles()
+    GM_addStyle(`
+        #x-sell-cbs {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            margin-left: auto;
+            float: right;
+        }
+    `);
+    function installSellPageCtrls(node) {
+        if ($("#x-sell-cbs").length == 0) {
+            let helpText = "Select what price to put into<br>" +
+                           "the price box on double-click.<br>" +
+                           "This over-rides the global option.";
+
+            let sellOptsSpan = `
+                <span id='x-sell-cbs'>
+                    <span class="xma-opts-nh">Double-Click fills with: </span>
+                    <input type="radio" class="xma-opts-nh xma-cb" name="sellPriceOpt" value="useLowPrice">
+                    <span class="xma-opts-nh">Lowest or </span>
+                    <input type="radio" class="xma-opts-nh xma-cb" name="sellPriceOpt" value="useLastPrice">
+                    <span class="xma-opts-nh">Last price</span>
+                </span>`;
+
+            $(node).append(sellOptsSpan);
+
+            displayToolTip($("#x-sell-cbs"), helpText, "tooltip4");
+        }
+    }
+
+    function addLowPriceSellPageHandlers(retries=0) {
+        let sellPgCategoryBtns = $(tabButtonsSel);
+        if ($(sellPgCategoryBtns).length < 20) {// should have 25...
+            if (retries++ < 20) return setTimeout(addLowPriceSellPageHandlers, 200, retries);
+            return debug("Too many retries: ", retries, $(sellPgCategoryBtns));
+        }
+
+        $(sellPgCategoryBtns).on('click', handleSellCatSelect);
+
+        // Classes/categories. Cache for later? in storage...
+        if (!itemCategories.length) {
+            let sellPgCatBtnsClasses = $(tabBtnChildSel);
+            for (let idx=0; idx < $(sellPgCatBtnsClasses).length; idx++) {
+                let node = $(sellPgCatBtnsClasses)[idx];
+                if (!node) {
+                    debug("ERROR: Missing node! ", idx, $(sellPgCatBtnsClasses));
+                    debugger;
+                }
+                let className = node.classList[0];
+                let parts = className ? className.split("_") : null;
+                itemCategories[idx] = parts ? parts[0] : "unknown";
+            }
+            //itemCategories = categoriesIndexed;
+        }
+
+        if (xedxDevMode == true) log("Categories: ", itemCategories);
+
+        let activeIdx = $(activeCategoryBtn).index();
+        let activeCat = itemCategories[activeIdx];
+        if (xedxDevMode == true) log("Active Btn: ", $(activeCategoryBtn), " idx: ", activeIdx, " cat: ", activeCat);
+
+        // items panel
+        let itemsListRoot = $(itemListRootSel);
+        if (xedxDevMode == true) log("Items list Root: ", $(itemsListRoot));
+
+        let itemList = $(itemsListRoot).children("div");
+        if (xedxDevMode == true) log("Item list: ", $(itemList));
+
+    }
+
+    const getHelpBtnElement = function () {return `<div id="xma-help-btn"><span>Market Assist</span></div>`;}
+
     function installUi(retries = 0) {
         let page = 'unknown';
         if (location.hash.indexOf("market/view") > -1) page = 'buy';
         else if (location.hash.indexOf("addListing") > -1) page = 'sell';
         else if (location.hash.indexOf("viewListing") > -1) page = 'view';
-        else return log("not on buy or sell! ", location.hash);
+        else return log("not on a known page. ", location.hash);
 
         debug("installUI: ", page, "|", $("#xma-help-btn").length);
 
@@ -1338,6 +1485,10 @@
         } else {
             debugger;
             console.error("Problem installing UI!");
+        }
+
+        if (page == 'sell') {
+            installSellTabHandlersEx();
         }
 
     }
@@ -1507,7 +1658,7 @@
         let itemId = $(target).attr("data-id");
         let checked = $(target)[0].checked;
 
-        log("disableWatchItem id: ", itemId, " checked: ", checked);
+        if (logWatchList == true) log("disableWatchItem id: ", itemId, " checked: ", checked);
 
         let obj = watchList[itemId];
         obj.disabled = checked;
@@ -1543,12 +1694,12 @@
     }
 
     function addWatchObjToUI(item, fromStgHandler) {
-        debug("addWatchObjToUI, obj: ", item);
+        if (logWatchList == true) log("addWatchObjToUI, obj: ", item);
 
         if (!item || !item.id) debugger;
 
         if ($("#xwatches").find("[data-item='" + item.id + "']").length) {
-            log("Item ID ", item.id, ", ", item.name, " already in watch list!");
+            if (logWatchList == true) log("Item ID ", item.id, ", ", item.name, " already in watch list!");
             return;
         }
 
@@ -1588,7 +1739,7 @@
         let countDisabled = $("#xwatches").find("input[type='checkbox']:checked").length;
         let countEnabled = countLi - countDisabled;
         let exceedslimit = countEnabled >= mwMaxWatchListLength;
-        log("Enabled watches: ", countEnabled, "|", countLi, "|", countDisabled);
+        if (logWatchList == true) log("Enabled watches: ", countEnabled, "|", countLi, "|", countDisabled);
         if (exceedslimit && GM_getValue("suppressWatchLimit", false) != true) {
             if (!confirm("The maximum allowed number of items are already in the list!\n" +
                          "You can set the limit higher, disable some, or remove some.\n" +
@@ -1603,15 +1754,15 @@
     }
 
     function addWatch(id, name, type, price=0, timeout) {
-        debug("addWatch, id: ", id, " name: ", name, " type:", type, " price limit: ", price, " timeout: ", timeout);
+        if (logWatchList == true) log("addWatch, id: ", id, " name: ", name, " type:", type, " price limit: ", price, " timeout: ", timeout);
         let obj = {id: id, name: name, limit: price, currLow: 0,
                    lastNotify: 0, type: type, timeout: (timeout ? timeout : 30), disabled: false};
-        debug("Obj: ", obj);
+        if (logWatchList == true) log("Obj: ", obj);
         watchList[id] = obj;
 
         // If already in the UI, we're done.
         if ($("#xwatches").find("[data-item='" + id + "']").length) {
-            log("Item ID ", id, ", ", name, " already in watch list!");
+            if (logWatchList == true) log("Item ID ", id, ", ", name, " already in watch list!");
             return;
         }
 
@@ -1627,23 +1778,21 @@
 
     function handleAddWatch(target) {
         if (marketWatch != true) return;
-        debug("handleAddWatch, target: ", $(target));
+        if (logWatchList == true) log("handleAddWatch, target: ", $(target));
         let img = $(target).find("img");
         let name = $(img).attr("alt");
         let src = $(img).attr('src');
         let id;
         if (src) id = src.replace(/\D/g, "");
 
-        //debugger;
-
-        debug("handleAddWatch, img: ", $(img), " name: ", name, " src:", src, " id: ", id);
+        if (logWatchList == true) log("handleAddWatch, img: ", $(img), " name: ", name, " src:", src, " id: ", id);
         if (!id) {
-            log("ERROR: Missing id: ", $(img));
+            if (logWatchList == true) log("ERROR: Missing id: ", $(img));
             return;
         }
 
         let priceNode = $(target).parent().find("[class^='priceAndTotal_'] > span");
-        log("priceNode: ", $(priceNode));
+        if (logWatchList == true) log("priceNode: ", $(priceNode));
         let price = $(priceNode).text();
         if (price) {
             price = price.replaceAll('$', '').replaceAll(',', '').replaceAll(' ', '').trim();
@@ -1786,13 +1935,16 @@
                 }
             };
 
+            /*
             let noTO = false;
             if (+item.id == 330 && noTO == true) {   // was a test, forgot result...
                 log("****  Boxing gloves!  No timeout! ****");
             } else {
-                log(" Setting timout");
+                //log(" Setting timout");
                 opts.timeout = mwNotifyTimeSecs * 1000;
             }
+            */
+            opts.timeout = mwNotifyTimeSecs * 1000;
 
 
             GM_notification ( opts );
@@ -2120,7 +2272,7 @@
                           <img src="/images/items/${id}/small.png">
                       </div>
                       <span class='xwatchsp xml10' style="width: ${watchNameW1};">${name}</span>
-                      <span class='xwatchsp' style="width: ${watchPriceW1};">
+                      <span class='xwatchsp xprice-price' style="width: ${watchPriceW1};">
                           <input id="xwi-${id}" class='xwatch-input' type='text' value='${limit}' name='${key}'>
                       </span>
                       <div class="watch4" style="position: absolute; left: 93%; display:none;">
@@ -2189,6 +2341,9 @@
                         log("Setting LIs to flex");
                         $("#xwatches > li .watch0").css("display", "flex");
                         $("#xwatches > li .watch4").css("display", "flex");
+
+                        //$("#xwatches .xprice-name").css("width", watchNameW2);
+                        $("#xwatches .xprice-price").css("width", watchPriceW2);
                     } else {
                         $(".xexpires").removeClass("xhide");
                         insertPricingHdr();
