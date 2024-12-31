@@ -132,7 +132,7 @@
         remains = remains - (hrs * secsInHr);
         let mins = Math.floor(remains/60);
 
-        let timeStr = "OC in " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
+        let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
         return timeStr;
     }
 
@@ -195,7 +195,9 @@
                 myCrimeStartTime = readyAt;  // Prob need conversion....
                 saveMyCrimeData();
             } else {
+                setTrackerTime("No OC found.");
                 debug("Didn't locate my own OC!");
+                setTimeout(getMyNextOcTime, 60000);    // Try again in a minute...
             }
         }
 
@@ -212,6 +214,11 @@
         }
     }
 
+    function getMyNextOcTime() {
+        debug("getMyNextOcTime");
+        var options = {"cat": 'planning', "offset": "0", "param": 'ocTracking'};
+        xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
+    }
 
     function startMyOcTracking() {
         // Add necessary UI components
@@ -234,9 +241,9 @@
             return;
         }
 
-        debug("startMyOcTracking: must not be fac page?");
-        var options = {"cat": 'planning', "offset": "0", "param": 'ocTracking'};
-        xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
+        getMyNextOcTime();
+        //var options = {"cat": 'planning', "offset": "0", "param": 'ocTracking'};
+        //xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
     }
 
     function getMyOcTrackerDiv() {
