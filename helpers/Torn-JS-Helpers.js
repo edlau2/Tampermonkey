@@ -1396,7 +1396,7 @@ function getIcon(params, retries) {
 function makeXedxSidebarContentDiv(elemId) {
     let newElemId = "x-scrollbar-content" + (elemId ? ("-" + elemId) : "");
     let selector = '#'+ newElemId;
-    if ($(selector).length > 0) return;
+    if ($(selector).length > 0) return selector;
     let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]');
     if ($(node).length < 1) return;
 
