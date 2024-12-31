@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.21
+// @version      2.22
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -27,6 +27,8 @@
 // The formulas used in here are taken from this forum post:
 // https://www.torn.com/forums.php#/p=threads&f=61&t=16192039&b=0&a=0
 
+// ======================= edit ~1093 ==========================
+
 (async function() {
     'use strict';
 
@@ -36,6 +38,7 @@
     }
 
     const DEV_MODE = true;             // Without this, scores only, no % chance etc...
+    const myUserId = getThisUserId();  // Used to enable debug stuff just for myself
 
     // Since this is a work in progress, may need to clean up old, unusd
     // or changed stuff in storage on verion change. Need to do first
@@ -52,6 +55,11 @@
     var tzDisplay = GM_getValue("tzDisplay", "local");    // Timezone to use for calcs.
     var xtraDbgLogging = GM_getValue("xtraDbgLogging", 0);
     var optTryLastPages = GM_getValue("optTryLastPages", false);
+    var blinkOnSuccess = GM_getValue("blinkOnSuccess", false);
+
+    var saveResultHistory = GM_getValue("saveResultHistory", false); // Save past X results and display as a list
+    var maxSavedResults = GM_getValue("maxSavedResults", 10);         // Num results to save
+    var showLimits = GM_getValue("showLimits", false);               // Show current bust % limit on title bar
 
     var useLocal = (tzDisplay == "local");
     var useUTC = !useLocal;
@@ -85,7 +93,12 @@
     GM_setValue("quickBustYlw", quickBustYlw);
     GM_setValue("dispPenalty", dispPenalty);
 
+    GM_setValue("saveResultHistory", saveResultHistory);
+    GM_setValue("maxSavedResults", maxSavedResults);
+    GM_setValue("showLimits", showLimits);
+
     // Console logging levels
+    var extraExtraDebug = true;
     debugLoggingEnabled = false;
     loggingEnabled = true;
 
@@ -93,9 +106,10 @@
     const MAIN_DIV_ID = "xd1";
     const MAIN_DIV_SEL = "#" + MAIN_DIV_ID;
 
-    // Still used???
-    const optsDivHeightDef = 35;    // 35 per inner div
-    const optsDivHeightPreRelease = 70;
+    // TBD calc based on # rows....table may be different...
+    // Just look at row sizes? Do they vary?
+    const optsDivHeightDef = 70;    // 35 per inner div
+    const optsDivHeightPreRelease = 105;
     const animateSpeed = 1200;
 
     // Little helpers for profiling. ex: let start = _start(); .... debug("elapsed: ", elapsed(start));
@@ -330,22 +344,22 @@
             let name = $(wrapper.parentNode.querySelector("a.user.name > span")).attr('title');
 
             var timeStr = wrapper.children[0].innerText;
-            debug("timeStr: ", timeStr);
+            //debug("timeStr: ", timeStr);
 
             let theString = wrapper.children[1].innerText;
-            debug("theString: ", theString);
+            //debug("theString: ", theString);
 
             let lvlStr = theString.replace(/^\D+/g, '');
-            debug("lvlStr: ", lvlStr);
+            //debug("lvlStr: ", lvlStr);
 
             if (lvlStr.indexOf("(") != -1) {return;} // Don't do this more than once!
 
             let minutes = parseJailTimeStr(timeStr);
-            debug("minutes: ", minutes);
+            //debug("minutes: ", minutes);
 
             wrapper.children[0].setAttribute('time', minutes); // For sorting
             let score = (minutes + 180) * parseInt(lvlStr);
-            debug("score: ", score);
+            //debug("score: ", score);
 
             // Calc success rate
             let sr = getSuccessRate(score, getSkill(), totalPenalty);
@@ -370,8 +384,8 @@
             //            '<span class="title bold"> Score <span>:</span></span>' + scoreStr + '</span>';
             //}
 
-            debug("Wrapper: ", $(wrapper));
-            debug("SR:", maxSR);
+            //debug("Wrapper: ", $(wrapper));
+            //debug("SR:", maxSR);
 
             if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
@@ -705,15 +719,20 @@
             observerOff();
             if ($("#xedx-save-btn").length == 0) installUI();
             for (let mutation of mutationsList) {
-                //debug('mutation.type: ', mutation.type);
                 if (mutation.type === 'childList') {
-                    debug('Mutation Detected: A child node has been added or removed.');
                     for (let i=0; i<mutation.addedNodes.length; i++) {
                         let node = mutation.addedNodes[i];
-                        debug('Added node: ', node);
                         if ($(node).hasClass('ajax-action')) {
                             let text = node.textContent;
-                            debug('Bust action: ', text);
+                            let html = $(node).html();
+
+                            if (saveResultHistory == true) {
+                                if (extraExtraDebug == true) {
+                                    log('**** Bust action: ', text, " ****");
+                                    log('node html: ', html);
+                                }
+                                insertResultIntoResPane(html);
+                            }
 
                             // Need to get info from parent node - level, name, time, etc...
                             let li = node.parentNode.parentNode;
@@ -791,6 +810,7 @@
 
                                 addLogEntry(text, 'OUT');
                             } else {
+                                if (extraExtraDebug == true) log("xxx Failed Bust! ", text);
                                 addLogEntry(text, 'CHECK');
                             }
                         }
@@ -808,8 +828,13 @@
     }
 
     let observerRetries = 0;
-    function installObserver() {
+    function installObserver(retries=0) {
+        debug("installObserver, retries: ", retries);
         targetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
+        if (!$(targetNode).length) {
+            if (retries++ < 30) return setTimeout(installObserver, 250, retries);
+            return console.error("Too many retries installing observer!");
+        }
         observer = new MutationObserver(observerCallback);
         debug('Starting mutation observer: ', targetNode);
         if (observerOn() == false) {
@@ -900,11 +925,16 @@
         document.body.removeChild(a);
     }
 
-    // Adding "style="float:right;"" to the xcaret span looks kinda cool: "<span style="float:right;"><i id="xcaret" ..."
     const saveBtnDiv3 = `
             <div id="` + MAIN_DIV_ID + `" class="xjdwrap xshow xnb title-black border-round m-top10">
                 <span class="xspleft">XedX Jail Scores</span>
-                <span id="busts-today" class="xml10"></span>
+                <span id="busts-today" class="xml10">
+                    <span>(Today: </span>
+                    <span class='numBusts'></span>
+                    <span class='penalty1' style="display:none;">Penalty: </span>
+                    <span class='penalty2' style="color: green; display: none;"> </span>
+                    <span>)</span>
+                </span>
                 <span id="xedx-msg" class="xml5"></span>
                 <span class="xjr btn xjfr">
                     <span><i id="xcaret" class="icon fas fa-caret-right xedx-caret"></i></span>
@@ -976,6 +1006,408 @@
         addSwapBtnHandlers();
     }
 
+    // ============================= Show/adjust limit from title bar =================
+
+    // #mainContainer > div.content-wrapper.winter > div.msg-info-wrap > div.info-msg-cont.border-round.m-top10 > div > div > div
+    GM_addStyle(`
+        #xlimit-adj {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+            float: right;
+
+            /*border: 1px solid yellow;
+            border-radius: 4px;*/
+        }
+        #xlimit-adj span {
+            border-radius: 4px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .adj-btn {
+            font-size: 10px;
+            padding: 0px 5px 0px 5px;
+            height: 16px;
+
+            cursor: pointer;
+            color: var(--btn-color);
+            background: var(--btn-background);
+            border: var(--btn-border);
+            display: inline-block;
+            vertical-align: middle;
+        }
+        #limit-txt {
+            /*border: 1px solid white;*/
+            border: var(--btn-border);
+            width: 40px;
+            align-content: center;
+            justify-content: center;
+            padding: 5px 0px 5px 0px;
+            margin-top: -5px;
+        }
+
+    `);
+    const limitAdjust = `
+        <span id='xlimit-adj'>
+            <span class='adj-btn xmr10'> << </span>
+            <span id='limit-txt'></span>
+            <span class='adj-btn xml10'> >> </span>
+        </span>
+    `;
+
+    var limitCommitTimeout;
+    function handleLimitAdjust(e) {
+        let target = $( e.currentTarget);
+        let index = $(target).index();
+
+        bustMin = (index == 0) ?
+            ((+bustMin <= 0) ? 0 : (+bustMin - 1)) :
+            ((+bustMin >= 100) ? 100 : (+bustMin + 1));
+
+        $("#limit-txt").text((bustMin + "%"));
+
+        if (limitCommitTimeout) clearTimeout(limitCommitTimeout);
+        limitCommitTimeout = setTimeout(commitLimitChange, 2000);
+
+        function commitLimitChange() {
+            GM_setValue("bustMin", bustMin);
+            limitCommitTimeout = null;
+        }
+    }
+
+    function enableLimitAdjustUi(enable=true) {
+        if (enable == true) {
+            if ($("#xlimit-adj").length) {
+                $("#xlimit-adj").css("visibility", "visible");
+            } else {
+                let msgBar = $(".msg-info-wrap > .info-msg-cont > .info-msg > div > .msg");
+                $(msgBar).append(limitAdjust);
+                $("#limit-txt").text((bustMin + "%"));
+                $("#xlimit-adj > .adj-btn").on('click', handleLimitAdjust);
+            }
+        } else {
+            $("#xlimit-adj").css("visibility", "hidden");
+        }
+    }
+
+
+    // =========================== The past results pane thingy =======================
+
+    function addResPaneStyles() {
+        GM_addStyle(`
+            #xresview-outer {
+                position: relative;
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                max-height: 22px;
+                margin-left: 20px;
+            }
+
+            .result-span {
+                height: 22px;
+                position: absolute;
+                min-width: 550px;
+                overflow: hidden;
+                display: flex;
+                flex-wrap: wrap;
+                align-content: center;
+                padding-left: 15px;
+                margin-left: 30px;
+                /*border-radius: 6px 11px 11px 6px;*/
+                border-radius: 11px 11px 11px 11px;
+
+                border: 1px solid var(--default-color);
+            }
+
+            .result-span:not(.res-pane-active) {
+                color: lightgray;
+            }
+
+            #res-pane-first {
+                justify-content: center;
+            }
+            #spans-wrap {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        `);
+        addFlexStyles();
+
+        // btn margin left = res-span min width + margin-left - 1/2 width? //padding-left
+        GM_addStyle(`
+            .x-round-btn {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-content: center;
+                cursor: pointer;
+                /*background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);*/
+                background: var(--btn-background)
+                width: 20px;
+                aspect-ratio: 1 / 1;
+                border-radius: 50%;
+            }
+
+            #res-pane-btn-wrap {
+                position: absolute;
+                display:flex;
+                padding-left: 10px;
+            }
+            #res-pane-btn {
+                min-width: 20px;
+                max-width: 22px;
+                min-height: 20px;
+                max-height: 22px;
+                margin-left: 574px;
+                float: right;
+                border: 1px solid var(--default-color);
+                cursor: pointer;
+                z-index: 99;
+            }
+            #pane-btn-wrap {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+        `);
+    }
+
+    //
+    // For the spans, which are last x results, create all, but rotate through however may we
+    // actually have. Fill dynamically as we get results.
+    //
+    var thisResultIdx = 0;
+
+    function timeNowStr() {
+        let now = new Date();
+        const mediumTime = new Intl.DateTimeFormat("en-GB", {
+            timeStyle: "medium",
+            hourCycle: "h24",
+        });
+        return mediumTime.format(now);
+    }
+
+    // ============================ Insert new result =================================
+    // No longer in jail, ignored
+    // You get busted, text truncated.
+    // Hyperlinks are saved and rebuilt when moved into view, via handleResPaneClick()
+    //
+    const newStyle = "style='color:var(--default-blue-color);margin-left:5px;'";
+    const styleVal = 'color:var(--default-blue-color);margin-left:5px;';
+    function insertResultIntoResPane(html, fromInit) {
+        if (saveResultHistory == false) return;
+
+        if (fromInit != true && html.indexOf("no longer") > -1) {return debug("No longer in jail, won't save");}
+        if (html.indexOf("While trying") > -1) {
+            let parts = html.split(',');
+            if (parts[0]) html = parts[0];
+            if (parts[1]) html = html + parts[1];
+            html = html + "!<br>";
+            if (extraExtraDebug == true) debug("xxxx new html: ", html);
+        }
+
+        if (fromInit != true) {
+            html = timeNowStr() + ": " + html;
+        }
+        let resSpans = $(".result-span");
+        let countSpans = $(resSpans).length;
+        let e = {forcedIndex: 1};
+        if (++thisResultIdx >  maxSavedResults) {  // Exceeded max allowed, forced index stays at 1
+            if (extraExtraDebug == true) log("insertResultIntoResPane: exceeded max");
+            thisResultIdx = 1;
+            e.forcedIndex = 1;
+            putDataIntoSpan($(resSpans[thisResultIdx]), html);
+        } else if (thisResultIdx > (countSpans - 1) && countSpans < (maxSavedResults + 1)) { // need to add new row, idx is count
+            if (extraExtraDebug == true) log("insertResultIntoResPane: adding new");
+            $(resSpans).removeClass("res-pane-last");
+            let newSpan = `<span class="result-span res-pane-last"></span>`;
+            putDataIntoSpan($(newSpan), html);
+            $("#res-pane-first").parent().append(newSpan);
+            e.forcedIndex = countSpans;
+            thisResultIdx = countSpans;
+            if (extraExtraDebug == true) log("insertResultIntoResPane: added, index: ", countSpans);
+            if (extraExtraDebug == true) log("insertResultIntoResPane: ", $($(".result-span")[countSpans]));
+        } else { // idx is just next one.
+            putDataIntoSpan($($(resSpans)[thisResultIdx]), html);
+            e.forcedIndex = thisResultIdx;
+        }
+
+        if (fromInit == true) {
+            $(resSpans[e.forcedIndex]).css("color", "rgba(0, 0, 0, 0.0)");
+        } else {
+            let key = "savedRes_" + thisResultIdx;
+            GM_setValue(key, html);
+            GM_setValue("lastResKey", key);
+            handleResPaneClick(e);
+        }
+
+        function putDataIntoSpan(node, html) {
+            $(node).html(html);
+            let nodeA = $(node).find("a");
+            $(nodeA).css({"margin": "0px 5px 0px 5px", "color": "var(--default-blue-color)" });
+        }
+    }
+
+    var hideFirst = true;
+    var thisPaneDiv;
+    function handleResPaneClick(e) {
+        if (saveResultHistory == false) return;
+
+        let key = GM_getValue("lastResKey", "savedRes_0");
+        let latestIdx = key ? key.split('_')[1] : 0;
+
+        if (!thisPaneDiv) thisPaneDiv = $("#res-pane-first");
+        let thisIdx = 0, nextIdx = 0;
+        let resSpans = $(".result-span");
+
+        // If forcing to a specific index, over-ride thisPaneDiv, it'll be requested idx - 1
+        let nextPaneDiv;
+        if (e.forcedIndex) { // fake event, to display particular index in list of spans
+            let idx = e.forcedIndex;
+            if (idx > $(resSpans).length) {
+                debugger;
+                console.error("Out of bounds error! ", idx, $(resSpans));
+                return;
+            }
+            nextPaneDiv = $(resSpans)[idx];
+        }
+
+        // Save thisPaneDiv as we go, at end go back to start but skip the first one...
+        // But maybe go backwards?
+        let prevPane = $(".res-pane-active");   // maybe safety net...
+        $(thisPaneDiv).removeClass("res-pane-active");
+        if (!nextPaneDiv)
+            nextPaneDiv = $(thisPaneDiv).hasClass("res-pane-last") ? $("#res-pane-first").next() : $(thisPaneDiv).next();
+        if (!$(nextPaneDiv).length || !$(nextPaneDiv).hasClass("result-span")) {
+            nextPaneDiv = $("#res-pane-first").next();
+            if (extraExtraDebug == true) log("Setting next div to first: ", $("#res-pane-first"));
+        }
+
+        // Reload saved html if needed
+        let h = $(nextPaneDiv).html()
+        if (!h || !h.length) {
+            let key = "savedRes_" + $(nextPaneDiv).index();
+            let html = GM_getValue(key, "-- error --");
+            if (html == '-- error --') debugger;
+            $(nextPaneDiv).html(html);
+            let nodeA = $(nextPaneDiv).find("a");
+            $(nodeA).css({"margin": "0px 5px 0px 5px", "color": "var(--default-blue-color)" });
+        }
+
+        if (extraExtraDebug == true) log("xxx handleResPaneClick: next div: ", $(nextPaneDiv));
+
+
+        $(thisPaneDiv).find("a").animate({opacity: 0},100);
+        $(thisPaneDiv).animate({
+            color: "rgba(0, 0, 0, 0.0)",
+        }, 100, function () {
+            if (extraExtraDebug == true) {
+                log("xxx handleResPaneClick: animated out ", $(thisPaneDiv).index(), "|", $(thisPaneDiv));
+                log("Div html: ", $(thisPaneDiv).html());
+            }
+        });
+
+        $(nextPaneDiv).find("a").animate({opacity: 1},100);
+        let useColor = ($(nextPaneDiv).index() == latestIdx) ?
+            "var(--default-color)" : "#ccc !important";
+
+        $(nextPaneDiv).animate({
+            color: useColor,
+        }, 100, function () {
+            if (extraExtraDebug == true) {
+                log("xxx handleResPaneClick: animated in ", $(nextPaneDiv).index(), "|", $(nextPaneDiv));
+            }
+            if ($(nextPaneDiv).index() != 0) $("#res-pane-first").css("color", "rgba(0, 0, 0, 0.0)");
+
+            // Prepare for next 'rotation'
+            thisPaneDiv = $(nextPaneDiv);
+            $(thisPaneDiv).addClass("res-pane-active");
+        });
+    }
+
+    // Toggle opacity to temporarily remove/disable
+    function showResultPane(show=true) {
+        let newOpacity = (show == true) ? 1 : 0;
+        $("#res-spans").animate({opacity: newOpacity}, 200);
+        $("#res-pane-btn").animate({opacity: newOpacity}, 200);
+    }
+
+    // Install the past result view, load saved results
+    function installPastResultView(retries=0) {
+        if (saveResultHistory == false) return;
+
+        if ($("#xresview-outer").length > 0) {
+            showResultPane(true);
+            return debug("Result pane already exists, faded in.");
+        }
+
+        let target = $("#skip-to-content");
+        if (!$(target).length) {
+            if (retries++ < 30) return setTimeout(installPastResultView, 250, retries);
+            return log("installPastResultView: too many retries");
+        }
+        $(target).after(resultViewDiv);
+
+        debug("resView: ", $("#xresview-outer"));
+
+        $("#xresview-outer").next().css("margin-left", "auto");
+        $("#xresview-outer").next().appendTo($("#pane-btn-wrap"));
+        $("#res-pane-btn").on('click', handleResPaneClick);
+
+        if (extraExtraDebug == true) log("Loading history...");
+        let count = 0;
+        for (let idx=1; idx <= maxSavedResults; idx++) {
+            let key = "savedRes_" + idx;
+            let html = GM_getValue(key, undefined);
+            if (html) {
+                if (extraExtraDebug == true) log("Loaded idx ", idx, " from saved history");
+                count++;
+                insertResultIntoResPane(html, true);
+            } else {
+                break;
+            }
+            if (!count) {
+                if (extraExtraDebug == true) log("Nothing loaded.");
+            }
+        }
+        //$(".result-span").css({"color": "rgba(0, 0, 0, 0.0)", "opacity": "0"});
+        $(".result-span").css("color", "rgba(0, 0, 0, 0.0)");
+        $(".result-span > ").css("opacity", "0");
+
+        let key = GM_getValue("lastResKey", "savedRes_0");
+        let thisResultIdx = key ? key.split('_')[1] : 0;
+        let e = {forcedIndex: +thisResultIdx, fromInit: true};
+
+        $($(".result-span > ")[thisResultIdx]).css("opacity", "1");
+
+        if (extraExtraDebug == true) log("Setting init res to idx: ", thisResultIdx);
+        if (extraExtraDebug == true) log("Text: ", GM_getValue(key, "unknown"));
+
+        handleResPaneClick(e);
+
+        let spans = $("span.result-span");
+        $(spans).css("color", "rgba(0, 0, 0, 0.0)");
+        spans.eq(0).css("color", "var(--default-color)");
+    }
+
+
+    // ================================ UI Installation ===============================
+
+    const resultViewDiv = `
+        <div id="xresview-outer">
+                <div id="res-spans">
+                    <span id="res-pane-first" class="result-span">-- Last Results --</span>
+                    <span class="result-span res-pane-last"></span>
+                </div>
+                <div id="pane-btn-wrap">
+                <span id="res-pane-btn" class="x-round-btn"> >> </span>
+                </div>
+        </div>
+    `;
+
     const hideBtn2= `<span id="xhide-btn-span" class="xhbtn">
                          <input id="xhide-btn" type="submit" class="torn-btn" value="Hide">
                      </span>`;
@@ -983,7 +1415,6 @@
     const caretNode = `<span style="float:right;"><i id="xcaret" class="icon fas fa-caret-down xedx-caret"></i></span>`;
     const optsBtn = `<button id="x-opts-btn" class="xhlpbtn xmt5"><span class="copts">*</span></button>`;
 
-    //const origUI = false;
     var mainDivHeight;
     var mainUiBtnsInstalled = false;
     var hideBtnInstalled = false;
@@ -1029,6 +1460,18 @@
 
         if (lastShowState && forceShow) {
             $(MAIN_DIV_SEL).addClass("xhide");
+        }
+
+        // Add small results panel, in title bar. Single-row of last
+        // results....
+        if (!$("#xresview-outer").length) {
+            if (extraExtraDebug == true) log("Installing result pane, last several results");
+            addResPaneStyles();
+            installPastResultView();  // xedx res pane
+        }
+
+        if (showLimits == true) {
+            enableLimitAdjustUi(true);
         }
 
         // When we roll over, maybe keep a daily record?
@@ -1086,6 +1529,11 @@
 
         // Add a right-click handler to the fake div, for misc custom stuff
         $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
+        if (GM_getValue('xedx', false) == true) {
+            autoBustOn = true;
+            setTitleColor();
+            //debugger;
+        }
 
         // Swap to stats div handler
         $("#xedx-stats-btn").on('click', swapStatsOptsView);
@@ -1100,6 +1548,8 @@
         setJailOptions();
         addJailOptsToolTips();
 
+        $("#xedx-jail-opts input").on('change', handleJailOptChange);
+
         $("#xedx-jail-opts").css("height", 0);
         $("#xedx-jail-opts").css("min-width", $(MAIN_DIV_SEL).css("width"));
     }
@@ -1113,6 +1563,9 @@
         $("#penalty-btn").prop('checked', dispPenalty);
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
         $("#xlast-page-opt").prop('checked', optTryLastPages);
+
+        $("#save-results").prop("checked", saveResultHistory);
+        $("#show-limits").prop("checked", showLimits);
 
         hideShowJailOpts();
 
@@ -1142,42 +1595,77 @@
     }
 
     // Move the text to the bottom later...
-    const bustLimitText = "Show in green and offer a Quick Bust button for anyone at or above this chaance percentage. " +
-          "Note that people down to 15 below this number will show as yellow, and 10% less than that, orange.";
-    const hideLimitText = "Anyone in jail with a smaller percent chance than this of being busted, won't be displayed. " +
+    const bustLimitText =
+          "Show in green and offer a Quick Bust button<br>" +
+          "for anyone at or above this chaance percentage.<br>" +
+          "Note that people down to 15 below this number<br>" +
+          "will show as yellow, and 10% less than that, orange.";
+    const hideLimitText =
+          "Anyone in jail with a smaller percent chance <br>" +
+          "than this of being busted, won't be displayed.<br>" +
           "The count of people jailed will still indicate hidden people.";
-    const quickBustBtnText = "If enabled, when anyone at or above your lower bust limit (highlighted in green), will cause " +
-          "the reload button to become two buttons, Reload and Bust, so you can click right away and do a Quick Bust.";
-    const quickBustBtnYlwText = "If enabled, when anyone at or above your 2nd lower bust limit, which is 10% lower than the 'green' limit, " +
-          "which displays as yellow, will cause the reload button to become two buttons, like the Quick Bust Green option.";
-    const advFeaturestext = "This will allow you to select some advanced options, which may be just for development use, or " +
-          "pre-release - meaning not really tested, or ones just being tried out for practicality.";
-    const penaltyBtnText = "This option will display your 'penalty', a measure of how much the number of past busts you have done, " +
-          "are affecting your future success rates. This decays naturally over time, busts over 72 hours old don't count. This is called 'p0' " +
-          "as that is the name used internally as a variable name, this is used mostly for development purposes.";
-    const timeZoneText = "This option allows you to select when the count for daily busts roll over, either midnight local time, or TCT (Torn time). " +
+    const quickBustBtnText =
+          "If enabled, when anyone at or above your lower<br>" +
+          "bust limit (highlighted in green), will cause<br>" +
+          "the reload button to become two buttons, Reload<br>" +
+          "and Bust, so you can click right away and do a Quick Bust.";
+    const quickBustBtnYlwText =
+          "If enabled, when anyone at or above your 2nd lower<br>" +
+          "bust limit, which is 10% lower than the 'green' limit,<br>" +
+          "which displays as yellow, will cause the reload button<br>" +
+          "to become two buttons, like the Quick Bust Green option.";
+    const advFeaturestext = "This will allow you to select some<br>" +
+          "advanced options, which may be just for development use,<br>" +
+          "or pre-release - meaning not really tested, or ones just<br>" +
+          "being tried out for practicality.";
+    const penaltyBtnText = "This option will display your 'penalty',<br>" +
+          "a measure of how much the number of past busts you have done,<br>" +
+          "are affecting your future success rates. This decays naturally<br>" +
+          "over time, busts over 72 hours old don't count. This is called 'p0'<br>" +
+          "as that is the name used internally as a variable name, this is used<br>" +
+          "mostly for development purposes.";
+    const timeZoneText = "This option allows you to select when the count<br>" +
+          "for daily busts roll over, either midnight local time, or TCT (Torn time).<br>" +
           "It has no effect on anything but the display in the UI,";
-    const page2optText = "The 'page 2' option is experimental and may be illegal to use, so prob don't want to turn it on. Also " +
-          "not sure it works quite right all the time....";
+    const page2optText = "The 'page 2' option is experimental and may be illegal<br>" +
+          "to use, so prob don't want to turn it on.<br>" +
+          "Also not sure it works quite right all the time....";
+    const saveResultsText =
+          "If enabled, the past " + maxSavedResults + " results will be saved and<br>" +
+          "viewable in a list in case they scrolled past to fast to read.";
+
+    const ttTable = [{sel: "#bust-limit", text: bustLimitText, devMode: false},
+        {sel: "#hide-limit", text: hideLimitText, devMode: false},
+        {sel: "#quick-bust-btn", text: quickBustBtnText, devMode: false},
+        {sel: "#quick-bust-ylw", text: quickBustBtnYlwText, devMode: false},
+        {sel: "#pre-release-btn", text: advFeaturestext, devMode: false},
+        {sel: "#penalty-btn", text: penaltyBtnText, devMode: false},
+        {sel: "#xtz-tct", text: timeZoneText, devMode: false},
+        {sel: "#xtz-local", text: timeZoneText, devMode: false},
+        {sel: "#xlast-page-opt", text: page2optText, devMode: true},
+        {sel: "#save-results", text: saveResultsText, devMode: false} ];
 
     function addJailOptsToolTips() {
 
-        displayToolTip("#bust-limit", bustLimitText, "tooltip3");
-        displayToolTip("#hide-limit", hideLimitText, "tooltip3");
-        displayToolTip("#quick-bust-btn", quickBustBtnText, "tooltip3");
-        displayToolTip("#quick-bust-ylw", quickBustBtnYlwText, "tooltip3");
-
-        displayToolTip("#pre-release-btn", advFeaturestext, "tooltip3");
-        displayToolTip("#penalty-btn", penaltyBtnText, "tooltip3");
-        displayToolTip("#xtz-tct", timeZoneText, "tooltip3");
-        displayToolTip("#xtz-local", timeZoneText, "tooltip3");
-
-        if (DEV_MODE)
-            displayToolTip("#xlast-page-opt", page2optText, "tooltip3");
+        for (let idx=0; idx<ttTable.length; idx++) {
+            let entry = ttTable[idx];
+            if (!DEV_MODE && entry.devMode == true) continue;
+            displayHtmlToolTip(entry.sel, entry.text, "tooltip4");
+        }
     }
 
     // ========== Options button and panel animation and click handlers ==========
+    var optionsSaved = false;         // True if saved when opt screen closed
+    var optionsChanged = false;
+
+    function handleJailOptChange(e) {
+        let target = $(e.currentTarget);
+        optionsChanged = true;
+    }
+
     function handleSaveOptsBtn() {
+        optionsChanged = false;
+
         let savedPR = enablePreRelease;
 
         bustMin = $("#bust-limit").val();
@@ -1189,6 +1677,22 @@
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
         optTryLastPages = DEV_MODE && $("#xlast-page-opt").is(":checked");
 
+        let tmp = saveResultHistory;
+        saveResultHistory = $("#save-results").is(":checked");
+
+        if (tmp != saveResultHistory) {
+            if (saveResultHistory == true)
+                installPastResultView();
+            else
+                showResultPane(false);
+        }
+
+        tmp = showLimits;
+        showLimits = $("#show-limits").is(":checked");
+        log("handleSaveOpts, show limits: ", showLimits, " old: ", tmp);
+        if (tmp != showLimits) {
+            enableLimitAdjustUi(showLimits);
+        }
 
         useLocal = (tzDisplay == "local");
         useUTC = !useLocal;
@@ -1201,11 +1705,18 @@
         GM_setValue("dispPenalty", dispPenalty);
         GM_setValue("tzDisplay", tzDisplay);
         GM_setValue("optTryLastPages", optTryLastPages);
+        GM_setValue("blinkOnSuccess", blinkOnSuccess);
+
+        GM_setValue("saveResultHistory", saveResultHistory);
+        GM_setValue("maxSavedResults", maxSavedResults);
+        GM_setValue("showLimits", showLimits);
 
         hideShowJailOpts();
 
+        optionsSaved = true;
+
         $("#xedx-msg").text(" **** Options Saved! ****");
-        setTimeout(optsAnimate, 500, 0);
+        //setTimeout(optsAnimate, 500, 0);
         setTimeout(clearMsg, 3000);
 
         debug("handleSaveOptsBtn: ", bustMin, " quick btn? ", quickBustBtn,
@@ -1224,6 +1735,7 @@
             $(MAIN_DIV_SEL).removeClass("top-round").addClass("border-round");
             $("#xcaret").removeClass("fa-caret-down").addClass("fa-caret-right");
         } else {
+            optionsSaved = false;
             $(MAIN_DIV_SEL).removeClass("border-round").addClass("top-round");
             $("#xcaret").removeClass("fa-caret-right").addClass("fa-caret-down");
         }
@@ -1231,12 +1743,10 @@
         let useDiv = $("#xedx-jail-opts");
         if (!$(useDiv).length) useDiv = $("#xedx-jail-stats");
 
-        //log("Do animate, size: ", size);
         $( useDiv ).animate({
             height: size,
             opacity: ((size == 0) ? 0 : 1)
         }, animateSpeed, function() {
-            //optsHideShow();
             hideShowJailOpts();
             inAnimation = false;
         });
@@ -1249,6 +1759,14 @@
     }
 
     function handleOptsBtn() {
+
+        if (optionsChanged == true) {
+            if (confirm("You have unsaved changes, save now?")) {
+                handleSaveOptsBtn();
+            }
+        }
+        optionsChanged = false;
+
         let useDiv = $("#xedx-jail-opts");
         if (!$(useDiv).length) useDiv = $("#xedx-jail-stats");
         let cssHeight = parseInt($(useDiv).css("height"), 10);
@@ -1257,10 +1775,11 @@
             return;
         }
 
-        if (cssHeight > 0)
+        if (cssHeight > 0) {
             optsAnimate(0);
-        else
+        } else {
             optsAnimate(enablePreRelease ? optsDivHeightPreRelease : optsDivHeightDef);
+        }
     }
 
     function swapStatsOptsView() {
@@ -1283,7 +1802,11 @@
         $("#xedx-stats-btn").attr('value', needStatDiv ? "Options" : "Stats");
 
         let sel = needStatDiv ? "#xedx-jail-stats" : "#xedx-jail-opts";
-        $(sel).css("height", "75px");
+
+        // Need correct height...
+        let newHeight = needStatDiv ? optsDivHeightDef :
+                        enablePreRelease ? optsDivHeightPreRelease : optsDivHeightDef;
+        $(sel).css("height", newHeight);
         $(sel).css("min-width", $(MAIN_DIV_SEL).css("width"));
 
         if (needStatDiv) {
@@ -1323,14 +1846,30 @@
     }
 
     function setTodaysBusts(numBusts) {
+        /*
         let msg = "(Today: " + numBusts +  ")";
         if (enablePreRelease && dispPenalty)
             msg = "(Today: " + numBusts + " Penalty: " + round2(totalPenalty) + ")";
+        */
+
+        $("#busts-today .numBusts").text(numBusts);
+        if (enablePreRelease && dispPenalty) {
+            $("#busts-today [class^='penalty']").css("display", "inline-block");
+            $("#busts-today .penalty2").text(round2(totalPenalty));
+            if (totalPenalty > 190)
+                $("#busts-today .penalty2").css("color", "red");
+            else if (totalPenalty > 160)
+                $("#busts-today .penalty2").css("color", "orange");
+            else if (totalPenalty > 130)
+                $("#busts-today .penalty2").css("color", "yellow");
+            else
+                $("#busts-today .penalty2").css("color", "green");
+        }
 
         let max = GM_getValue("maxDailyBusts", 0);
         if (numBusts > max) GM_setValue("maxDailyBusts", numBusts);
 
-        $("#busts-today").text(msg);
+        //$("#busts-today").text(msg);
      }
 
     const hideWithButton = false;
@@ -1519,7 +2058,7 @@
         debug("doLastPageJump");
 
         if (!DEV_MODE || !optTryLastPages) {
-            log("Jumping not allowed!");
+            debug("Jumping not allowed!");
             return false;
         }
 
@@ -1643,11 +2182,31 @@
 
     // ============================ Fast reload call on ajax response =====================
 
+    var timerOn;
+    function blinkButtons(turnOn=false) {
+        let color = 'xlg';
+        if (turnOn == true) {
+            $("#xedx-reload-btn").addClass(color);
+            $("#xedx-reload-btn2").addClass(color);
+            $("#xedx-quick-bust-btn").addClass(color);
+            if (!timerOn) setTimeout(blinkButtons, 100);
+            timerOn = true;
+        } else {
+            timerOn = undefined;
+            $("#xedx-reload-btn").removeClass(color);
+            $("#xedx-reload-btn2").removeClass(color);
+            $("#xedx-quick-bust-btn").removeClass(color);
+        }
+    }
+
     function processResponse(response, pageNum) {
         let displayMsg = false;
         debug("Handling reloadUserList response");
         let targetUl = $(targetUlSel);
         let jsonObj = JSON.parse(response);
+
+        // Just to indicate the response, flash the text yellow...
+        if (blinkOnSuccess == true) blinkButtons(true);
 
         if (jsonObj.success == true) {
             let players = jsonObj.data.players;
@@ -1985,7 +2544,10 @@
     // =========== End handle hiding our UI elements, via the main "Hide" button ===============
 
     // =========== Div for script options panel/dashboard,down here just  to keep ot of above code.
+
+    const useOptionsTable = true;    // replacing with table view.....
     function getOptionsDiv() {
+        if (useOptionsTable == true) return getOptionsDivTable();
 
         let optsDiv = `
             <div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
@@ -2022,6 +2584,171 @@
                  <span class="xopt-span">
                      <input id="xedx-stats-btn" type="submit" class="xedx-torn-btn xmt5 xmr10" value="Stats">
                  </span>
+             </div>
+             `;
+
+        return optsDiv;
+    }
+
+    function addOptsTableStyles() {
+        GM_addStyle(`
+            #xedx-jail-opts-tbl td span {
+                display: flex;
+                flex-flow: row wrap;
+                color: var(--tutorial-title-color);
+                font-size: 12px;
+                font-family: arial;
+            }
+
+            #xedx-jail-opts-tbl tr td:last-child {
+                /*width: 1%;
+                white-space: nowrap;*/
+            }
+            #xedx-jail-opts-tbl tr {
+                max-height: 35px;
+                /*align-content: center;*/
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: space-between;
+                width: 100%;
+            }
+            .xedx-radio-opts-table {
+                margin-left: 10px;
+                margin-right: 5px;
+            }
+
+            .xedx-cb-opts-table {
+                display: inline-block;
+                vertical-align: top;
+                margin: 0px 10px 0px 10px;
+            }
+
+            .xopt-span-table {
+                width: 25%;
+                float: right;
+                margin-left: auto;
+            }
+
+            .xopt-2btn-span {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                width: 100%;
+            }
+
+            #table-wrap > td {
+                width: 75%;
+                vertical-align: top;
+            }
+        `);
+    }
+
+    // As above, but using a table
+    function getOptionsDivTable() {
+
+        let optsDiv = `
+            <div id="xedx-jail-opts"  class="xoptwrap flexwrap title-black xnb bottom-round">
+
+                <table id="table-wrap" style="width: 100%;margin-top: 5px;"><tbody><tr>
+                    <td style="width: 75%; vertical-align: top;">` +
+
+                        // Left side of table, checkboxes/input etc.
+
+                        `<table id="xedx-jail-opts-tbl" style="width: 100%;"><tbody>` +
+                            // Top row options
+                            `<tr>
+                                 <td><span>
+                                     <span>Lower limit, %:</span>
+                                     <input type="number" id="bust-limit" class="xlimit" name="limit" min="0" max="100">
+                                 </span></td>
+
+                                 <td><span>
+                                     <!-- label for="hide" class="xml10">Filter, hide under %:</label -->
+                                     <span>Filter, hide under %:</span>
+                                     <input type="number" id="hide-limit" class="xlimit" name="hide" min="0" max="100">
+                                 </span></td>
+
+                                 <td><span>
+                                     <input type="checkbox" id="quick-bust-btn" data-type="sample3" class="xedx-cb-opts-table">
+                                     <span>Quick Bust Green</span>
+                                 </span></td>
+
+                                 <td><span>
+                                     <input type="checkbox" id="pre-release-btn" class="xedx-cb-opts-table">
+                                     <span>Advanced</span>
+                                 </span></td>
+                             </tr>` +
+
+                             // Second row options
+                             `<tr>
+                                 <td><span>
+                                     <input type="checkbox" id="save-results" class="xedx-cb-opts-table">
+                                     <span class="">Save Last Results</span>
+                                 </span></td>
+                                 <td><span>
+                                     <input type="checkbox" id="show-limits" class="xedx-cb-opts-table">
+                                     <span class="">Show Bust Limit</span>
+                                 </span></td>
+                                 <td><span style="visibility: hidden;">
+                                     <span class="xprerelease dev-mode">Rate busts on:</span>
+                                     <span>
+                                         <input type="radio" id="xradio-pct" name="limit-type" class="xedx-radio-opts-table">
+                                         <span class="xprerelease dev-mode">% Chance</span>
+                                     </span>
+                                     <span>
+                                         <input type="radio" id="xradio-score" name="limit-type" class="xedx-radio-opts-table">
+                                         <span class="xprerelease dev-mode">Score</span>
+                                     </span>
+                                 </span></td>
+                             </tr>` +
+
+
+                             // Third row opts - pre-release/advanced...
+                             `<tr>
+                                 <td><span>
+                                     <input type="checkbox" id="penalty-btn" class="xedx-cb-opts-table xprerelease">
+                                     <span class="xprerelease">Show p0</span>
+                                 </span></td>
+
+                                 <td><span>
+                                     <input type="checkbox" id="quick-bust-ylw" class="xedx-cb-opts-table xprerelease">
+                                     <span class="xprerelease">QB Yellow</span>
+                                 </span></td>
+
+                                 <td><span>
+                                     <span class="xml10">Timezone:</span>
+                                     <input type="radio" id="xtz-local" name="opt-tz" class="xedx-radio-opts-table xprerelease">
+                                     <span class="xprerelease">Local</span>
+                                     <input type="radio" id="xtz-tct" name="opt-tz" class="xedx-radio-opts-table xprerelease">
+                                     <span class="xprerelease">TCT</span>
+                                 </span></td>
+
+                                 <td><span>
+                                     <input type="checkbox" id="xlast-page-opt" class="xedx-cb-opts-table xhide xprerelease dev-mode">
+                                     <span class="xhide xprerelease dev-mode">Auto Last Page</span>
+                                 </span></td>
+                             </tr>
+
+                         </tbody></table>
+                     </td>` +
+
+                     // Right side cell of outer table: buttons
+
+                     `<td style="width: 25%; vertical-align: top;">
+                         <div style="display: flex; flex-direction: column;">
+                             <span class="xopt-2btn-span">
+                                 <input id="xedx-save-opt-btn" type="submit" class="xedx-torn-btn xmt3" value="Apply">
+                                 <input id="xedx-save-btn2" type="submit" class="xedx-torn-btn xml10 xmt3 xmr10" value="Save Log">
+                             </span>
+
+                             <span class="xopt-2btn-span">
+                                 <input id="xedx-stats-btn" type="submit" class="xedx-torn-btn xmt5 xmr10" value="Stats">
+                             </span>
+                         </div>
+                     </td>
+
+                 </tr></tbody></table>
              </div>
              `;
 
@@ -2107,7 +2834,7 @@
     }
 
     function attachOptsDiv(sel) {
-        let optsDiv = getOptionsDiv();
+        let optsDiv = getOptionsDivTable();
         $(sel).after(optsDiv);
     }
 
@@ -2134,7 +2861,13 @@
       addToolTipStyle();
       addBorderStyles();
 
+      addOptsTableStyles();
+
       GM_addStyle(`
+            .xyt {color: yellow !important; border: 1px solid yellow; filter: brightness(1.6);}
+            .xbt {color: blue !important; border: 1px solid blue; filter: brightness(1.6);}
+            .xlg {color: limegreen !important;}
+
             .xod {
                 min-width: 784px;
             }
