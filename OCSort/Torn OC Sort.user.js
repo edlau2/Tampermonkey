@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -225,12 +225,11 @@
 
         debug("Adding UI components");
         let elem = getMyOcTrackerDiv();
-        makeXedxSidebarContentDiv();
+        let parentSelector = makeXedxSidebarContentDiv('oc-tracker');
 
-        debug("Made sidebar content: ", $("#x-scrollbar-content"));
+        $(parentSelector).append(elem);
+        $(parentSelector).css("padding", "0px");
 
-        $("#x-scrollbar-content").append(elem);
-        $("#x-scrollbar-content").css("padding", "0px");
         debug("Added tracker div: ", $("#ocTracker"));
 
         // On fac page - we will be doing this call anyways,
@@ -242,8 +241,6 @@
         }
 
         getMyNextOcTime();
-        //var options = {"cat": 'planning', "offset": "0", "param": 'ocTracking'};
-        //xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
     }
 
     function getMyOcTrackerDiv() {
@@ -262,13 +259,13 @@
 
                 font-size: 14px;
                 width: 90%;
-                cursor: pointer;
+                /*cursor: pointer;*/
             }
 
         `);
         let myDiv = `
             <div id="ocTracker">
-               <span id="oc-tracker-time" class="xtime">00:00:00</span>
+               <span id="oc-tracker-time">00:00:00</span>
            </div>
         `;
 
