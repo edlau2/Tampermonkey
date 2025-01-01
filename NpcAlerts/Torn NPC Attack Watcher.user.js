@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Attack Watcher
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.6
 // @description  Experiment, for now...
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -504,6 +504,8 @@
                     height=22px;
                     min-height: 22px;
                     cursor: pointer;
+                    position: sticky;
+                    z-index: 99;
                 }
         `);
 
@@ -550,6 +552,7 @@
     var notifyOpen = false;
     const resetNotifyFlag = function () {notifyOpen = false;}
     function doBrowserNotify() {
+        if (awayFromHome()) return;
         if (notifyOpen == true) return;
         debug("Browser alert: ", timeNow());
 
@@ -719,6 +722,7 @@
     var secCounter = 0;
 
     function handleIntTimer() {
+        if (awayFromHome()) return;
         if (timesAreGood == false) {
             return invalidate();
         }
@@ -738,7 +742,7 @@
         let hrs = startTimes.until.hrs;
         let mins = startTimes.until.mins;
         let secs = startTimes.until.secs;
-        if (hrs < 0 || mins < 0 || secs < 0) return invalidate();
+        if (hrs < 0 || hrs > 22 || mins < 0 || secs < 0) return invalidate();
         if (startTimes.valid != true) return invalidate();
 
         // Handle alerts. Enable if threshold set and hit
@@ -853,10 +857,7 @@
     const showOpts = function () {$(".xrflex").removeClass("ctxhide").addClass("xshow-flex");}
     const hideOpts = function () {$(".xrflex").removeClass("xshow-flex").addClass("ctxhide");}
 
-    // Outermost wrapper. Class is just for install, remove once decided
-    // wether to hide or not.
-    //GM_addStyle(".faraway {position: absolute; top: -2000px; left: -2000px;}");
-    const uberDiv = `<div id="uber-alert" class="uber faraway"></div>`;
+    // Outermost wrapper. 
     const uberDiv2 = `<div id="uber-alert" class="uber-nb faraway"></div>`;
     var hiddenAtStart = false;
 
@@ -1004,14 +1005,16 @@
         setTimeout(hideSidebarNpcTimers, 250);
 
         let elem = getNPCDiv();
-        //$(elem).addClass('faraway');
-        makeXedxSidebarContentDiv();
-        $("#x-scrollbar-content").append(elem);
-        $("#x-scrollbar-content").css("padding", "0px");
+        let parentSelector = makeXedxSidebarContentDiv('npc-watch');
+
+        $(parentSelector).append(elem);
+        $(parentSelector).css("padding", "0px");
 
         // This allow us to hide and show the div, unobtrusively
-        let uber = dbgBorders ? $(uberDiv) : $(uberDiv2);
-        $("#xedxNPCAlert").parent().wrap(uber);
+        $(parentSelector).before($(uberDiv2));
+        let tmp = $(parentSelector).detach();
+        $("#uber-alert").append($(tmp));
+
         $("#uber-alert").on('click', handleBtnClick);
 
         // Handler/help for the 'links' button
@@ -1185,7 +1188,6 @@
 
     function handlePageLoad() {
         installUI();
-        //queryLootRangers();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1195,6 +1197,7 @@
     logScriptStart();
     //validateApiKey();
     //versionCheck();
+    if (awayFromHome()) return log("Not alerting while abroad.");
 
     queryLootRangers();
 
