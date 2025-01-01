@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.22
+// @version     2.45.23
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.22";
+const thisLibVer = "2.45.23";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -1397,10 +1397,10 @@ function makeXedxSidebarContentDiv(elemId) {
     let newElemId = "x-scrollbar-content" + (elemId ? ("-" + elemId) : "");
     let selector = '#'+ newElemId;
     if ($(selector).length > 0) return selector;
-    let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]');
+    let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]:not([id^="x-scroll"])');
     if ($(node).length < 1) return;
 
-    let clone = $(node).clone();
+    let clone = $($(node)[0]).clone();
     $(clone).children().remove();
     $(node).after(clone);
     $(clone).attr("id", newElemId);
