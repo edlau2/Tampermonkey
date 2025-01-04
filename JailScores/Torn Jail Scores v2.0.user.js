@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.22
+// @version      2.23
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -57,9 +57,10 @@
     var optTryLastPages = GM_getValue("optTryLastPages", false);
     var blinkOnSuccess = GM_getValue("blinkOnSuccess", false);
 
-    var saveResultHistory = GM_getValue("saveResultHistory", false); // Save past X results and display as a list
-    var maxSavedResults = GM_getValue("maxSavedResults", 10);         // Num results to save
-    var showLimits = GM_getValue("showLimits", false);               // Show current bust % limit on title bar
+    var showResultHistory = GM_getValue("showResultHistory", false); // Save past X results and display as a list
+    var maxSavedResults = GM_getValue("maxSavedResults", 10);       // Num results to save
+    var showLimits = GM_getValue("showLimits", true);               // Show current bust % limit on title bar
+    var lockAnimations = GM_getValue("lockAnimations", false);
 
     var useLocal = (tzDisplay == "local");
     var useUTC = !useLocal;
@@ -93,14 +94,15 @@
     GM_setValue("quickBustYlw", quickBustYlw);
     GM_setValue("dispPenalty", dispPenalty);
 
-    GM_setValue("saveResultHistory", saveResultHistory);
+    GM_setValue("showResultHistory", showResultHistory);
     GM_setValue("maxSavedResults", maxSavedResults);
     GM_setValue("showLimits", showLimits);
+    GM_setValue("lockAnimations", lockAnimations);
 
     // Console logging levels
-    var extraExtraDebug = true;
-    debugLoggingEnabled = false;
-    loggingEnabled = true;
+    var extraExtraDebug = GM_getValue("extraExtraDebug", false);
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    loggingEnabled = GM_getValue("loggingEnabled", true);
 
     // DO NOT EDIT!
     const MAIN_DIV_ID = "xd1";
@@ -726,7 +728,7 @@
                             let text = node.textContent;
                             let html = $(node).html();
 
-                            if (saveResultHistory == true) {
+                            if (showResultHistory == true) {
                                 if (extraExtraDebug == true) {
                                     log('**** Bust action: ', text, " ****");
                                     log('node html: ', html);
@@ -1019,6 +1021,11 @@
             /*border: 1px solid yellow;
             border-radius: 4px;*/
         }
+
+        #xlimit-adj.unlocked.xenable:hover {
+            opacity: 1 !important;
+        }
+
         #xlimit-adj span {
             border-radius: 4px;
             display: flex;
@@ -1075,18 +1082,26 @@
         }
     }
 
-    function enableLimitAdjustUi(enable=true) {
-        if (enable == true) {
-            if ($("#xlimit-adj").length) {
-                $("#xlimit-adj").css("visibility", "visible");
-            } else {
-                let msgBar = $(".msg-info-wrap > .info-msg-cont > .info-msg > div > .msg");
-                $(msgBar).append(limitAdjust);
-                $("#limit-txt").text((bustMin + "%"));
-                $("#xlimit-adj > .adj-btn").on('click', handleLimitAdjust);
-            }
+    function enableLimitAdjustUi() {
+
+        if (!$("#xlimit-adj").length) {
+            let msgBar = $(".msg-info-wrap > .info-msg-cont > .info-msg > div > .msg");
+            $(msgBar).append(limitAdjust);
+            $("#limit-txt").text((bustMin + "%"));
+            $("#xlimit-adj > .adj-btn").on('click', handleLimitAdjust);
+        }
+
+        if (lockAnimations == true)
+            $("#xlimit-adj").removeClass("unlocked");
+        else
+            $("#xlimit-adj").addClass("unlocked");
+
+        if (showLimits == true) {
+            $("#xlimit-adj").css("opacity", (lockAnimations ? 1 : 0));
+            $("#xlimit-adj").addClass("xenable");
         } else {
-            $("#xlimit-adj").css("visibility", "hidden");
+            $("#xlimit-adj").css("opacity", 0);
+            $("#xlimit-adj").removeClass("xenable");
         }
     }
 
@@ -1103,6 +1118,12 @@
                 max-height: 22px;
                 margin-left: 20px;
             }
+            #xresview-outer.unlocked.xenable:hover #res-spans {
+                opacity: 1 !important;
+            }
+            #xresview-outer.unlocked.xenable:hover #res-pane-btn {
+                opacity: 1 !important;
+            }
 
             .result-span {
                 height: 22px;
@@ -1118,6 +1139,7 @@
                 border-radius: 11px 11px 11px 11px;
 
                 border: 1px solid var(--default-color);
+                transition: 0.2s;
             }
 
             .result-span:not(.res-pane-active) {
@@ -1165,6 +1187,7 @@
                 border: 1px solid var(--default-color);
                 cursor: pointer;
                 z-index: 99;
+                transition: 0.2s;
             }
             #pane-btn-wrap {
                 display: flex;
@@ -1198,7 +1221,7 @@
     const newStyle = "style='color:var(--default-blue-color);margin-left:5px;'";
     const styleVal = 'color:var(--default-blue-color);margin-left:5px;';
     function insertResultIntoResPane(html, fromInit) {
-        if (saveResultHistory == false) return;
+        //if (showResultHistory == false) return;
 
         if (fromInit != true && html.indexOf("no longer") > -1) {return debug("No longer in jail, won't save");}
         if (html.indexOf("While trying") > -1) {
@@ -1254,7 +1277,7 @@
     var hideFirst = true;
     var thisPaneDiv;
     function handleResPaneClick(e) {
-        if (saveResultHistory == false) return;
+        //if (showResultHistory == false) return;
 
         let key = GM_getValue("lastResKey", "savedRes_0");
         let latestIdx = key ? key.split('_')[1] : 0;
@@ -1330,26 +1353,43 @@
 
     // Toggle opacity to temporarily remove/disable
     function showResultPane(show=true) {
-        let newOpacity = (show == true) ? 1 : 0;
+        if (lockAnimations == true)
+            $("#xresview-outer").removeClass("unlocked");
+        else
+            $("#xresview-outer").addClass("unlocked");
+
+        if (show == true)
+            $("#xresview-outer").addClass("xenable");
+        else
+            $("#xresview-outer").removeClass("xenable");
+
+        let newOpacity = (show == true && lockAnimations == true) ? 1 : 0;
+
+        //$("#xresview-outer").animate({opacity: newOpacity}, 200);
         $("#res-spans").animate({opacity: newOpacity}, 200);
         $("#res-pane-btn").animate({opacity: newOpacity}, 200);
     }
 
     // Install the past result view, load saved results
     function installPastResultView(retries=0) {
-        if (saveResultHistory == false) return;
+        //if (showResultHistory == false) return;
 
         if ($("#xresview-outer").length > 0) {
-            showResultPane(true);
+            showResultPane(showResultHistory);
             return debug("Result pane already exists, faded in.");
         }
 
-        let target = $("#skip-to-content");
-        if (!$(target).length) {
-            if (retries++ < 30) return setTimeout(installPastResultView, 250, retries);
-            return log("installPastResultView: too many retries");
+        if (!$("#xresview-outer").length) {
+            let target = $("#skip-to-content");
+            $(target).after(resultViewDiv);
+            if (!$("#xresview-outer").length) {
+                if (retries++ < 30) return setTimeout(installPastResultView, 250, retries);
+                return log("installPastResultView: too many retries");
+            }
         }
-        $(target).after(resultViewDiv);
+
+        //$("#xresview-outer").css("visibilty", (showResultHistory == true) ? "visible" : "hidden");
+        showResultPane(showResultHistory);
 
         debug("resView: ", $("#xresview-outer"));
 
@@ -1470,9 +1510,9 @@
             installPastResultView();  // xedx res pane
         }
 
-        if (showLimits == true) {
+        //if (showLimits == true) {
             enableLimitAdjustUi(true);
-        }
+        //}
 
         // When we roll over, maybe keep a daily record?
         let temp = GM_getValue("lastBust", undefined);
@@ -1564,8 +1604,9 @@
         $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
         $("#xlast-page-opt").prop('checked', optTryLastPages);
 
-        $("#save-results").prop("checked", saveResultHistory);
+        $("#save-results").prop("checked", showResultHistory);
         $("#show-limits").prop("checked", showLimits);
+        $("#lock-animations").prop("checked", lockAnimations);
 
         hideShowJailOpts();
 
@@ -1677,22 +1718,38 @@
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
         optTryLastPages = DEV_MODE && $("#xlast-page-opt").is(":checked");
 
-        let tmp = saveResultHistory;
-        saveResultHistory = $("#save-results").is(":checked");
+        /*
+        let tmp = showResultHistory;
+        showResultHistory = $("#save-results").is(":checked");
 
-        if (tmp != saveResultHistory) {
-            if (saveResultHistory == true)
+        if (tmp != showResultHistory) {
+            //if (showResultHistory == true)
                 installPastResultView();
-            else
-                showResultPane(false);
+            //else
+            //    showResultPane(false);
         }
 
         tmp = showLimits;
         showLimits = $("#show-limits").is(":checked");
         log("handleSaveOpts, show limits: ", showLimits, " old: ", tmp);
         if (tmp != showLimits) {
-            enableLimitAdjustUi(showLimits);
+            enableLimitAdjustUi();
         }
+
+        tmp = lockAnimations;
+        lockAnimations = $("#lock-animations").is(":checked");
+        if (tmp != lockAnimations) {
+            enableLimitAdjustUi();
+            installPastResultView();
+        }
+        */
+
+        showResultHistory = $("#save-results").is(":checked");
+        showLimits = $("#show-limits").is(":checked");
+        lockAnimations = $("#lock-animations").is(":checked");
+
+        enableLimitAdjustUi();
+        installPastResultView();
 
         useLocal = (tzDisplay == "local");
         useUTC = !useLocal;
@@ -1707,9 +1764,10 @@
         GM_setValue("optTryLastPages", optTryLastPages);
         GM_setValue("blinkOnSuccess", blinkOnSuccess);
 
-        GM_setValue("saveResultHistory", saveResultHistory);
+        GM_setValue("showResultHistory", showResultHistory);
         GM_setValue("maxSavedResults", maxSavedResults);
         GM_setValue("showLimits", showLimits);
+        GM_setValue("lockAnimations", lockAnimations);
 
         hideShowJailOpts();
 
@@ -2684,12 +2742,19 @@
                              `<tr>
                                  <td><span>
                                      <input type="checkbox" id="save-results" class="xedx-cb-opts-table">
-                                     <span class="">Save Last Results</span>
+                                     <span class="">Show Last Results</span>
                                  </span></td>
                                  <td><span>
                                      <input type="checkbox" id="show-limits" class="xedx-cb-opts-table">
                                      <span class="">Show Bust Limit</span>
                                  </span></td>
+                                 <td><span>
+                                     <input type="checkbox" id="lock-animations" class="xedx-cb-opts-table">
+                                     <span class="">Lock Animations</span>
+                                 </span></td>
+                                 ` +
+
+                                 /*
                                  <td><span style="visibility: hidden;">
                                      <span class="xprerelease dev-mode">Rate busts on:</span>
                                      <span>
@@ -2702,7 +2767,7 @@
                                      </span>
                                  </span></td>
                              </tr>` +
-
+                             */
 
                              // Third row opts - pre-release/advanced...
                              `<tr>
