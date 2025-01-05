@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC 2.0 Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Keep track of when your OC v2 will be ready
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -28,6 +28,10 @@
     var myCrimeId = GM_getValue("myCrimeId", null);
     var myCrimeStartTime = GM_getValue("myCrimeStartTime", 0);
 
+    // Logging levels
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    const xedxDevMode = false;
+
     const secsInDay = 24 * 60 * 60;
     const secsInHr = 60 * 60;
 
@@ -41,8 +45,16 @@
         $("#oc-tracker-time").text(time);
     }
 
+    const NO_OC_TIME = "No OC found.";
     function nn(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+
     function getTimeUntilOc() {
+
+        if (!myCrimeStartTime || !validateSavedCrime()) {
+            getMyNextOcTime();
+            return NO_OC_TIME;
+        }
+
         let now = new Date();
         let dt = new Date(myCrimeStartTime * 1000);
 
@@ -52,8 +64,16 @@
         let hrs = Math.floor(remains / secsInHr);
         remains = remains - (hrs * secsInHr);
         let mins = Math.floor(remains/60);
-
         let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
+
+        if (xedxDevMode == true) {
+            debug("getTimeUntilOc, now: ", now.toString());
+            debug("getTimeUntilOc, dt: ", dt.toString());
+            debug("getTimeUntilOc: ", days, hrs, mins);
+            debug("getTimeUntilOc: ", myCrimeStartTime, now.getTime()/1000, diffSecs);
+            debug("getTimeUntilOc: ", timeStr);
+        }
+
         return timeStr;
     }
 
@@ -65,17 +85,22 @@
         let now = new Date();
         let crimeTime = new Date(myCrimeStartTime * 1000);
 
+        if (xedxDevMode) {
+            debug("validateSavedCrime: ", myCrimeStartTime, myCrimeId);
+            debug("validateSavedCrime now: ", now.toString());
+            debug("validateSavedCrime crimeTime: ", crimeTime.toString());
+        }
+
         // If now is after the start time, expired...
         if (now.getTime() > myCrimeStartTime * 1000) {
             myCrimeId = null;
             myCrimeStartTime = 0;
             saveMyCrimeData();
-            log("Expired crimeTime");
+            debug("validateSavedCrime Expired crimeTime");
             return false;
         }
 
-        // Cached time can be used...Should prob validate
-        // is still in list, can be cancelled?
+        // Cached time can be used...can be cancelled?
         return true;
     }
 
