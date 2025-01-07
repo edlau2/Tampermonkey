@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.91
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -72,7 +72,7 @@
     const sortByTime = 1;
     const sortByLevel = 2;
 
-    const menuItems = [{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb"},
+    const menuItems = [{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb", enabled: false},
                        {name: "Hide Levels", id: "oc-hide", key: hideLvlKey, type: "cb"},
                        {name: "Min Level", id: "oc-hide-lvl", key: hideLvlValKey, type: "input"},
                        {name: "Go To Crimes", id: "oc-goto-crimes", type: "href", href:"/factions.php?step=your&type=1#/tab=crimes"},
@@ -392,6 +392,7 @@
 
         for (let idx=0; idx<menuItems.length; idx++) {
             let opt = menuItems[idx];
+            if (opt.enabled == false) continue;
             let sel = '#' + opt.id;
             let optionalClass = (idx == 0) ?
                 "opt-first-li" :
@@ -1068,7 +1069,7 @@
         membersArray.forEach(function (member, index) {
             if (member.id) {
                 let state = member.status.state;
-                if (state.toLowerCase() != "fallen") {
+                if (state.toLowerCase() != "fallen" && member.position != "Recruit") {
                     facMembersArray.push(member.id);
                     facMembersJson[member.id] = member.name;
                 }
@@ -1312,6 +1313,7 @@
 
                 padding: 1px 0px 0px 4px;
                 margin-left: 5px;
+                margin-right: 10px;
 
                 display: inline-flex;
                 flex-flow: row wrap;
@@ -1502,7 +1504,7 @@
             <span id='oc-opt-wrap'>
                 <input type="checkbox" id="oc-opt-hide">
                 <input type="number"   id="oc-opt-lvl" min="1" max="15">
-                <input type="checkbox" id="oc-opt-last-pos">
+                <input type="checkbox" id="oc-opt-last-pos" style="display: none; opacity: 0;">
             </span>`;
 
         let membersDiv = `
@@ -1526,7 +1528,7 @@
         $("#oc-opt-hide").prop('checked', hideLvl);
         $("#oc-opt-lvl").val(hideLvlVal);
 
-        displayHtmlToolTip($("#x-oc-can-click"), "Right click to refresh", "tooltip4");
+        displayHtmlToolTip($("#x-oc-can-click > .box"), "Right click to refresh", "tooltip4");
 
         displayHtmlToolTip($("#oc-opt-hide"),
                            "Checking this will hide avaiable<br>" +
@@ -1573,8 +1575,8 @@
         $("#x-oc-can-click > .box").on('click', function (e) {doAnimateTable(e, 'btn');});
         $("#x-oc-can-click > .box").on('contextmenu', refreshMissingMembers);
 
-        if (keepLastState == true && lastState == stateOpen && !animatePending)
-            doAnimateTable('missmembers');    // Can call direct, event is unused
+        //if (keepLastState == true && lastState == stateOpen && !animatePending)
+        //    doAnimateTable('missmembers');    // Can call direct, event is unused
     }
 
 
