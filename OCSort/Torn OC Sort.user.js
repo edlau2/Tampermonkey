@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.8
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -29,6 +29,8 @@
     // Constants used, some to load options..hence first.
     const userId = getThisUserId();    // Used to highlight yourself in list
     const keepLastStateKey = "keepLastState";
+    const hideLvlKey = "hideLvl";
+    const hideLvlValKey = "hideLvlVal";
     const lastStateKey = "lastState";
     const stateOpen = "visible";
     const stateClosed = "hidden";
@@ -42,9 +44,13 @@
 
     // Can edit this, but there's a hidden checkbox for it.
     var keepLastState = GM_getValue(keepLastStateKey, false);
+    var hideLvl = GM_getValue(hideLvlKey, false);
+    var hideLvlVal = GM_getValue(hideLvlValKey, 5);
 
     // Monitor and display when an OC you are in is due
     var trackMyOc = GM_getValue("trackMyOc", true);
+
+    var displayCompletedTimeDate = GM_getValue("displayCompletedTimeDate", false);
 
     // ====================== End Configurable Options ======================
 
@@ -59,23 +65,51 @@
     const secsInDay = 24 * 60 * 60;
     const secsInHr = 60 * 60;
 
+    const membersTextClosed = "Available Members (click to show)";
+    const membersTextOpen = "Available Members (click to hide)";
+
+    // Sorting criteria
+    const sortByTime = 1;
+    const sortByLevel = 2;
+
+    const menuItems = [{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb"},
+                       {name: "Hide Levels", id: "oc-hide", key: hideLvlKey, type: "cb"},
+                       {name: "Min Level", id: "oc-hide-lvl", key: hideLvlValKey, type: "input"},
+                       {name: "Go To Crimes", id: "oc-goto-crimes", type: "href", href:"/factions.php?step=your&type=1#/tab=crimes"},
+                       {name: "Refresh", id: "oc-refresh", type: "ctrl", fnName: "refresh"}];
+
+    function updateOptions() {
+        keepLastState = GM_getValue(keepLastStateKey, keepLastState);
+        hideLvl = GM_getValue(hideLvlKey, hideLvl);
+        hideLvlVal = GM_getValue(hideLvlValKey, hideLvlVal);
+
+        $("#oc-opt-last-pos").prop('checked', keepLastState);
+        $("#oc-opt-hide").prop('checked', hideLvl);
+        $("#oc-opt-lvl").val(hideLvlVal);
+
+        $("#oc-last-state").prop('checked', keepLastState);
+        $("#oc-hide").prop('checked', hideLvl);
+        $("#oc-hide-lvl").val(hideLvlVal);
+
+        debug("updateOptions: ", keepLastState, hideLvl, hideLvlVal);
+    }
+
+    // Will reset at page refresh, not permanent cache
+    const cacheCompletedCrimes = true;
+
+    // I can turn this on for dev-only stuff, only I will see -
+    // and if I forget it won't be enabled without someone
+    // doing so on purpose. I sometimes leave in defaults set
+    // the wrong way....
+    const xedxDevMode = GM_getValue("xedxDevMode", false) && (userId == 2100735);
+    const enableReadyAlert = false;          // Not implemented yet...
+
     if (trackMyOc == true) {
         logScriptStart();
         validateApiKey()
         startMyOcTracking();
         if (!isFactionPage()) return;
     }
-
-    // Sorting criteria
-    const sortByTime = 1;
-    const sortByLevel = 2;
-
-
-    // Will reset at page refresh, not permanent cache
-    const cacheCompletedCrimes = true;
-
-    const xedxDevMode = (userId == 2100735); // I can turn this on for dev-only stuff, only I will see
-    const enableReadyAlert = false;          // Not implemented yet...
 
     const recruitingIdx = 0;
     const planningIdx = 1;
@@ -94,8 +128,8 @@
     const hashChangeHandler = function () {handlePageLoad();}
     const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
     const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
-    const isSortablePage = function () {return (btnIndex() != completedIdx);}
-    const sortPage = function (c=sotByTime) {tagAndSortScenarios(c);}
+    const isSortablePage = function () {return (btnIndex() == recruitingIdx || btnIndex() == planningIdx);}
+    const sortPage = function (c=sortByTime) {tagAndSortScenarios(c);}
     const getPlannedCrimes = function () { doFacOcQuery('planning'); }
     const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
     const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
@@ -117,11 +151,20 @@
     }
 
     function setTrackerTime(time) {
+        $("#oc-tracker-time").removeClass("blink182");
         $("#oc-tracker-time").text(time);
     }
 
+    const NO_OC_TIME = "No OC found.";
+
     function nn(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
     function getTimeUntilOc() {
+
+        if (!myCrimeStartTime || !validateSavedCrime()) {
+            getMyNextOcTime();
+            return NO_OC_TIME;
+        }
+
         let now = new Date();
         let dt = new Date(myCrimeStartTime * 1000);
 
@@ -131,30 +174,39 @@
         let hrs = Math.floor(remains / secsInHr);
         remains = remains - (hrs * secsInHr);
         let mins = Math.floor(remains/60);
-
         let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
+
+        if (xedxDevMode == true) {
+            debug("getTimeUntilOc, now: ", now.toString());
+            debug("getTimeUntilOc, dt: ", dt.toString());
+            debug("getTimeUntilOc: ", days, hrs, mins);
+            debug("getTimeUntilOc: ", myCrimeStartTime, now.getTime()/1000, diffSecs);
+            debug("getTimeUntilOc: ", timeStr);
+        }
+
         return timeStr;
     }
 
     // See if the cached crime has expired/completed.
     // Return false if invalid/expired/not set, true otherwise.
     function validateSavedCrime(crimes) {
-        debug("validateSavedCrime: ", myCrimeStartTime, myCrimeId);
-
         if (!myCrimeStartTime || !myCrimeId) return false;
 
         let now = new Date();
         let crimeTime = new Date(myCrimeStartTime * 1000);
 
-        log("now: ", now.toString());
-        log("crimeTime: ", crimeTime.toString());
+        if (xedxDevMode) {
+            debug("validateSavedCrime: ", myCrimeStartTime, myCrimeId);
+            debug("validateSavedCrime now: ", now.toString());
+            debug("validateSavedCrime crimeTime: ", crimeTime.toString());
+        }
 
         // If now is after the start time, expired...
         if (now.getTime() > myCrimeStartTime * 1000) {
             myCrimeId = null;
             myCrimeStartTime = 0;
             saveMyCrimeData();
-            log("Expired crimeTime");
+            debug("validateSavedCrime Expired crimeTime");
             return false;
         }
 
@@ -190,12 +242,25 @@
                 if (myCrime) break;
             }
 
+
             if (myCrime && readyAt) {
                 myCrimeId = myCrime.id;
-                myCrimeStartTime = readyAt;  // Prob need conversion....
+                myCrimeStartTime = readyAt;
+
+
+                if (xedxDevMode == true) {
+                    let now = new Date();
+                    let ready = new Date(myCrime.ready_at * 1000);
+                    let readyUTC = new Date(Date.UTC(myCrime.ready_at * 1000));
+                    debug("getTimeUntilOc: ", myCrime);
+                    debug("getTimeUntilOc, now: ", now, now.toString());
+                    debug("getTimeUntilOc, ready: ", ready, ready.toString());
+                    debug("getTimeUntilOc UTC: ", readyUTC, readyUTC.toString());
+                }
+
                 saveMyCrimeData();
             } else {
-                setTrackerTime("No OC found.");
+                setTrackerTime(NO_OC_TIME);
                 debug("Didn't locate my own OC!");
                 setTimeout(getMyNextOcTime, 60000);    // Try again in a minute...
             }
@@ -216,21 +281,24 @@
 
     function getMyNextOcTime() {
         debug("getMyNextOcTime");
-        var options = {"cat": 'planning', "offset": "0", "param": 'ocTracking'};
+        var options = {cat: 'planning', offset: "0", param: 'ocTracking'};
         xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
     }
 
     function startMyOcTracking() {
         // Add necessary UI components
-
         debug("Adding UI components");
+        if ($("#ocTracker").length) {
+            return log("Warning: another instace of the OC Tracker is running!");
+        }
+
         let elem = getMyOcTrackerDiv();
         let parentSelector = makeXedxSidebarContentDiv('oc-tracker');
 
         $(parentSelector).append(elem);
         $(parentSelector).css("padding", "0px");
 
-        debug("Added tracker div: ", $("#ocTracker"));
+        installOcTrackerContextMenu();
 
         // On fac page - we will be doing this call anyways,
         // and the callback will call the aboce callback as well.
@@ -243,11 +311,138 @@
         getMyNextOcTime();
     }
 
-    function getMyOcTrackerDiv() {
+    // ============================== context menu ===============================
 
+    // Run a function from context menu
+    function doContextMenuRunFunc(runFunc) {
+        switch (runFunc) {
+            case "refresh": {  // Refresh OC time ready, from context menu
+                $("#oc-tracker-time").text("Please wait...");
+                $("#oc-tracker-time").addClass("blink182");
+                setTimeout(getMyNextOcTime, 2500);
+                return;
+            }
+
+            default:
+                break;
+        }
+
+        debug("ERROR: Run func ", runFunc, " not recognized!");
+    }
+
+    function showMenu() {
+        let offset = $("#ocTracker").offset();
+
+        $("#ocTracker-cm").removeClass("oc-offscreen");
+        $("#ocTracker-cm").offset({top: offset.top - 10, left: offset.left + 50});
+        $("#ocTracker-cm").animate({opacity: 1}, 100);
+    }
+
+    function hideMenu() {
+        $("#ocTracker-cm").attr("style", "opacity: 0;");
+        $("#ocTracker-cm").addClass("oc-offscreen");
+    }
+
+    function handleTrackerContextClick(event) {
+        let target = $(event.currentTarget);
+        let menuId = $(target).attr("id");
+        let parent = $(target).parent();
+        let runFunc = $(parent).find(".xeval");
+
+        if ($(runFunc).length) {
+            let fnName = $(runFunc).attr("data-run");
+            if (fnName) {
+                doContextMenuRunFunc(fnName);
+                hideMenu();
+                return;
+            }
+        }
+
+        let anchor = $(parent).find("a");
+        debug("handleTrackerContextClick: ", $(target), $(target).parent(), $(anchor));
+        if ($(anchor).length) {
+            let href = $(anchor).attr("href");
+            if (href) {
+                window.location.href = href;
+                hideMenu();
+            }
+            return;
+        }
+
+        if (menuId == "ocTracker") {
+            showMenu();
+            return false;
+        }
+
+        setTimeout(hideMenu, 1500);
+        return false;
+    }
+
+    function installOcTrackerContextMenu() {
+        addContextStyles();
+        let myMenu = `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;">
+                          <ul ></ul>
+                      </div>`;
+
+        GM_addStyle(".oc-offscreen {position: absolute; top: -2000px; left: -2000px;}");
+
+        $('body').append(myMenu);
+        $('#ocTracker').on('contextmenu', handleTrackerContextClick);
+        $("#ocTracker").css("cursor", "pointer");
+
+        for (let idx=0; idx<menuItems.length; idx++) {
+            let opt = menuItems[idx];
+            let sel = '#' + opt.id;
+            let optionalClass = (idx == 0) ?
+                "opt-first-li" :
+            (idx == menuItems.length - 1) ? "opt-last-li" : "";
+
+            let inputLine = (opt.type == "cb") ?
+               `<input type="checkbox" data-index="${idx}" name="${opt.key}">` :
+               (opt.type == 'input') ?
+               `<input type="number"   id="oc-opt-lvl" min="1" max="15">` :
+               (opt.type == 'href') ?
+                `<a href="${opt.href}"></a>` :
+               (opt.type == 'ctrl') ?
+                `<span class="xeval" data-run="${opt.fnName}"></span>` :
+                null;
+
+            if (!inputLine) {
+                debugger;
+                continue;
+            }
+
+            let ocTrackerLi = `<li id="${opt.id}" class="xmed-li-rad ${optionalClass}">${inputLine}<span>${opt.name}</span></li>`;
+            $("#ocTracker-cm > ul").append(ocTrackerLi);
+
+            if (opt.type == "input") $(sel).find("input").css("margin-right", "8px");
+        }
+
+        $("#oc-opt-last-pos").prop('checked', keepLastState);
+        $("#oc-opt-hide").prop('checked', hideLvl);
+        $("#oc-opt-lvl").val(hideLvlVal);
+
+        $("#ocTracker-cm > ul > li > span").on('click', handleTrackerContextClick);
+        $("#ocTracker-cm > ul > li > input").on('change', processMiniOpCb);
+
+        $(document).click(function(event) {
+            if (!$(event.target).closest('#ocTracker-cm').length) {
+                hideMenu();
+            }
+        });
+    }
+
+    // ============================ end context stuff ============================
+
+    function getMyOcTrackerDiv() {
         GM_addStyle(`
             #ocTracker {
                 display: flex;
+                position: relative;
+            }
+
+            #ocTracker .context-menu {
+                position: absolute;
             }
 
             #ocTracker span {
@@ -259,7 +454,58 @@
 
                 font-size: 14px;
                 width: 90%;
-                /*cursor: pointer;*/
+            }
+            .ocTracker-cb {
+                display: inline-flex;
+                flex-flow: row wrap;
+                margin-left: 5px;
+                align-items: center;
+                font-size: 10pt;
+            }
+            #ocTracker-cm ul {
+                border-radius: 5px;
+            }
+            #ocTracker-cm li {
+                height: 24px;
+                padding: 4px 0px 4px 0px;
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                align-content: center;
+                color: var(--tabs-color);
+
+                background: var(--tabs-bg-gradient);
+            }
+            #ocTracker-cm li:hover {
+                background: var(--tabs-active-bg-gradient);
+                /*background: var(--tabs-hover-bg-gradient);*/
+            }
+
+            #ocTracker-cm ul li span:hover {color: limegreen; }
+
+            #ocTracker-cm li:last-child, .opt-last-li  {
+                -webkit-border-radius: 0px 0px 5px 5px;
+                border-radius: 0px 0px 5px 5px;
+            }
+            #ocTracker-cm li:first-child, .opt-first-li  {
+                -webkit-border-radius: 5px 5px 0px 0px;
+                border-radius: 5px 5px 0px 0px;
+            }
+            #ocTracker-cm input {
+                display: inline-flex;
+                margin-left: 10px;
+                width: fit-content;
+                margin-right: auto;
+                border-right: 1px solid black;
+                text-align: center;
+            }
+            #ocTracker-cm span {
+                margin-right: auto;
+            }
+            #ocTracker-cm a {
+                display: inline-flex;
+                width: fit-content;
+                margin-right: auto;
             }
 
         `);
@@ -299,6 +545,8 @@
         let list = $(grandparent).children("[class^='wrapper_']");
         let sortOrder = 'asc';
         if (onRecruitingPage()) sortOrder = 'desc';
+
+        debug("sortList attr: ", sortKey, " order: ", sortOrder);
         tinysort($(list), {attr: sortKey, order: sortOrder});
     }
 
@@ -340,6 +588,33 @@
         return totalSecs;
     }
 
+    function hideShowByLevel() {
+        let lvlList = $(".sort-lvl");
+        if (hideLvl == false) {
+            $(lvlList).css("display", "");  //"block");
+            tagAndSortScenarios(sortByLevel);
+            return;
+        }
+
+        if (!hideLvlVal || hideLvlVal < 1) return log("hideShowByLevel Error: no level set to hide...");
+        let countHidden = 0;
+        for (let idx=0; idx<$(lvlList).length; idx++) {
+            let panel = $(lvlList)[idx];
+            let lvl = $(panel).attr("data-sort");
+            if (lvl < hideLvlVal) {
+                $(panel).css("display", "none");
+                countHidden++;
+            } else
+                $(panel).css("display", "");
+            tagAndSortScenarios(sortByLevel);
+        }
+
+        let tab = getRecruitingTab();
+        let text = "Recruiting";
+        if (countHidden > 0) text = text + " (" + countHidden + " hidden)";
+        $(tab).text(text);
+    }
+
     // Do the sorting. On Planning page, by time. Recruiting page, by level.
     // sortCriteria over-rides....
     function tagAndSortScenarios(sortCriteria=sortByTime) {
@@ -352,6 +627,7 @@
         scenarios = $("[class^='scenario_']");
         let listRoot = $($(scenarios)[0]).parent().parent();
 
+        let countHidden = 0;
         for (let idx=0; idx<$(scenarios).length; idx++) {
             let scenario = $(scenarios)[idx];
             let sortVal = -1; // -1 means invalid
@@ -364,8 +640,19 @@
                 }
                 case sortByLevel: {
                     let elem = $(scenario).find("[class^='wrapper_'] > div > div > div > [class^='textLevel_'] [class^='levelValue_']");
-                    if ($(elem).length)
+                    if ($(elem).length) {
                         sortVal = parseInt($(elem).text());
+                        $(scenario).parent().addClass("sort-lvl");
+
+                        if (hideLvl == true && hideLvlVal > 0) {
+                            if (hideLvlVal > sortVal) {
+                                countHidden++;
+                                $(scenario).parent().css("display", "none");
+                            }
+                        }
+                        else
+                            $(scenario).parent().css("display", "");
+                    }
                     break;
                 }
                 default: {
@@ -377,9 +664,36 @@
             $(scenario).parent().attr(sortKey, sortVal);
         }
 
+        if (sortCriteria == sortByLevel) {
+            let tab = getRecruitingTab();
+            let text = "Recruiting";
+            if (countHidden > 0) text = text + " (" + countHidden + " hidden)";
+            $(tab).text(text);
+        }
+
         if (!$(".xoc-myself").length) highlightSelf();
 
+        debug("Calling Sort!");
         sortList();
+    }
+
+    function showHiddenRecruits() {
+        log("showHiddenRecruits");
+        let tab = getRecruitingTab();
+        let lvlList = $(".sort-lvl");
+        $(lvlList).css("display", "");
+        $(tab).text("Recruiting");
+        return false;
+    }
+
+    function addRecruitTabHandler() {
+        // TBD ...
+        return;
+
+        let tab = getRecruitingTab();
+        $(tab).on('contextmenu', showHiddenRecruits);
+
+        displayHtmlToolTip($(tab), "Right click to show<br>hidden crimes. Refresh<br>to hide again.", "tooltip4");
     }
 
     function onScrollTimer() {
@@ -419,6 +733,8 @@
             }
 
             tagAndSortScenarios(onRecruitingPage() ? sortByLevel : sortByTime);
+
+            addRecruitTabHandler();
         }
     }
 
@@ -588,6 +904,10 @@
             }, 250);
         });
 
+        if (!$("#x-no-oc-members").length) {
+            buildMissingMembersUI('load');
+        }
+
         addPageBtnHandlers();
         installCompletedPageButton();
         logCurrPage();
@@ -597,10 +917,11 @@
 
     //====================== API calls ===================================
     //
-    var missingMembers;
+    var missingMembers = [];
     var facMembersJson = {};
     var plannedCrimeMembers = [];
     var facMembersArray = [];
+    var missingMembersReady = false;
 
     var completedCrimesSynced = false;
     var completedScenarios;
@@ -649,24 +970,26 @@
                 return debug("Too many sync retries");
             }
 
-            for (let idx=0; idx < $(completedScenarios).length; idx++) {
-                let scenario = $(completedScenarios)[idx];
-                let desc = getCompCrimeDesc(idx);
-                let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
-                let prevDiv = $(rewardDiv).find(".xsort");
-                if ($(prevDiv).length) continue;
+            if (displayCompletedTimeDate == true) {
+                for (let idx=0; idx < $(completedScenarios).length; idx++) {
+                    let scenario = $(completedScenarios)[idx];
+                    let desc = getCompCrimeDesc(idx);
+                    let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
+                    let prevDiv = $(rewardDiv).find(".xsort");
+                    if ($(prevDiv).length) continue;
 
-                let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
-                let className = "";
-                let classListRaw = $(item).attr('class');
-                if (!classListRaw) {
-                    debug("Error: missing class list! ", $(item));
-                    debugger;
+                    let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
+                    let className = "";
+                    let classListRaw = $(item).attr('class');
+                    if (!classListRaw) {
+                        debug("Error: missing class list! ", $(item));
+                        debugger;
+                    }
+                    let classList = classListRaw ? classListRaw.split(/\s+/) : null;
+                    if (classList) className = classList[0];
+                    let newDiv = `<div class="${className} xsort">${desc}</div>`;
+                    $(rewardDiv).append(newDiv);
                 }
-                let classList = classListRaw ? classListRaw.split(/\s+/) : null;
-                if (classList) className = classList[0];
-                let newDiv = `<div class="${className} xsort">${desc}</div>`;
-                $(rewardDiv).append(newDiv);
             }
         }
 
@@ -695,8 +1018,8 @@
         function getCompCrimeDesc(idx) {
             let crime = completedCrimesArray[idx];
             let payout = asCurrency(crime.rewards.money);
-            let initiated = tm_str(crime.initiated_at);
-            let span = `<span class="oc-comp-span1">Initiated:</span><span class="oc-comp-span2">${initiated}</span>`;
+            let ready = tm_str(crime.ready_at);
+            let span = `<span class="oc-comp-span1">Ready:</span><span class="oc-comp-span2">${ready}</span>`;
             return span;
         }
     }
@@ -724,11 +1047,12 @@
         if (param == "planning") {
             getRecruitingCrimes();
         } else {
+            crimeMembersDone = true;
             if (facMembersDone == true) {
                 missingMembers = arrayDiff(facMembersArray, plannedCrimeMembers);
-                buildMissingMembersUI();
+                missingMembersReady = true;
+                buildMissingMembersUI('plannedcb');
             }
-            crimeMembersDone = true;
         }
     }
 
@@ -738,7 +1062,7 @@
         xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
     }
 
-    function facMemberCb(responseText, ID, param) {
+    function facMemberCb(responseText, ID, options) {
         let jsonObj = JSON.parse(responseText);
         let membersArray = jsonObj.members;
         membersArray.forEach(function (member, index) {
@@ -753,15 +1077,47 @@
 
         debug("Fac members: ", facMembersArray.length);
 
+        facMembersDone = true;
         if (crimeMembersDone == true) {
-                missingMembers = arrayDiff(facMembersArray, plannedCrimeMembers);
-                buildMissingMembersUI();
-            }
-            facMembersDone = true;
+            missingMembers = arrayDiff(facMembersArray, plannedCrimeMembers);
+            missingMembersReady = true;
+            buildMissingMembersUI('faccb');
+        }
     }
 
     function getFacMembers() {
         xedx_TornFactionQueryv2("", "members", facMemberCb);
+    }
+
+    // ============= experiment ====
+    function finishRefresh() {
+        $("#x-oc-tbl-wrap").remove();
+        getFacMembers();
+    }
+
+    var int = 0;
+    function removeInt() {clearInterval(int); int = null;}
+    function doBlink() { // can just add animate class....
+        $("#x-no-oc-table").toggleClass("gb bb");
+        setTimeout(removeInt, 500);
+    }
+
+    function refreshMissingMembers() {
+        log("Refreshing missing members");
+        int = setInterval(doBlink, 500);
+        $("#x-no-oc-table").addClass("gb");
+
+        facMembersArray.length = 0;
+        plannedCrimeMembers.length = 0;
+
+        missingMembersReady = false;
+        crimeMembersDone = false;
+        facMembersDone = false;
+
+        getPlannedCrimes(true);
+        $("#x-oc-tbl-wrap").animate({opacity: 0}, 2500);
+        setTimeout(finishRefresh, 3000);
+        return false;
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -773,6 +1129,9 @@
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     if (trackMyOc != true) validateApiKey();
+
+    if (xedxDevMode) log("Dev Mode enabled");
+    if (debugLoggingEnabled) log("Debug Logging enabled");
 
     versionCheck();
     addStyles();
@@ -791,13 +1150,28 @@
 
     // ========================= UI stuff ===============================
 
-    const membersTextClosed = "Available Members (click to show)";
-    const membersTextOpen = "Available Members (click to hide)";
+    //const membersTextClosed = "Available Members (click to show)";
+    //const membersTextOpen = "Available Members (click to hide)";
 
     // Styles just stuck at the end, out of the way
     function addStyles() {
         let shadowColor = darkMode() ? "#555" : "#ccc";
         loadMiscStyles();
+
+        GM_addStyle(`
+
+           .gb { border: 2px solid limegreen; }
+           .bb { border: 2px solid red; }
+
+           .blink182 {
+               animation: blinker 1.8s linear infinite;
+           }
+
+           @keyframes blinker {
+               0%, 100% {opacity: 1;}
+               50%, 70% {opacity: .3;}
+            }
+        `);
 
         GM_addStyle(`
             .oc-comp-span1 {
@@ -907,6 +1281,7 @@
             }
             #oc-opt-wrap {
                 display: flex;
+                flex-flow: row wrap;
                 justify-content: center;
                 align-content: center;
                 border-radius: 4px;
@@ -918,12 +1293,34 @@
             #oc-opt-wrap:hover input {
                 opacity: 1;
             }
+            #oc-opt-wrap input {
+                opacity: 0;
+            }
+
             .vhide {visibility: hidden;}
             .vshow {visibility: visible;}
+
+            #oc-opt-hide {
+                /*opacity: 0;*/
+            }
+            #oc-opt-lvl {
+                border-radius: 4px;
+                height: 14px;
+                width: 20px;
+
+                font-size: 12px;
+
+                padding: 1px 0px 0px 4px;
+                margin-left: 5px;
+
+                display: inline-flex;
+                flex-flow: row wrap;
+                align-items: center;
+                /*opacity: 0;*/
+            }
         `);
     }
 
-    const lastStateOptCb = `<span id='oc-opt-wrap'><input type="checkbox" id="oc-opt-last-pos" class=""></span>`;
     function installCompletedPageButton(visible=false, retries=0) {
         const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
 
@@ -961,24 +1358,58 @@
             GM_setValue(lastStateKey, stateClosed);
     }
 
-    function doAnimateTable(e) {
-        if ($("#x-oc-tbl-wrap").length) {
+    // If opening, the tabl needs to be installed...if it is not installed
+    // right away, it will be later - the install will return 'pended',
+    // this will be recalled ith the first param null, the second to
+    // 'install'. Should instead make that call a promise....
+    var animatePending = false;
+    function doAnimateTable(e, from) {
+        log("*** doAnimateTable: ", $("#x-oc-tbl-wrap").length, from, animatePending);
+        animatePending = true;
+        if ($("#x-oc-tbl-wrap").length && from != 'install') {
             $("#x-oc-tbl-wrap").animate({height: "0px"}, 500);
             $("#x-oc-tbl-wrap").animate({opacity: 0}, 200, function () {
                 $("#x-oc-tbl-wrap").remove();
                 $("#x-oc-click").text(membersTextClosed);
-                writeCurrState();
+                writeCurrState(stateClosed);
+                animatePending = false;
             });
         } else {
-            installTableWrap();
+            log("*** doAnimateTable 2: ", $("#x-oc-tbl-wrap").length, from);
+            if ($("#x-oc-tbl-wrap").length == 0 || from != 'install') {
+                if (installTableWrap("animate") == 'pended') return;
+            }
+
+            log("*** doAnimateTable 3: ", $("#x-oc-tbl-wrap").length, from);
             $("#x-oc-tbl-wrap").animate({opacity: 1}, 200, function () {
                 $("#x-oc-click").text(membersTextOpen);
-                writeCurrState();
+                writeCurrState(stateOpen);
+                animatePending = false;
             });
         }
     }
 
-    function installTableWrap() {
+    // Should make this a promise...
+    var retryingTableInstall = false;
+    function installTableWrap(from, retries=0) {
+        log("*** installTableWrap: ", from, retries, retryingTableInstall,
+            missingMembersReady, facMembersDone, crimeMembersDone, missingMembers.length);
+
+        if (retries == 0 && retryingTableInstall == true) {
+            log("*** installTableWrap: called while already installing...");
+            return;
+        }
+
+        if (!crimeMembersDone || !facMembersDone || !missingMembers.length) {
+            log("Missing members empty, retry #", retries);
+            if (retries++ < 20) {
+                retryingTableInstall = true;
+                setTimeout(installTableWrap, 250, "install", retries);
+                return 'pended';
+            }
+            // fall through, even if empty ???
+        }
+
         let tblWrap = `
             <div id='x-oc-tbl-wrap' class="x-oc-wrap cont-gray bottom-round" style="opacity: 0.2;">
                   <table id="x-no-oc-table" style="width: 782px;">
@@ -1025,9 +1456,55 @@
             let href="/profiles.php?XID=" + id;
             window.open(href, "_blank");
         });
+
+        if (retryingTableInstall == true && !animatePending) {
+            retryingTableInstall = false;
+            doAnimateTable(null, 'install');
+        }
     }
 
-    function buildMissingMembersUI() {
+    function getOptfromTarget(target) {
+        let id = $(target).attr("id");
+    }
+
+    function processMiniOpCb(e) {
+        e.stopPropagation();
+        let node = $(e.currentTarget);
+        let idx = $(node).attr("data-index");
+        let opt = menuItems[idx];
+        let sel = "#" + opt.id + " > input";
+        if (opt.type == 'cb') {
+            let val = $(sel)[0].checked;
+            GM_setValue(opt.key, val);
+        } else if (opt.type == 'input') {
+            let val = $(sel).val()
+            GM_setValue(opt.key, val);
+        }
+
+        updateOptions();
+        if (opt.id == 'oc-opt-hide' || opt.id == 'oc-opt-lvl') hideShowByLevel();
+    }
+
+    function processMiniOpInput(e) {
+        e.stopPropagation();
+        let node = $(e.currentTarget);
+        hideLvlVal = $("#oc-opt-lvl").val();
+        GM_setValue(hideLvlValKey, hideLvlVal);
+        hideShowByLevel();
+    }
+
+    function buildMissingMembersUI(from) {
+
+        if (!isOcPage()) return;
+
+        // A couple of options...
+        const ocMiniOptions = `
+            <span id='oc-opt-wrap'>
+                <input type="checkbox" id="oc-opt-hide">
+                <input type="number"   id="oc-opt-lvl" min="1" max="15">
+                <input type="checkbox" id="oc-opt-last-pos">
+            </span>`;
+
         let membersDiv = `
             <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
               <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
@@ -1036,31 +1513,68 @@
           </div>
          `;
 
+        log("buildMissingMembersUI: ", from);
+        if ($("#x-no-oc-members").length || animatePending) {
+        //    doAnimateTable(null, (from + '-buildui'));
+            return;
+        }
 
         $("#faction-crimes").before(membersDiv);
+        $("#x-oc-can-click").append(ocMiniOptions);
 
-        $("#x-oc-can-click").append(lastStateOptCb);
         $("#oc-opt-last-pos").prop('checked', keepLastState);
+        $("#oc-opt-hide").prop('checked', hideLvl);
+        $("#oc-opt-lvl").val(hideLvlVal);
 
-        displayHtmlToolTip($("#oc-opt-wrap"),
+        displayHtmlToolTip($("#x-oc-can-click"), "Right click to refresh", "tooltip4");
+
+        displayHtmlToolTip($("#oc-opt-hide"),
+                           "Checking this will hide avaiable<br>" +
+                           "crimes under the level entered in<br>" +
+                           "the box to the right. This<br>" +
+                           "applies only to the recruiting page.", "tooltip4");
+
+        displayHtmlToolTip($("#oc-opt-lvl"),
+                           "Crimes lower than this level<br>" +
+                           "will be hidden if the checkbox<br>" +
+                           "to the left is selected. This<br>" +
+                           "applies only to the recruiting page.", "tooltip4");
+
+        displayHtmlToolTip($("#oc-opt-last-pos"),
                            "Checking this will cause this<br>" +
                            "script to keep this window in<br>" +
                            "the last state you left it in,<br>" +
                            "either open or hidden.", "tooltip4");
 
-        $("#oc-opt-last-pos").on('click', function (e) {
+        $("#oc-opt-hide").on('click', function (e) {
+            debug("opt-hide click");
             e.stopPropagation();
-
             let node = $(e.currentTarget);
-            keepLastState = $("#oc-opt-last-pos")[0].checked;
-            GM_setValue(keepLastStateKey, keepLastState);
-            if (keepLastState == true) writeCurrState();
+            let tmp = hideLvl;
+            hideLvl = $("#oc-opt-hide")[0].checked;
+            GM_setValue(hideLvlKey, hideLvl);
+            if (tmp != hideLvl)
+                updateOptions();
+            hideShowByLevel();
         });
 
-        $("#x-oc-can-click").on('click', doAnimateTable);
+        $("#oc-opt-lvl").on('change', function (e) {
+            debug("opt-lvl change");
+            e.stopPropagation();
+            let node = $(e.currentTarget);
+            let tmp = hideLvlVal;
+            hideLvlVal = $("#oc-opt-lvl").val();
+            GM_setValue(hideLvlValKey, hideLvlVal);
+            if (tmp != hideLvlVal)
+                updateOptions();
+            hideShowByLevel();
+        });
 
-        if (keepLastState == true && lastState == stateOpen)
-            doAnimateTable();    // Can call direct, event is unused
+        $("#x-oc-can-click > .box").on('click', function (e) {doAnimateTable(e, 'btn');});
+        $("#x-oc-can-click > .box").on('contextmenu', refreshMissingMembers);
+
+        if (keepLastState == true && lastState == stateOpen && !animatePending)
+            doAnimateTable('missmembers');    // Can call direct, event is unused
     }
 
 
