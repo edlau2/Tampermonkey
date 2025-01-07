@@ -537,7 +537,8 @@
             debug("processResult for ID ", itemId, " name: ", name, " is ", asCurrency(price));
             let usePrice = subtractMargin(price);
             fillSellPrice(target, usePrice, itemId, 0);
-            $(target).css("color", "green");
+            if (xedxDevMode == true)
+                $(target).css("color", "green");
         } else {
             fillSellPrice(target, 0, itemId, 0);
         }
@@ -987,10 +988,11 @@
             }
 
             usePrice = obj ? obj.price : 0;
-            log("Reading price for ", itemId, "-", uniqueId, " got ", obj);
+            debug("Reading price for ", itemId, "-", uniqueId, " got ", obj);
             if (usePrice != 0) {
                 fillSellPrice(target, usePrice, itemId, uniqueId);
-                $(target).css("color", "yellow");
+                if (xedxDevMode == true)
+                    $(target).css("color", "yellow");
                 return false;
             }
         }
