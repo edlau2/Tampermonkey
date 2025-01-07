@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.24
+// @version      1.26
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -129,6 +129,7 @@
 
     var needsSave = GM_getValue("needsSave", true);
     var rememberLastPrice = GM_getValue("rememberLastPrice", false);
+    var lastPriceOnlyWandA = GM_getValue("lastPriceOnlyWandA", false);
     var lastPriceExpireHrs = GM_getValue("lastPriceExpireHrs", 48);
     var autoPricePctLess = GM_getValue("autoPricePctLess", false);
     var autoPricePctLessValue = GM_getValue("autoPricePctLessValue", 0);
@@ -197,6 +198,22 @@
         }
     }
 
+    const armorAnWeaponTypes = ['melee', 'secondary', 'primary', 'defensive'];
+    const iswa = function(id) {return isItemWeaponOrArmorType(id);}  //shorthand
+    function isItemWeaponOrArmorType(itemId) {
+        let item = tornItemsList[itemId];
+        if (!item) return false;
+
+        let type = item.type ? item.type.toLowerCase() : null;
+        if (!type) return false;
+
+        armorAnWeaponTypes.forEach(function(itemType, idx) {
+            if (itemType == type) return true;
+        });
+
+        return false;
+    }
+
     // Move to shared lib...
     function isVersionOlder(savedVer) {
         const currVer = GM_info.script.version;
@@ -254,6 +271,7 @@
 
     function logOpts() {
         log("rememberLastPrice: ", rememberLastPrice);
+        log("lastPriceOnlyWandA: ", lastPriceOnlyWandA);
         log("lastPriceExpireHrs: ", lastPriceExpireHrs);
         log("autoPricePctLess: ", autoPricePctLess);
         log("autoPricePctLessValue: ", autoPricePctLessValue);
@@ -280,6 +298,7 @@
 
     function saveCbOpts(init) {
         GM_setValue("rememberLastPrice", rememberLastPrice);
+        GM_setValue("lastPriceOnlyWandA", lastPriceOnlyWandA);
         GM_setValue("lastPriceExpireHrs", lastPriceExpireHrs);
         GM_setValue("autoPricePctLess", autoPricePctLess);
         GM_setValue("autoPricePctLessValue", autoPricePctLessValue);
@@ -307,6 +326,7 @@
 
     function updateCbOpts() {
         rememberLastPrice = GM_getValue("rememberLastPrice", rememberLastPrice);
+        lastPriceOnlyWandA = GM_getValue("lastPriceOnlyWandA", lastPriceOnlyWandA);
         lastPriceExpireHrs = GM_getValue("lastPriceExpireHrs", lastPriceExpireHrs);
         autoPricePctLess = GM_getValue("autoPricePctLess", autoPricePctLess);
         marketWatch = GM_getValue("marketWatch", marketWatch);
@@ -517,6 +537,7 @@
             debug("processResult for ID ", itemId, " name: ", name, " is ", asCurrency(price));
             let usePrice = subtractMargin(price);
             fillSellPrice(target, usePrice, itemId, 0);
+            $(target).css("color", "green");
         } else {
             fillSellPrice(target, 0, itemId, 0);
         }
@@ -563,6 +584,8 @@
 
         // Both price by % and by $ less can't be selected.
         // Both lowest and RSP can't be selected
+        // -or- let lowest have precedence (it would as is),
+        // -or- make radio buttons :-)
         if (key == 'autoPricePctLess' && checked == true) {
             autoPriceAmtLess = false;
             $("[value='autoPriceAmtLess']").prop("checked", false);
@@ -573,6 +596,8 @@
             $("[value='autoPricePctLess']").prop("checked", false);
             GM_setValue("autoPricePctLess", false);
         }
+
+        /*
         if (key == 'autoPriceRSP' && checked == true) {
             autoPriceLowest = false;
             $("[value='autoPriceLowest']").prop("checked", false);
@@ -583,6 +608,7 @@
             $("[value='autoPriceRSP']").prop("checked", false);
             GM_setValue("autoPriceRSP", false);
         }
+        */
 
         updateCbOpts();
         debug("Set option ", key, " to ", checked);
@@ -596,6 +622,11 @@
                 $("#xfaves").addClass("xfaveshidden");
             }
         }
+
+        if (!autoPriceLowest || !rememberLastPrice)
+            removeSellPageCtrls();
+        else if (autoPriceLowest && rememberLastPrice && xedxDevMode)
+            installSellPageCtrls($(controlsSel));
 
         return false;
     }
@@ -775,7 +806,10 @@
         $(target).val(price);
         target.dispatchEvent(new Event("input"));
 
-        writePrice(price, id, uniqueId);
+        // Only write to list if the option is enabled!!
+        let isTypeOk = (lastPriceOnlyWandA == true) ? iswa(id) : true; // For 'weapons/armor only' opt
+        if (rememberLastPrice == true && isTypeOk == true)
+            writePrice(price, id, uniqueId);
     }
 
     function subtractMargin(price) {
@@ -890,15 +924,29 @@
         setTimeout(resetSellFlag, 500);
 
         let target = e.currentTarget;
-
         let nickname = $(target).attr("placeholder");
-        if (nickname != "Price")return;
 
         let infoDiv = $(target).closest("div [class^='info_']");
         let itemRow = $(target).closest("div [class^='itemRow_']");
         let controlNode = $(itemRow).find("button");
         let controls = $(controlNode).attr('aria-controls');
         debug("itemRow: ", $(itemRow), " controlNode: ", $(controlNode), " controls: ", controls);
+
+        if (nickname == 'Qty') {
+            let tmp = $(controlNode).find("[class^='title_'] [class^='name_']");
+            let nameSpan = $(tmp).next();
+            let useQty = 1;
+            let qtyText = $(nameSpan).text();
+            if (qtyText && qtyText.length)
+                useQty = qtyText.replace('x', '');
+
+            target.select();
+            $(target).val(useQty);
+            target.dispatchEvent(new Event("input"));
+            return;
+        }
+
+        if (nickname != "Price") return;
 
         let itemId;       // Required to get lowest price, and save last price.
         let uniqueId = 0;
@@ -913,8 +961,19 @@
 
         let usePrice = 0;    // Will be price to fill in, could be low, RSP, last sale
 
-        // Need to append 'unique' for new price list format...
-        if (rememberLastPrice == true) {
+        // If the "SellPageCtrls" option to let lowest price have precedence over
+        // sell price is enabled, perhaps because the option for last sell price
+        // on only armor and weapons is NOT set, need to look for lowest first.
+        var lowPricePrecedence = false;
+        if (xedxDevMode && lowPricePrecedence == true) {
+            if (usePrice == 0 && autoPriceLowest == true) {
+                findLowPriceOnMarket(itemId, target); // Fills price in resp. handler
+                return false;   // What happens if no price found???
+            }
+        }
+
+        let isTypeOk = (lastPriceOnlyWandA == true) ? iswa(itemId) : true; // For 'weapons/armor only' opt
+        if (rememberLastPrice == true && isTypeOk == true) {
             let newKey = itemId + '-' + uniqueId;
             let obj = previousPriceList[newKey];
 
@@ -931,6 +990,7 @@
             log("Reading price for ", itemId, "-", uniqueId, " got ", obj);
             if (usePrice != 0) {
                 fillSellPrice(target, usePrice, itemId, uniqueId);
+                $(target).css("color", "yellow");
                 return false;
             }
         }
@@ -1058,21 +1118,33 @@
                    "the last price you sold<br>" +
                    "this type of item for.<br>" +
                    "If never priced before will<br>" +
-                   "display '0'.",
+                   "display '0'. If 0, low price<br>" +
+                   "and then RSP are used if enabled",
+             disabled: false, page: "sell"},
+        {value: "lastPriceOnlyWandA", type: "cb", label: "...but only for weapons/armor", listItemId: "lastPriceOnlyWandA",
+             help: "Only fill in the last<br>" +
+                   "price for weapons and armor.<br>" +
+                   "This is intended for special<br>" +
+                   "RW bonus items.",
              disabled: false, page: "sell"},
         {value: "lastPriceExpireHrs", type: "input", label: "Price expires after # hours", listItemId: "expireHrs",
-             help: "After so manyy hours, the<br>" +
+             help: "After so many hours, the<br>" +
                    "last sell price becomes<br>" +
                    "invalid, and won't be used.",
-             disabled: false, page: "sell"},
-        {value: "autoPriceRSP", type: "cb", label: "Use RSP", listItemId: "rspPrice",
-             help: "Auto-fill with shown RSP.",
              disabled: false, page: "sell"},
         {value: "autoPriceLowest", type: "cb", label: "Use Lowest (needs API)", listItemId: "lowPrice",
              help: "Auto-fill with lowest current<br>" +
                    "price. Requires an API key and<br>"+
                    "will be slightly slower than the<br>" +
-                   "other options.",
+                   "other options. The 'Last Sell<br>" +
+                   "Price' option takes precedence<br>"+
+                   "over this if enabled.",
+             disabled: false, page: "sell"},
+        {value: "autoPriceRSP", type: "cb", label: "Use RSP", listItemId: "rspPrice",
+             help: "Auto-fill with shown RSP.<br>" +
+                   "Last sell price and lowest<br>" +
+                   "price options take precedence<br>" +
+                   "if enabled.",
              disabled: false, page: "sell"},
         {value: "autoPricePctLess", type: "combo", label: "Price # % Less", listItemId: "pctPricing",
              help: "Make the price X percent<br>" +
@@ -1323,9 +1395,15 @@
         callWhenElementExistsEx("#item-market-root", activeBtnSel, itemTabsCb);
         callWhenElementExistsEx("#item-market-root", controlsSel, controlsCb);
 
+        // The option to select last price/low price has precedence.
+        // If both enabled, last sell is first, then lowest. What if
+        // this is used but neither (or just one) option is enabled?
+        // ..just don't offer, in that case. If Last Price is chosen,
+        // don't need to do anything, otherwise, check low price first...
         function controlsCb(node) {
-            log("controlsCb");
-            installSellPageCtrls(node);
+            log("controlsCb: ", rememberLastPrice, autoPriceLowest);
+            if (xedxDevMode && rememberLastPrice && autoPriceLowest)
+                installSellPageCtrls(node);
         }
 
         function itemTabsCb(node) {
@@ -1343,12 +1421,25 @@
             margin-left: auto;
             float: right;
         }
+        #x-sell-cbs span, input {
+                display: inline-flex;
+                flex-flow: row wrap;
+                margin-left: 5px;
+                align-items: center;
+                font-size: 10pt;
+            }
     `);
+
+    function removeSellPageCtrls() {
+        $("#x-sell-cbs").remove();
+    }
+
     function installSellPageCtrls(node) {
         if ($("#x-sell-cbs").length == 0) {
             let helpText = "Select what price to put into<br>" +
                            "the price box on double-click.<br>" +
-                           "This over-rides the global option.";
+                           "This over-rides the global options,<br>"
+                           "where the last price takes precedence.";
 
             let sellOptsSpan = `
                 <span id='x-sell-cbs'>
@@ -1595,6 +1686,56 @@
         addFavorite(id, name, type);
     }
 
+    var updateTtInterval = xedxDevMode ? 30000 : 120000; // two minutes
+    var getPriceInterval = 5000;
+    var favsTimer;
+
+    // Have max 8 faves, just space out say 5 secs
+    // This is called every updateTtInterval ms
+    function updateFavsToolTips() {
+        debug("updateFavsToolTips");
+        let keys = Object.keys(favorites);
+        let timeout = getPriceInterval;
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx]; // key is item id
+            let fav = favorites[key];
+            let sel = "#fav-" + key;
+
+            debug("updateFavsToolTips: itemId = ", key);
+            setTimeout(findLowPriceOnMarket, timeout,
+                       key, $(sel), updateTtCb);
+            timeout += getPriceInterval;
+            // callback(response, status, xhr, target);
+        }
+
+        function updateTtCb(jsonObj, status, xhr, target) {
+            debug("updateTtCb");
+            let listings, item, cheapest, name, itemId;
+            let market = jsonObj.itemmarket;
+            if (market) item = market.item;
+            if (item) {
+                name = item.name;
+                itemId = item.id;
+            }
+
+            debug("updateTtCb, item: ", item);
+
+            if (market) listings = market.listings;
+            if (listings) cheapest = listings[0];
+
+            if (cheapest) {
+                let newText = name + ": " + asCurrency(cheapest.price);
+                changeTtText(itemId, newText);
+                debug("updateTtCb: changed text to: ", newText);
+            }
+        }
+
+        function changeTtText(id, text) {
+            let sel = "#fav-" + id;
+            $(sel).tooltip('option', 'content', text);
+        }
+    }
+
     function restoreSavedFaves(fromStgHandler) {
         $("#xfaves-list").empty();
         let keys = Object.keys(favorites);
@@ -1605,12 +1746,22 @@
                 continue;
             addFavorite(key, favorites[key].name, favorites[key].type, fromStgHandler);
         }
+
+        // Periodicall get the low price for the favorite, to add to tooltip.
+        if (favsTimer) clearInterval(favsTimer);
+        favsTimer = null;
+        if (keys.length) {
+            updateFavsToolTips();
+            favsTimer = setInterval(updateFavsToolTips, updateTtInterval); // every 2 minutes
+        }
     }
 
     function installFavorites() {
         if ($("#xfaves").length == 0) {
             let target = $("[class^='marketWrapper_'] [class^='itemListWrapper_'] [class^='itemsHeader_']")[0];
             $(target).before(getFavsDiv());
+
+            // If enabled, periodically get fav low price, put in tooltip?
         }
 
         restoreSavedFaves();
@@ -2147,7 +2298,7 @@
             }
         }
 
-        let imgDiv = `<div class="xfav-item" data-id="${id}" data-type="${type}">
+        let imgDiv = `<div id="fav-${id}" class="xfav-item" data-id="${id}" data-type="${type}">
                           <section class="xcontainer">
                               <img src="/images/items/${id}/medium.png">
                               <span class="x-remove-fav">X</span>
