@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.93
+// @version      1.94
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -107,6 +107,7 @@
     var displayCompletedTimeDate = GM_getValue("displayCompletedTimeDate", false);
     var useNewOptsPane = GM_getValue("useNewOptsPane", false) && (xedxDevMode == true);
 
+    addToolTipStyle();
     if (trackMyOc == true) {
         logScriptStart();
         validateApiKey()
