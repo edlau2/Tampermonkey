@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.91
+// @version      1.92
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -50,8 +50,6 @@
     // Monitor and display when an OC you are in is due
     var trackMyOc = GM_getValue("trackMyOc", true);
 
-    var displayCompletedTimeDate = GM_getValue("displayCompletedTimeDate", false);
-
     // ====================== End Configurable Options ======================
 
     var lastState = GM_getValue(lastStateKey, stateClosed);
@@ -62,6 +60,7 @@
     var myCrimeId = GM_getValue("myCrimeId", null);
     var myCrimeStartTime = GM_getValue("myCrimeStartTime", 0);
 
+    const NO_OC_TIME = "No OC found.";
     const secsInDay = 24 * 60 * 60;
     const secsInHr = 60 * 60;
 
@@ -71,6 +70,8 @@
     // Sorting criteria
     const sortByTime = 1;
     const sortByLevel = 2;
+
+    const toggleBtn = `<span class="x-toggle-sort"><i class="fas fa-caret-down"></i></span>`
 
     const menuItems = [{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb", enabled: false},
                        {name: "Hide Levels", id: "oc-hide", key: hideLvlKey, type: "cb"},
@@ -103,6 +104,8 @@
     // the wrong way....
     const xedxDevMode = GM_getValue("xedxDevMode", false) && (userId == 2100735);
     const enableReadyAlert = false;          // Not implemented yet...
+    var displayCompletedTimeDate = GM_getValue("displayCompletedTimeDate", false);
+    var useNewOptsPane = GM_getValue("useNewOptsPane", false) && (xedxDevMode == true);
 
     if (trackMyOc == true) {
         logScriptStart();
@@ -154,8 +157,6 @@
         $("#oc-tracker-time").removeClass("blink182");
         $("#oc-tracker-time").text(time);
     }
-
-    const NO_OC_TIME = "No OC found.";
 
     function nn(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
     function getTimeUntilOc() {
@@ -521,16 +522,29 @@
 
     // ======================== Sorting portion of script ===========================
 
+    function setSortCaret(order) {
+
+        let newClass = sortOrders[order] == 'asc' ? "fa-caret-up" : "fa-caret-down";
+        let oldClass = sortOrders[order] == 'asc' ? "fa-caret-down" : "fa-caret-up";
+        $($("#xocsort").find("i")).addClass(newClass).removeClass(oldClass);
+    }
+
     function handlePageChange() {
         logCurrPage();
         switch (btnIndex()) {
             case recruitingIdx:
+                setSortCaret(recruitSortOrder);
                 sortPage(sortByLevel);
+                $("#oc-opt-wrap").addClass("recruit-tab");
                 return;
             case planningIdx:
+                setSortCaret(planningSortOrder);
+                $("#oc-opt-wrap").removeClass("recruit-tab");
                 sortPage(sortByTime);
                 return;
             case completedIdx:
+                setSortCaret(completedSortOrder);
+                $("#oc-opt-wrap").removeClass("recruit-tab");
                 getCompletedCrimes();
                 installCompletedPageButton(true);
                 return;
@@ -540,14 +554,32 @@
            recruitingIdx, "|", planningIdx, "|", completedIdx);
     }
 
+    // Map sort order to easily toggle...
+    const sortOrders = ['asc', 'desc'];
+    var recruitSortOrder = 1;
+    var planningSortOrder = 0;
+    var completedSortOrder = 0;
+
+    function toggleSort(e) {
+        let target = $(e.target);
+        //$($(target).find("i")).toggleClass("fa-caret-down fa-caret-up");
+        $($("#xocsort").find("i")).toggleClass("fa-caret-down fa-caret-up");
+        recruitSortOrder = !recruitSortOrder ? 1 : 0;
+        planningSortOrder = !planningSortOrder ? 1 : 0;
+        completedSortOrder = !completedSortOrder ? 1 : 0;
+        sortList();
+    }
+
     function sortList() {
         let scenario1 = $(scenarios)[0];
         let grandparent = $(scenario1).parent().parent();
         let list = $(grandparent).children("[class^='wrapper_']");
-        let sortOrder = 'asc';
-        if (onRecruitingPage()) sortOrder = 'desc';
 
-        debug("sortList attr: ", sortKey, " order: ", sortOrder);
+        let sortOrder = sortOrders[0];
+        if (onRecruitingPage()) sortOrder = sortOrders[recruitSortOrder];
+        else if (onPlanningPage()) sortOrder = sortOrders[planningSortOrder];
+        else if (onCompletedPage()) sortOrder = sortOrders[completedSortOrder];
+
         tinysort($(list), {attr: sortKey, order: sortOrder});
     }
 
@@ -617,12 +649,21 @@
     }
 
     // Do the sorting. On Planning page, by time. Recruiting page, by level.
-    // sortCriteria over-rides....
-    function tagAndSortScenarios(sortCriteria=sortByTime) {
+    // sortCriteria over-rides....OOPS I don't think it does!!!!
+    // Set by page in sort() fn!!!!
+    //
+    function tagAndSortScenarios(sortCriteria) {
         if (!isSortablePage()) {
             debug("This page isn't sortable (by definition)");
             logCurrPage();
             return;
+        }
+
+        if (!sortCriteria) {
+            sortCriteria = sortByTime;
+            if (onRecruitingPage()) sortCriteria = sortByLevel;
+            //else if (onPlanningPage()) sortCriteria = sortByTime;
+            //else if (onCompletedPage()) sortCriteria = sortByTime;
         }
 
         scenarios = $("[class^='scenario_']");
@@ -678,6 +719,7 @@
         sortList();
     }
 
+    // ======= Experimental - 'show hidden' option
     function showHiddenRecruits() {
         log("showHiddenRecruits");
         let tab = getRecruitingTab();
@@ -697,23 +739,7 @@
         displayHtmlToolTip($(tab), "Right click to show<br>hidden crimes. Refresh<br>to hide again.", "tooltip4");
     }
 
-    function onScrollTimer() {
-        //debug("onScrollTimer: ", btnIndex());
-        switch (btnIndex()) {
-            case recruitingIdx:
-                tagAndSortScenarios(sortByLevel);
-                break;
-            case planningIdx:
-                tagAndSortScenarios(sortByTime);
-                break;
-            case completedIdx:
-                getCompletedCrimes();
-                break;
-            default:
-                break;
-        }
-
-    }
+    // ==============================================
 
     function initialScenarioLoad(retries=0) {
         let rootSelector = "#factions";
@@ -885,16 +911,20 @@
         }
     }
 
+    // =================================
+
     function handlePageLoad(node /*retries=0*/) {
         debug("handlePageLoad");
         if (!isOcPage()) return log("Not on crimes page, going home");
 
         let root = $("#faction-crimes");
         if ($(root).length == 0) {
-            callWhenElementExistsEx("document", "#faction-crimes", handlePageLoad);
-            return debug("Root not found, started observer...");
+            debug("Root not found, started observer...");
             //if (retries++ < 20) return setTimeout(handlePageLoad, 250, retries);
             //return log("Didn't find root!");
+
+            callWhenElementExistsEx("document", "#faction-crimes", handlePageLoad);
+            return;
         }
 
         $(window).on('scroll', function() {
@@ -913,10 +943,142 @@
         installCompletedPageButton();
         logCurrPage();
 
+        // Add event handler to test toggling sort direction
+        $("#faction-crimes-root > div > div[class^='buttonsContainer__']").on('contextmenu', testSortSwitch);
+
         setTimeout(initialScenarioLoad, 500);
+
+        function onScrollTimer() {
+            //debug("onScrollTimer: ", btnIndex());
+            switch (btnIndex()) {
+                case recruitingIdx:
+                    tagAndSortScenarios(sortByLevel);
+                    break;
+                case planningIdx:
+                    tagAndSortScenarios(sortByTime);
+                    break;
+                case completedIdx:
+                    getCompletedCrimes();
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
-    //====================== API calls ===================================
+    // ============================ New options menu ============================
+
+    var optTableEntries = [
+        {name: "Option 1", type: "span", value: "asc", enabled: true},
+        {name: "Option 2", type: "cb", value: true, enabled: true},
+        {name: "Option 3", type: "input", value: 456, enabled: true},
+        {name: "Option 4", type: "link", link: null, enabled: true},
+    ];
+
+    function installOptionsPane() {
+        log("installOptionsPane: ", optTableEntries.length, $("#x-select").length );
+        if (useNewOptsPane != true) return;
+
+        addOptsMenuStyles();
+
+        for (let j=0; j<10; j++) {
+            for (let idx=0; idx<optTableEntries.length; idx++) {
+                let entry = optTableEntries[idx];
+                log("Adding entry: ", entry);
+                let testname = entry.name + "-" + j + "-" + idx;
+                let liAdvanced2 = `
+                        <li class="title-black " data-title="${entry.name}">
+                            <div class="title-wrap">
+                                <div class="span-wrap">
+                                    <span class="name span-test">${testname}</span>
+                                </div>
+                            </div>
+                        </li>
+                    `;
+                $("#x-select > ul").append(liAdvanced2);
+            }
+        }
+    }
+
+    function addOptsMenuStyles() {
+        const scrollHeight = "340px;";
+        GM_addStyle(`
+            .xoc-navbar {
+              /*overflow: hidden;
+              background-color: #333;
+              position: fixed;
+              top: 0;
+              width: 100%;*/
+
+              overflow: hidden;
+              background-color: transparent;
+              position: absolute;
+              border: 1px solid red;
+              width: 784px;
+              /*border: 1px solid red;*/
+            }
+            #x-select {
+                height: 34px;
+                max-height:34px;
+                border-radius: 5px;
+                width:228px;
+                background: transparent;
+                border: 2px solid limegreen;
+                float: right;
+                margin-right: 20px;
+            }
+            #x-select:hover {
+                z-index: 9999999;
+                /*background: black;*/
+                background: var(--default-background);
+                max-height: ` + scrollHeight +
+                ` height: 8000px;
+                overflow-y: scroll;
+                position: static;
+            }
+            #x-select:hover ul {
+                /*max-height: ${scrollHeight};*/
+                min-height: 240px;
+                opacity: 1;
+            }
+            #x-select ul {
+                width: 100%;
+                height: 28px;
+                max-height: 28px;
+                padding-left: 4px;
+
+                overflow-y: scroll;
+                border-radius: 10px;
+                opacity: 0;
+                transition: 0.5s;
+            }
+
+            #x-select ul li {
+                height: 32px;
+                /*background: #888888;*/
+                border-top: 1px solid black;
+            }
+            #x-select:hover  li {
+                /*filter: brightness(65%);*/
+                height: 34px;
+                z-index: 9999999;
+            }
+            #x-select:hover  li:hover {
+                filter: brightness(115%);
+            }
+
+            
+            .xname-wrap {
+                position: relative;
+                z-index: 3;
+            }
+            .x-title-left {
+                width: 85px;
+            }
+        `);
+    }
+
+    //============================== API calls ===================================
     //
     var missingMembers = [];
     var facMembersJson = {};
@@ -1204,6 +1366,42 @@
                 color: limegreen;
                 box-shadow: inset 6px 4px 2px 1px ${shadowColor};
             }
+
+
+            .x-toggle-sort {
+                position: relative;
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                /* aspect-ratio: 1; */
+                /* border-radius: 15px; */
+                /* border: 1px solid black; */
+                cursor: pointer;
+                /* padding-top: 3px; */
+                /* margin-left: 3px; */
+                /* background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%); */
+                /* height: 20px; */
+                width: 30px;
+                opacity: 1;
+                visibility: visible;
+                transition: all .2s ease-in-out;
+                /* margin-right: 10px; */
+                float: right;
+                vertical-align: bottom;
+                align-content: center;
+            }
+            body:not(.dark-mode) .x-toggle-sort {
+                background-image: radial-gradient(rgba(255, 255, 255, 0.2) 0%, rgba(50, 50, 50, 0.6) 100%);
+                border: none;
+                color: #666l
+            }
+
+            .x-oc-special-wrap {
+                display: flex;
+                flex-flow: row wrap;
+                width: 100%;
+            }
+
             .xoc-myself {
                 border: 1px solid green;
                 filter: brightness(1.5);
@@ -1287,11 +1485,13 @@
                 align-content: center;
                 border-radius: 4px;
                 height: 100%;
+                margin-left: auto;
+                margin-right: 20px;
             }
-            #oc-opt-wrap:hover {
+            #oc-opt-wrap.recruit-tab:hover {
                 filter: brightness(1.2);
             }
-            #oc-opt-wrap:hover input {
+            #oc-opt-wrap.recruit-tab:hover input {
                 opacity: 1;
             }
             #oc-opt-wrap input {
@@ -1366,7 +1566,6 @@
     // 'install'. Should instead make that call a promise....
     var animatePending = false;
     function doAnimateTable(e, from) {
-        log("*** doAnimateTable: ", $("#x-oc-tbl-wrap").length, from, animatePending);
         animatePending = true;
         if ($("#x-oc-tbl-wrap").length && from != 'install') {
             $("#x-oc-tbl-wrap").animate({height: "0px"}, 500);
@@ -1377,12 +1576,10 @@
                 animatePending = false;
             });
         } else {
-            log("*** doAnimateTable 2: ", $("#x-oc-tbl-wrap").length, from);
             if ($("#x-oc-tbl-wrap").length == 0 || from != 'install') {
                 if (installTableWrap("animate") == 'pended') return;
             }
 
-            log("*** doAnimateTable 3: ", $("#x-oc-tbl-wrap").length, from);
             $("#x-oc-tbl-wrap").animate({opacity: 1}, 200, function () {
                 $("#x-oc-click").text(membersTextOpen);
                 writeCurrState(stateOpen);
@@ -1394,16 +1591,16 @@
     // Should make this a promise...
     var retryingTableInstall = false;
     function installTableWrap(from, retries=0) {
-        log("*** installTableWrap: ", from, retries, retryingTableInstall,
-            missingMembersReady, facMembersDone, crimeMembersDone, missingMembers.length);
+        //log("*** installTableWrap: ", from, retries, retryingTableInstall,
+        //    missingMembersReady, facMembersDone, crimeMembersDone, missingMembers.length);
 
         if (retries == 0 && retryingTableInstall == true) {
-            log("*** installTableWrap: called while already installing...");
+            //log("*** installTableWrap: called while already installing...");
             return;
         }
 
         if (!crimeMembersDone || !facMembersDone || !missingMembers.length) {
-            log("Missing members empty, retry #", retries);
+            //log("Missing members empty, retry #", retries);
             if (retries++ < 20) {
                 retryingTableInstall = true;
                 setTimeout(installTableWrap, 250, "install", retries);
@@ -1507,6 +1704,21 @@
                 <input type="checkbox" id="oc-opt-last-pos" style="display: none; opacity: 0;">
             </span>`;
 
+        //const toggleBtn = `<div><span class="x-toggle-sort"><i class="fas fa-caret-down"></i></span></div>`
+
+        let membersDivNew = `
+            <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
+                <!-- div class="x-oc-special-wrap" -->
+                    <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
+                        <div class="box"><span id='x-oc-click'>${membersTextClosed}</span></div>
+                        <div class="xoc-navbar">
+                            <div id="x-select"><ul></ul></div>
+                        </div>
+                    </div>
+                <!-- /div -->
+            </div>
+         `;
+
         let membersDiv = `
             <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
               <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
@@ -1515,18 +1727,24 @@
           </div>
          `;
 
-        log("buildMissingMembersUI: ", from);
+        //log("buildMissingMembersUI: ", from);
         if ($("#x-no-oc-members").length || animatePending) {
         //    doAnimateTable(null, (from + '-buildui'));
             return;
         }
 
-        $("#faction-crimes").before(membersDiv);
+        $("#faction-crimes").before((useNewOptsPane == true) ? membersDivNew : membersDiv);
         $("#x-oc-can-click").append(ocMiniOptions);
 
         $("#oc-opt-last-pos").prop('checked', keepLastState);
         $("#oc-opt-hide").prop('checked', hideLvl);
         $("#oc-opt-lvl").val(hideLvlVal);
+
+        // ***** experiment
+        let sortBtn = $(toggleBtn);
+        $(sortBtn).attr("id", "xocsort");
+        $("#x-oc-can-click").append($(sortBtn)[0]);
+        $("#xocsort").on('click', toggleSort);
 
         displayHtmlToolTip($("#x-oc-can-click > .box"), "Right click to refresh", "tooltip4");
 
@@ -1577,6 +1795,9 @@
 
         //if (keepLastState == true && lastState == stateOpen && !animatePending)
         //    doAnimateTable('missmembers');    // Can call direct, event is unused
+
+        // Experimental options pane
+        if (useNewOptsPane == true) installOptionsPane();
     }
 
 
