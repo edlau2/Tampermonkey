@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.23
+// @version     2.45.24
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.23";
+const thisLibVer = "2.45.24";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -2022,6 +2022,7 @@ function addButtonStyles() {
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 //
 function addToolTipStyle() {
+    toolTipStylesAdded = true;
     GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
     GM_addStyle(".tooltip2 {" +
                 "radius: 4px !important;" +
@@ -2131,7 +2132,12 @@ function displayToolTip(node, text, cl) {
 // open/close, enable/disable, etc.
 // Also can be set up to call functions on create, open, close!!
 //
+var toolTipStylesAdded = false;
 function displayHtmlToolTip(node, text, cl) {
+    if (toolTipStylesAdded == false) {
+        debugger;
+    }
+
     $(document).ready(function() {
         let currAttr = $(node).attr("style");
         let newAttr = "white-space: pre-line;" + (currAttr ? currAttr : "");
