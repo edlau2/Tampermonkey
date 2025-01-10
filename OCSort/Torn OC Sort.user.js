@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Sort
 // @namespace    http://tampermonkey.net/
-// @version      1.92
+// @version      1.93
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -228,7 +228,7 @@
             debug("Found valid cached start time!");
         } else {
             debug("Searching for my crime...");
-            for (let crimeIdx=0; crimeIdx < crimes.length; crimeIdx++) {
+            for (let crimeIdx=0; crimes && crimeIdx < crimes.length; crimeIdx++) {
                 let crime = crimes[crimeIdx];
                 let slots = crime.slots;
                 for (let slotIdx=0; slotIdx<slots.length; slotIdx++) {
@@ -942,9 +942,6 @@
         addPageBtnHandlers();
         installCompletedPageButton();
         logCurrPage();
-
-        // Add event handler to test toggling sort direction
-        $("#faction-crimes-root > div > div[class^='buttonsContainer__']").on('contextmenu', testSortSwitch);
 
         setTimeout(initialScenarioLoad, 500);
 
@@ -1746,25 +1743,26 @@
         $("#x-oc-can-click").append($(sortBtn)[0]);
         $("#xocsort").on('click', toggleSort);
 
-        displayHtmlToolTip($("#x-oc-can-click > .box"), "Right click to refresh", "tooltip4");
+        displayHtmlToolTip($("#xocsort"), "Sort direction", "tooltip5");
+        displayHtmlToolTip($("#x-oc-can-click > .box"), "Right click to refresh", "tooltip5");
 
         displayHtmlToolTip($("#oc-opt-hide"),
                            "Checking this will hide avaiable<br>" +
                            "crimes under the level entered in<br>" +
                            "the box to the right. This<br>" +
-                           "applies only to the recruiting page.", "tooltip4");
+                           "applies only to the recruiting page.", "tooltip5");
 
         displayHtmlToolTip($("#oc-opt-lvl"),
                            "Crimes lower than this level<br>" +
                            "will be hidden if the checkbox<br>" +
                            "to the left is selected. This<br>" +
-                           "applies only to the recruiting page.", "tooltip4");
+                           "applies only to the recruiting page.", "tooltip5");
 
         displayHtmlToolTip($("#oc-opt-last-pos"),
                            "Checking this will cause this<br>" +
                            "script to keep this window in<br>" +
                            "the last state you left it in,<br>" +
-                           "either open or hidden.", "tooltip4");
+                           "either open or hidden.", "tooltip5");
 
         $("#oc-opt-hide").on('click', function (e) {
             debug("opt-hide click");
