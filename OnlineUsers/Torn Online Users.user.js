@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Online Users
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Simply counts users online for other facs
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -32,6 +32,7 @@
     const iconSel = "[class*='userStatusWrap_'] > svg";
 
     const usersOk = function () {return $(".table-cell.status > span.okay").length;}
+    const usersFallen = function () {return $(".table-cell.status > span.fallen").length;}
     const usersAway = function () { return $(".table-cell.status > span.traveling").length +
                                            $(".table-cell.status > span.abroad").length;}
     const usersInHosp = function () { return $(".table-cell.status > span.hospital").length +
@@ -44,19 +45,42 @@
     var userCount = 0;
 
     function hashChangeHandler() {
+        debug("hashChangeHandler");
         handlePageLoad();
     }
 
     function pushStateChanged(e) {
+        debug("pushStateChanged");
         handlePageLoad();
+    }
+
+    function logParams() {
+        let msgText = "Search Params:\n  ";
+        searchParams.forEach(function(value, key) {
+            msgText += ` key: ${key} value: ${value}\n`;
+        });
+        log(msgText);
+        msgText = "Hash Params:\n  ";
+        hashParams.forEach(function(value, key) {
+            msgText += ` key: ${key} value: ${value}\n`;
+        });
+        log(msgText);
     }
 
     function onFacProfilePage() {
         searchParams = new URLSearchParams(location.search);
-        let step = searchParams.get('step');
-        if (step != 'profile') return false;
+        hashParams = new URLSearchParams(location.hash);
 
-        return true;
+        let step = searchParams.get('step');
+        let type = searchParams.get('type');
+        let tab = hashParams.get('#/tab');
+
+        log("searchParams, type: ", type, " step: ", step, " tab: ", tab);
+
+        if (step == 'profile') return true;
+        if (step == 'your' && /*type == '1' &&*/ tab == 'info') return true;
+
+        return false;
     }
 
     function shortTimeStamp(date) {
@@ -98,6 +122,7 @@
                     else if (fill.indexOf('idle') > -1) idle++;
                 }
             }
+            if (idle > 0) idle = idle - usersFallen();
 
             updateUserCountUI();
             //debug("User count: ", userCount, " online: ", online, " offline: ", offline, " idle: ", idle);
@@ -124,6 +149,7 @@
 
     var timer = null;
     function handlePageLoad(retries=0) {
+        logParams();
         if (!onFacProfilePage())
             return log("Not on fac profile page!");
 
@@ -154,8 +180,10 @@
     callOnHashChange(hashChangeHandler);
     installPushStateHandler(pushStateChanged);
 
-    if (!onFacProfilePage())
+    if (!onFacProfilePage()) {
+        logParams();
         return log("Not on fac profile page!");
+    }
 
     callOnContentLoaded(handlePageLoad);
 
