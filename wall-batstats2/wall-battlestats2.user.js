@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
-// @namespace   seintz.torn.wall-battlestats
-// @version     1.07
+// @namespace   http://tampermonkey.net/
+// @version     1.08
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -33,8 +33,24 @@
      * -------------------------------------------------------------------------
      */
 
-    debugLoggingEnabled = false;
     logScriptStart();
+
+    // Before doing anything, make sure we are on a good page.
+    // Otherwise we constantly are doing stuff for no reason.
+    if (validFacPage() == false) {
+        log("WARNING: Invalid page, going home: ", location.href);
+        return;
+    }
+
+    // Fix this up later, better way to just say it's ok, not chack each one.
+    function validFacPage() {
+        let href = window.location.href;
+        if (href.indexOf("ID=") > -1) return true;
+        if (location.hash.indexOf("tab-info") > -1) return true;
+        if (href.indexOf("step=your") > -1) return true;
+
+        return false;
+    }
 
     api_key = GM_getValue('gm_api_key');
     validateApiKey();
@@ -44,6 +60,8 @@
         alert('no apikey set');
         return;
     }
+
+    let xedxDevMode = GM_getValue("xedxDevMode", false);
 
     let bsCache = JSONparse(localStorage["finally.torn.bs"]) || {};
     let hospTime = {};
@@ -67,6 +85,7 @@
                              </a>`;
 
     callOnContentLoaded(installExtraUiElements);
+    log("Will replace travel icons on content complete");
     callOnContentComplete(replaceTravelIcons);
 
     function installExtraUiElements() {
@@ -75,7 +94,7 @@
         $("#top-page-links-list").append(resetApiKeyLink);
         $("#xedx-rst-link").on("click", function () {api_key = ''; validateApiKey();});
 
-        //$("#xedx-rst-link").on('contextmenu', handleRightClick);
+        $("#xedx-rst-link").on('contextmenu', handleRightClick);
         initColWidths();
     }
 
@@ -86,10 +105,11 @@
     }
 
     // temp!
-    //function handleRightClick() {
-    //    initColWidths();
-    //    return false;
-    //}
+    function handleRightClick() {
+        //initColWidths();
+        quickReload();
+        return false;
+    }
 
     function validateApiKey(forced=false) {
         let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -804,6 +824,7 @@
 
     // Images for country flags
     function getAbroadFlag(country) {
+        log("getAbroadFlag: ", country);
         if (country == 'UK') {
             return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
                 country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
@@ -859,11 +880,33 @@
 
         let desc = jsonResp.status.description;
         let country = getCountryFromStatus(desc);
+        log("BasiQuery: country: ", country);
         if (country) $(iconLi).replaceWith($(getAbroadFlag(country)));
+
+        if (xedxDevMode == true) {
+            log("country: ", country);
+            log("iconLi: ", $(iconLi));
+            log("$(getAbroadFlag(country)): ", $(getAbroadFlag(country)));
+        }
     }
 
-    function replaceTravelIcons() {
+    var countFlags = -1;
+    function replaceTravelIcons(retries=0) {
+        log("replaceTravelIcons");
+        let firstTime = (countFlags == -1)? true : false;
+        if (firstTime == true) countFlags = 0;
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
+        let len = $(travelIcons).length;
+        log("Icons: ", travelIcons);
+        if (len < 1) {
+            if (retries++ < 10) return setTimeout(replaceTravelIcons, 250 * retries, retries);
+            log("replaceTravelIcons timed out");
+            return;
+        }
+        // instead of adding an observer, just recheck in a few.
+        // Prob not necessary, if travellling will show as globes.
+        // Should prob fix at some point...
+        if (len == countFlags) return;
         for (let i=0; i < $(travelIcons).length; i++) {
             let iconLi = $(travelIcons)[i];
 
@@ -877,11 +920,108 @@
             if (!fullId) {log("no fullId!"); continue;}
 
             let id = fullId.match(/\d+/)[0];
+            log("Submitting query for user ", id);
             xedx_TornUserQuery(id, "basic", userBasicQueryCallback, iconLi);
         }
+        if (firstTime == true) setTimeout(replaceTravelIcons, 5000);
     }
 
-    // ===============================================================
+
+    // ====================== Fast Reload testing ===================
+    // This loads only the member portion of the page, so does not
+    // have to reload everything. *Should* make things faster - but
+    // thi script also does it's own updating so mat not be neccesary.
+    var doingReload = false;
+    function quickReload() {
+
+        // https://www.torn.com/
+        let reloadURL = location.href;
+        log("quickReload, URL: ", reloadURL);
+
+        if (doingReload) {
+            doingReload = false;
+            return;
+        }
+
+        doingReload = true;
+
+        $.ajax({
+            url: reloadURL,
+            type: 'GET',
+            //dataType: 'json',
+            //headers: {
+            //    'Referer': 'https://www.torn.com/factions.php?step=your&type=1',
+            //    'origin': 'www.torn.com'
+            //},
+            //contentType: 'application/json; charset=utf-8',
+            success: function (response, status, xhr) {
+                var ct = xhr.getResponseHeader("content-type") || "";
+                log("Response content type: ", ct);
+                if (ct.indexOf('html') > -1) {
+                    parseResponseAsHTML(response, status, xhr);
+                } else if (ct.indexOf('json') > -1) {
+                    // Change the name at some point...
+                    quickReloadCallBack(response, status, xhr);
+                } else {
+                    quickReloadCallBack(response, status, xhr);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                log("Error in quickReload: ", textStatus);
+                decodeQuickReloadError(jqXHR, textStatus, errorThrown);
+            }
+        });
+
+    }
+
+    function quickReloadCallBack(response, status, xhr) {
+        log("Handling quickReload response");
+
+        //var newWindow = window.open("", "new window", "width=400, height=200");
+        //newWindow.document.write(response);
+
+        //let targetUl = $("#mainContainer > div.content-wrapper > div.userlist-wrapper > ul");
+        let jsonObj;
+        try {
+            jsonObj = JSON.parse(response);
+        } catch (e) {
+            log("Exception: ", e);
+            log("Response: ", response);
+            //parseResponseAsHTML(response, status, xhr);
+            return;
+        }
+
+        log("jsonObj: ", jsonObj);
+        if (jsonObj.success == true) {
+            log("Fast Reload, obj: ", jsonObj);
+        }
+
+        doingReload = false;
+    }
+
+    function parseResponseAsHTML(response, status, xhr) {
+        log("Handling quickReload response as HTML");
+
+        log("quickReload Response: ", $(response));
+
+        var newWindow = window.open("", "new window", "width=400, height=200");
+        newWindow.document.write(response);
+    }
+
+    function decodeQuickReloadError(jqXHR, textStatus, errorThrown) {
+
+        log("decodeQuickReloadError");
+        log("jqXHR: ", jqXHR);
+        log("textStatus: ", textStatus);
+        log("errorThrown: ", errorThrown);
+    }
+    // ====================== End Fast Reload testing ===================
+
+    // ====================== Fix up column widths ========================
+    //
+    // The column widths will be offset if TT is installed, this attempts
+    // to dynamically size the columns and also place the"sort"icon in the
+    // correct place.
     //
     var tornToolsPresent = false;  // Has TT columns
     var addlFirstColWidth = 0;     // with TT installed, may have div.tt-member-index column
@@ -895,8 +1035,13 @@
     var descSortClassName;
     var currSortDirClassName;
 
-    function initColWidths() {
-        if (document.readyState != "complete") return setTimeout(initColWidths, 100);
+    //var colWidthRetries = 0;
+    function initColWidths(retries=0) {
+        if (document.readyState != "complete") {
+            if (retries++ < 10) return setTimeout(initColWidths, 300, retries);
+            return;
+        }
+        //colWidthRetries = 0;
 
         log("Fixing up column widths...");
 
@@ -904,6 +1049,7 @@
         const tableHeader = $(".members-list > ul.table-header");
         const membersTable = $(".members-list > ul.table-body");
         const firstMemberRow = $(".members-list > ul.table-body > li")[0];
+        let   classList;
 
         // See if the TT column is present
         let ttIndexCol = $(".members-list > ul.table-body > li > div.tt-member-index")[0];
@@ -938,12 +1084,18 @@
 
         // Find active one
         let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
-        let classList = $(activeSortIcon).attr("class").split(/\s+/);
-        for (let idx=0; idx < classList.length; idx++) {
-            if (classList[idx].indexOf('active') > -1) {
-                activeClass = classList[idx];
-                break;
+        let list = $(activeSortIcon).attr("class");
+        if ($(list).length) {
+            classList = $(activeSortIcon).attr("class").split(/\s+/);
+            for (let idx=0; idx < classList.length; idx++) {
+                if (classList[idx].indexOf('active') > -1) {
+                    activeClass = classList[idx];
+                    break;
+                }
             }
+
+            //currSortDirClassName = getAscDescClassName(classList);
+            //getSortDirClassNames();
         }
 
         currSortDirClassName = getAscDescClassName(classList);
@@ -951,9 +1103,13 @@
 
         bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column
 
+        /*
         if (!$(activeSortIcon).length || !$(bsTableHeader).length) {
+            if (colWidthRetries++ > 10) return;
             return setTimeout(initColWidths, 100);
         }
+        colWidthRetries = 0;
+        */
 
         $(bsTableHeader).append($(activeSortIcon).clone());
         $(activeSortIcon).removeClass(activeClass);
@@ -978,7 +1134,7 @@
 
     function getAscDescClassName(classList) {
         let className = "";
-        for (let idx=0; idx < classList.length; idx++) {
+        for (let idx=0; idx < $(classList).length; idx++) {
             if (classList[idx].indexOf('asc') > -1) {
                 currSortDir = 'asc';
                 className = classList[idx];
