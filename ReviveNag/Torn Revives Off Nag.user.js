@@ -24,7 +24,7 @@
     'use strict';
 
     // Times in seconds
-    const useApiv2 = true;
+    var   useApiv2 = true;
     const recheckDelay = 10;       // Seconds to wait if there is an error, before retrying
     const nagSeconds = 10;         // Seconds before checking again, unless at hosp
     const hospNagSeconds = 20;     // Delay before recheck if at hosp already
@@ -48,11 +48,9 @@
         setTimeout(doUserQuery, nagSeconds * 1000);
     }
 
-    var blinking = false;
     function setColorRed() {
-        blinking = true;
         $(".revive-availability-btn").css("color", "var(--revive-availability-btn-everyone-red)");
-        redTimer = setTimeout(setColorGreen, 500);
+        setTimeout(setColorGreen, 500);
     }
 
     function setColorGreen() {
@@ -63,12 +61,18 @@
             $(".revive-availability-btn").css("color", "var(--revive-availability-btn-everyone-red)");
     }
 
+    var errCnt = 0;
     function userQueryCb(responseText, ID, param) {
+        if (errCnt > 5) {
+            useApiv2 = !useApiv2;
+            errCnt = 0;
+        }
         let jsonResp;
         try {
            jsonResp = JSON.parse(responseText);
         }
         catch (err) {
+            errCnt++;
             debug("[userQueryCb] error, invalid JSON");
             debug("[userQueryCb] Will try again in ", recheckDelay * 1000, " seconds");
             debug("Details: ", err);
@@ -76,24 +80,24 @@
             return setTimeout(doUserQuery, recheckDelay * 1000);
         }
 
-        if (!jsonResp) return handleError(responseText);
-        if(jsonResp.revivable > 0) return callOnContentComplete(startNagging);
+        if (!jsonResp) {
+            errCnt++;
+            return handleError(responseText);
+        }
 
-        //setTimeout(doUserQuery, recheckDelay * 1000);
+        if(jsonResp.revivable > 0) return callOnContentComplete(startNagging);
+        setTimeout(doUserQuery, recheckDelay * 1000);
     }
 
     function doUserQuery(retry) {
         if (dontShowAgain()) return;
 
-        logt("doUserQuery: ", retry, "|", location.href.indexOf('hospitalview'));
-        if (retry != true && location.href.indexOf('hospitalview') > -1) {
-            if (!blinking) setColorRed();
+        if (!retry && location.href.indexOf('hospitalview') > -1) {
             let urlParams = new URLSearchParams(window.location.search);
             let from = urlParams.get('from');
-            logt("from: ", from, " secs: ", hospNagSeconds * 1000);
             if (from == 'nag') return setTimeout(doUserQuery, hospNagSeconds * 1000, true);
         }
-;
+
         useApiv2 ? xedx_TornUserQueryv2(null, "profile", userQueryCb) :
                    xedx_TornUserQuery(null, "profile", userQueryCb);
     }
