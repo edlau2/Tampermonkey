@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Online Users and Push Prediction
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Simply counts users online for other facs
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -36,7 +36,8 @@
     // seconds and if the diff in onliners is >= triggerDiff, you are alerted.
 
     let defTriggers = { 1: {triggerDiff: 3, triggerSecs: 5, pending: false, max: 0, checkVal: 0},
-                        2: {triggerDiff: 6, triggerSecs: 11, pending: false, max: 0, checkVal: 0}
+                        2: {triggerDiff: 3, triggerSecs: 10, pending: false, max: 0, checkVal: 0},
+                        3: {triggerDiff: 6, triggerSecs: 11, pending: false, max: 0, checkVal: 0}
                       };
     let tmp = GM_getValue("triggers", null);
     const triggers = tmp ? JSON.parse(tmp) : defTriggers;
@@ -160,7 +161,7 @@
         // =============
 
         function predictCallback() {
-            debug("predictCallback");
+            //debug("predictCallback");
             getStatusForUserArray(facMembersArray, statusReqCb);
         }
 
@@ -244,7 +245,7 @@
             idle = 0;
 
             let keys = Object.keys(response);
-            log("statusReqCb, keys.len: ", keys.length);
+            //log("statusReqCb, keys.len: ", keys.length);
 
             for (let idx=0; idx < keys.length; idx++) {
                 let userId = keys[idx];
@@ -414,7 +415,7 @@
 
     // =================== User counts and status ===================
     function updateUserCountUI() {
-        debug("updateUserCountUI");
+        //debug("updateUserCountUI");
 
         $("#xcnt-online").text(online);
         $("#xcnt-offline").text(offline);
