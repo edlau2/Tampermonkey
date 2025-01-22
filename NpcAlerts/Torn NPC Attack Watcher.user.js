@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn NPC Attack Watcher
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Experiment, for now...
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -81,6 +81,9 @@
         let date = new Date(now);
         return date.toLocaleTimeString();
     }
+
+
+    addToolTipStyle();
 
     // =============== NPC info ================
     const npcIds = {
@@ -1201,11 +1204,11 @@
 
     queryLootRangers();
 
+    addToolTipStyle();
     addFloatingOptionsStyles();
     addContextStyles();
     loadMiscStyles();
     addNpcStyles();
-    addToolTipStyle();
 
     addGenOptStyles();
 
