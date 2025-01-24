@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.26
+// @version     2.45.27
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -74,14 +74,12 @@ GM_setValue("alertOnRetry", alertOnRetry);
 
 var api_key = GM_getValue('gm_api_key');
 
-async function validateApiKey(type = null, optText) {
-    let text = GM_info.script.name + optText ? optText : "Says:\n\nPlease enter your API key.\n" +
+async function validateApiKey(type = null) {
+    let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
         "Your key will be saved locally so you won't have to be asked again.\n" +
         "Your key is kept private and not shared with anyone.";
     if (type == 'FULL')
         text += '\n\nA full access key is required!';
-    else if (type == "RETRY")
-        text += '';
     else
         text += '\n\nOnly limited access is required';
 
@@ -110,6 +108,8 @@ function getPlayerName() {
 function getPlayerFullName() {
     return getPlayerName() + ' [' + getPlayerId() + ']';
 }
+
+function getRfcv() {return $.cookie('rfc_id');}
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Get the user's ID. Two methods, API and DOM
