@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll-Lock
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
@@ -42,7 +42,7 @@
         if (checked != true)
             $("#sidebarroot").addClass("xedx-locked");
 
-        // Add lock btn. Lock will NOT work with NPC Timers? id=topbarNpcTimers
+        // Add lock btn. Lock will NOT work with TT NPC Timers? id=topbarNpcTimers
         $("#topbarNpcTimers").remove();
         let hdrDiv = $("#sidebar div[class*='header_'][class*='desktop_']")[0];
         $(hdrDiv).append(lock);
