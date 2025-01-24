@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.32
+// @version     2.45.33
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.32";
+const thisLibVer = "2.45.33";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -93,7 +93,7 @@ async function validateApiKey(type = null) {
 
         if (api_key)
             GM_setValue('gm_api_key', api_key);
-        let temp2 = GM_setValue('gm_api_key', api_key);
+        let temp2 = GM_getValue('gm_api_key', api_key);
         log("xxx temp1: ", temp1, " temp2: ", temp2);
         if (temp1 != temp2)
             debugger;
