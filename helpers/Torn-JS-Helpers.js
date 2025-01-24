@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.34
+// @version     2.45.35
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.34";
+const thisLibVer = "2.45.35";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -1452,8 +1452,10 @@ function addTopBarButton(callback, id, title) {
 //   type of tone. Possible values are sine, square, sawtooth, triangle, and custom. Default is sine.
 //   callback to use on end of tone
 //
-var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+var audioCtx;
 function beep(duration=500, frequency=440, volume=1, type='sine', callback) {
+    if (!audioCtx)
+        audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
     var oscillator = audioCtx.createOscillator();
     var gainNode = audioCtx.createGain();
 
