@@ -1044,8 +1044,8 @@ function handleError(responseText) {
                 'is incorrect or has been changed. Please enter your API key again' +
                 ' if prompted, or refresh the page if not.\n';
             GM_setValue('gm_api_key', '');
-            alert(errorText);
-            validateApiKey();
+            //alert(errorText);
+            //validateApiKey();
         }
 
         if (jsonResp.error.code == 16) {
