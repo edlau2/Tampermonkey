@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.31
+// @version     2.45.32
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.31";
+const thisLibVer = "2.45.32";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -53,6 +53,7 @@ var alertOnRetry = false;
 var alertOnError = false;
 var Torn_JS_Helpers_Installed = true;
 var xedxDevMode = GM_getValue("xedxDevMode", false);
+var tempUse = true;
 
 // I haven't tested this yet, is meant
 // for systems (such as Greasemonkey) that don't
@@ -1053,14 +1054,15 @@ function handleError(responseText) {
             errorText += '\n\n It appears that the API key entered or saved for you ' +
                 'is incorrect or has been changed. Please enter your API key again' +
                 ' if prompted, or refresh the page if not.\n';
-            GM_setValue('gm_api_key', '');
+
+            //GM_setValue('gm_api_key', '');
             //alert(errorText);
             //validateApiKey();
         }
 
         if (jsonResp.error.code == 16) {
             errorText += '\n\nPlease try refreshing the page, you will be prompted again for your API key.\n';
-            GM_setValue('gm_api_key', '');
+            //GM_setValue('gm_api_key', '');
         }
 
         errorText += '\nPress OK to continue.';
