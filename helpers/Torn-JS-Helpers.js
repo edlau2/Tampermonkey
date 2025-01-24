@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.33
+// @version     2.45.34
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.33";
+const thisLibVer = "2.45.34";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -53,7 +53,6 @@ var alertOnRetry = false;
 var alertOnError = false;
 var Torn_JS_Helpers_Installed = true;
 var xedxDevMode = GM_getValue("xedxDevMode", false);
-var tempUse = true;
 
 // I haven't tested this yet, is meant
 // for systems (such as Greasemonkey) that don't
@@ -74,7 +73,6 @@ GM_setValue("alertOnRetry", alertOnRetry);
 ///////////////////////////////////////////////////////////////////////////////////
 
 var api_key = GM_getValue('gm_api_key');
-log("xxx read key: ", api_key);
 
 async function validateApiKey(type = null) {
     let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -86,17 +84,8 @@ async function validateApiKey(type = null) {
         text += '\n\nOnly limited access is required';
 
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-
         api_key = prompt(text, "");
-        log("xxx entered key: ", api_key);
-        let temp1 = api_key;
-
-        if (api_key)
-            GM_setValue('gm_api_key', api_key);
-        let temp2 = GM_getValue('gm_api_key', api_key);
-        log("xxx temp1: ", temp1, " temp2: ", temp2);
-        if (temp1 != temp2)
-            debugger;
+        GM_setValue('gm_api_key', api_key);
     }
 
     if (type == 'FULL') {
@@ -119,8 +108,6 @@ function getPlayerName() {
 function getPlayerFullName() {
     return getPlayerName() + ' [' + getPlayerId() + ']';
 }
-
-function getRfcv() {return $.cookie('rfc_id');}
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Get the user's ID. Two methods, API and DOM
@@ -701,7 +688,7 @@ const baseTornURLv2 = "https://api.torn.com/v2/";
 function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
     if (ID == null) ID = '';
     let comment = GM_info.script.name.replace('Torn', 'XedX');
-    let url = baseTornURL + section + "/" + ID + "&selections=" + selection + "&key=" + api_key;
+    let url = baseTornURL + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -736,7 +723,7 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, options) {
     let addlArgs = "";
     if (options)
         addlArgs = buildArgStr(options);
-    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key + "&comment=" + comment + addlArgs;
+    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key + addlArgs;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -1052,17 +1039,13 @@ function handleError(responseText) {
 
         if (jsonResp.error.code == 2) {
             errorText += '\n\n It appears that the API key entered or saved for you ' +
-                'is incorrect or has been changed. Please enter your API key again' +
-                ' if prompted, or refresh the page if not.\n';
-
-            //GM_setValue('gm_api_key', '');
-            //alert(errorText);
-            //validateApiKey();
+                'is incorrect. Please try refreshing the page, you will be prompted again for your API key.\n';
+            GM_setValue('gm_api_key', '');
         }
 
         if (jsonResp.error.code == 16) {
             errorText += '\n\nPlease try refreshing the page, you will be prompted again for your API key.\n';
-            //GM_setValue('gm_api_key', '');
+            GM_setValue('gm_api_key', '');
         }
 
         errorText += '\nPress OK to continue.';
@@ -1240,7 +1223,7 @@ function addLoadingLights() {
 // Nifty UI stuff
 //
 
-// ========================= Draggable support =========================
+ // ========================= Draggable support =========================
 //
 // Outermost div (elmt is ID of the div) must have position: absolute or fixed
 // Inside that must be a div called <outer-id>header ...
@@ -2756,7 +2739,6 @@ function addDraggableStyles() {
         }
     `);
 }
-
 
 
 
