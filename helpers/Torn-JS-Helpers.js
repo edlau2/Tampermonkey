@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.29
+// @version     2.45.30
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.29";
+const thisLibVer = "2.45.30";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -73,6 +73,7 @@ GM_setValue("alertOnRetry", alertOnRetry);
 ///////////////////////////////////////////////////////////////////////////////////
 
 var api_key = GM_getValue('gm_api_key');
+log("xxx read key: ", api_key);
 
 async function validateApiKey(type = null) {
     let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -85,8 +86,9 @@ async function validateApiKey(type = null) {
 
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
 
-        log("xxx key: ", api_key);
         api_key = prompt(text, "");
+        log("xxx entered key: ", api_key);
+
         if (api_key)
             GM_setValue('gm_api_key', api_key);
     }
