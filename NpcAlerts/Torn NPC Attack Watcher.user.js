@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn NPC Attack Watcher
 // @namespace    http://tampermonkey.net/
-// @version      1.7
-// @description  Experiment, for now...
+// @version      1.8
+// @description  Get NPC times from Loot Rangers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @connect      api.lzpt.io
@@ -33,40 +33,50 @@
     const dbgBorders = false;
 
     // Various (mostly display) options
-    var options = {
-        atOrUntil: GM_getValue("showUntilOrAt", "timeuntil"),
-        timeFormat: "24",                                    // 12 or 24
-        timeZone: GM_getValue("timeZone", "fmt-local"),      // local, TCT
-        showAlert: GM_getValue("showAlert", false),
-        minBefore:  GM_getValue("minBefore", 30),
-        alertFormat: "highlight",                            // blink, notification, Discord....
-        hideUntil: GM_getValue("hideUntil", false),
-        hideMinUntil: GM_getValue("hideMinUntil",60),        // minutes
-        showUntilMsg: GM_getValue("showUntilMsg", true),
-        showBrowserNotifications: GM_getValue("showBrowserNotifications", true),
-        notificationTimeoutMs: GM_getValue("notificationTimeoutMs", 20000),
-        notifyOnce: GM_getValue("notifyOnce", false),
-        notifyBefore: GM_getValue("notifyBefore", 15),
-        showNpcLinksWin: GM_getValue("showNpcLinksWin", true),
-    };
+    var atOrUntil = GM_getValue("showUntilOrAt", "timeuntil");
+    var timeFormat = "24";                                    // 12 or 24
+    var timeZone = GM_getValue("timeZone", "fmt-local");      // local, TCT
+    var showAlert = GM_getValue("showAlert", false);
+    var minBefore = GM_getValue("minBefore", 30);
+    var alertFormat = "highlight";                            // blink, notification, Discord....
+    var hideUntil = GM_getValue("hideUntil", false);
+    var hideMinUntil = GM_getValue("hideMinUntil",60);        // minutes
+    var showUntilMsg = GM_getValue("showUntilMsg", true);
+    var showBrowserNotifications = GM_getValue("showBrowserNotifications", true);
+    var notificationTimeoutMs = GM_getValue("notificationTimeoutMs", 20000);
+    var notifyOnce = GM_getValue("notifyOnce", false);
+    var notifyBefore = GM_getValue("notifyBefore", 15);
+    var showNpcLinksWin = GM_getValue("showNpcLinksWin", true);
 
-    var savedOpts = options;  // For Cancel btn support
-
-    GM_setValue("showUntilOrAt", options.atOrUntil);
-    GM_setValue("timeZone", options.timeZone);
-    GM_setValue("showAlert", options.showAlert)
-    GM_setValue("minBefore", options.minBefore);
-    GM_setValue("hideUntil", options.hideUntil);
-    GM_setValue("hideMinUntil", options.hideMinUntil);
-    GM_setValue("showUntilMsg", options.showUntilMsg);
-    GM_setValue("showBrowserNotifications", options.showBrowserNotifications);
-    GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
-    GM_setValue("notifyOnce", options.notifyOnce);
-    GM_setValue("notifyBefore", options.notifyBefore);
-    GM_setValue("showNpcLinksWin", options.showNpcLinksWin)
+    function saveCurrentOptions() {
+        GM_setValue("showUntilOrAt", atOrUntil);
+        GM_setValue("timeZone", timeZone);
+        GM_setValue("showAlert", showAlert)
+        GM_setValue("minBefore", minBefore);
+        GM_setValue("hideUntil", hideUntil);
+        GM_setValue("hideMinUntil", hideMinUntil);
+        GM_setValue("showUntilMsg", showUntilMsg);
+        GM_setValue("showBrowserNotifications", showBrowserNotifications);
+        GM_setValue("notificationTimeoutMs", notificationTimeoutMs);
+        GM_setValue("notifyOnce", notifyOnce);
+        GM_setValue("notifyBefore", notifyBefore);
+        GM_setValue("showNpcLinksWin", showNpcLinksWin);
+    }
 
     function restoreSavedOpts() {
-        options = savedOpts;
+        timeFormat = "24";                                 // 12 or 24
+        timeZone = GM_getValue("timeZone", timeZone);      // local, TCT
+        showAlert = GM_getValue("showAlert", showAlert);
+        minBefore = GM_getValue("minBefore", minBefore);
+        alertFormat = "highlight";                         // blink, notification, Discord?
+        hideUntil = GM_getValue("hideUntil", hideUntil);
+        hideMinUntil = GM_getValue("hideMinUntil", hideMinUntil);       
+        showUntilMsg = GM_getValue("showUntilMsg", showUntilMsg);
+        showBrowserNotifications = GM_getValue("showBrowserNotifications", showBrowserNotifications);
+        notificationTimeoutMs = GM_getValue("notificationTimeoutMs", notificationTimeoutMs);
+        notifyOnce = GM_getValue("notifyOnce", notifyOnce);
+        notifyBefore = GM_getValue("notifyBefore", notifyBefore);
+        showNpcLinksWin = GM_getValue("showNpcLinksWin", showNpcLinksWin);
     }
 
     var startTimes = {
@@ -91,15 +101,7 @@
         "Easter Bunny": 17 };
     const baseAttackUrl = "https://www.torn.com/loader.php?sid=attack&user2ID=";
 
-    //const li1="<li href='https://www.torn.com/loader.php?sid=attack&user2ID=20'>Fernando</li>";
-    //const li2="<li>blah blah</li>";
-    //const li3="<li>blah blah</li>";
-    //const li4="<li>blah blah</li>";
-    //const li5="<li>blah blah</li>";
-
     // ============================= Called on push state change ================
-
-    // Verify I don't get two copies!!!!
     function pushStateChanged(e) {
         debug("pushStateChanged: ", e);
         setTimeout(handlePageLoad, 250);
@@ -108,7 +110,6 @@
     //
     // ============================== Loot Ranger functions =====================
     //
-
     var startTimeRaw;
     var starTimeDate;
     var startTimeUTC;
@@ -311,8 +312,6 @@
     //
     // ============================== UI and options, display functions =====================
     //
-
-
     function addAlignmentStyles() {
         GM_addStyle(`
             .xfixed-vert {
@@ -337,9 +336,6 @@
     // TBD: figure out which ones I'm actually using, coalesce, see
     // what I can use or put into core lib,,,
     function addNpcStyles() {
-
-        // For the options dialog?
-
         addContextStyles();
         loadMiscStyles();
         addBorderStyles();
@@ -350,16 +346,6 @@
 
         // Added just for this...
          GM_addStyle(`
-             .x-rt-btn {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    width: 20px;
-                    height: 20px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
-                }
                 div.xnpc {
                     padding-bottom: 0px;
                     padding-top: 0px;
@@ -568,7 +554,7 @@
             title: 'NPC Alert!',
             text: msgText,
             image: 'https://imgur.com/QgEtwu3.png',
-            timeout: options.notificationTimeoutMs,
+            timeout: notificationTimeoutMs,
             onclick: () => {
                 setTimeout(resetNotifyFlag, 30000);
                 window.focus ();
@@ -598,14 +584,14 @@
             //log("manuallyHidAlerts !!!!!!");
         }
 
-        if (disable != true && options.showBrowserNotifications && notifyOpen == false) {
-            if ((options.notifyOnce && !notifyShown) || !options.notifyOnce) {
+        if (disable != true && showBrowserNotifications && notifyOpen == false) {
+            if ((notifyOnce && !notifyShown) || !notifyOnce) {
                 doBrowserNotify();
                 notifyShown = true;
             }
         }
 
-        if (manuallyHidAlerts || disable || options.showAlert == false || alertActive == false) {
+        if (manuallyHidAlerts || disable || showAlert == false || alertActive == false) {
             disableAlert();
             return;
         }
@@ -628,7 +614,7 @@
                 disableAlert();
                 return;
             }
-            let classToAdd = (options.atOrUntil == "timeuntil") ? "flash-red" : "flash-red-at";
+            let classToAdd = (atOrUntil == "timeuntil") ? "flash-red" : "flash-red-at";
             $("#xmenu1").addClass(classToAdd).addClass("df");
             $("#xnpx-t2").addClass(classToAdd);
             $("#xedxNPCAlert").parent().addClass("alert-red");
@@ -735,7 +721,7 @@
         let minsUntil = startTimes.minutesUntil;
         let doLog = false;
         if (secCounter++ == 30) {
-            debug("handleIntTimer valid? ", startTimes.valid, " ", options.atOrUntil);
+            debug("handleIntTimer valid? ", startTimes.valid, " ", atOrUntil);
             debug("[handleIntTimer] times: ", startTimes, " minsUntil: ", minsUntil);
             secCounter = 0;
             //doLog = true;
@@ -750,14 +736,14 @@
 
         // Handle alerts. Enable if threshold set and hit
         alertActive =
-            (options.showAlert == true && minsUntil >= 0 && minsUntil < options.minBefore);
+            (showAlert == true && minsUntil >= 0 && minsUntil < minBefore);
 
         // Handle re-enabling if hidden until x minutes prior
         let didUnhide = false;
         let didHide = false;
 
-        if (!manuallyHidAlerts && options.hideUntil && $("#xedxNPCAlert").height() == 0 &&
-            minsUntil < options.hideMinUntil && hiddenAtStart == true)
+        if (!manuallyHidAlerts && hideUntil && $("#xedxNPCAlert").height() == 0 &&
+            minsUntil < hideMinUntil && hiddenAtStart == true)
         {
             hiddenAtStart = false;
             didUnhide = true;
@@ -765,9 +751,9 @@
         }
 
         if (doLog == true)
-            debug("[handleIntTimer] Display alerts? ", options.showAlert, " until: ", minsUntil, " before: ", options.minBefore);
+            debug("[handleIntTimer] Display alerts? ", showAlert, " until: ", minsUntil, " before: ", minBefore);
 
-        if (options.atOrUntil == "timeuntil")
+        if (atOrUntil == "timeuntil")
             setTimeDisplay();
 
         if (didUnhide == false && !manuallyHidAlerts && alertActive == true)
@@ -877,7 +863,7 @@
                     <div id="x-npc-linksheader" class="grab title-black hospital-dark top-round">
                         <div class="xhding-flex" role="heading">
                             <span>NPC Links</span>
-                            <span id="x-npc-links-close" class="x-rt-btn x-inner-span xml5 xmr5">X</span>
+                            <span id="x-npc-links-close" class="x-rt-btn r20 x-inner-span xml5 xmr5">X</span>
                         </div>
                     </div>
                     <div id="x-npc-links-inner" class="">
@@ -920,11 +906,9 @@
         if (!attackOrder || !attackOrder.length)
             attackOrder = "Fernando, Tiny, Duke, Jimmy, Leslie";
 
-
         let npcs = attackOrder.split(',');
         let ulClone = $("#x-npc-links-ul").clone(true);
         $(ulClone).find("li").remove();
-
 
         // Temp li for time to go...
         let testLi = "<li id='xnpx-t2'>00:00:00</li>";
@@ -940,10 +924,7 @@
     }
 
     function installLinkHandlers() {
-        //$("#x-npc-links-ul > li").on('click', handleLiBtnClick);
-
         dragElement(document.getElementById("x-npc-links"));
-
         $("#x-npc-links-close").on('click.xedx', function(){
             $("#x-npc-links").remove();
         });
@@ -957,7 +938,7 @@
         let t = $("#x-npc-links").position().top;
         if (t < 0) {
             log("Adjusting top: ", t);
-            $("#x-npc-links").css("top", ("180px"));
+            $("#x-npc-links").css("top", ("240px"));
         }
 
         displayHtmlToolTip($("#x-npc-links-close"), "Click to close.", "tooltip4");
@@ -997,11 +978,6 @@
         addNpcListStyles();
         addFloatStyles();
 
-        // TEST
-        //if (options.showNpcLinksWin == true)
-        //    installLinksUi();
-
-
         $("#sidebarNpcTimers").attr("style", "display: none;");
         $("#sidebarNpcTimers").prev().attr("style", "display: none;");
         // Temp hack
@@ -1025,7 +1001,7 @@
         displayHtmlToolTip($("#xnpc-links"), "Left-click to get<br>target attack links", "tooltip4");
 
         // Display if not set to 'hide-until'
-        //if (options.hideUntil == false)
+        //if (hideUntil == false)
             doNpcHideShow();
 
         $("#xedxNPCAlert > span.xtouch").on('contextmenu', handleRightClick);
@@ -1035,10 +1011,10 @@
         displayHtmlToolTip($("#xedxNPCAlert"), "Left-click to show/hide.<br>Right-click for options.", "tooltip4");
         setOptionsState();
 
-        if (options.hideUntil == true && alertActive == false) {
-            if (options.showUntilMsg == true) {
+        if (hideUntil == true && alertActive == false) {
+            if (showUntilMsg == true) {
                 let msgText = "The NPC Attack Watcher is running but hidden.\n" +
-                      "Will become visible at " + options.hideMinUntil +
+                      "Will become visible at " + hideMinUntil +
                       " minutes prior to attack time.\nCan alway display by clicking....";
 
                 displayShowAgainMsg(msgText, saOkHandler);
@@ -1052,8 +1028,8 @@
         setTimeout(removeFarAway, 1100);
 
         function saOkHandler(checked) {
-            options.showUntilMsg = !checked;
-            GM_setValue("showUntilMsg", options.showUntilMsg);
+            showUntilMsg = !checked;
+            GM_setValue("showUntilMsg", showUntilMsg);
         }
 
         // ============ options dlg ============
@@ -1142,10 +1118,10 @@
             // To blink the colon:
             //sepOn = !sepOn;
 
-            if (options.atOrUntil == "timeuntil") {
+            if (atOrUntil == "timeuntil") {
                 timeText = n(startTimes.until.hrs) + sep + n(startTimes.until.mins) + sep + n(startTimes.until.secs);
             } else {
-                timeText = (options.timeZone == "fmt-local") ? startTimes.atLocal : startTimes.atUTC;
+                timeText = (timeZone == "fmt-local") ? startTimes.atLocal : startTimes.atUTC;
             }
         }
 
@@ -1157,13 +1133,13 @@
 
     function setOptionsState() {
         let untilOrAt = GM_getValue("showUntilOrAt", "timeuntil");
-        options.atOrUntil = untilOrAt;
+        atOrUntil = untilOrAt;
         if (untilOrAt == "timeat") $("#xat").prop('checked', true);
         if (untilOrAt == "timeuntil") $("#xuntil").prop('checked', true);
 
         $('input:radio[name=opt-when]').click(function() {
             let value = $(this).val();
-            options.atOrUntil = value;
+            atOrUntil = value;
             GM_setValue("showUntilOrAt", value);
             setTimeDisplay();
         });
@@ -1217,10 +1193,6 @@
 
     installPushStateHandler(pushStateChanged);
 
-    //GM_addStyle("#mainContainer div {border-radius: 15px; background-color: #0a0a0a;}");
-
-    //callOnContentLoaded(handlePageLoad);
-
      // ================================== Options dialog ================================
 
     var myOptsSel = "#xedx-npc-opts";
@@ -1230,69 +1202,42 @@
 
         $("body").prepend(optsDiv);
 
-        initSavedOpts();
+        initDialogWithSavedOpts();
         addGeneralHandlers();
         closeOnOutsideClicks();
     }
 
-    function initSavedOpts() {
+    // No need to re-read here! Should have been done on load.
+    function initDialogWithSavedOpts() {
+        debug("[initDialogWithSavedOpts] ");
 
-        debug("[initSavedOpts] ");
-        options.atOrUntil = GM_getValue("showUntilOrAt", "timeuntil");
-        let isChecked = (options.atOrUntil == "timeuntil");
+        let isChecked = (atOrUntil == "timeuntil");
         $("input[name=opt-when][value=timeuntil]").prop('checked', isChecked);
         $("input[name=opt-when][value=timeat]").prop('checked', !isChecked);
-        GM_setValue("showUntilOrAt", options.atOrUntil);
 
-        options.timeZone = GM_getValue("timeZone", "fmt-local");
-        isChecked = (options.timeZone == "fmt-local");
+        isChecked = (timeZone == "fmt-local");
         $("input[name=opt-fmt][value=fmt-local]").prop('checked', isChecked);
         $("input[name=opt-fmt][value=fmt-tct]").prop('checked', !isChecked);
-        GM_setValue("timeZone", options.timeZone);
 
-        // Hide alerts until X min before checkbox
-        options.hideUntil = GM_getValue("hideUntil", false);
-        isChecked = (options.hideUntil == true);
+        isChecked = (hideUntil == true);
         $("input[name=hideUntil]").prop('checked', isChecked);
-        GM_setValue("hideUntil", options.hideUntil);
 
-        // Hide alerts until X min before time input
-        options.hideMinUntil = GM_getValue("hideMinUntil", 60);
-        $("input[name=hideMinUntil]").val(options.hideMinUntil);
-        GM_setValue("hideMinUntil", options.hideMinUntil);
+        $("input[name=hideMinUntil]").val(hideMinUntil);
 
-        // Show alerts X min before checkbox
-        options.showAlert = GM_getValue("showAlert", false);
-        isChecked = (options.showAlert == true);
+        isChecked = (showAlert == true);
         $("input[name=showAlert]").prop('checked', isChecked);
-        GM_setValue("showAlert", options.showAlert);
 
-        // Show alerts X min before time input
-        options.minBefore = GM_getValue("minBefore", 60);
-        $("input[name=minBefore]").val(options.minBefore);
-        GM_setValue("minBefore", options.hideMinUntil);
+        $("input[name='minBefore']").val(minBefore);
 
-        // Show browser notifications for X secnds checkbox
-        options.showBrowserNotifications = GM_getValue("showBrowserNotifications", true);
-        isChecked = (options.showBrowserNotifications == true);
+        isChecked = (showBrowserNotifications == true);
         $("input[name=showBrowserNotifications]").prop('checked', isChecked);
-        GM_setValue("showBrowserNotifications", options.showBrowserNotifications);
 
-        // Show browser notifications for X secnds timeout field
-        options.notificationTimeoutMs = GM_getValue("notificationTimeoutMs", 20000);
-        $("input[name=notificationTimeoutMs]").val(options.notificationTimeoutMs / 1000);
-        GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
+        $("input[name=notificationTimeoutMs]").val(notificationTimeoutMs / 1000);
 
-        // Show notification once cb
-        options.notifyOnce = GM_getValue("notifyOnce", true);
-        isChecked = (options.notifyOnce == true);
+        isChecked = (notifyOnce == true);
         $("input[name=notifyOnce]").prop('checked', isChecked);
-        GM_setValue("notifyOnce", options.notifyOnce);
 
-        // Show notification X min before input
-        options.notifyBefore = GM_getValue("notifyBefore", 20);
-        $("input[name=notifyBefore]").val(options.notifyBefore);
-        GM_setValue("notifyBefore", options.notifyBefore);
+        $("input[name=notifyBefore]").val(notifyBefore);
     }
 
     function addGeneralHandlers() {
@@ -1347,7 +1292,6 @@
         saveOpt("hideMinUntil");
         saveOpt("notificationTimeoutMs", function(x){return x*1000;});
         saveOpt("notifyBefore");
-        savedOpts = options;
     }
 
     function handleGenInpChange(e) {
@@ -1358,26 +1302,26 @@
 
         // Show alert X min before option
         if (name == "minBefore") {
-            options.minBefore = entered;
+            minBefore = entered;
             GM_setValue("minBefore", entered);
         }
 
         // Hide alerts until X min before
         if (name == "hideMinUntil") {
-            options.hideMinUntil = entered;
+            hideMinUntil = entered;
             GM_setValue("hideMinUntil", entered);
         }
 
         // Browser notifications
         if (name == "notificationTimeoutMs") {
-            options.notificationTimeoutMs = entered * 1000;
-            GM_setValue("notificationTimeoutMs", options.notificationTimeoutMs);
+            notificationTimeoutMs = entered * 1000;
+            GM_setValue("notificationTimeoutMs", notificationTimeoutMs);
         }
 
         // Browser notify X min before
         if (name == "notifyBefore") {
-            options.notifyBefore = entered;
-            GM_setValue("notifyBefore", options.notifyBefore);
+            notifyBefore = entered;
+            GM_setValue("notifyBefore", notifyBefore);
         }
 
     }
@@ -1391,39 +1335,39 @@
         let name = $(node).attr("name");
 
         if (name == 'opt-when') {
-            options.atOrUntil = val;
+            atOrUntil = val;
             GM_setValue("showUntilOrAt", val);
             setTimeDisplay();
         }
 
         if (name == 'opt-fmt') {
-            options.timeZone = val;
+            timeZone = val;
             GM_setValue("timeZone", val);
             setTimeDisplay();
         }
 
         if (name == "hideUntil") {
-            options.hideUntil = checked;
+            hideUntil = checked;
             GM_setValue("hideUntil", checked);
         }
 
         if (name == "showAlert") {
-            options.showAlert = checked;
+            showAlert = checked;
             GM_setValue("showAlert", checked);
         }
 
         if (name == "hideUntil") {
-            options.hideUntil = checked;
+            hideUntil = checked;
             GM_setValue("hideUntil", checked);
         }
 
         if (name == "showBrowserNotifications") {
-            options.showBrowserNotifications = checked;
+            showBrowserNotifications = checked;
             GM_setValue("showBrowserNotifications", checked);
         }
 
         if (name == "notifyOnce") {
-            options.notifyOnce = checked;
+            notifyOnce = checked;
             GM_setValue("notifyOnce", checked);
         }
     }
@@ -1453,7 +1397,7 @@
                 width: ${sidebarWidth}px;
                 height: auto;
                 left: ${leftPos}px;
-                top: 180px;
+                top: 240px;
             }
             #x-npc-links ul {
                 border-radius: 10px;
@@ -1728,7 +1672,7 @@
                                              <span class="xfmt-span hide-until">
                                                  <input class="gen-cb" type="checkbox" name="showAlert" value="show-alerts">
                                                      Show alerts
-                                                 <input class="gen-inp inp-minute" type="number" name="minBefore" value="minBefore">
+                                                 <input class="gen-inp inp-minute" type="number" name="minBefore" value=${minBefore}>
                                                      minutes before.
                                              </span>
                                          </td>
@@ -1738,7 +1682,7 @@
                                              <span class="xfmt-span show-alert">
                                                  <input class="gen-cb" type="checkbox" name="hideUntil" value="hide-until">
                                                      Hide until
-                                                 <input class="gen-inp inp-minute" type="number"name="hideMinUntil" value="hideMinUntil">
+                                                 <input class="gen-inp inp-minute" type="number"name="hideMinUntil" value=${hideMinUntil}>
                                                      minutes before.
                                              </span>
                                          </td>
@@ -1748,7 +1692,7 @@
                                              <span class="xfmt-span show-alert">
                                                  <input class="gen-cb" type="checkbox" name="showBrowserNotifications" value="browser-alert">
                                                      Browser Notifications
-                                                 <input class="gen-inp inp-minute" type="number" name="notifyBefore" value="notifyBefore">
+                                                 <input class="gen-inp inp-minute" type="number" name="notifyBefore" value=${notifyBefore}>
                                                      min before.
                                              </span>
                                          </td>
@@ -1756,7 +1700,7 @@
                                      <tr>
                                          <td class="xntcg">
                                              <span class="xfmt-span show-alert">
-                                                 <input class="gen-inp inp-minute" type="number" name="notificationTimeoutMs" value="notificationTimeoutMs">
+                                                 <input class="gen-inp inp-minute" type="number" name="notificationTimeoutMs" value=${notificationTimeoutMs}>
                                                     second notification timeout.
                                              </span>
                                          </td>
@@ -1764,7 +1708,7 @@
                                      <tr>
                                          <td class="xntcg">
                                              <span class="xfmt-span show-alert">
-                                                 <input class="gen-cb" type="checkbox" name="notifyOnce" value="notifyOnce">
+                                                 <input class="gen-cb" type="checkbox" name="notifyOnce" value=${notifyOnce}>
                                                      Only show notification once
                                              </span>
                                          </td>
