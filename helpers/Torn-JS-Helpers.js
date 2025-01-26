@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.35
+// @version     2.45.36
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -553,6 +553,27 @@ String.prototype.hashCode = function(){
 function getPageSid() {
     const params = new URLSearchParams(window.location.search);
     return params.get('sid');
+}
+
+// Get any cookie value
+function getCookie(cname) {
+    let name = cname + "=";
+    let ca = document.cookie.split(';');
+    for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+
+// Get current rfcv value for request authorization
+function getRfcv() {
+    return getCookie("rfc_id");
 }
 
 // ===================== User ID functions ===========================
@@ -1988,6 +2009,7 @@ function addTornButtonExStyles() {
         }
         .x-rt-btn.r20 {
             width: 20px !important;
+            height: 20px;
             border-radius: 20px !important;
         }
      `);
