@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.13
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -28,15 +28,16 @@
 
     // Constants used, some to load options..hence first.
     const userId = getThisUserId();    // Used to highlight yourself in list
-    const keepLastStateKey = "keepLastState";
     const hideLvlKey = "hideLvl";
     const hideLvlValKey = "hideLvlVal";
     const warnMinLvlKey = "warnMinLvl";
     const warnMinLvlValKey = "warnMinLvlVal";
-    const lastStateKey = "lastState";
     const stateOpen = "visible";
     const stateClosed = "hidden";
     const sortKey = 'data-sort';
+    const csrListKey = "csrList";
+    const lastCsrDateKey = "lastCsr";
+    const initCsrDaysKey = "initCsrDays";
 
     // ======================== Configurable Options =======================
     //
@@ -48,8 +49,6 @@
     var debugNoOcFound = GM_getValue("debugNoOcFound", false);
     GM_setValue("debugNoOcFound", debugNoOcFound);
 
-    // Can edit this, but there's a hidden checkbox for it.
-    var keepLastState = GM_getValue(keepLastStateKey, false);
     var hideLvl = GM_getValue(hideLvlKey, false);
     var hideLvlVal = GM_getValue(hideLvlValKey, 5);
     var hideLvlPaused = false;
@@ -61,6 +60,15 @@
     var notifyOcSoon = GM_getValue("notifyOcSoon", false);
     var keepOnTop = GM_getValue("keepOnTop", false);
     var disableToolTips = GM_getValue('disableToolTips', false);
+    var scrollLock = GM_getValue('scrollLock', true);
+
+    // CSR options
+    var trackMemberCsr = GM_getValue("trackMemberCsr", false);
+    var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);      // Lowest crime level to look at
+    var initCsrDays    = GM_getValue(initCsrDaysKey, 30);       // How many days back to check for crimes during init
+
+    var lastCsrCheckDate = GM_getValue(lastCsrDateKey, 0);    // Most recent date looked at, only go to here during updates
+    var defCsrSelectVal = GM_getValue("csrSelectVal", "Blast From The Past");
 
     // Monitor and display when an OC you are in is due
     var trackMyOc = GM_getValue("trackMyOc", true);
@@ -69,8 +77,6 @@
     var blinkingNoOc = false;      // Set when alerting re: no OC
 
     // ====================== End Configurable Options ======================
-
-    var lastState = GM_getValue(lastStateKey, stateClosed);
 
     // Can run the OC watcher, to track when yours is due,
     // independently. Just start it and return if not on fac page.
@@ -85,17 +91,13 @@
     const secsInDay = 24 * 60 * 60;
     const secsInHr = 60 * 60;
 
-    const membersTextClosed = "Available Members (click to show)";
-    const membersTextOpen = "Available Members (click to hide)";
-
     // I can turn this on for dev-only stuff, only I will see -
     // and if I forget it won't be enabled without someone
     // doing so on purpose. I sometimes leave in defaults set
     // the wrong way....
     const xedxDevMode = GM_getValue("xedxDevMode", false) && (userId == 2100735);
     const enableReadyAlert = false;          // Not implemented yet...
-    var displayCompletedTimeDate = GM_getValue("displayCompletedTimeDate", false);
-    var useNewOptsPane = GM_getValue("useNewOptsPane", true); //false) && (xedxDevMode == true);
+    var timestampComplete = GM_getValue("timestampComplete", false);
 
     const recruitingIdx = 0;
     const planningIdx = 1;
@@ -106,6 +108,118 @@
     var scrollTimer;
     var sortTimer;
 
+    // These will be tables that can be detached and re-appended
+    const membersTableName = "membersNotInOcTable";
+    const optsTableName = "optsTable";
+    const csrTableName = "csrTable";
+    var membersNotInOcTable;
+    var optionsTable;
+    var csrTable;
+    var activeTable;
+
+    // ============================== CSR data =========================================
+
+    // Data for the csr table. Stored as an object indexed by member ID, associated with
+    // object that is a list of CSR per crime, per slot.
+    // csrList = { id: {...TBD...
+
+    const crimeDefsTable = {
+        1: {
+            "Mob Mentality": {enabled: false, level: 1, roles: ["?", "?", "?"], aka: "mm"},
+            "Pet Project": {level: 1, roles: ["Kidnapper", "Muscle", "Picklock"], aka: "pp"}
+        },
+        2: {
+            "Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief", "Thief"], aka: "cm"}
+        },
+        3: {
+            "Market Forces": {level: 3, roles: ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"], aka: "mf"},
+        },
+        4: {
+            "Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"], aka: "sf"},
+        },
+        5: {
+            "Leave No Trace": {level: 5, roles: ["Techie", "Impersonator", "Negotiator"], aka: "lt"},
+        },
+        6: {
+            "Honey Trap": {level: 6, roles: ["Enforcer", "Muscle", "Muscle"], aka: "ht"},
+        },
+        7: {
+            "Blast From The Past": {level: 7, roles: ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
+        },
+        8: {
+            "Break The Bank": {level: 8, roles: ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"], aka: "bb"},
+        },
+        9: {
+            "Gaslight The Way": {enabled: false, level: 9, roles: ["?", "?", "?", "?", "?", "?"], aka: "gw"},
+        },
+        10: {
+            "Smoke and Smoke and Wing Mirrors": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "ss"},
+            "Bidding on Chaos": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "bc"},
+        }
+    };
+
+    const nicknames = {"Mob Mentality": "mm", "Pet Project": "pp", "Cash Me If You Can": "cm", "Market Forces": "mf",
+                       "Stage Fright": "sf", "Leave No Trace": "lt", "Honey Trap": "ht", "Blast From The Past": "bp",
+                       "Break The Bank": "bb", "Gaslight The Way": "gw", "Smoke and Smoke and Wing Mirrors": "ss",
+                       "Bidding on Chaos": "bc"};
+
+    const roleLookup = {
+        "Pet Project": ["Kidnapper", "Muscle", "Picklock"],
+        "Cash Me If You Can": ["Lookout", "Thief", "Thief"],
+        "Market Forces": ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"],
+        "Stage Fright": ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"],
+        "Leave No Trace": ["Techie", "Impersonator", "Negotiator"],
+        "Honey Trap": ["Enforcer", "Muscle", "Muscle"],
+        "Blast From The Past": ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"],
+        "Break The Bank": ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"],
+    };
+
+    const csrEntryTemplate = {name: "",
+                               crimeCsr: {"mm": {},
+                                          "pm": {"Kidnapper": 0, "Muscle": 0, "Picklock": 0},
+                                          "cm": {"Lookout": 0, "Thief": 0},
+                                          "mf": {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0},
+                                          "sf": {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0},
+                                          "lt": {"Techie": 0, "Impersonator": 0, "Negotiator": 0},
+                                          "ht": {"Enforcer": 0, "Muscle": 0},
+                                          "bp": {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0},
+                                          "bb": {"Thief": 0, "Muscle": 0, "Robber": 0},
+                                          "gw": {},
+                                          "ss": {},
+                                          "bc": {}
+                               }};
+
+    /*
+
+        ...entry from crimedefs tanle, 'entry'
+        csrList[id].crimeCsr[entry.aka]["role"] = csr...
+    */
+
+    // Our table of member and their csr for each crime type and role.
+    // Organized as  id: {name, csr[crimeNickname][role], id2: {}, ...
+    var csrList = {};
+
+    function readCsrList() {
+        let tmp = GM_getValue(csrListKey, null);
+        if (tmp) {
+            log("Have saved csr list, parsing");
+            csrList = JSON.parse(tmp);
+        }
+
+        debug("Loaded csr list: ", csrList);
+    }
+
+    function writeCsrList() {
+        log("*****Saving csr list*****: ", csrList);
+        GM_setValue(csrListKey, JSON.stringify(csrList));
+
+        log("*****Reading back in*****");
+        readCsrList();
+    }
+
+    if (trackMemberCsr) readCsrList();
+
+    // =========================== Little helper fns =================================
     const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
     const getRecruitingTab = function () { return $(getBtnSel(recruitingIdx));}
     const getPlanningTab = function () { return $(getBtnSel(planningIdx));}
@@ -136,11 +250,11 @@
     const menuItems = [
         {name: "-- Options --",                                               type: "title", enabled: true,  validOn: "full"},
 
-        {name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb",    enabled: false, validOn: "full"},
+        //{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb",    enabled: false, validOn: "full"},
 
-        {name: "Hide Levels",     id: "oc-hide",       key: hideLvlKey,       type: "cb",                    validOn: "context"},
+        {name: "Hide low level crimes",     id: "oc-hide",       key: hideLvlKey,       type: "cb",                    validOn: "context"},
         {name: "Min Level",       id: "oc-hide-lvl",   key: hideLvlValKey,    type: "input",                 validOn: "context", min: 1, max: 10},
-        {name: "Hide rec. lvls beneath #",
+        {name: "Hide recruiting levels beneath #",
              id: {cb: "oc-hide", input: "oc-hide-lvl"}, key: {cb: hideLvlKey, input: hideLvlValKey},
              type: "combo",                                                                                  validOn: "full",  min: 1, max: 10,
              tooltip: "This will hide crimes<br>on the recruitment page<br>that are less than the<br>specified level. You can show<br>" +
@@ -150,25 +264,26 @@
              tooltip: "Show recruits hidden due to<br>" +
                       "being less than the level<br>" +
                       "configured above, until next refresh."},
-        {name: "Go To Crimes",    id: "oc-goto-crimes",                       type: "href",
+        {name: "Go To Crimes Page",    id: "oc-goto-crimes",                  type: "href",
              href:"/factions.php?step=your&type=1#/tab=crimes", validOn: "context",
              tooltip: "Opens the OC page"},
         {name: "Refresh",         id: "oc-refresh",                           type: "ctrl",
              fnName: "refresh", validOn: "both",
              tooltip: "Refreshes the table of<br>members not in an OC."},
-        {name: "Stop Alerts",     id: "stop-alert",                           type: "ctrl",     enabled: true, validOn: "both",
+        {name: "Pause flashing Alerts (until refresh)",   id: "stop-alert",    type: "ctrl",     enabled: true, validOn: "both",
              fnName: "stop-alert",
              tooltip: "Stop the blinking alerts that<br>" +
                       "indicate you are not in an OC,<br>" +
                       "or that yours is due to start soon."},
 
-        // Test entries...
-        {name: "XedX Test Fn",    id: "xedx-oc-test",                         type: "ctrl",     enabled: xedxDevMode, validOn: "both",
-             fnName: "xedx-test"},
-        {name: "XedX Test href",    id: "xedx-href-test",                     type: "href",
-             href:"/factions.php?step=your&type=1#/tab=info",                                   enabled: xedxDevMode, validOn: "full"},
+        {name: "Timestamp completed OCs", id: "ts-complete",    key: "timestampComplete",   type: "cb",    enabled: true, validOn: "full",
+             /*fnName: "",*/
+             tooltip: "Display the 'executed at' time<br>" +
+                      "on the Completed page, which is<br>" +
+                      "when the crime was actually<br>" +
+                      "started (I think!)."},
 
-        {name: "OC time on sidebar", id: "track-my-oc",    key: "trackMyOc",   type: "cb",    enabled: true, validOn: "both",
+        {name: "Display time until your OC on the sidebar", id: "track-my-oc",    key: "trackMyOc",   type: "cb",    enabled: true, validOn: "both",
              fnName: "track-my-oc",
              tooltip: "Display a small counter on<br>" +
                       "the sidebar indicating how long<br>" +
@@ -179,21 +294,25 @@
                       "Takes effect after a refresh<br>" +
                       "or reload, and only affects<br>" +
                       "the tooltips on this menu."},
-        {name: "Warn if not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb",    enabled: true, validOn: "both",
+        {name: "Enable Scroll Lock", id: "scroll-lock",key: "scrollLock", type: "cb", enabled: true, validOn: "full", fnName: "toggleScroll",
+             tooltip: "Allows the OC's on each<br>" +
+                      "page to scroll independently<br>" +
+                      "of the page headers."},
+        {name: "Warn if you are not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb",    enabled: true, validOn: "both",
              tooltip: "Flashes the sidebar display<br>" +
                       "if not in an OC yet."},
-        {name: "Flash when OC is near", id: "notify-soon",  key: "notifyOcSoon", type: "cb",    enabled: true, validOn: "both",
+        {name: "Flash when your OC is almost ready", id: "notify-soon",  key: "notifyOcSoon", type: "cb",    enabled: true, validOn: "both",
              tooltip: "TBD TBD TBD<br>" +
                       "The sidebar display will<br>" +
                       "flash hen you crime is due<br>" +
                       "to start soon."},
-        {name: "Your crime on top", id: "keep-on-top", key: "keepOnTop",    type: "cb",    enabled: true, validOn: "full",
+        {name: "Keep your crime on top when sorting", id: "keep-on-top", key: "keepOnTop",    type: "cb",    enabled: true, validOn: "full",
              tooltip: "On the Planning page, puts<br>" +
                       "your crime on top, then the<br>" +
                       "remaining ones are sorted."},
-        {name: "Notify if lvl > # is avail",
+        {name: "Notify if a crime at or above level # is available",
              id: {cb: "oc-min-avail", input: "oc-min-lvl"}, key: {cb: warnMinLvlKey, input: warnMinLvlValKey},
-             type: "combo",                 validOn: "full",  min: 1, max: 10,
+             type: "combo", enabled: true,  validOn: "full",  min: 1, max: 10,
              tooltip: "TBD TBD TBD<br>" +
                       "If a crime above the specified<br>" +
                       "level becomes available on the<br>" +
@@ -203,8 +322,39 @@
         // TBD: "show hidden" context opt, recruit, see "hide beneath"...
     ];
 
+    /*
+      // CSR options
+    var trackMemberCsr = GM_getValue("trackMemberCsr", false);
+    var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);
+    */
+    const csrMenuOptions = [
+        {name: "Track Member CSR", id: "track-csr",key: "trackMemberCsr", type: "cb", enabled: true, validOn: "full", /*fnName: "toggleCsr",*/
+             tooltip: "Maintains a list of each fac<br>" +
+                      "members CSR (Crime Success Rate),<br>" +
+                      "actually a % chance of success,<br>" +
+                      "for each crime"},
+        {name: "Only track crime CSR above level #",
+             id: "csr-min-lvl", key: "lowestCsrLevel",
+             type: "input", enabled: true,  validOn: "full",  min: 1, max: 10,
+             tooltip: "Only track CSRs for crimes<br>" +
+                      "at or above this level. The<br>" +
+                      "more you track, the more data<br>" +
+                      "has to be stored and processed."},
+        {name: "(Re)initialize all CSR values",   id: "init-csr",    type: "ctrl",     enabled: true, validOn: "full",
+             fnName: "init-csr",
+             tooltip: "Goes through all crimes and initializes<br>" +
+                      "the saved CSR values for all members. Not<br>" +
+                      "every member will have data available for<br>" +
+                      "every role in ever crime. Currently, only<br>"+
+                      "the past 4 weeks of data are looked at."},
+        {name: "Update CSR values",   id: "upd-csr",    type: "ctrl",     enabled: true, validOn: "full",
+             fnName: "upd-csr",
+             tooltip: "Updates CSR values since last update.<br>" +
+                      "This is normally done automatically."},
+        ];
+
     function writeOptions() {
-        GM_setValue(keepLastStateKey, keepLastState);
+        //GM_setValue(keepLastStateKey, keepLastState);
         GM_setValue(hideLvlKey, hideLvl);
         GM_setValue(hideLvlValKey, hideLvlVal);
 
@@ -212,16 +362,20 @@
         GM_setValue("notifyOcSoon", notifyOcSoon);
         GM_setValue("keepOnTop", keepOnTop);
         GM_setValue('disableToolTips', disableToolTips);
+        GM_setValue('scrollLock', scrollLock);
 
         GM_setValue(warnMinLvlKey, warnMinLvl);
         GM_setValue(warnMinLvlValKey, warnMinLvlVal);
         GM_setValue("trackMyOc", trackMyOc);
 
-        GM_setValue("useNewOptsPane", useNewOptsPane);
+        GM_setValue("timestampComplete", timestampComplete);
+
+        GM_setValue("trackMemberCsr", trackMemberCsr);
+        GM_setValue("lowestCsrLevel", lowestCsrLevel);
     }
 
     function updateOptions(doWriteOpts=true) {
-        keepLastState = GM_getValue(keepLastStateKey, keepLastState);
+        //keepLastState = GM_getValue(keepLastStateKey, keepLastState);
         hideLvl = GM_getValue(hideLvlKey, hideLvl);
         hideLvlVal = GM_getValue(hideLvlValKey, hideLvlVal);
 
@@ -229,13 +383,18 @@
         notifyOcSoon = GM_getValue("notifyOcSoon", notifyOcSoon);
         keepOnTop = GM_getValue("keepOnTop", keepOnTop);
         disableToolTips = GM_getValue('disableToolTips', disableToolTips);
+        scrollLock = GM_getValue('scrollLock', scrollLock);
 
         warnMinLvl = GM_getValue(warnMinLvlKey, warnMinLvl);
         warnMinLvlVal = GM_getValue(warnMinLvlValKey, warnMinLvlVal);
         trackMyOc = GM_getValue("trackMyOc", trackMyOc);
+        timestampComplete = GM_getValue("timestampComplete", timestampComplete);
+
+        trackMemberCsr = GM_getValue("trackMemberCsr", trackMemberCsr);
+        lowestCsrLevel = GM_getValue("lowestCsrLevel", lowestCsrLevel);
 
         // TBD: add new ones here
-        $("#oc-last-state").prop('checked', keepLastState);
+        //$("#oc-last-state").prop('checked', keepLastState);
         $("#oc-hide").prop('checked', hideLvl);
         $("#oc-hide-lvl").val(hideLvlVal);
 
@@ -243,18 +402,19 @@
         $("#notify-soon").prop("checked", notifyOcSoon);
         $("#keep-on-top").prop("checked", keepOnTop);
         $("#disable-tool-tips").prop("checked", disableToolTips);
+        $("#scroll-lock").prop("checked", scrollLock);
 
         $("#oc-min-avail").prop("checked", warnMinLvl);
         $("#oc-min-lvl").val(warnMinLvlVal);
         $("#track-my-oc").prop("checked", trackMyOc);
+        $("#ts-complete").prop("checked", timestampComplete);
+
+        $("#track-csr").prop('checked', trackMemberCsr);
+        $("#csr-min-lvl").val(lowestCsrLevel);
 
         // TBD: add the rest
         if (doWriteOpts) { writeOptions(); }
 
-        // TBD: add here too...
-        debug("updateOptions: keepLastState: ", keepLastState, " hideLvl: ", hideLvl, hideLvlVal, "\n",
-              " warnOnNoOc: ps", warnOnNoOc, " notifyOcSoon: ", notifyOcSoon, " keepOnTop: ", keepOnTop, "\n",
-              " warnMinLvl: ", warnMinLvl, warnMinLvlVal, " trackMyOc: ", trackMyOc);
     }
 
     // Will reset at page refresh, not permanent cache
@@ -302,7 +462,7 @@
     function nn(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
     function getTimeUntilOc() {
         if (!myCrimeStartTime || !validateSavedCrime()) {
-            getMyNextOcTime('available');
+            getMyNextOcTime();
             return NO_OC_TIME;
         }
 
@@ -368,51 +528,33 @@
     function myOcTrackingCb(responseText, ID, param) {
         let jsonObj = JSON.parse(responseText);
         if (jsonObj.error) {
-            handleError(responseText);
-            return setTimeout(getMyNextOcTime, 60000, 'available');    // Try again in a minute...
+            setTimeout(getMyNextOcTime, 60000);
+            return handleError(responseText);
         }
-        let crimes = jsonObj.crimes;
-        let myCrime, readyAt;
 
-        debug("myOcTrackingCb: ", jsonObj, param);
+        log("myOcTrackingCb: ", jsonObj);
 
-        // Check to see if we can use cached crime time....
-        if (validateSavedCrime(crimes) == true) {
-            debug("Found valid cached start time!");
-        } else {
-            debug("Searching for my crime...");
-            for (let crimeIdx=0; crimes && crimeIdx < crimes.length; crimeIdx++) {
-                let crime = crimes[crimeIdx];
-                let slots = crime.slots;
-                for (let slotIdx=0; slotIdx<slots.length; slotIdx++) {
-                    let slot = slots[slotIdx];
-                    if (slot.user_id == userId) {
-                        if (debugNoOcFound == true) {
-                            log("DEBUG: pretend no OC found");
-                            continue;
-                        }
-                        debug("Found match: ", crime);
-                        myCrime = crime;
-                        readyAt = crime.ready_at;
-                        break;
-                    }
-                }
-                if (myCrime) break;
-            }
+        let myCrime = jsonObj.organizedCrime;
+        if (!myCrime) {
+            log("Not in a crime?");
+            enableNoOcAlert();
+            setTrackerTime(NO_OC_TIME);
+            setTimeout(getMyNextOcTime, 60000);
+            return;
+        }
+        let readyAt = myCrime.ready_at;
 
-            debug("myCrime: ", myCrime);
-
-            if (myCrime && readyAt) {
-                myCrimeId = myCrime.id;
-                myCrimeStartTime = readyAt;
-                myCrimeStatus = myCrime.status;
-                saveMyCrimeData();
-            } else if (!blinkingPaused) {
-                enableNoOcAlert();
-                setTrackerTime(NO_OC_TIME);
-                debug("Didn't locate my own OC!");
-                setTimeout(getMyNextOcTime, 60000, 'available');    // Try again in a minute...
-            }
+        if (myCrime && readyAt) {
+            myCrimeId = myCrime.id;
+            myCrimeStartTime = readyAt;
+            myCrimeStatus = myCrime.status;
+            saveMyCrimeData();
+            stopAllAlerts();
+        } else if (!blinkingPaused) {
+            enableNoOcAlert();
+            setTrackerTime(NO_OC_TIME);
+            debug("Didn't locate my own OC!");
+            setTimeout(getMyNextOcTime, 60000);    // Try again in a minute...
         }
 
         if (myCrimeStartTime) {
@@ -426,11 +568,8 @@
         }
     }
 
-    function getMyNextOcTime(category) {
-        debug("getMyNextOcTime: ", category);
-        let cat = category ? category : "available";
-        var options = {cat: cat, offset: "0", param: {source: 'ocTracking', cat: cat}};
-        xedx_TornFactionQueryv2("", "crimes", myOcTrackingCb, options);
+    function getMyNextOcTime() {
+        xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
     }
 
     function startMyOcTracking() {
@@ -469,6 +608,9 @@
 
     // ============================== context menu ===============================
 
+    // Figure out what here is really needed...
+    // simplify mini context menu....
+
     // Run a function from context menu
     function doOptionMenuRunFunc(runFunc) {
         log("doOptionMenuRunFunc: ", runFunc);
@@ -499,11 +641,42 @@
                 onOcTrackerChange();
                 break;
 
+            case "toggleScroll":
+                toggleScrollLock();
+                break;
+
+            case "init-csr":
+                // Flash "Busy..." in grre somewhere?
+                initializeMemberCsrValues();
+                break;
+
+            case "upd-csr":
+                updateMemberCsrList();
+                break;
+
             default:
                 debug("ERROR: Run func ", runFunc, " not recognized!");
                 break;
         }
 
+    }
+
+    function processMiniOpCb(e) {
+        e.stopPropagation();
+        let node = $(e.currentTarget);
+        let idx = $(node).attr("data-index");
+        let opt = menuItems[idx];
+        let sel = "#" + opt.id + " > input";
+        if (opt.type == 'cb') {
+            let val = $(sel)[0].checked;
+            GM_setValue(opt.key, val);
+        } else if (opt.type == 'input') {
+            let val = $(sel).val()
+            GM_setValue(opt.key, val);
+        }
+
+        updateOptions();
+        if (opt.id == 'oc-opt-hide' || opt.id == 'oc-opt-lvl') hideShowByLevel();
     }
 
     function showMenu() {
@@ -621,13 +794,11 @@
             if (opt.type == "input") $(sel).find("input").css("margin-right", "8px");
         }
 
-        $("#oc-opt-last-pos").prop('checked', keepLastState);
         $("#oc-opt-hide").prop('checked', hideLvl);
         $("#oc-opt-lvl").val(hideLvlVal);
 
         $("#warn-no-oc").prop('checked', warnOnNoOc);
         $("#notify-soon").prop('checked', notifyOcSoon);
-        //$("#keep-on-top").prop('checked', keepOnTop);
 
         $("#ocTracker-cm > ul > li > span").on('click', handleTrackerContextClick);
         $("#ocTracker-cm > ul > li > input").on('change', processMiniOpCb);
@@ -748,6 +919,7 @@
         $(pageBtnsList).on('click', pageBtnClicked);
     }
 
+    /*
     // Compare two arrays: see what is in array1 but not in array2
     function arrayDiff(array1, array2) {
         const result = array1.filter(obj1 =>
@@ -755,6 +927,7 @@
         );
         return result;
     }
+    */
 
     // Make yourself easier to spot on the page.
     function highlightSelf() {
@@ -913,7 +1086,33 @@
         displayHtmlToolTip($(tab), "Right click to show<br>hidden crimes. Refresh<br>to hide again.", "tooltip4");
     }
 
-    // ==============================================
+    // ============================== CSV output support ========================
+
+    // This may be moot??? CSV still useful, but now is sorted...
+    function installCompletedPageButton(visible=false, retries=0) {
+        const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
+
+        if ($("#xcsvbtn").length == 0) {
+            // Should just start a mutation observer...
+            // Added callWhenElementExistsEx() for just that purpose
+            let cBtn = getCompletedTab();
+            if (!$(cBtn).length) {
+                if (retries++ < 20) return setTimeout(installCompletedPageButton, 200, visible, retries);
+                return log("ERROR: didn't find the Completed button!");
+            }
+            $(cBtn).append(csvBtn);
+            $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
+            displayHtmlToolTip($("#xcsvbtn"),
+                           "Click here to view and save data<br>" +
+                           "in CSV format, to import into any<br>" +
+                           "spreadsheet program later.", "tooltip4");
+        }
+
+        if (visible == true)
+            $("#xcsvbtn").removeClass("vhide");
+        else
+            $("#xcsvbtn").addClass("vhide");
+    }
 
     function initialScenarioLoad(retries=0) {
         let rootSelector = "#factions";
@@ -1085,7 +1284,7 @@
         }
     }
 
-    // =================================
+    // ========================== Entry point once page loaded ============================
 
     function handlePageLoad(node) {
 
@@ -1111,8 +1310,8 @@
             }, 250);
         });
 
-        if (!$("#x-no-oc-members").length) {
-            buildMissingMembersUI('load');
+        if (!$("#oc-assist-content-wrap").length) {
+            installUI();
         }
 
         addPageBtnHandlers();
@@ -1139,6 +1338,500 @@
             }
         }
     }
+   
+    //============================== API calls ===================================
+    //
+    //var missingMembers = [];
+    var membersNotInOc = {};
+    //var facMembersJson = {};
+    //var plannedCrimeMembers = [];
+    //var facMembersArray = [];
+    var membersNotInOcReady = false;
+
+    var completedCrimesSynced = false;
+
+    var completedScenarios;
+    var completedScenariosLastLen = 0;
+
+    var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
+
+    //var facMembersDone = false;
+    //var crimeMembersDone = false;
+
+    function getCompletedCrimes() {
+        let daysToGet = 10;
+        let nowTime = new Date().getTime();
+        // Note: this is in epoch time, to get Torn time,
+        // need to divide by 1,000. Or, divide the nowTime
+        // first and don't multiply by 1000.
+        let fromTime = nowTime - (daysToGet*24*60*60*1000);
+        let tornTime = parseInt(fromTime/1000);
+        if (cacheCompletedCrimes == true && completedCrimesArray) {
+            debug("using cached version..."); //, completedCrimesArray);
+            completedCrimesCb(completedCrimesArray);
+        } else {
+            log("Do comp crime query, from: ", new Date(fromTime).toString());
+            doFacOcQuery('completed', tornTime);
+        }
+    }
+
+    // 'crimes' is parsed array of JSON crime objects
+    function completedCrimesCb(crimes) {
+        completedCrimesArray = crimes;
+        debug("Completed crimes CB: ", crimes ? crimes.length : 0);
+
+        if (!crimes) {
+            console.error("No crimes array!");
+            debugger;
+            return;
+        }
+
+        if (logFullApiResponses == true) {
+            crimes.forEach(function (crime, index) {
+                logCompletedCrime(crime);
+            });
+        } else {
+            //debug("Not logging details, 'logFullApiResponses' is off.");
+        }
+
+        if (btnIndex() == completedIdx) {
+            syncCompletedCrimeData();
+        }
+
+        // Local functions..sync adds timestamps to completed crimes -
+        // which is no longer needed, Torn now sorts...
+        function syncCompletedCrimeData(retries=0) {
+            completedScenarios = $("[class^='scenario_']");
+            debug("syncCompletedCrimeData, count: ",
+                  $(completedScenarios).length,
+                  " retries: ", retries);
+
+            // Scroll will call us anyways, don't retry too much.
+            if (!$(completedScenarios).length) {
+                if (retries++ < 10) return setTimeout(syncCompletedCrimeData, 250, retries);
+                return debug("Too many sync retries");
+            }
+
+            if (timestampComplete == true) {
+                for (let idx=0; idx < $(completedScenarios).length; idx++) {
+                    let scenario = $(completedScenarios)[idx];
+
+                    let crime = completedCrimesArray[idx];
+                    if (crime.status.toLowerCase() == 'failure') {
+                        log("Crime failed! ", $(scenario), crime);
+                        continue;
+                    }
+
+                    let desc = getCompCrimeDesc(idx);
+                    if (!desc) {
+                        log("No description! ", $(scenario), crime);
+                        continue;
+                    }
+
+                    let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
+                    if (!$(rewardDiv).length) continue; // Also indication of failure
+
+                    let prevDiv = $(rewardDiv).find(".xsort");
+                    if ($(prevDiv).length) continue;
+
+                    let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
+                    let className = "";
+                    let classListRaw = $(item).attr('class');
+                    if (!classListRaw) {
+                        debug("Error: missing class list! ", $(item));
+                        //debugger;
+                    }
+                    let classList = classListRaw ? classListRaw.split(/\s+/) : null;
+                    if (classList) className = classList[0];
+                    let newDiv = `<div class="${className} xsort">${desc}</div>`;
+                    $(rewardDiv).append(newDiv);
+                }
+            }
+        }
+
+        // Format time/date however we want
+        function tm_str(tm) {
+            log("tm_str: ", tm, new Date(tm*1000).toString());
+            let dt = new Date(tm*1000);
+            const mediumTime = new Intl.DateTimeFormat("en-GB", {
+              timeStyle: "medium",
+              hourCycle: "h24",
+            });
+            log("time: ", mediumTime.format(dt));
+
+            const shortDate = new Intl.DateTimeFormat("en-GB", {
+              dateStyle: "short",
+            });
+            log("Date: ", shortDate.format(dt));
+            const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
+            log("formatted: ", formattedDate);
+            return formattedDate;
+        }
+
+        // Just for logging to dev console
+        function logCompletedCrime(crime) {
+            log("Completed crime, id: ", crime.id, " status: ", crime.status,
+                " created: ", tm_str(crime.created_at), " initiated: ", tm_str(crime.initiated_at),
+                " ready at: ", tm_str(crime.ready_at), " executed_at: ", tm_str(crime.executed_at));
+        }
+
+        // Build the span to display in a div on completed crime panel
+        function getCompCrimeDesc(idx) {
+            let crime = completedCrimesArray[idx];
+            log("status: ", crime.status, " executed_at: ", crime.executed_at);
+            if (!crime.executed_at) return;
+            //let payout = asCurrency(crime.rewards.money);
+            let ready = tm_str(crime.executed_at);
+            let span = `<span class="oc-comp-span1">Completed:</span><span class="oc-comp-span2">${ready}</span>`;
+            return span;
+        }
+    }
+
+    if (false) {
+        function plannedCrimesCb(responseText, ID, param) {
+            let jsonObj = JSON.parse(responseText);
+            let crimes = jsonObj.crimes;
+
+            if (jsonObj.error) {
+                console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+                return;
+            }
+
+            if (param == 'completed') {
+                return completedCrimesCb(crimes);
+            }
+
+            if (trackMyOc == true && param == "planning") {
+                myOcTrackingCb(responseText, ID, param);
+            }
+
+            // Can gather CSR info here also!
+            crimes.forEach(function (crime, index) {
+                crime.slots.forEach(function (slot, index) {
+                    if (slot.user_id) plannedCrimeMembers.push(slot.user_id);
+                });
+            });
+
+            debug("Members in crimes: ", plannedCrimeMembers.length);
+
+            if (param == "planning") {
+                getRecruitingCrimes();
+            } else {
+                crimeMembersDone = true;
+            }
+            /*
+                if (facMembersDone == true) {
+                    membersNotInOc = arrayDiff(facMembersArray, plannedCrimeMembers);
+                    membersNotInOcReady = true;
+                    updateMembersTableData('plannedcb');
+                }
+            }
+            */
+        }
+
+        function doFacOcQuery(category, from) {
+            var options = {"cat": category, "offset": "0", "param": category};
+            if (from) options.from = from;
+            xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
+        }
+
+    } // end if (false.. wrap around stuff I think I'll cut...
+
+    // =================== Get fac members, update list of not in OC =============
+
+    // Build list of members not in an OC, and if csr is enabled,
+    // make sure the list is up to date. But just once...
+    var membersArray = [];
+    function facMemberCb(responseText, ID, options) {
+        let jsonObj = JSON.parse(responseText);
+        membersArray = jsonObj.members;
+
+        if (jsonObj.error) {
+            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+            return;
+        }
+
+        membersNotInOc = {};
+        for (let idx=0; idx<membersArray.length; idx++) {
+            let member = membersArray[idx];
+            if (member.id) {
+                let state = member.status.state;
+                if (state.toLowerCase() != "fallen" && member.position != "Recruit") {
+                    if (member.is_in_oc != true) {
+                        membersNotInOc[member.id] = member.name;
+                    }
+                }
+            }
+        }
+
+        updateMembersTableData();
+
+        if (trackMemberCsr && membersArray.length)
+            updateCsrMembersList(membersArray);
+    }
+
+    function getFacMembers() {
+        xedx_TornFactionQueryv2("", "members", facMemberCb);
+    }
+
+    function refreshmembersNotInOc() {
+        var int = setInterval(doBlink, 500);
+        $("#x-no-oc-table").addClass("gb");
+        const removeInt = function () {clearInterval(int); int = null;}
+        const doBlink = function () { // could just add animate class....
+            $("#x-no-oc-table").toggleClass("gb bb");
+            setTimeout(removeInt, 500);
+        }
+
+        setTimeout(getFacMembers, 3000);
+        return false;
+    }
+
+    // =================== Handle crime parsing, for saving CSR data =================
+
+    var csrInitializing = false;
+    var csrUpdating = false;
+
+    function handleCsrListUpdateComplete(last) {
+        let now = new Date().getTime();
+        if (csrInitializing == true)
+            GM_setValue("lastInitialized", now);
+        if (csrUpdating == true)
+            GM_setValue("lastUpdated", now);
+
+        csrInitializing = false;
+        csrUpdating = false;
+
+        writeCsrList();
+        GM_setValue(lastCsrDateKey, last);
+
+        removeSpinner("oc-csr-spinner");
+        log("Car list after full update: ", csrList);
+    }
+
+    function getCsrListEntry(id, crimeAka, role) {
+        let csr = 0;
+        let crime = csrList[id].crimeCsr[crimeAka];
+        //log("looking for ", id, " aka: ", crimeAka, " role: ",  role, ", crime = ", crime);
+        if (!crime) return 0;
+        if (role in crime) {
+            csr = crime[role];
+            //log("Got csr for ", id, crimeAka, role, ": ", csr);
+        } else {
+            //log("role ", role, " not found in crime ", crimeAka, " for user ", id);
+        }
+
+        return csr;
+    }
+
+    function clearCsrList() {
+        log("clearCsrList");
+        let ids = Object.keys(csrList);
+        for (let i=0; i<ids.length; i++) {
+            let id = ids[i];
+            let entry = csrList[id].crimeCsr;
+            let crimeKeys = Object.keys(entry);
+            for (let j=0; j<crimeKeys.length; j++) {
+                let crimeAka = crimeKeys[j];
+                let crime = entry[crimeAka];
+                let roleKeys = Object.keys(crime);
+                for (let k=0; k<roleKeys.length; k++) {
+                    let role = roleKeys[k];
+                    crime[role] = 0;
+                }
+            }
+        }
+    }
+
+    function csrCrimesCb(responseText, ID, param) {
+        let jsonObj = JSON.parse(responseText);
+        let crimes = jsonObj.crimes;
+
+        if (jsonObj.error) {
+            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+            return;
+        }
+
+        // If sorted ascending, last should be newest so no need to clear
+        //clearCsrList();
+        //log("Old values cleared...", csrList);
+
+        let crimesCount = crimes.length;
+
+        log("csrCrimesCb: ", crimes.length, " crimes retrieved");
+        let last = crimes[crimesCount-1];
+        let first = crimes[0];
+        let newestDate = last.created_at;
+
+        //log("first: ", first, new Date(+first.created_at*1000).toString());
+        //log("last: ", last, new Date(+last.created_at*1000).toString());
+        log("first: ", new Date(+first.created_at*1000).toString());
+        log("last: ", new Date(+last.created_at*1000).toString());
+        log("newest: ", new Date(+newestDate*1000).toString());
+
+        // Iterate each crime
+        crimes.forEach(function (crime, idx) {
+            //log("crime: ", crime);
+            let timestamp = crime.created_at;
+            let level = crime.difficulty;
+
+            let def = crimeDefsTable[level];
+            let myDef = def[crime.name];
+            let aka;
+            if (myDef)
+                aka = myDef.aka;
+            else {
+                if (crime.name in nicknames) aka = nicknames[crime.name];
+            }
+
+            if (!aka)
+                debugger;
+
+            let slots = crime.slots;
+
+            for (let idx = 0; idx < slots.length; idx++) {
+                let slot = slots[idx];
+                let id = slot.user_id; if (!id) {continue;}
+                let entry = csrList[id]; if (!entry) {continue;}
+                let userCsrs = entry.crimeCsr[aka]; if (!userCsrs) {log("No csr! aka: '", aka, "' entry: ", entry, "' name: ", crime.name, "'"); continue;}
+
+                // If sorting asc, last should be newest...so can just over-write.
+                // Also no need to clear first....
+                /*if (!userCsrs[slot.position])*/
+
+                csrList[id].crimeCsr[aka][slot.position] = slot.success_chance;
+                //userCsrs[slot.position] = slot.success_chance;
+
+                //log("crime id ", crime.id, " Setting ", slot.position, " for ", csrList.name, "[", id, "]",
+                //    " csr: ", slot.success_chance);
+                //log("crime: ", crime, " entry: ", entry, " slot: ", slot, " userCsrs: ", userCsrs);
+            }
+
+        });
+
+        logt("after cb: ", csrList);
+
+        // See if we need to continue, we only get max 100...
+        // Do as a timeout so we don't recurse?
+        if (crimesCount == 100) {
+            setTimeout(getMemberCsrValuesFrom, 250, newestDate);
+            return;
+        }
+
+        handleCsrListUpdateComplete(last);
+    }
+
+    function getMemberCsrValuesFrom(from) {
+        logt("getMemberCsrValuesFrom from ", from, "|", new Date(Number(from)*1000).toString());
+
+        var options = {"from": from, "offset": "0", "sort": "ASC"};
+        xedx_TornFactionQueryv2("", "crimes", csrCrimesCb, options);
+    }
+
+    function updateMemberCsrList() {
+        if (trackMemberCsr != true) {
+            alert("Crime Succes Rate tracking not enabled!");
+            return;
+        }
+        if (csrInitializing == true) {
+            console.error("Error: can't update while initializing!");
+            return;
+        }
+        csrUpdating = true;
+        lastCsrCheckDate = GM_getValue(lastCsrDateKey, lastCsrCheckDate);
+        if (lastCsrCheckDate == 0) {
+            if (confirm("The Crime Success Rate table hasn't been initialized. " +
+                        "Initialize now?")) {
+                initializeMemberCsrValues();
+                return;
+            }
+        }
+        getMemberCsrValuesFrom(lastCsrCheckDate);
+    }
+
+    function checkIfNeedCsrUpdate() {
+        let now = new Date().getTime();
+        let lastUpd = GM_getValue("lastUpdated", 0);
+        log("REMINDER make message fo this! maybe little msg win when updating/initializing?");
+        if (lastUpd == 0) {
+            initializeMemberCsrValues();
+        }
+
+        // TBD: have var for update interval...
+        log("REMINDER check freq interval");
+        updateMemberCsrList();
+    }
+
+    // Reset list from X days back, default 30.
+    // Will be notified when complete.
+    function initializeMemberCsrValues() {
+        if (trackMemberCsr != true) {
+            alert("Crime Succes Rate tracking not enabled!");
+            return;
+        }
+        if (csrUpdating == true) {
+            console.error("Error: can't initialize while updating!");
+            return;
+        }
+
+        displaySpinner($("#x-opts-click"), "oc-csr-spinner");
+
+        csrInitializing = true;
+        let daysToGet = initCsrDays;
+        let nowTime = new Date().getTime();
+        let fromTime = nowTime - (daysToGet*24*60*60*1000);
+        let tornTime = parseInt(fromTime/1000);
+
+        logt("initializeMemberCsrValues from ", new Date(fromTime).toString());
+
+        var options = {"from": tornTime, "offset": "0", "sort": "ASC"};
+        xedx_TornFactionQueryv2("", "crimes", csrCrimesCb, options);
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Main.
+    //////////////////////////////////////////////////////////////////////
+
+    if (trackMyOc != true) logScriptStart();
+    if (isAttackPage()) return log("Won't run on attack page!");
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
+
+    if (trackMyOc != true) validateApiKey();
+
+    if (xedxDevMode) log("Dev Mode enabled");
+    if (debugLoggingEnabled) log("Debug Logging enabled");
+
+    versionCheck();
+    addStyles();
+
+    // This only needs to be done now if we track csr,
+    // and should prob make on demand, or else in down time...
+    //getAvailableCrimes();
+    //getCompletedCrimes();
+
+    callOnHashChange(hashChangeHandler);
+
+    if (!isOcPage()) {
+        if (trackMyOc == true) {
+            getTimeUntilOc();
+        }
+        return log("Not on crimes page, going home");
+    }
+
+    // Kick off calls to get fac members in an OC as well
+    // as all our current members, diff is those not in an OC.
+    debug("Making API calls");
+
+    // This gets member list as well as "is in an OC" flag, no longer need recruit/planning
+    // data for this. But, do need to find our own crime for time until info.
+    getFacMembers();
+
+    if (trackMemberCsr == true)
+        checkIfNeedCsrUpdate();
+
+    callOnContentComplete(handlePageLoad);
+
+    // ========================= UI stuff ===============================
 
     // ============================ New options menu ============================
 
@@ -1147,7 +1840,7 @@
         let varName = $(this).attr('name');
         let fnName = $(this).attr("data-run");
         let checked = $(this)[0].checked;
-        debug("handleOptsMenuCb, varName: ", varName, " checked: ", checked, "fnNme: '", fnName, "'");
+        log("handleOptsMenuCb, varName: ", varName, " checked: ", checked, "fnNme: '", fnName, "'");
 
         GM_setValue(varName, checked);
 
@@ -1180,10 +1873,90 @@
         let value = $(target).val();
     }
 
-    function installOptionsPane() {
-        if (useNewOptsPane != true) return;
+    function addOptionsHandlers() {
+        log("Adding options handlers: ", $(".oc-type-cb"));
 
-        let addSelectActive = true;
+        $(".ctrl-wrap").parent().on('click', handleCtrlFuncs);
+        $(".oc-type-href").on('click', handleOptHrefClick);
+        $(".oc-type-input").on('change', handleOptInput);
+        $(".oc-type-cb").on('change', handleOptsMenuCb);
+    }
+
+    function getTableRowContent(entry, style) {
+
+        let content;
+        switch (entry.type) {
+            case "title": {
+                break;
+            }
+            case "href": {
+                content = `<td class="${style}">
+                               <span class="oc-type-href ctext ${entry.xttCl}" href="${entry.href}">${entry.name}</span>
+                           </td>`;
+                           //<td  class="c34" colspan="2">opt desc?</td>`;
+                break;
+            }
+            case "cb": {
+                content = `<td class="${style} cb-wrap" colspan="2">
+                               <input id="${entry.id}" class="oc-type-cb ${entry.xttCl}"` +
+                                  (entry.fnName ? ` data-run="${entry.fnName}" ` : ``) +
+                                  ` type="checkbox" data-index="${entry.idx}" name="${entry.key}">
+                                  <span>${entry.name}</span>
+                           </td>`;
+                           //<td  class="c34" colspan="2">opt desc?</td>`;
+                break;
+            }
+            // context only, prob will deprecate
+            case "input": {
+                let parts = entry.name.split("#");
+                content = `<td class="${style} input-wrap" colspan="2">
+                               <span class="oc-input-text ctext">${parts[0]}</span>
+                               <input id="${entry.id}" type="number" class="oc-type-input ${entry.xttCl}" min="0" max="${entry.max}" name="${entry.key.input}">
+                               <span class="oc-input-text2 ctext">${parts[1]}</span>
+                          </td>`;
+                break;
+            }
+            case "ctrl": {
+                content = `<td class="${style}" colspan="2">
+                               <span class="ctrl-wrap">
+                                   <span class="oc-type-ctrl ctext ${entry.xttCl}" data-run="${entry.fnName}">${entry.name}</span>
+                               </span>
+                           </td>`;
+                           //<td  class="c34" colspan="2">opt desc?</td>`;
+                break;
+            }
+            case "combo": {
+                let parts = entry.name.split("#");
+                content = `<td class="${style} oc-type-combo">
+                               <!-- span class="oc-type-cb" data-run="${entry.fnName}" -->
+                                   <input id="${entry.id.cb}" type="checkbox" class="oc-type-cb ${entry.xttCl}" name="${entry.key.cb}">
+                               <!-- /span -->
+                               <span class="oc-input-text ctext">${parts[0]}</span>
+                               <input id="${entry.id.input}" type="number" class="oc-type-input" min="0" name="${entry.key.input}">
+                               <span class="oc-input-text2 ctext">${parts[1]}</span>
+                           </td>`;
+                           //<td  class="c34" colspan="2">opt desc?</td>`;
+                break;
+            }
+            default: {
+                log("Internal error: unknown enty type '", entry.type, "'");
+                debugger;
+                break;
+            }
+        }
+
+        return content;
+    }
+
+    function installOptionsPane() {
+
+        log("installOptionsPane");
+
+        // Experiment: create a table, too...
+        optionsTable = $(`
+              <table id="x-opts-table"><tbody></tbody></table>
+        `);
+
         let countLi = 0;
         for (let idx=0; idx<menuItems.length; idx++) {
             let entry = menuItems[idx];
@@ -1192,76 +1965,64 @@
                 continue;
             }
 
-            let xttCl = "xtt-" + countLi;
-            let content;
-            switch (entry.type) {
-                case "title": {
-                    content = `<span id="pane-test" class="oc-type-title">${entry.name}</span>`;
-                    break;
-                }
-                case "href": {
-                    content = `<span class="oc-type-href ${xttCl}" href="${entry.href}">${entry.name}</span>`;
-                    break;
-                }
-                case "cb": {
-                    content = `<span class="cb-wrap"><input id="${entry.id}" class="oc-type-cb ${xttCl}" data-run="${entry.fnName}"
-                                     type="checkbox" data-index="${idx}" name="${entry.key}">
-                               <span class="oc-cb-text ${xttCl}">${entry.name}</span></span>`;
-                    break;
-                }
-                case "input": {
-                    content = `<input class="oc-type-input ${xttCl}" data-run="${entry.fnName}"
-                                      type="number" id="${entry.id}" min="${entry.min}" max="${entry.min}" name="${entry.key}">`
-                    break;
-                }
-                case "ctrl": {
-                    content = `<span class="ctrl-wrap ${xttCl}"><span class="oc-type-ctrl" data-run="${entry.fnName}">${entry.name}</span></span>`;
-                    break;
-                }
-                case "combo": {
-                    let parts = entry.name.split("#");
-                    content = `<span class="oc-type-combo" data-run="${entry.fnName}">
-                                   <input id="${entry.id.cb}" type="checkbox" class="oc-type-cb ${xttCl}" name="${entry.key.cb}">
-                                   <span class="oc-input-text">${parts[0]}</span>
-                                   <input id="${entry.id.input}" type="number" class="oc-type-input" min="0" name="${entry.key.input}">
-                                   <span class="oc-input-text xml10">${parts[1]}</span>
-                               </span>
-                    `;
-                    break;
-                }
-                default: {
-                    log("Internal error: unknown enty type '", entry.type, "'");
-                    debugger;
-                    continue;
-                }
-            }
+            entry.xttCl = "xtt-" + countLi;
+            entry.idx = idx;
 
-            let newNode = $(`
-                    <li class="title-black " data-title="${entry.name}">
-                        <div class="title-wrap"><div class="opt-content-wrap">
-                            ${content}
-                        </div></div>
-                    </li>
-                `);
+            let content = getTableRowContent(entry, "c12");
+            if (!content) continue;
+
+            let tableRow = $(`<tr class="title-black ctext title-wrap">${content}</tr>`);
 
             let ttNode;
             if (!disableToolTips && entry.tooltip) {
-                ttNode = $(newNode).find(`.${xttCl}`);
+                ttNode = $(tableRow).find(`.${entry.xttCl}`);
                 displayHtmlToolTip($(ttNode), entry.tooltip, "tooltip6");
                 $(ttNode).css("z-index", 125);
             }
 
-            $("#x-select > ul").append(newNode);
+            $(optionsTable).find("tbody").append($(tableRow));
+
             countLi++;
         }
 
-        // Add styles
-        let size = (countLi * 35) > 175 ? 175 : (countLi * 35);
-        let menuSize = size + "px";
-        addOptsMenuStyles(menuSize);
+        // Repeat for CSR opts on right side of table. Replace the 2nd cell?
+        // Or should I just make a one col. table to begin and append to each row?
+        // Need to have empty cells in whichevr column is shorter...
+        // Explicit tr/td: $("tr:nth-child(2) td:nth-child(3)")
+        // or iter: $(optionsTable).find("tbody > tr"), iterate those, replace cell 2...
 
-        // Add handlers and current settings
-        $("#oc-last-state").prop('checked', keepLastState);
+        let rowIdx = 1;
+        for (let idx=0; idx<csrMenuOptions.length; idx++) {
+            let entry = csrMenuOptions[idx];
+            if (entry.enabled == false) continue;
+            if (entry.validOn != "both" && entry.validOn != "full") {
+                continue;
+            }
+
+            entry.xttCl = "xtt-" + countLi;
+            entry.idx = idx;
+
+            let content = getTableRowContent(entry, "c34");
+            if (!content) continue;
+
+
+            let sel = "tbody > tr:nth-child(" + rowIdx + ")";
+            let row = $(optionsTable).find(sel);
+            $(row).append($(content));
+            rowIdx++;
+        }
+
+        //let remains = menuItems.length - csrMenuOptions.length;
+        let dummyLi = `<td  class="c12" colspan="2"> </td>`;
+        for (; rowIdx < menuItems.length; rowIdx++) {
+            let sel = "tbody > tr:nth-child(" + rowIdx + ")";
+            let row = $(optionsTable).find(sel);
+            $(row).append($(dummyLi));
+        }
+
+
+        addOptsMenuStyles();
+
         $("#oc-hide").prop('checked', hideLvl);
         $("#oc-hide-lvl").val(hideLvlVal);
         $("#oc-min-avail").prop('checked', warnMinLvl);
@@ -1271,585 +2032,756 @@
         $("#notify-soon").prop('checked', notifyOcSoon);
         $("#keep-on-top").prop('checked', keepOnTop);
         $("#disable-tool-tips").prop('checked', disableToolTips);
+        $("#scroll-lock").prop('checked', scrollLock);
 
         $("#track-my-oc").prop('checked', trackMyOc);
+        $("#ts-complete").prop("checked", timestampComplete);
 
-        $(".ctrl-wrap").parent().on('click', handleCtrlFuncs);
-        $(".oc-type-href").on('click', handleOptHrefClick);
-        $(".oc-type-input").on('change', handleOptInput);
-        $(".oc-type-cb").on('change', handleOptsMenuCb);
+        $("#track-csr").prop('checked', trackMemberCsr);
+        $("#csr-min-lvl").val(lowestCsrLevel);
 
-        if (!onRecruitingPage())
-            $("#show-hidden").addClass("xhide");
-
-        function addOptsMenuStyles(scrollHeight) {
-            if (!scrollHeight) scrollHeight = "175px";
-
-            GM_addStyle(`.tooltip6 {
-                position: relative;
-                top: 225px !important;
-                left: 728px !important;
-                transform: translateX(-110%);
-
-                background-color: #000000 !important;
-                filter: alpha(opacity=80);
-                opacity: 0.80;
-                padding: 5px 20px;
-                border: 2px solid gray;
-                border-radius: 10px;
-                width: fit-content;
-                margin: 10px;
-                text-align: left;
-                font-weight: bold !important;
-                font-stretch: condensed;
-                text-decoration: none;
-                color: #FFF;
-                font-size: 13px;
-                line-height: 1.5;
-                z-index: 999;
-                }`);
+        function addOptsMenuStyles() {
 
             GM_addStyle(`
-                .x-rt-btn {
-                    display: flex;
-                    justify-content: center;
-                    width: 30px;
-                    aspect-ratio: 1 / 1;
-                    border-radius: 50%;
-                    cursor: pointer;
-                    background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
-                }
-                .x-round-btn {
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                    align-content: center;
-                    cursor: pointer;
-                    background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
-                    width: 20px;
-                    aspect-ratio: 1 / 1;
-                    border-radius: 50%;
-                }
-                .opt-content-wrap {
-                    display: flex;
-                    flex-flow: row wrap;
-                }
-                .oc-type-input {
-                    margin: 7px 0px 8px 10px;
-                    height: 16px;
-                    width: 34px;
-                    align-content: center;
-                    display: inline-flex;
-                    flex-flow: row wrap;
-                    padding-left: 5px;
+                 #x-opts-table {
+                     table-layout: fixed;
+                     width: 100%;
+                     opacity: 0;
+                     border-collapse: collapse;
+
                  }
-                .oc-type-title {
-                    justify-content: center;
-                    display: inline-flex;
-                    width: 100%;
-                }
-                .title-wrap {width: 100%;}
-                .cb-wrap {
-                    display: flex;
-                    flex-flow: row wrap;
-                    justify-content: left;
-                }
-                .oc-type-cb {
-                    display: inline-flex;
-                    flex-flow: row wrap;
-                    margin-right: 8px;
-                    align-items: center;
-                    height: 30px;
-                }
-                .ctrl-wrap, .oc-type-href {
-                    display: flex;
-                    flex-flow: row wrap;
-                    /*justify-content: center;*/
-                    padding-left: 22px;
-                    width: 100%;
-                }
-                .oc-type-ctrl { }
-                .oc-type-combo {
-                    display: flex;
-                    flex-flow: row wrap;
+                 #x-opts-table tr {
+                     background: linear-gradient(180deg, #999999 0%, #333333 100%);
+                     width: 99%;
+                     margin-left: auto;
+                     height: 36px;
+                     font-size: 14px;
+                     font-family: arial;
+                     color: white;
+                     display: flex;
+                     float: left;
+                     padding: 0px;
+                 }
+                 #x-opts-table tr span,
+                 #x-opts-table tr td {
+                     color: white !important;
                  }
 
-                .xoc-navbar {
-                    overflow: hidden;
-                    background-color: transparent;
-                    position: absolute;
-                    width: 784px;
-                }
-                #x-select {
-                    height: 34px;
-                    max-height:34px;
-                    border-radius: 10px;
-                    width:228px;
-                    background: transparent;
-                    float: right;
-                    margin-right: 40px;
-                }
-                #x-select:hover:not(.dark-mode) {
-                    border: 3px solid darkgray;
-                }
-                #x-select:hover {
-                    z-index: 99;
-                    max-height: ${scrollHeight};
-                    height: 8000px;
-                    overflow-y: scroll;
-                    position: sticky;
-                    border: 3px solid;
-                    cursor: grab;
-                }
-                #x-select:hover ul {
-                    min-height: ${scrollHeight};
-                    opacity: 1;
-                }
-                #x-select ul {
-                    height: 28px;
-                    max-height: 28px;
-                    overflow-y: scroll;
-                    opacity: 0;
-                    transition: 0.5s;
-                }
+                 #x-opts-table tr:first-child {
+                      margin-top: 4px;
+                 }
+                 #x-opts-table tr:last-child {
+                     /*margin-bottom: 4px;*/
+                 }
 
-                #x-select ul li {
-                    height: 32px;
-                    border-top: 1px solid black;
-                    padding: 0px 10px 0px 10px;
-                    background: linear-gradient(180deg, #999999 0%, #333333 100%);
-                    justify-content: center;
-                    display: flex;
-                }
-                #x-select ul li:first-child {
-                    background: var(--title-black-gradient);
-                }
-                #x-select:hover  li {
-                    height: 34px;
-                    z-index: 9;
-                }
-                #x-select  li:hover {
-                    filter: brightness(1.2);
-                    color: limegreen;
-                }
+                 #x-opts-table tr td:hover {
+                     filter: drop-shadow(2px 4px 6px black);
+                 }
+                 #x-opts-table tr td:active {
+                     background: linear-gradient(180deg, #222222 0%, #333333 50%, #777777 100%);
+                 }
+                 #x-opts-table tr td {
+                     /*border-right: 1px solid #333 !important;*/
+                 }
+                 #x-opts-table tr td:first-child {
+                     display: block;
+                     border-right: 1px solid #333 !important;
+                 }
+                 #x-opts-table tr td input[type='number'] {
+                     background: #fff;
+                     height: 20px;
+                     width: 30px;
+                     align-content: center;
+                     display: inline-flex;
+                     flex-wrap: wrap;
+                     padding-left: 4px;
+                     color: #333;
+                 }
+                 .oc-type-cb {
+                     margin: 0px 10px 0px 10px;
+                 }
+                 td:first-child .oc-type-ctrl {
+                     margin-left: 42px;
+                 }
+                 .oc-type-combo {
+                     display: flex;
+                 }
 
-                #x-select:hover ul li:first-child {
-                    position: sticky;
-                    padding-left: 0px;
-                    z-index: 10;
-                    display: flex;
-                    flex-flow: row wrap;
-                    justify-content: center;
-                    filter: none;
-                }
+                 .c1{width: 50px; }
+                 .c12{width: 400px; }
+                 .c2{width: 372px; }
+                 .c3{width: 120px; }
+                 .c4{width: 200px; }
+                 .c34{width: 400px; }
 
+                 .c34 .ctrl-wrap,
+                 .c34 .oc-type-href,
+                 .c34.input-wrap .oc-input-text {
+                     padding-left: 40px;
+                 }
             `);
-        }
 
-        if (addSelectActive == true) {
             GM_addStyle(`
-                 #x-select  li:active {
-                     background-image: linear-gradient(180deg, #999999 0%, #333333 100%);
-                }
-
-                #x-select  li:after {
-                      position: absolute;
-                      content: '';
-                      top: 0;
-                      left: 0;
-                      width: 100%;
-                      height: 100%;
-                      border-radius: 0.3em;
-                      background-image: linear-gradient(0deg, #999999 0%, #333333 100%);
-                      transition: opacity 0.5s ease-out;
-                      z-index: 2;
-                      opacity: 0;
+                .tooltip6 {
+                    position: relative;
+                    top: 225px !important;
+                    left: 480px !important;
+                    transform: translateX(-110%);
+                    background-color: #000000 !important;
+                    filter: alpha(opacity=80);
+                    opacity: 0.80;
+                    padding: 5px 20px;
+                    border: 2px solid gray;
+                    border-radius: 10px;
+                    width: fit-content;
+                    margin: 10px;
+                    text-align: left;
+                    font-weight: bold !important;
+                    font-stretch: condensed;
+                    text-decoration: none;
+                    color: #FFF;
+                    font-size: 13px;
+                    line-height: 1.5;
+                    z-index: 999;
                     }
 
-                #x-select  li:active:after {
-                  opacity: 1;
+                .title-wrap {
+                   width: 100%;
                 }
            `);
         }
-
     }
 
-    //============================== API calls ===================================
-    //
-    var missingMembers = [];
-    var facMembersJson = {};
-    var plannedCrimeMembers = [];
-    var facMembersArray = [];
-    var missingMembersReady = false;
+    // ================= Member Crime Success Rate (CSR) table ============
 
-    var completedCrimesSynced = false;
-    var completedScenarios;
-    var completedScenariosLastLen = 0;
-    var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
+    var currentCrimeRoles;
+    function addCsrStyles() {
+        GM_addStyle(`
+            .csr-hdr-wrap {
+                display: flex;
+                flex-flow: row wrap;
+                height: 38px;
+                background: var(--tabs-bg-gradient);
+            }
+            .csr-hdr-wrap select {
+                /*width: fit-content;*/
+                width: 250px;
+                border-radius: 5px;
+                padding-left: 5px;
+            }
+            .xhw1 {
+                align-content: center;
+                justify-content: center;
+                width: 100%;
+            }
+            .xhw2 {
+                align-content: center;
+                justify-content: center;
+                width: 100%;
+                padding-left: 15px;
+            }
+            .csr-hdr-span1, #sel-crime {
+                flex-flow: row wrap;
+                align-content: center;
+                display: flex;
+                padding-left: 15px;
+                /*width: 100%;*/
+                height: 36px;
+            }
+            .csr-hdr-span2 {
+                flex-flow: row wrap;
+                align-content: center;
+                display: flex;
+                /*padding-left: 15px;*/
+                width: 799px;
+                height: 36px;
+            }
+            .csr-hdr-span2 span {
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                align-content: center;
+            }
 
-    var facMembersDone = false;
-    var crimeMembersDone = false;
+            #x-csr-table {
+                display: flex;
+                flex-direction: column;
+                opacity: 0;
+                width: 100%;
+            }
+            #csr-tbody {
+                overflow-x: hidden;
+            }
+            #x-csr-table tr, .hdr-span {
+                width: 100%;
+                display: flex;
+                flex-flow: row wrap;
+                border-collapse: collapse;
+            }
+            #x-csr-table tr {
+                padding-left: 15px;
+            }
 
-    function getCompletedCrimes() {
-        if (cacheCompletedCrimes == true && completedCrimesArray) {
-            debug("using cached version..."); //, completedCrimesArray);
-            completedCrimesCb(completedCrimesArray);
-        } else {
-            doFacOcQuery('completed');
+            #x-csr-table tr td {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-content: center;
+                text-align: center;
+                color: var(--default-color);
+                /*width: 110px;*/
+                width: 13%;
+                height: 34px;
+                border-collapse: collapse;
+                border: 1px solid #666;
+                cursor: pointer;
+                border-bottom: none;
+            }
+            #x-csr-table tr td span {
+                color: var(--default-color);
+                font=family: arial;
+                font-size: 12px;
+            }
+            #x-csr-table tr:last-child td {
+                border-bottom: 1px solid #666;
+            }
+            #x-csr-table tr td:first-child {
+                /*width:120px;*/
+                justify-content: left;
+                width: 16%;
+            }
+            .csr-name {
+               padding-left: 5px;
+            }
+            .cc1 {/*width: 120px;*/}
+            .cc2, .cc3, .cc4, .cc5, .cc6, .cc7 {/*width: 110px;*/}
+            .w13p {width: 13%;}
+            .w16p {width: 16%;}
+            .xpl15 {padding-left: 15px;}
+            .xpl5 {padding-left: 5px;}
+        `);
+    }
+
+    // for sorting:
+    /*
+    since sorting by row, whole row needs all sort attrs?
+    i.e. <tr data-si="", data-s2="", ... data-s6="">, set attr: "data-s2", for example?
+    tinysort($(list), {attr: sortKey, order: sortOrder});
+    $("#x-csr-table tr"),
+    */
+
+    function getMemberCsrArray(id, crimeSelect, roles) {
+        const emptyCsrArr = [0, 0, 0, 0, 0, 0];
+        let lastIdx = 0;
+        let csrArray = [];
+        let roleArray = roles;
+
+        if (!(crimeSelect in nicknames)) {
+            console.error("Selected crime ", crimeSelect, " nickname NOT found in ", nicknames);
+            return emptyCsrArr;
+        }
+        let aka = nicknames[crimeSelect];
+
+        if (!roles) {
+            if (!(crimeSelect in roleLookup)) {
+                console.error("Selected crime array not found!");
+                return emptyCsrArr;
+            }
+            roleArray = roleLookup[crimeSelect];
+        }
+
+        roleArray.forEach(function(role, idx) {
+            let csr = getCsrListEntry(id, aka, role);
+            csrArray.push(csr);
+            lastIdx = idx;
+        });
+
+        for (let idx=lastIdx+1; idx < 6; idx++) csrArray.push(0);
+        return csrArray;
+    }
+
+    function getCsrMemberRow(id, crimeSelect) {
+        let member = csrList[id];
+        //log("getCsrMemberRow: ", id, csrList[id],  member);
+
+        if (!member || !member.name) {
+            log("ERROR!!!");
+            debugger;
+        }
+        let aka = nicknames[crimeSelect];
+        //log("nicknames: ", nicknames, " crime select: ", crimeSelect, " aka:", aka);
+        let name = member.name;
+
+        let csrEntry = member.crimeCsr[aka];
+
+
+        let csrArr = getMemberCsrArray(id, crimeSelect);
+        //log("member ", id, " aka: ", aka, " array: ", csrArr, " *** entry ", csrEntry);
+
+        /*
+        for (const key in obj) {
+          console.log(key + ": " + obj[key]);
+        }
+        */
+
+        let defCsr = '?';
+        let newRow = `<tr>
+                          <td class="cc1"><span class='csr-name'>${name} [${id}]</span></td>
+                          <td class="cc2">${csrArr[0]}</td><td class="cc3">${csrArr[1]}</td><td class="cc4">${csrArr[2]}</td>
+                          <td class="cc5">${csrArr[3]}</td><td class="cc6">${csrArr[4]}</td><td class="cc7">${csrArr[5]}</td>
+                      </tr>`;
+
+        return newRow;
+    }
+
+    // Need to set currentCrimeRoles...
+    function updateCsrTable(table, crimeSelect) {
+        let keys = Object.keys(csrList);
+        let body = $(table).find("tbody");
+        $(body).empty();
+
+        for (let idx=0; idx < keys.length; idx++) {
+            let key = keys[idx];
+            let entry = csrList[key];
+            let row = getCsrMemberRow(key, crimeSelect)
+            $(body).append(row);
         }
     }
 
-    // 'crimes' is parsed array of JSON crime objects
-    function completedCrimesCb(crimes) {
-        completedCrimesArray = crimes;
-        debug("Completed crimes CB: ", crimes ? crimes.length : 0);
+    function handleCrimeSelect(e) {
+        let sel = $("#sel-crime select").find("option:selected");
+        GM_setValue("csrSelectVal", $(sel).val());
 
-        if (!crimes) {
-            console.error("No crimes array!");
+        let roleList = $(".csr-hdr-span2  [class^='csr-role']");
+        let key1 = $(sel).attr("data-idx");
+        let crimeName = $(sel).val();
+        let entry = crimeDefsTable[key1];
+        if (!entry) {
             debugger;
             return;
         }
 
-        if (logFullApiResponses == true) {
-            crimes.forEach(function (crime, index) {
-                logCompletedCrime(crime);
-            });
-        } else {
-            //debug("Not logging details, 'logFullApiResponses' is off.");
-        }
+        let crime = entry[crimeName];
+        currentCrimeRoles = crime.roles;
+        let lastIdx = 0;
+        currentCrimeRoles.forEach(function(val, idx) {
+            $(roleList[idx]).text(val);
+            lastIdx = idx;
+        });
+        for (let idx=lastIdx+1; idx < $(roleList).length; idx++) $(roleList[idx]).text("---");
 
-        if (btnIndex() == completedIdx) {
-            syncCompletedCrimeData();
-        }
-
-        // Local functions..
-        function syncCompletedCrimeData(retries=0) {
-            completedScenarios = $("[class^='scenario_']");
-            debug("syncCompletedCrimeData, count: ",
-                  $(completedScenarios).length,
-                  " retries: ", retries);
-
-            // Scroll will call us anyways, don't retry too much.
-            if (!$(completedScenarios).length) {
-                if (retries++ < 10) return setTimeout(syncCompletedCrimeData, 250, retries);
-                return debug("Too many sync retries");
-            }
-
-            if (displayCompletedTimeDate == true) {
-                for (let idx=0; idx < $(completedScenarios).length; idx++) {
-                    let scenario = $(completedScenarios)[idx];
-                    let desc = getCompCrimeDesc(idx);
-                    let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
-                    let prevDiv = $(rewardDiv).find(".xsort");
-                    if ($(prevDiv).length) continue;
-
-                    let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
-                    let className = "";
-                    let classListRaw = $(item).attr('class');
-                    if (!classListRaw) {
-                        debug("Error: missing class list! ", $(item));
-                        debugger;
-                    }
-                    let classList = classListRaw ? classListRaw.split(/\s+/) : null;
-                    if (classList) className = classList[0];
-                    let newDiv = `<div class="${className} xsort">${desc}</div>`;
-                    $(rewardDiv).append(newDiv);
-                }
-            }
-        }
-
-        // Format time/date however we want
-        function tm_str(tm) {
-            let dt = new Date(tm*1000);
-            const mediumTime = new Intl.DateTimeFormat("en-GB", {
-              timeStyle: "medium",
-              hourCycle: "h24",
-            });
-            const shortDate = new Intl.DateTimeFormat("en-GB", {
-              dateStyle: "short",
-            });
-            const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
-            return formattedDate;
-        }
-
-        // Just for logging to dev console
-        function logCompletedCrime(crime) {
-            log("Completed crime, id: ", crime.id, " status: ", crime.status,
-                " created: ", tm_str(crime.created_at), " initiated: ", tm_str(crime.initiated_at),
-                " ready at: ", tm_str(crime.ready_at), " expired_at: ", tm_str(crime.expired_at));
-        }
-
-        // Build the span to display in a div on completed crime panel
-        function getCompCrimeDesc(idx) {
-            let crime = completedCrimesArray[idx];
-            let payout = asCurrency(crime.rewards.money);
-            let ready = tm_str(crime.ready_at);
-            let span = `<span class="oc-comp-span1">Ready:</span><span class="oc-comp-span2">${ready}</span>`;
-            return span;
-        }
+        // Now need to update table, change the cell values...
+        // Are the values updated yet?
+        log("handleCrimeSelect, update table for ", crimeName);
+        updateCsrTable($("#x-csr-table"), crimeName);
     }
 
-    function plannedCrimesCb(responseText, ID, param) {
-        let jsonObj = JSON.parse(responseText);
-        let crimes = jsonObj.crimes;
+    function addCsrHandlers() {
+        $("#sel-crime select").change(handleCrimeSelect);
 
-        if (jsonObj.error) {
-            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+        // Add handlers to each span in hdr for sort...
+
+    }
+
+    function getCsrHdr() {
+        let csrHdr =
+            `<div id="csr-table-hdr">
+                  <div class='csr-hdr-wrap xhw1'>
+                      <span class='csr-hdr-span1'>Select crime:</span>
+                      <div id="sel-crime">
+                          <select>
+
+                          </select>
+                      </div>
+                  </div>
+                  <div class="csr-hdr-wrap2 xhw2">
+                      <span class='csr-hdr-span2' style="border: 1px solid red;">
+                          <span class="w16p">Roles:</span>
+                          <span id="csr-role1" class="csr-role1 w13p">s13</span>
+                          <span id="csr-role2" class="csr-role2 w13p">s13</span>
+                          <span id="csr-role3" class="csr-role3 w13p">s13</span>
+                          <span id="csr-role4" class="csr-role4 w13p">s13</span>
+                          <span id="csr-role5" class="csr-role5 w13p">s13</span>
+                          <span id="csr-role6" class="csr-role6 w13p">s13</span>
+                      </span>
+                  </div>
+              </div>
+              `;
+
+        let node = $(csrHdr);
+        let select = $(node).find("select");
+
+        let keys = Object.keys(crimeDefsTable);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            if (parseInt(key) < lowestCsrLevel) continue;
+            let entry = crimeDefsTable[key];
+            let keys2 = Object.keys(entry);
+            for (let j=0; j<keys2.length; j++) {
+                let key2 = keys2[j];
+                let crime = entry[keys2[j]];
+                if (!crime || crime.enabled == false) continue;
+                let opt = `<option data-idx="${key}" value="${key2}">${key2}</option>`;
+                $(select).append(opt);
+            }
+        }
+
+        $(select).val(defCsrSelectVal);
+
+        return node;
+    }
+
+    function installCsrTable() {
+        debug("installCsrTable");
+        addCsrStyles();
+
+        let testTr = `<tr>
+                          <td class="cc1">User Name</td>
+                          <td class="cc2">junk stuff 1</td><td class="cc3">junk stuff 2</td><td class="cc4">junk stuff 3</td>
+                          <td class="cc5">junk stuff 4</td><td class="cc6">junk stuff 5</td><td class="cc7">junk stuff 6</td>
+                      </tr>`;
+
+
+        let csrBody = `<tbody id="csr-tbody"></tbody>`;
+
+        csrTable = $(`
+              <table id="x-csr-table">
+              </table>
+        `);
+
+        $(csrTable).append(getCsrHdr());
+        $(csrTable).append(csrBody);
+
+        updateCsrTable($(csrTable), defCsrSelectVal);
+
+        log("csr table: ", $(csrTable));
+    }
+
+    function updateCsrMembersList(membersArray) {
+        log("updateCsrMembersList: ", membersArray.length, csrList.length);
+
+        for (let idx=0; idx<membersArray.length; idx++) {
+            let member = membersArray[idx];
+            let id = member.id;
+            let name = member.name;
+            if (csrList.id) continue;
+
+            /*
+            crimeCsr: {"mm": {},
+                                          "pm": {"Kidnapper": 0, "Muscle": 0, "Picklock": 0},
+                                          "cm": {"Lookout": 0, "Thief": 0},
+                                          "mf": {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0},
+                                          "sf": {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0},
+                                          "lt": {"Techie": 0, "Impersonator": 0, "Negotiator": 0},
+                                          "ht": {"Enforcer": 0, "Muscle": 0},
+                                          "bp": {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0},
+                                          "bb": {"Thief": 0, "Muscle": 0, "Robber": 0},
+                                          "gw": {},
+                                          "ss": {},
+                                          "bc": {}
+                               }
+                               */
+
+            csrList[id] = {name: name};
+            csrList[id].crimeCsr = {};
+            csrList[id].crimeCsr["mm"] = {};
+            csrList[id].crimeCsr["pm"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
+            csrList[id].crimeCsr["mf"] = {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0};
+            csrList[id].crimeCsr["sf"] = {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0};
+            csrList[id].crimeCsr["lt"] = {"Techie": 0, "Impersonator": 0, "Negotiator": 0};
+            csrList[id].crimeCsr["ht"] = {"Enforcer": 0, "Muscle": 0};
+            csrList[id].crimeCsr["bp"] = {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0};
+            csrList[id].crimeCsr["bb"] = {"Thief": 0, "Muscle": 0, "Robber": 0};
+            csrList[id].crimeCsr["gw"] = {};
+            csrList[id].crimeCsr["ss"] = {};
+            csrList[id].crimeCsr["bc"] = {};
+
+            if (false) {
+                let clone = Object.assign({}, csrEntryTemplate);
+                csrList[id] = clone;
+                //log("****New entry for id: ", id, " is []: ", csrList[id]);
+                csrList[id].name = name;
+                //log("****New entry for id: ", id, " is []: ", csrList[id]);
+
+                //log("csrList.id: ", csrList.id, " csrList[id]: ", csrList[id]);
+
+                let len = csrList.length;
+                let keys = Object.keys(csrList);
+                //log("List len: ", len, " keys: ", keys);
+                let key = keys[len-1];
+                let item = csrList[key];
+                let item2 = csrList.key;
+                //log("key: ", key, " item: ", item, " item2: ", item2);
+
+                let entry = csrList[id];
+                //log("entry: ", entry);
+            }
+        }
+
+        log("updateCsrMembersList, done: ", csrList.length, csrList);
+
+        writeCsrList();
+    }
+
+    // ========================= Table Management ==========================
+
+    // These will be tables that can be detached and re-appended
+    //var membersNotInOcTable;
+    //var optionsTable;
+    //var csrTable;
+    //var activeTable;
+
+    function detachTable(tableName) {
+        //debug("Detach table: ", tableName, activeTable);
+        var selector;
+        switch (tableName)
+        {
+            case membersTableName: {
+                if ($("#x-no-oc-table").length) membersNotInOcTable = $("#x-no-oc-table").detach();
+                break;
+            }
+            case optsTableName: {
+                if ($("#x-opts-table").length) optionsTable = $("#x-opts-table").detach();
+                break;
+            }
+            case csrTableName: {
+                if ($("#x-csr-table").length) csrTable = $("#x-csr-table").detach();
+                break;
+            }
+            default: {
+                console.error("Invalid table name ", tableName);
+                return;
+            }
+        }
+        activeTable = null;
+    }
+
+    function attachTable(tableName) {
+        if (activeTable)
+            detachTable(activeTable);
+
+        switch (tableName) {
+            case membersTableName: {
+                $("#x-oc-tbl-wrap").append(membersNotInOcTable);
+                $("#x-no-oc-table").animate({"opacity": 1}, 250);
+                addMembersTableHandlers();
+                break;
+            }
+            case optsTableName: {
+                $("#x-oc-tbl-wrap").append(optionsTable);
+                $("#x-opts-table").animate({"opacity": 1}, 250);
+                updateOptions();
+                addOptionsHandlers();
+                break;
+            }
+            case csrTableName: {
+                if (!csrTable)
+                    debugger;
+                $("#x-oc-tbl-wrap").append(csrTable);
+                addCsrHandlers();
+                handleCrimeSelect();
+                updateCsrTable($("#x-csr-table"), defCsrSelectVal, currentCrimeRoles);
+                $("#x-csr-table").animate({"opacity": 1}, 250);
+                break;
+            }
+            default: {
+                console.error("Unknown table!");
+                return;
+            }
+        }
+        activeTable = tableName;
+    }
+
+    var inOpen = false;
+    function resetOpenFlag(){inOpen = false;}
+
+    function closeTable(tableName) {
+        if (tableName != activeTable) {
+            debugger;
             return;
         }
-
-        if (param == 'completed') {
-            return completedCrimesCb(crimes);
-        }
-
-        if (trackMyOc == true && param == "planning") {
-            myOcTrackingCb(responseText, ID, param);
-        }
-
-        crimes.forEach(function (crime, index) {
-            crime.slots.forEach(function (slot, index) {
-                if (slot.user_id) plannedCrimeMembers.push(slot.user_id);
-            });
-        });
-
-        debug("Members in crimes: ", plannedCrimeMembers.length);
-
-        if (param == "planning") {
-            getRecruitingCrimes();
-        } else {
-            crimeMembersDone = true;
-            if (facMembersDone == true) {
-                missingMembers = arrayDiff(facMembersArray, plannedCrimeMembers);
-                missingMembersReady = true;
-                buildMissingMembersUI('plannedcb');
-            }
-        }
-    }
-
-    function doFacOcQuery(category) {
-        var options = {"cat": category, "offset": "0", "param": category};
-        xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
-    }
-
-    function facMemberCb(responseText, ID, options) {
-        let jsonObj = JSON.parse(responseText);
-        let membersArray = jsonObj.members;
-
-        if (jsonObj.error) {
-            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
-            return;
-        }
-
-        membersArray.forEach(function (member, index) {
-            if (member.id) {
-                let state = member.status.state;
-                if (state.toLowerCase() != "fallen" && member.position != "Recruit") {
-                    facMembersArray.push(member.id);
-                    facMembersJson[member.id] = member.name;
-                }
-            }
-        });
-
-        facMembersDone = true;
-        if (crimeMembersDone == true) {
-            missingMembers = arrayDiff(facMembersArray, plannedCrimeMembers);
-            missingMembersReady = true;
-            buildMissingMembersUI('faccb');
-        }
-    }
-
-    function getFacMembers() {
-        xedx_TornFactionQueryv2("", "members", facMemberCb);
-    }
-
-    // ============= experiment, refresh and warning CSS ====
-
-    function finishRefresh() {
-        $("#x-oc-tbl-wrap").remove();
-        getFacMembers();
-    }
-
-    var int = 0;
-    function removeInt() {clearInterval(int); int = null;}
-
-    function doBlink() { // can just add animate class....
-        $("#x-no-oc-table").toggleClass("gb bb");
-        setTimeout(removeInt, 500);
-    }
-
-    function refreshMissingMembers() {
-        int = setInterval(doBlink, 500);
-        $("#x-no-oc-table").addClass("gb");
-
-        facMembersArray.length = 0;
-        plannedCrimeMembers.length = 0;
-
-        missingMembersReady = false;
-        crimeMembersDone = false;
-        facMembersDone = false;
-
-        getAvailableCrimes();
-        $("#x-oc-tbl-wrap").animate({opacity: 0}, 2500);
-        setTimeout(finishRefresh, 3000);
+        detachTable(tableName);
         return false;
     }
 
-    //////////////////////////////////////////////////////////////////////
-    // Main.
-    //////////////////////////////////////////////////////////////////////
+    // Also detaches any active table. If the active/open
+    // table are the same, just close it.
+    function openTable(tableName) {
+        if (inOpen == true) return false;
+        inOpen = true;
+        setTimeout(resetOpenFlag, 500);
 
-    if (trackMyOc != true) logScriptStart();
-    if (isAttackPage()) return log("Won't run on attack page!");
-    if (checkCloudFlare()) return log("Won't run while challenge active!");
-
-    if (trackMyOc != true) validateApiKey();
-
-    if (xedxDevMode) log("Dev Mode enabled");
-    if (debugLoggingEnabled) log("Debug Logging enabled");
-
-    versionCheck();
-    addStyles();
-
-    // Kick off calls to get fac members in an OC as well
-    // as all our current members, diff is those not in an OC.
-    debug("Making API calls");
-    getFacMembers();
-    getAvailableCrimes();
-    getCompletedCrimes();
-
-    callOnHashChange(hashChangeHandler);
-
-    if (!isOcPage()) {
-        if (trackMyOc == true) {
-            getTimeUntilOc();
-        }
-        return log("Not on crimes page, going home");
+        if (activeTable == tableName)
+            return closeTable(tableName);
+        attachTable(tableName);
+        return false;
     }
 
-    callOnContentComplete(handlePageLoad);
+    // ============================ Misc UI components ====================
 
-    // ========================= UI stuff ===============================
+    // Main outer wrap - title bar plus table wrap beneath
+    function addContentDiv() {
+        if (!isOcPage()) return;
 
-    function installCompletedPageButton(visible=false, retries=0) {
-        const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
+        addContentWrapStyles();
 
-        if ($("#xcsvbtn").length == 0) {
-            // Should just start a mutation observer...
-            // Added callWhenElementExistsEx() for just that purpose
-            let cBtn = getCompletedTab();
-            if (!$(cBtn).length) {
-                if (retries++ < 20) return setTimeout(installCompletedPageButton, 200, visible, retries);
-                return log("ERROR: didn't find the Completed button!");
+        let contentWrap = `
+            <div id="oc-assist-content-wrap" class="sortable-box t-blue-cont h">
+                <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
+                    <div class="ocbox refresh"><span id='x-oc-click'>Available Members</span></div>
+                    <div class="ocbox"><span id='x-opts-click'>Options</span></div>
+                    <div class="ocbox"><span id='x-rates-click'>Success Rates</span></div>
+                </div>
+                <div id='x-oc-tbl-wrap' class="x-oc-wrap cont-gray bottom-round">
+
+                </div>
+            </div>
+         `;
+
+        $("#faction-crimes").before(contentWrap);
+
+        $("#x-oc-can-click > .ocbox.refresh").on('contextmenu', refreshmembersNotInOc);
+
+        var cwStyles = false;
+        function addContentWrapStyles() {
+            if (cwStyles == true) return;
+            cwStyles = true;
+            GM_addStyle(`
+                #x-oc-tbl-wrap {
+                    position: relative;
+                    cursor: pointer;
+                    overflow-y: scroll;
+                    border-radius: 0px 0px 4px 4px;
+                    padding: 0px;
+                    width: 100%;
+                    justify-content: center;
+                    display: flex;
+                }
+                #x-oc-tbl-wrap tbody {
+                    overflow-y: scroll;
+                    max-height: 150px;
+                    display: block;
+                    width: 100%;
+                }
+                #x-oc-tbl-wrap tr {
+                    height: 30px;
+                    margin: 0px auto 0px auto;
+                }
+                #x-oc-tbl-wrap tr li {
+                    width: 100%;
+                }
+           `);
+        }
+    }
+
+    // Btn to toggle sort direction
+    function installSortBtn() {
+        let sortBtn = $(toggleBtn);
+        $(sortBtn).attr("id", "xocsort");
+        $("#x-oc-can-click").append($(sortBtn)[0]);
+        $("#xocsort").on('click', toggleSort);
+
+        displayHtmlToolTip($("#xocsort"), "Sort direction", "tooltip5");
+        displayHtmlToolTip($("#x-oc-click").parent(), "Right click to refresh", "tooltip5");
+    }
+
+    // Main UI install entry point
+    function installUI() {
+
+        addContentDiv();
+        installSortBtn();
+        installMembersTable();
+        installOptionsPane();
+
+        installCsrTable();
+
+        // Button handlers
+        $("#x-opts-click").on("click", function () {
+            if ($("#x-opts-click").parent().hasClass("active"))
+                $("#x-opts-click").parent().removeClass("active");
+            else {
+                $(".ocbox").removeClass("active");
+                $("#x-opts-click").parent().addClass("active");
             }
-            $(cBtn).append(csvBtn);
-            $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
-            displayHtmlToolTip($("#xcsvbtn"),
-                           "Click here to view and save data<br>" +
-                           "in CSV format, to import into any<br>" +
-                           "spreadsheet program later.", "tooltip4");
-        }
+            openTable(optsTableName);
+        });
 
-        if (visible == true)
-            $("#xcsvbtn").removeClass("vhide");
-        else
-            $("#xcsvbtn").addClass("vhide");
-    }
-
-    // Helper to save (in order to restore at start) state
-    function writeCurrState(state) {
-        if (state) {
-            GM_setValue(lastStateKey, state);
-            return;
-        }
-        if ($("#x-oc-tbl-wrap").length > 0)
-            GM_setValue(lastStateKey, stateOpen);
-        else
-            GM_setValue(lastStateKey, stateClosed);
-    }
-
-    // If opening, the tabl needs to be installed...if it is not installed
-    // right away, it will be later - the install will return 'pended',
-    // this will be recalled ith the first param null, the second to
-    // 'install'. Should instead make that call a promise....
-    var animatePending = false;
-    function doAnimateTable(e, from) {
-        animatePending = true;
-        if ($("#x-oc-tbl-wrap").length && from != 'install') {
-            $("#x-oc-tbl-wrap").animate({height: "0px"}, 500);
-            $("#x-oc-tbl-wrap").animate({opacity: 0}, 200, function () {
-                $("#x-oc-tbl-wrap").remove();
-                $("#x-oc-click").text(membersTextClosed);
-                writeCurrState(stateClosed);
-                animatePending = false;
-            });
-        } else {
-            if ($("#x-oc-tbl-wrap").length == 0 || from != 'install') {
-                if (installTableWrap("animate") == 'pended') return;
+        $("#x-oc-click").on("click", function() {
+            if ($("#x-oc-click").parent().hasClass("active"))
+                $("#x-oc-click").parent().removeClass("active");
+            else {
+                $(".ocbox").removeClass("active");
+                $("#x-oc-click").parent().addClass("active");
             }
+            openTable(membersTableName);
+        });
 
-            $("#x-oc-tbl-wrap").animate({opacity: 1}, 200, function () {
-                $("#x-oc-click").text(membersTextOpen);
-                writeCurrState(stateOpen);
-                animatePending = false;
-            });
+        $("#x-rates-click").on('click',  function() {
+            if ($("#x-rates-click").parent().hasClass("active"))
+                $("#x-rates-click").parent().removeClass("active");
+            else {
+                $(".ocbox").removeClass("active");
+                $("#x-rates-click").parent().addClass("active");
+            }
+            openTable(csrTableName);
+        });
+
+        if (scrollLock)
+            addScrollLock();
+
+    }
+
+    // =================== Optional scroll lock on page ====================================
+    function toggleScrollLock() {
+        log("Toggle scroll");
+        let wrap = $($("#faction-crimes-root > div [class^='wrapper_']")[0]).parent();
+        $(wrap).toggleClass("xscrollLock");
+    }
+
+    var slAdded = false;
+    function addScrollLock(retries=0) {
+        let wrap = $($("#faction-crimes-root > div [class^='wrapper_']")[0]).parent();
+        if (!$(wrap).length) {
+            if (retries++ < 20) return setTimeout(addScrollLock, 250, retries);
+            return log("Couldn't add scroll lock!");
+        }
+
+        if (!slAdded) addScrollLockStyles();
+        $(wrap).addClass("xscrollLock");
+
+        function addScrollLockStyles() {
+            if (slAdded == true) return;
+            slAdded = true;
+            GM_addStyle(`
+               .xscrollLock {
+                   max-height: 90vh;
+                   overflow-y: auto;
+                   top: 0px;
+                   position: sticky;
+               }
+            `);
         }
     }
 
-    // Should make this a promise...
-    var retryingTableInstall = false;
-    function installTableWrap(from, retries=0) {
-        if (retries == 0 && retryingTableInstall == true) {
-            return;
-        }
+    // ======================= Table of members not in an OC ========================
 
-        if (!crimeMembersDone || !facMembersDone || !missingMembers.length) {
-            if (retries++ < 20) {
-                retryingTableInstall = true;
-                setTimeout(installTableWrap, 250, "install", retries);
-                return 'pended';
-            }
-            // fall through, even if empty ???
-        }
+    function createMembersTable() {
+        let membersTable = `
+              <table id="x-no-oc-table" style="width: 782px; opacity: 0;">
+                  <tbody>
 
-        let tblWrap = `
-            <div id='x-oc-tbl-wrap' class="x-oc-wrap cont-gray bottom-round" style="opacity: 0.2;">
-                  <table id="x-no-oc-table" style="width: 782px;">
-                      <tbody>
-
-                      </tbody>
-                  </table>
-             </div>
+                  </tbody>
+              </table>
         `;
 
-        $("#x-oc-can-click").after(tblWrap);
+        membersNotInOcTable = $(membersTable);
 
-        let done = false;
-        let tr = "<tr class='xoctr'>";
-        for (let idx=0; idx < missingMembers.length || done == true;) {
-            for (let j=idx; j < idx+5; j++) {
-                let id = missingMembers[j];
-                let name = "";
-                if (!id) {
-                    done = true;
-                    tr += "<td><span></span></td>";
-                } else {
-                    let addedStyle = (id == userId) ? `style='color: limegreen;'` : ``;
-                    name = facMembersJson[id];
-                    tr += "<td data-id='" + id + "' class='xoctd'><span " + addedStyle + ">" + name + " [" + id + "]</span></td>";
-                }
-            }
-            tr += "</tr>"
-            $("#x-no-oc-table > tbody").append($(tr));
-            tr = "<tr>";
-            idx += 5;
-            if (done == true || idx >= missingMembers.length) break;
-        };
+    }
 
-        // Set cell borders
-        $("#x-no-oc-table tr:first td:first").css("border-top-left-radius", "10px");
-        $("#x-no-oc-table tr:first td:last").css("border-top-right-radius", "10px");
-        $("#x-no-oc-table tr:last td:first").css("border-bottom-left-radius", "10px");
-        $("#x-no-oc-table tr:last td:last").css("border-bottom-right-radius", "10px");
+    var memHandlersAdded = false;
+    function addMembersTableHandlers() {
+        if (memHandlersAdded == true) return;  // just once
+        memHandlersAdded = true;
 
         // On click,  open profile in new tab
         $(".xoctd").on('click', function (e) {
@@ -1858,154 +2790,89 @@
             let href="/profiles.php?XID=" + id;
             window.open(href, "_blank");
         });
+    }
 
-        if (retryingTableInstall == true && !animatePending) {
-            retryingTableInstall = false;
-            doAnimateTable(null, 'install');
+    function updateMembersTableData() {
+        $(membersNotInOcTable).find("tbody > tr").remove();
+
+        let done = false;
+        let tr = "<tr class='xoctr'>";
+        let keys = Object.keys(membersNotInOc);
+        for (let idx=0; idx < keys.length || done == true;) {
+            for (let j=idx; j < idx+5; j++) {
+                let id = keys[j];
+                let name = membersNotInOc[id];
+                if (!id) {
+                    done = true;
+                    tr += "<td><span></span></td>";
+                } else {
+                    let addedStyle = (id == userId) ? `style='color: limegreen;'` : ``;
+                    tr += "<td data-id='" + id + "' class='xoctd'><span " + addedStyle + ">" + name + " [" + id + "]</span></td>";
+                }
+            }
+            tr += "</tr>"
+            $(membersNotInOcTable).find("tbody").append($(tr));
+            tr = "<tr>";
+            idx += 5;
+            if (done == true || idx >= keys.length) break;
+        };
+    }
+
+    // 'Available Members' table, those not in an OC
+    function installMembersTable(from, retries=0) {
+        addMembersTableStyles();
+        createMembersTable();
+        updateMembersTableData();
+
+        // Local fn to add styles, once.
+        var mtStyles = false;
+        function addMembersTableStyles() {
+            if (mtStyles == true) return;  // Safety net, don't want duplicate
+            mtStyles = true;
+
+            // Members missing OC's table styles
+            GM_addStyle(`
+                #x-no-oc-table {
+                    margin: 15px 20px 15px 20px;
+                }
+                #x-no-oc-table tr {
+                    display: flex;
+                    flex-direction: row;
+                    width: 100%;
+                    height: 30px;
+                    margin: 0px auto 0px auto;
+                }
+                #x-no-oc-table td {
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    text-align: center;
+                    color: var(--default-color);
+                    width: 20%;
+                    border: 1px solid #666;
+                    cursor: pointer;
+                }
+                #x-no-oc-table td:hover {
+                    color: var(--default-blue-color);
+                }
+                #x-no-oc-table td span {
+                    display: flex;
+                    align-items: center;
+                }
+            `);
+
+            GM_addStyle(`#x-no-oc-table tr:first-child td:first-child {border-top-left-radius: 10px;}`);
+            GM_addStyle(`#x-no-oc-table tr:first-child td:last-child {border-top-right-radius: 10px;}`);
+            GM_addStyle(`#x-no-oc-table tr:last-child td:first-child {border-bottom-left-radius: 10px;}`);
+            GM_addStyle(`#x-no-oc-table tr:last-child td:last-child {border-bottom-right-radius: 10px;}`);
         }
-    }
-
-    function getOptfromTarget(target) {
-        let id = $(target).attr("id");
-    }
-
-    function processMiniOpCb(e) {
-        e.stopPropagation();
-        let node = $(e.currentTarget);
-        let idx = $(node).attr("data-index");
-        let opt = menuItems[idx];
-        let sel = "#" + opt.id + " > input";
-        if (opt.type == 'cb') {
-            let val = $(sel)[0].checked;
-            GM_setValue(opt.key, val);
-        } else if (opt.type == 'input') {
-            let val = $(sel).val()
-            GM_setValue(opt.key, val);
-        }
-
-        updateOptions();
-        if (opt.id == 'oc-opt-hide' || opt.id == 'oc-opt-lvl') hideShowByLevel();
-    }
-
-    function processMiniOpInput(e) {
-        e.stopPropagation();
-        let node = $(e.currentTarget);
-        hideLvlVal = $("#oc-opt-lvl").val();
-        GM_setValue(hideLvlValKey, hideLvlVal);
-        hideShowByLevel();
-    }
-
-    function buildMissingMembersUI(from) {
-
-        if (!isOcPage()) return;
-
-        // A couple of options...
-        const ocMiniOptions = `
-            <span id='oc-opt-wrap'>
-                <input type="checkbox" id="oc-opt-hide">
-                <input type="number"   id="oc-opt-lvl" min="1" max="15">
-                <input type="checkbox" id="oc-opt-last-pos" style="display: none; opacity: 0;">
-            </span>`;
-
-        //const toggleBtn = `<div><span class="x-toggle-sort"><i class="fas fa-caret-down"></i></span></div>`
-
-        let membersDivNew = `
-            <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
-                <!-- div class="x-oc-special-wrap" -->
-                    <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
-                        <div class="box"><span id='x-oc-click'>${membersTextClosed}</span></div>
-                        <div class="xoc-navbar">
-                            <div id="x-select"><ul></ul></div>
-                        </div>
-                    </div>
-                <!-- /div -->
-            </div>
-         `;
-
-        let membersDiv = `
-            <div id="x-no-oc-members" class="sortable-box t-blue-cont h">
-              <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
-                  <div class="box"><span id='x-oc-click'>${membersTextClosed}</span></div>
-              </div>
-          </div>
-         `;
-
-        if ($("#x-no-oc-members").length || animatePending) {
-        //    doAnimateTable(null, (from + '-buildui'));
-            return;
-        }
-
-        $("#faction-crimes").before((useNewOptsPane == true) ? membersDivNew : membersDiv);
-        $("#x-oc-can-click").append(ocMiniOptions);
-
-        $("#oc-opt-last-pos").prop('checked', keepLastState);
-        $("#oc-opt-hide").prop('checked', hideLvl);
-        $("#oc-opt-lvl").val(hideLvlVal);
-
-        let sortBtn = $(toggleBtn);
-        $(sortBtn).attr("id", "xocsort");
-        $("#x-oc-can-click").append($(sortBtn)[0]);
-        $("#xocsort").on('click', toggleSort);
-
-        displayHtmlToolTip($("#xocsort"), "Sort direction", "tooltip5");
-        displayHtmlToolTip($("#x-oc-can-click > .box"), "Right click to refresh", "tooltip5");
-
-        displayHtmlToolTip($("#oc-opt-hide"),
-                           "Checking this will hide avaiable<br>" +
-                           "crimes under the level entered in<br>" +
-                           "the box to the right. This<br>" +
-                           "applies only to the recruiting page.", "tooltip5");
-
-        displayHtmlToolTip($("#oc-opt-lvl"),
-                           "Crimes lower than this level<br>" +
-                           "will be hidden if the checkbox<br>" +
-                           "to the left is selected. This<br>" +
-                           "applies only to the recruiting page.", "tooltip5");
-
-        displayHtmlToolTip($("#oc-opt-last-pos"),
-                           "Checking this will cause this<br>" +
-                           "script to keep this window in<br>" +
-                           "the last state you left it in,<br>" +
-                           "either open or hidden.", "tooltip5");
-
-        $("#oc-opt-hide").on('click', function (e) {
-            debug("opt-hide click");
-            e.stopPropagation();
-            let node = $(e.currentTarget);
-            let tmp = hideLvl;
-            hideLvl = $("#oc-opt-hide")[0].checked;
-            GM_setValue(hideLvlKey, hideLvl);
-            if (tmp != hideLvl)
-                updateOptions();
-            hideShowByLevel();
-        });
-
-        $("#oc-opt-lvl").on('change', function (e) {
-            debug("opt-lvl change");
-            e.stopPropagation();
-            let node = $(e.currentTarget);
-            let tmp = hideLvlVal;
-            hideLvlVal = $("#oc-opt-lvl").val();
-            GM_setValue(hideLvlValKey, hideLvlVal);
-            if (tmp != hideLvlVal)
-                updateOptions();
-            hideShowByLevel();
-        });
-
-        $("#x-oc-can-click > .box").on('click', function (e) {doAnimateTable(e, 'btn');});
-        $("#x-oc-can-click > .box").on('contextmenu', refreshMissingMembers);
-
-        //if (keepLastState == true && lastState == stateOpen && !animatePending)
-        //    doAnimateTable('missmembers');    // Can call direct, event is unused
-
-        // New options panel
-        if (useNewOptsPane == true) installOptionsPane();
     }
 
     // ============================= Styles, mostly =================================
 
     // Styles just stuck at the end, out of the way
     var genStylesAdded= false;
+
     function addStyles() {
         if (genStylesAdded == true) return;
         genStylesAdded = true;
@@ -2014,6 +2881,8 @@
         let shadowColor = darkMode() ? "#555" : "#ccc";
         addToolTipStyle();
         loadMiscStyles();
+        addFlexStyles();
+        addBorderStyles();
 
         GM_addStyle(`
 
@@ -2085,19 +2954,11 @@
                 display: flex;
                 flex-flow: row wrap;
                 justify-content: center;
-                /* aspect-ratio: 1; */
-                /* border-radius: 15px; */
-                /* border: 1px solid black; */
                 cursor: pointer;
-                /* padding-top: 3px; */
-                /* margin-left: 3px; */
-                /* background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%); */
-                /* height: 20px; */
                 width: 30px;
                 opacity: 1;
                 visibility: visible;
                 transition: all .2s ease-in-out;
-                /* margin-right: 10px; */
                 float: right;
                 vertical-align: bottom;
                 align-content: center;
@@ -2122,42 +2983,13 @@
             .x-oc-wrap {
                 padding: 10px 0px 10px 0px;
             }
-            #x-no-oc-members {
+            #oc-assist-content-wrap {
                 margin-top: 8px;
                 display: flex;
                 flex-direction: row;
                 flex-wrap: wrap;
             }
-            #x-no-oc-table {
-
-            }
-            #x-no-oc-table tr {
-                display: flex;
-                flex-direction: row;
-                width: 90%;
-                height: 30px;
-                margin: 0px auto 0px auto;
-            }
-            #x-no-oc-table tr:first-child {
-                border-radius: 10px 0px 0px 0px;
-            }
-            #x-no-oc-table td {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                text-align: center;
-                color: var(--default-color);
-                width: 20%;
-                border: 1px solid #666;
-                cursor: pointer;
-            }
-            #x-no-oc-table td:hover {
-                color: var(--default-blue-color);
-            }
-            #x-no-oc-table td span {
-                display: flex;
-                align-items: center;
-            }
+            
             #x-oc-can-click {
                 height: 38px;
                 width: 100%;
@@ -2174,69 +3006,34 @@
             #x-oc-can-click > div > span {
                 cursor: pointer;
             }
-            #x-oc-can-click .box {
-                display: flex;
-                z-index: 9;
-            }
-            #x-oc-click {
+            #x-oc-click, #x-opts-click, #x-rates-click  {
                 border-radius: 4px;
                 padding: 10px 30px 10px 20px;
             }
-            #x-oc-click:hover {
+            .ocbox {
+                width: 32%;
+                display: flex !important;
+                justify-content: center;
+                z-index: 9;
+            }
+            .ocbox:hover {
                 box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
             }
-            #oc-opt-last-pos {
-                margin: 0px 20px 0px 20px;
-                cursor: pointer;
-                opacity: 0;
-                z-index: 9999999;
-            }
-            #oc-opt-wrap {
-                display: flex;
-                flex-flow: row wrap;
+            .ocbox span {
                 justify-content: center;
-                align-content: center;
-                border-radius: 4px;
-                height: 100%;
-                margin-left: auto;
-                margin-right: 20px;
+                align-contet: center;
+                display: flex;
+                width: 100%;
             }
-            #oc-opt-wrap.recruit-tab:hover {
-                filter: brightness(1.2);
-            }
-            #oc-opt-wrap.recruit-tab:hover input {
-                opacity: 1;
-            }
-            #oc-opt-wrap input {
-                opacity: 0;
+            .ocbox.active {
+                background: var(--tabs-active-bg-gradient);
             }
 
-            .vhide {visibility: hidden;}
-            .vshow {visibility: visible;}
-
-            #oc-opt-hide {
-                /*opacity: 0;*/
-            }
-            #oc-opt-lvl {
-                border-radius: 4px;
-                height: 14px;
-                width: 20px;
-
-                font-size: 12px;
-
-                padding: 1px 0px 0px 4px;
-                margin-left: 5px;
-                margin-right: 10px;
-
-                display: inline-flex;
-                flex-flow: row wrap;
-                align-items: center;
-                /*opacity: 0;*/
-            }
         `);
     }
 
     function installTrackerStyles() {
+        if (ocTrackerStylesInstalled == true) return;
         GM_addStyle(`
             #ocTracker {
                 display: flex;
@@ -2280,7 +3077,6 @@
             }
             #ocTracker-cm li:hover {
                 background: var(--tabs-active-bg-gradient);
-                /*background: var(--tabs-hover-bg-gradient);*/
             }
 
             #ocTracker-cm ul li span:hover {color: limegreen; }
