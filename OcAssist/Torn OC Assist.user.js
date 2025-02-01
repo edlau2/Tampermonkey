@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.13
+// @version      2.14
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -22,9 +22,12 @@
 /*eslint no-undef: 0*/
 /*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint dot-notation: 0*/
 
 (function() {
     'use strict';
+
+    if (isAttackPage()) return log("Won't run on attack page!");
 
     // Constants used, some to load options..hence first.
     const userId = getThisUserId();    // Used to highlight yourself in list
@@ -44,6 +47,7 @@
     // Extra debug logging, for development
     const logFullApiResponses = GM_getValue("logFullApiResponses", false);
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    const logCsrData = false;
 
     // Dev/debug...
     var debugNoOcFound = GM_getValue("debugNoOcFound", false);
@@ -58,6 +62,7 @@
 
     var warnOnNoOc = GM_getValue("warnOnNoOc", true);
     var notifyOcSoon = GM_getValue("notifyOcSoon", false);
+    var notifyOcSoonMin = GM_getValue("notifyOcSoonMin", 15);
     var keepOnTop = GM_getValue("keepOnTop", false);
     var disableToolTips = GM_getValue('disableToolTips', false);
     var scrollLock = GM_getValue('scrollLock', true);
@@ -65,10 +70,15 @@
     // CSR options
     var trackMemberCsr = GM_getValue("trackMemberCsr", false);
     var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);      // Lowest crime level to look at
-    var initCsrDays    = GM_getValue(initCsrDaysKey, 30);       // How many days back to check for crimes during init
+    var initCsrDays    = GM_getValue(initCsrDaysKey, 14);       // How many days back to check for crimes during init
 
     var lastCsrCheckDate = GM_getValue(lastCsrDateKey, 0);    // Most recent date looked at, only go to here during updates
     var defCsrSelectVal = GM_getValue("csrSelectVal", "Blast From The Past");
+
+    const csrSortOrders = ['desc', 'asc'];
+    const csrDefSortOrder = 0;
+    var   csrSort = csrDefSortOrder;
+    var   csrCurrSortOrder = csrSortOrders[csrDefSortOrder];
 
     // Monitor and display when an OC you are in is due
     var trackMyOc = GM_getValue("trackMyOc", true);
@@ -189,12 +199,6 @@
                                           "bc": {}
                                }};
 
-    /*
-
-        ...entry from crimedefs tanle, 'entry'
-        csrList[id].crimeCsr[entry.aka]["role"] = csr...
-    */
-
     // Our table of member and their csr for each crime type and role.
     // Organized as  id: {name, csr[crimeNickname][role], id2: {}, ...
     var csrList = {};
@@ -202,19 +206,12 @@
     function readCsrList() {
         let tmp = GM_getValue(csrListKey, null);
         if (tmp) {
-            log("Have saved csr list, parsing");
             csrList = JSON.parse(tmp);
         }
-
-        debug("Loaded csr list: ", csrList);
     }
 
     function writeCsrList() {
-        log("*****Saving csr list*****: ", csrList);
         GM_setValue(csrListKey, JSON.stringify(csrList));
-
-        log("*****Reading back in*****");
-        readCsrList();
     }
 
     if (trackMemberCsr) readCsrList();
@@ -237,6 +234,22 @@
     const onPlanningPage = function () {return (btnIndex() == planningIdx);}
     const onCompletedPage = function () {return (btnIndex() == completedIdx);}
     const onCrimesPage = function () {return (location.hash ? location.hash.indexOf("tab=crimes") > -1 : false);}
+    const setAlertsPaused = function() {blinkingPaused = true;}
+
+    function timeDiff(checkTime) {
+        let now = new Date().getTime();
+        let timeDiff = {};
+        let diff = now - +checkTime;
+        timeDiff.ms = now - +checkTime;
+        timeDiff.secs = timeDiff.ms / 1000;
+        timeDiff.mins = timeDiff.secs / 60;
+        timeDiff.hrs = timeDiff.mins / 60;
+        return timeDiff;
+    }
+
+    function minutesAgo(time) {return timeDiff(time).mins;}
+    function secondsAgo(time) {return timeDiff(time).secs;}
+    function hoursAgo(time) {return timeDiff(time).hrs;}
 
     // Sorting criteria
     const sortByTime = 1;
@@ -267,10 +280,11 @@
         {name: "Go To Crimes Page",    id: "oc-goto-crimes",                  type: "href",
              href:"/factions.php?step=your&type=1#/tab=crimes", validOn: "context",
              tooltip: "Opens the OC page"},
-        {name: "Refresh",         id: "oc-refresh",                           type: "ctrl",
-             fnName: "refresh", validOn: "both",
+        {name: "Refresh OC Start Time", id: "oc-refresh",                     type: "ctrl",      fnName: "refresh", validOn: "both",
+             tooltip: "Refreshes your OC start time."},
+        {name: "Refresh Members not in an OC", id: "oc-mem-refresh",          type: "ctrl",      fnName: "mem-refresh", validOn: "full",
              tooltip: "Refreshes the table of<br>members not in an OC."},
-        {name: "Pause flashing Alerts (until refresh)",   id: "stop-alert",    type: "ctrl",     enabled: true, validOn: "both",
+        {name: "Pause flashing Alerts (until refresh)",   id: "stop-alert",   type: "ctrl",     enabled: true, validOn: "both",
              fnName: "stop-alert",
              tooltip: "Stop the blinking alerts that<br>" +
                       "indicate you are not in an OC,<br>" +
@@ -298,12 +312,13 @@
              tooltip: "Allows the OC's on each<br>" +
                       "page to scroll independently<br>" +
                       "of the page headers."},
-        {name: "Warn if you are not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb",    enabled: true, validOn: "both",
+        {name: "Flash if you are not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb",    enabled: true, validOn: "both",
              tooltip: "Flashes the sidebar display<br>" +
                       "if not in an OC yet."},
-        {name: "Flash when your OC is almost ready", id: "notify-soon",  key: "notifyOcSoon", type: "cb",    enabled: true, validOn: "both",
-             tooltip: "TBD TBD TBD<br>" +
-                      "The sidebar display will<br>" +
+        {name: "Flash when your OC is almost ready, # minutes",
+             id: {cb: "notify-soon", input: "soon-min"}, key: {cb: "notifyOcSoon", input: "notifyOcSoonMin"}, type: "combo",
+             enabled: true, validOn: "full",
+             tooltip: "The sidebar display will<br>" +
                       "flash hen you crime is due<br>" +
                       "to start soon."},
         {name: "Keep your crime on top when sorting", id: "keep-on-top", key: "keepOnTop",    type: "cb",    enabled: true, validOn: "full",
@@ -311,8 +326,8 @@
                       "your crime on top, then the<br>" +
                       "remaining ones are sorted."},
         {name: "Notify if a crime at or above level # is available",
-             id: {cb: "oc-min-avail", input: "oc-min-lvl"}, key: {cb: warnMinLvlKey, input: warnMinLvlValKey},
-             type: "combo", enabled: true,  validOn: "full",  min: 1, max: 10,
+             id: {cb: "oc-min-avail", input: "oc-min-lvl"}, key: {cb: warnMinLvlKey, input: warnMinLvlValKey}, type: "combo", enabled: true,
+             validOn: "full",  min: 1, max: 10,
              tooltip: "TBD TBD TBD<br>" +
                       "If a crime above the specified<br>" +
                       "level becomes available on the<br>" +
@@ -322,11 +337,6 @@
         // TBD: "show hidden" context opt, recruit, see "hide beneath"...
     ];
 
-    /*
-      // CSR options
-    var trackMemberCsr = GM_getValue("trackMemberCsr", false);
-    var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);
-    */
     const csrMenuOptions = [
         {name: "Track Member CSR", id: "track-csr",key: "trackMemberCsr", type: "cb", enabled: true, validOn: "full", /*fnName: "toggleCsr",*/
              tooltip: "Maintains a list of each fac<br>" +
@@ -340,17 +350,23 @@
                       "at or above this level. The<br>" +
                       "more you track, the more data<br>" +
                       "has to be stored and processed."},
-        {name: "(Re)initialize all CSR values",   id: "init-csr",    type: "ctrl",     enabled: true, validOn: "full",
+        {name: "(Re)initialize all CSR values, max # days ago",   id: "init-csr-days", key: initCsrDaysKey,  type: "input",
+             enabled: true, validOn: "full", min: 1, max: 60,
              fnName: "init-csr",
              tooltip: "Goes through all crimes and initializes<br>" +
                       "the saved CSR values for all members. Not<br>" +
                       "every member will have data available for<br>" +
-                      "every role in ever crime. Currently, only<br>"+
-                      "the past 4 weeks of data are looked at."},
+                      "every role in ever crime. Note that going<br>"+
+                      "too far back may wind up with some innacurate<br>" +
+                      "value, as they were much higher when OC 2.0 was<br>" +
+                      "initially released."},
         {name: "Update CSR values",   id: "upd-csr",    type: "ctrl",     enabled: true, validOn: "full",
              fnName: "upd-csr",
              tooltip: "Updates CSR values since last update.<br>" +
                       "This is normally done automatically."},
+        {name: "Clear all CSR values",   id: "clear-csr",    type: "ctrl",     enabled: true, validOn: "full",
+             fnName: "clear-csr",
+             tooltip: "Erases all saved CSR values.<br>"},
         ];
 
     function writeOptions() {
@@ -360,6 +376,7 @@
 
         GM_setValue("warnOnNoOc", warnOnNoOc);
         GM_setValue("notifyOcSoon", notifyOcSoon);
+        GM_setValue("notifyOcSoonMin", notifyOcSoonMin);
         GM_setValue("keepOnTop", keepOnTop);
         GM_setValue('disableToolTips', disableToolTips);
         GM_setValue('scrollLock', scrollLock);
@@ -381,6 +398,7 @@
 
         warnOnNoOc = GM_getValue("warnOnNoOc", warnOnNoOc);
         notifyOcSoon = GM_getValue("notifyOcSoon", notifyOcSoon);
+        notifyOcSoonMin = GM_getValue("notifyOcSoonMin", notifyOcSoonMin);
         keepOnTop = GM_getValue("keepOnTop", keepOnTop);
         disableToolTips = GM_getValue('disableToolTips', disableToolTips);
         scrollLock = GM_getValue('scrollLock', scrollLock);
@@ -392,6 +410,7 @@
 
         trackMemberCsr = GM_getValue("trackMemberCsr", trackMemberCsr);
         lowestCsrLevel = GM_getValue("lowestCsrLevel", lowestCsrLevel);
+        initCsrDays    = GM_getValue(initCsrDaysKey, initCsrDays);
 
         // TBD: add new ones here
         //$("#oc-last-state").prop('checked', keepLastState);
@@ -400,6 +419,7 @@
 
         $("#warn-no-oc").prop("checked", warnOnNoOc);
         $("#notify-soon").prop("checked", notifyOcSoon);
+        $("#soon-min").val(notifyOcSoonMin);
         $("#keep-on-top").prop("checked", keepOnTop);
         $("#disable-tool-tips").prop("checked", disableToolTips);
         $("#scroll-lock").prop("checked", scrollLock);
@@ -411,6 +431,7 @@
 
         $("#track-csr").prop('checked', trackMemberCsr);
         $("#csr-min-lvl").val(lowestCsrLevel);
+        $("#init-csr-days").val(initCsrDays);
 
         // TBD: add the rest
         if (doWriteOpts) { writeOptions(); }
@@ -424,10 +445,13 @@
         logScriptStart();
         validateApiKey();
         startMyOcTracking();
+
+        /* Don't return, other things may still run...
         if (!isFactionPage()) {
             addStyles();
             return;
         }
+        */
     }
 
     function logCurrPage() {
@@ -449,13 +473,39 @@
         GM_setValue("myCrimeStatus", myCrimeStatus);
     }
 
+    function parseOcTime(time) {
+        // OC in: 2d 12h 45m
+        let parts = time.split(' ');
+        if (parts.length < 5) return;
+        let d = parseInt(parts[2]);
+        let h = parseInt(parts[3]);
+        let m = parseInt(parts[4]);
+
+        return {d: d, h: h, m: m};
+    }
+
+    function timeMin(time) {
+        let timeUntil = parseOcTime(time);
+        return timeUntil ? (+timeUntil.d * 24 * 60 + +timeUntil.h * 60 + +timeUntil.m) : 0;
+    }
+
     function setTrackerTime(time) {
         $("#oc-tracker-time").removeClass("blink182");
         $("#oc-tracker-time").text(time);
+        if (time == NO_OC_TIME) return;
         if (myCrimeStatus == 'Recruiting') {
             $("#oc-tracker-time").addClass("def-yellow");
         } else {
             $("#oc-tracker-time").removeClass("def-yellow");
+        }
+
+        if (blinkingPaused) return;
+        if (timeMin(time) < 1) stopAllAlerts();
+
+        if (notifyOcSoon == true && +notifyOcSoonMin > 0) {
+            let untilMin = timeMin(time);
+            if (untilMin && untilMin < +notifyOcSoonMin)
+                enableOcSoon();
         }
     }
 
@@ -487,6 +537,12 @@
         }
     }
 
+    function enableOcSoon() {
+        if (!blinkingPaused && !$("#oc-tracker-time").hasClass("blinkOcGreen")) {
+            $("#oc-tracker-time").addClass("blinkOcGreen");
+        }
+    }
+
     // See if the cached crime has expired/completed.
     // Return false if invalid/expired/not set, true otherwise.
     function validateSavedCrime(crimes) {
@@ -514,14 +570,15 @@
         $("#oc-tracker-time").toggleClass("blinkOcWarn");
         blinkingNoOc = $("#oc-tracker-time").hasClass("blinkOcWarn");
     }
+
     function toggleOcSoon() {
         if (blinkingPaused) return stopAllAlerts();
         $("#oc-tracker-time").toggleClass("blinkOcGreen");
     }
+
     function stopAllAlerts() {
         $("#oc-tracker-time").removeClass("blinkOcWarn");
         $("#oc-tracker-time").removeClass("blinkOcGreen");
-        blinkingPaused = true;
         blinkingNoOc = false;
     }
 
@@ -532,11 +589,8 @@
             return handleError(responseText);
         }
 
-        log("myOcTrackingCb: ", jsonObj);
-
         let myCrime = jsonObj.organizedCrime;
         if (!myCrime) {
-            log("Not in a crime?");
             enableNoOcAlert();
             setTrackerTime(NO_OC_TIME);
             setTimeout(getMyNextOcTime, 60000);
@@ -573,8 +627,6 @@
     }
 
     function startMyOcTracking() {
-        // Add necessary UI components
-        debug("Adding UI components for OC tracking");
         if ($("#ocTracker").length) {
             return log("Warning: another instace of the OC Tracker is running!");
         }
@@ -613,7 +665,6 @@
 
     // Run a function from context menu
     function doOptionMenuRunFunc(runFunc) {
-        log("doOptionMenuRunFunc: ", runFunc);
         switch (runFunc) {
             case "refresh": {  // Refresh OC time ready, from context menu
                 $("#oc-tracker-time").text("Please wait...");
@@ -623,17 +674,22 @@
                 setTimeout(getMyNextOcTime, 2500, 'available');
                 break;
             }
+            case "mem-refresh": {
+                refreshmembersNotInOc();
+                break;
+            }
             case "xedx-test": { // Whatever I feel like testing...
                 toggleOcSoon();
                 break;
             }
             case "stop-alert": {
                 stopAllAlerts();
+                setAlertsPaused();
                 break;
             }
             case "show-hidden":
                 // TBD
-                log("Show hidden crimes TBD... ~482!");
+                debug("Show hidden crimes TBD... ");
                 showHiddenRecruits();
                 break;
 
@@ -647,7 +703,12 @@
 
             case "init-csr":
                 // Flash "Busy..." in grre somewhere?
+                clearCsrList();
                 initializeMemberCsrValues();
+                break;
+
+            case "clear-csr":
+                clearCsrList();
                 break;
 
             case "upd-csr":
@@ -692,7 +753,7 @@
     }
 
     function removeOcTracker() {
-        log("removeOcTracker");
+        debug("removeOcTracker");
         $("#ocTracker").remove();
         $("#ocTracker-cm").remove();
 
@@ -798,7 +859,8 @@
         $("#oc-opt-lvl").val(hideLvlVal);
 
         $("#warn-no-oc").prop('checked', warnOnNoOc);
-        $("#notify-soon").prop('checked', notifyOcSoon);
+        //$("#notify-soon").prop('checked', notifyOcSoon);
+        //$("#soon-min").val(notifyOcSoonMin);
 
         $("#ocTracker-cm > ul > li > span").on('click', handleTrackerContextClick);
         $("#ocTracker-cm > ul > li > input").on('change', processMiniOpCb);
@@ -837,7 +899,7 @@
     }
 
     function handlePageChange() {
-        logCurrPage();
+        //logCurrPage();
         switch (btnIndex()) {
             case recruitingIdx:
                 setSortCaret(recruitSortOrder);
@@ -901,7 +963,6 @@
     }
 
     function pageBtnClicked(e) {
-        debug("pageBtnClicked, idx: ", btnIndex(), "|", e);
         if (btnIndex() != completedIdx) {
             $("#xcsvbtn").addClass("vhide");
         }
@@ -910,7 +971,7 @@
         else
             $("#show-hidden").removeClass("xhide");
 
-        logCurrPage();
+        //logCurrPage();
         handlePageChange();
     }
 
@@ -918,16 +979,6 @@
         let list = pageBtnsList();
         $(pageBtnsList).on('click', pageBtnClicked);
     }
-
-    /*
-    // Compare two arrays: see what is in array1 but not in array2
-    function arrayDiff(array1, array2) {
-        const result = array1.filter(obj1 =>
-          !array2.some(obj2 => obj1 === obj2)
-        );
-        return result;
-    }
-    */
 
     // Make yourself easier to spot on the page.
     function highlightSelf() {
@@ -985,7 +1036,7 @@
     function tagAndSortScenarios(sortCriteria) {
         if (!isSortablePage()) {
             debug("This page isn't sortable (by definition)");
-            logCurrPage();
+            //logCurrPage();
             return;
         }
 
@@ -1294,6 +1345,10 @@
             return log("Not on crimes page, going home");
         }
 
+        // May or may not need updating, we have a 15 minute delay between checks
+        // Make configurable
+        getFacMembers();
+
         let root = $("#faction-crimes");
         if ($(root).length == 0) {
             debug("Root not found, started observer...");
@@ -1316,7 +1371,7 @@
 
         addPageBtnHandlers();
         installCompletedPageButton();
-        logCurrPage();
+        //logCurrPage();
 
         if (trackMyOc == true) { getTimeUntilOc(); }
 
@@ -1341,22 +1396,12 @@
    
     //============================== API calls ===================================
     //
-    //var missingMembers = [];
     var membersNotInOc = {};
-    //var facMembersJson = {};
-    //var plannedCrimeMembers = [];
-    //var facMembersArray = [];
     var membersNotInOcReady = false;
-
     var completedCrimesSynced = false;
-
     var completedScenarios;
     var completedScenariosLastLen = 0;
-
     var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
-
-    //var facMembersDone = false;
-    //var crimeMembersDone = false;
 
     function getCompletedCrimes() {
         let daysToGet = 10;
@@ -1370,7 +1415,7 @@
             debug("using cached version..."); //, completedCrimesArray);
             completedCrimesCb(completedCrimesArray);
         } else {
-            log("Do comp crime query, from: ", new Date(fromTime).toString());
+            debug("Do comp crime query, from: ", new Date(fromTime).toString());
             doFacOcQuery('completed', tornTime);
         }
     }
@@ -1451,20 +1496,20 @@
 
         // Format time/date however we want
         function tm_str(tm) {
-            log("tm_str: ", tm, new Date(tm*1000).toString());
+            //log("tm_str: ", tm, new Date(tm*1000).toString());
             let dt = new Date(tm*1000);
             const mediumTime = new Intl.DateTimeFormat("en-GB", {
               timeStyle: "medium",
               hourCycle: "h24",
             });
-            log("time: ", mediumTime.format(dt));
+            //log("time: ", mediumTime.format(dt));
 
             const shortDate = new Intl.DateTimeFormat("en-GB", {
               dateStyle: "short",
             });
-            log("Date: ", shortDate.format(dt));
+            //log("Date: ", shortDate.format(dt));
             const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
-            log("formatted: ", formattedDate);
+            //log("formatted: ", formattedDate);
             return formattedDate;
         }
 
@@ -1478,7 +1523,7 @@
         // Build the span to display in a div on completed crime panel
         function getCompCrimeDesc(idx) {
             let crime = completedCrimesArray[idx];
-            log("status: ", crime.status, " executed_at: ", crime.executed_at);
+            //log("status: ", crime.status, " executed_at: ", crime.executed_at);
             if (!crime.executed_at) return;
             //let payout = asCurrency(crime.rewards.money);
             let ready = tm_str(crime.executed_at);
@@ -1486,57 +1531,6 @@
             return span;
         }
     }
-
-    if (false) {
-        function plannedCrimesCb(responseText, ID, param) {
-            let jsonObj = JSON.parse(responseText);
-            let crimes = jsonObj.crimes;
-
-            if (jsonObj.error) {
-                console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
-                return;
-            }
-
-            if (param == 'completed') {
-                return completedCrimesCb(crimes);
-            }
-
-            if (trackMyOc == true && param == "planning") {
-                myOcTrackingCb(responseText, ID, param);
-            }
-
-            // Can gather CSR info here also!
-            crimes.forEach(function (crime, index) {
-                crime.slots.forEach(function (slot, index) {
-                    if (slot.user_id) plannedCrimeMembers.push(slot.user_id);
-                });
-            });
-
-            debug("Members in crimes: ", plannedCrimeMembers.length);
-
-            if (param == "planning") {
-                getRecruitingCrimes();
-            } else {
-                crimeMembersDone = true;
-            }
-            /*
-                if (facMembersDone == true) {
-                    membersNotInOc = arrayDiff(facMembersArray, plannedCrimeMembers);
-                    membersNotInOcReady = true;
-                    updateMembersTableData('plannedcb');
-                }
-            }
-            */
-        }
-
-        function doFacOcQuery(category, from) {
-            var options = {"cat": category, "offset": "0", "param": category};
-            if (from) options.from = from;
-            xedx_TornFactionQueryv2("", "crimes", plannedCrimesCb, options);
-        }
-
-    } // end if (false.. wrap around stuff I think I'll cut...
-
     // =================== Get fac members, update list of not in OC =============
 
     // Build list of members not in an OC, and if csr is enabled,
@@ -1566,12 +1560,24 @@
 
         updateMembersTableData();
 
-        if (trackMemberCsr && membersArray.length)
-            updateCsrMembersList(membersArray);
+        if (trackMemberCsr && membersArray.length) {
+            //log("What to do here?");
+            //updateCsrMembersList(membersArray);
+            //updateMemberCsrList();
+        }
     }
 
-    function getFacMembers() {
+    // Don't bother to do this if: not on a fac page,
+    // or have done in past 15 minutes, unless forced.
+    var lastFacMemberUpd = 0;
+    function getFacMembers(forced=false) {
+        if (forced == false) {
+            if (!isFactionPage()) return debug("getFacMembers: not on fac page");
+            if (lastFacMemberUpd > 0 && minutesAgo(lastFacMemberUpd) < 15)
+                return debug("getFacMember: only ", minutesAgo(lastFacMemberUpd), " minutes ago!");
+        }
         xedx_TornFactionQueryv2("", "members", facMemberCb);
+        lastFacMemberUpd = new Date().getTime(); // move to CB
     }
 
     function refreshmembersNotInOc() {
@@ -1583,7 +1589,7 @@
             setTimeout(removeInt, 500);
         }
 
-        setTimeout(getFacMembers, 3000);
+        setTimeout(getFacMembers, 3000, true);
         return false;
     }
 
@@ -1606,7 +1612,6 @@
         GM_setValue(lastCsrDateKey, last);
 
         removeSpinner("oc-csr-spinner");
-        log("Car list after full update: ", csrList);
     }
 
     function getCsrListEntry(id, crimeAka, role) {
@@ -1643,95 +1648,124 @@
         }
     }
 
+    var lastTornTime = 0;
     function csrCrimesCb(responseText, ID, param) {
         let jsonObj = JSON.parse(responseText);
         let crimes = jsonObj.crimes;
+
 
         if (jsonObj.error) {
             console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
             return;
         }
 
-        // If sorted ascending, last should be newest so no need to clear
-        //clearCsrList();
-        //log("Old values cleared...", csrList);
-
-        let crimesCount = crimes.length;
-
-        log("csrCrimesCb: ", crimes.length, " crimes retrieved");
-        let last = crimes[crimesCount-1];
+        let allDone = false;
+        let last = crimes[crimes.length-1];
         let first = crimes[0];
         let newestDate = last.created_at;
 
-        //log("first: ", first, new Date(+first.created_at*1000).toString());
-        //log("last: ", last, new Date(+last.created_at*1000).toString());
-        log("first: ", new Date(+first.created_at*1000).toString());
-        log("last: ", new Date(+last.created_at*1000).toString());
-        log("newest: ", new Date(+newestDate*1000).toString());
+        if (logCsrData == true) {
+            log("first: ", first.created_at, "|", new Date(+first.created_at*1000).toString());
+            log("last: ", last.created_at, "|", new Date(+last.created_at*1000).toString());
+            log("newest: ", newestDate, "|", new Date(+newestDate*1000).toString());
+            log("crimes cb lastCsrCheckDate: ", lastCsrCheckDate, "|", lastTornTime, "|param: ", param);
+            log("Num crimes: ", crimes.length);
+        }
 
         // Iterate each crime
-        crimes.forEach(function (crime, idx) {
-            //log("crime: ", crime);
-            let timestamp = crime.created_at;
-            let level = crime.difficulty;
+        //crimes.forEach(function (crime, idx) {
+        var csrTimestamp = 0;
+        var lastCsrTimestamp = 0;
+        for (let idx=0; idx<crimes.length; idx++) {
+            let crime = crimes[idx];
+            csrTimestamp = crime.created_at;
 
-            let def = crimeDefsTable[level];
-            let myDef = def[crime.name];
-            let aka;
-            if (myDef)
-                aka = myDef.aka;
-            else {
-                if (crime.name in nicknames) aka = nicknames[crime.name];
+            // ========= debugging ==========
+            if (lastCsrTimestamp != 0) {
+                if (lastCsrTimestamp > csrTimestamp) {
+                    debug("Timestamps not in sequence? ", lastCsrTimestamp, "|", csrTimestamp);
+                }
+                lastCsrTimestamp = csrTimestamp;
             }
 
-            if (!aka)
+            if (csrTimestamp < lastTornTime) {
+                log("ERROR: Crime older than from date? ",
+                    csrTimestamp, "|", csrTimestamp);
                 debugger;
+            }
+            // ==============================
+
+            if (csrUpdating == true && lastCsrCheckDate > csrTimestamp) {
+                debug("Hit older date, all done!");
+                allDone = true;
+                break;
+            }
+
+            if (csrTimestamp > newestDate) {
+                log("Found newer date!! : ", idx, csrTimestamp, newestDate);
+                newestDate = csrTimestamp;
+                debugger;
+            }
+
+            let aka = crimeDefsTable[crime.difficulty][crime.name] ?
+                       crimeDefsTable[crime.difficulty][crime.name].aka :
+                       (crime.name in nicknames) ? nicknames[crime.name] : null;
+
+            if (!aka) debugger;
 
             let slots = crime.slots;
 
+            // Won't be a csr if the  min level has been filtered...
+            let missingCsr = 0;
             for (let idx = 0; idx < slots.length; idx++) {
                 let slot = slots[idx];
                 let id = slot.user_id; if (!id) {continue;}
                 let entry = csrList[id]; if (!entry) {continue;}
-                let userCsrs = entry.crimeCsr[aka]; if (!userCsrs) {log("No csr! aka: '", aka, "' entry: ", entry, "' name: ", crime.name, "'"); continue;}
+                let userCsrs = entry.crimeCsr[aka];
 
-                // If sorting asc, last should be newest...so can just over-write.
-                // Also no need to clear first....
-                /*if (!userCsrs[slot.position])*/
+                if (!userCsrs) {
+                    missingCsr++;
+                    entry.crimeCsr[aka] = 0;
+                    log("No csr! aka: '", aka, "' entry: ", entry, "' name: ", crime.name, "'");
+                    continue;
+                }
 
-                csrList[id].crimeCsr[aka][slot.position] = slot.success_chance;
-                //userCsrs[slot.position] = slot.success_chance;
-
-                //log("crime id ", crime.id, " Setting ", slot.position, " for ", csrList.name, "[", id, "]",
-                //    " csr: ", slot.success_chance);
-                //log("crime: ", crime, " entry: ", entry, " slot: ", slot, " userCsrs: ", userCsrs);
+                let currChance = parseInt(csrList[id].crimeCsr[aka][slot.position]);
+                let newChance = parseInt(slot.success_chance);
+                if (newChance > currChance)
+                    csrList[id].crimeCsr[aka][slot.position] = slot.success_chance;
             }
+            if (missingCsr > 0) writeCsrList();
+        } //);
 
-        });
-
-        logt("after cb: ", csrList);
+        if (logCsrData) logt("after cb: ", csrList);
 
         // See if we need to continue, we only get max 100...
         // Do as a timeout so we don't recurse?
-        if (crimesCount == 100) {
+        if (allDone == false && csrUpdating == false && crimes.length == 100) {
             setTimeout(getMemberCsrValuesFrom, 250, newestDate);
             return;
         }
 
-        handleCsrListUpdateComplete(last);
+        lastCsrCheckDate = newestDate;
+        handleCsrListUpdateComplete(newestDate);
     }
 
     function getMemberCsrValuesFrom(from) {
-        logt("getMemberCsrValuesFrom from ", from, "|", new Date(Number(from)*1000).toString());
+        if (logCsrData) logt("getMemberCsrValuesFrom from ", from, "|", from, new Date(Number(from)*1000).toString());
 
-        var options = {"from": from, "offset": "0", "sort": "ASC"};
+        var options = {"from": from, "offset": "0", "sort": "ASC", param: from};
         xedx_TornFactionQueryv2("", "crimes", csrCrimesCb, options);
     }
 
     function updateMemberCsrList() {
+        debug("updateMemberCsrList");
         if (trackMemberCsr != true) {
-            alert("Crime Succes Rate tracking not enabled!");
+            debug("Crime Succes Rate tracking not enabled!");
             return;
+        }
+        if (!isOcPage()) {
+            return debug("Not on crimes page, going home");
         }
         if (csrInitializing == true) {
             console.error("Error: can't update while initializing!");
@@ -1739,9 +1773,11 @@
         }
         csrUpdating = true;
         lastCsrCheckDate = GM_getValue(lastCsrDateKey, lastCsrCheckDate);
+        debug("updateMemberCsrList: ", lastCsrCheckDate);
         if (lastCsrCheckDate == 0) {
             if (confirm("The Crime Success Rate table hasn't been initialized. " +
                         "Initialize now?")) {
+                debugger;
                 initializeMemberCsrValues();
                 return;
             }
@@ -1750,16 +1786,20 @@
     }
 
     function checkIfNeedCsrUpdate() {
+        if (!isOcPage()) return;
+        if (trackMemberCsr != true) return;
         let now = new Date().getTime();
         let lastUpd = GM_getValue("lastUpdated", 0);
-        log("REMINDER make message fo this! maybe little msg win when updating/initializing?");
         if (lastUpd == 0) {
             initializeMemberCsrValues();
         }
 
         // TBD: have var for update interval...
-        log("REMINDER check freq interval");
-        updateMemberCsrList();
+        debug("REMINDER check freq interval");
+        let minAgo = minutesAgo(lastUpd);
+        debug("min ago for csr update: ", minAgo);
+        if (minAgo > 10)
+            updateMemberCsrList();
     }
 
     // Reset list from X days back, default 30.
@@ -1777,14 +1817,16 @@
         displaySpinner($("#x-opts-click"), "oc-csr-spinner");
 
         csrInitializing = true;
-        let daysToGet = initCsrDays;
+        let daysToGet = (initCsrDays > 0 && initCsrDays < 60) ? initCsrDays : 14;
         let nowTime = new Date().getTime();
         let fromTime = nowTime - (daysToGet*24*60*60*1000);
         let tornTime = parseInt(fromTime/1000);
 
-        logt("initializeMemberCsrValues from ", new Date(fromTime).toString());
+        logt("initializeMemberCsrValues past", daysToGet, " days, from ", new Date(fromTime).toString());
 
-        var options = {"from": tornTime, "offset": "0", "sort": "ASC"};
+        // quick cheat as a test...
+        lastTornTime = tornTime;
+        var options = {"from": tornTime, "offset": "0", "sort": "ASC", param: tornTime};
         xedx_TornFactionQueryv2("", "crimes", csrCrimesCb, options);
     }
 
@@ -1793,7 +1835,7 @@
     //////////////////////////////////////////////////////////////////////
 
     if (trackMyOc != true) logScriptStart();
-    if (isAttackPage()) return log("Won't run on attack page!");
+    //if (isAttackPage()) return log("Won't run on attack page!");  // Moved to top
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     if (trackMyOc != true) validateApiKey();
@@ -1811,13 +1853,6 @@
 
     callOnHashChange(hashChangeHandler);
 
-    if (!isOcPage()) {
-        if (trackMyOc == true) {
-            getTimeUntilOc();
-        }
-        return log("Not on crimes page, going home");
-    }
-
     // Kick off calls to get fac members in an OC as well
     // as all our current members, diff is those not in an OC.
     debug("Making API calls");
@@ -1829,6 +1864,13 @@
     if (trackMemberCsr == true)
         checkIfNeedCsrUpdate();
 
+    if (!isOcPage()) {
+        if (trackMyOc == true) {
+            getTimeUntilOc();
+        }
+        return log("Not on crimes page, going home");
+    }
+
     callOnContentComplete(handlePageLoad);
 
     // ========================= UI stuff ===============================
@@ -1836,18 +1878,18 @@
     // ============================ New options menu ============================
 
     function handleOptsMenuCb(e) {
+        /*
         let target = $(e.currentTarget);
         let varName = $(this).attr('name');
         let fnName = $(this).attr("data-run");
         let checked = $(this)[0].checked;
-        log("handleOptsMenuCb, varName: ", varName, " checked: ", checked, "fnNme: '", fnName, "'");
 
         GM_setValue(varName, checked);
-
+        */
+        GM_setValue($(this).attr('name'), $(this)[0].checked);
         updateOptions();
-
-        // Check for optional function...
-        if (fnName) doOptionMenuRunFunc(fnName);
+        if ($(this).attr("data-run"))
+            doOptionMenuRunFunc($(this).attr("data-run"));
 
         return false;
     }
@@ -1867,23 +1909,47 @@
         if (href) window.location.href = href;
     }
 
+    function handleOptInputClick(e) {
+        let target = $(e.currentTarget);
+        let fnName = $(this).attr("data-run");
+
+        if (!fnName) {
+            let ip = $(target).find(".oc-type-input");
+            fnName = $(this).attr("data-run");
+        }
+
+        if (fnName) doOptionMenuRunFunc(fnName);
+    }
+
     function handleOptInput(e) {
         let target = $(e.currentTarget);
         let key = $(target).attr("name");
         let value = $(target).val();
+        let fnName = $(this).attr("data-run");
+
+        if (!key || !value) {
+            debugger;
+            let ip = $(target).find(".oc-type-input");
+            if (!key) key = $(ip).attr("name");
+            if (!value) value = $(ip).val();
+            if (!fnName) fnName = $(this).attr("data-run");
+        }
+
+        GM_setValue(key, value);
+        updateOptions();
+
+        if (fnName) doOptionMenuRunFunc(fnName);
     }
 
     function addOptionsHandlers() {
-        log("Adding options handlers: ", $(".oc-type-cb"));
-
         $(".ctrl-wrap").parent().on('click', handleCtrlFuncs);
         $(".oc-type-href").on('click', handleOptHrefClick);
         $(".oc-type-input").on('change', handleOptInput);
+        $(".oc-type-input-has-fn").on('click', handleOptInputClick);
         $(".oc-type-cb").on('change', handleOptsMenuCb);
     }
 
     function getTableRowContent(entry, style) {
-
         let content;
         switch (entry.type) {
             case "title": {
@@ -1893,7 +1959,6 @@
                 content = `<td class="${style}">
                                <span class="oc-type-href ctext ${entry.xttCl}" href="${entry.href}">${entry.name}</span>
                            </td>`;
-                           //<td  class="c34" colspan="2">opt desc?</td>`;
                 break;
             }
             case "cb": {
@@ -1903,15 +1968,15 @@
                                   ` type="checkbox" data-index="${entry.idx}" name="${entry.key}">
                                   <span>${entry.name}</span>
                            </td>`;
-                           //<td  class="c34" colspan="2">opt desc?</td>`;
                 break;
             }
-            // context only, prob will deprecate
             case "input": {
                 let parts = entry.name.split("#");
-                content = `<td class="${style} input-wrap" colspan="2">
+                content = `<td class="${style} input-wrap oc-type-input-has-fn" data-run="${entry.fnName}" colspan="2">
                                <span class="oc-input-text ctext">${parts[0]}</span>
-                               <input id="${entry.id}" type="number" class="oc-type-input ${entry.xttCl}" min="0" max="${entry.max}" name="${entry.key.input}">
+                               <input id="${entry.id}" type="number" class="oc-type-input ${entry.xttCl}"` +
+                                  (entry.fnName ? ` data-run="${entry.fnName}" ` : ``) +
+                              ` min="0" max="${entry.max}" name="${entry.key}">
                                <span class="oc-input-text2 ctext">${parts[1]}</span>
                           </td>`;
                 break;
@@ -1922,20 +1987,16 @@
                                    <span class="oc-type-ctrl ctext ${entry.xttCl}" data-run="${entry.fnName}">${entry.name}</span>
                                </span>
                            </td>`;
-                           //<td  class="c34" colspan="2">opt desc?</td>`;
                 break;
             }
             case "combo": {
                 let parts = entry.name.split("#");
                 content = `<td class="${style} oc-type-combo">
-                               <!-- span class="oc-type-cb" data-run="${entry.fnName}" -->
-                                   <input id="${entry.id.cb}" type="checkbox" class="oc-type-cb ${entry.xttCl}" name="${entry.key.cb}">
-                               <!-- /span -->
+                               <input id="${entry.id.cb}" type="checkbox" class="oc-type-cb ${entry.xttCl}" name="${entry.key.cb}">
                                <span class="oc-input-text ctext">${parts[0]}</span>
                                <input id="${entry.id.input}" type="number" class="oc-type-input" min="0" name="${entry.key.input}">
                                <span class="oc-input-text2 ctext">${parts[1]}</span>
                            </td>`;
-                           //<td  class="c34" colspan="2">opt desc?</td>`;
                 break;
             }
             default: {
@@ -1949,10 +2010,6 @@
     }
 
     function installOptionsPane() {
-
-        log("installOptionsPane");
-
-        // Experiment: create a table, too...
         optionsTable = $(`
               <table id="x-opts-table"><tbody></tbody></table>
         `);
@@ -1985,12 +2042,7 @@
             countLi++;
         }
 
-        // Repeat for CSR opts on right side of table. Replace the 2nd cell?
-        // Or should I just make a one col. table to begin and append to each row?
-        // Need to have empty cells in whichevr column is shorter...
-        // Explicit tr/td: $("tr:nth-child(2) td:nth-child(3)")
-        // or iter: $(optionsTable).find("tbody > tr"), iterate those, replace cell 2...
-
+        // Repeat for CSR opts on right side of table.
         let rowIdx = 1;
         for (let idx=0; idx<csrMenuOptions.length; idx++) {
             let entry = csrMenuOptions[idx];
@@ -2030,6 +2082,7 @@
 
         $("#warn-no-oc").prop('checked', warnOnNoOc);
         $("#notify-soon").prop('checked', notifyOcSoon);
+        $("#soon-min").val(notifyOcSoonMin);
         $("#keep-on-top").prop('checked', keepOnTop);
         $("#disable-tool-tips").prop('checked', disableToolTips);
         $("#scroll-lock").prop('checked', scrollLock);
@@ -2039,6 +2092,7 @@
 
         $("#track-csr").prop('checked', trackMemberCsr);
         $("#csr-min-lvl").val(lowestCsrLevel);
+        $("#init-csr-days").val(initCsrDays);
 
         function addOptsMenuStyles() {
 
@@ -2246,7 +2300,6 @@
                 border-bottom: 1px solid #666;
             }
             #x-csr-table tr td:first-child {
-                /*width:120px;*/
                 justify-content: left;
                 width: 16%;
             }
@@ -2259,16 +2312,11 @@
             .w16p {width: 16%;}
             .xpl15 {padding-left: 15px;}
             .xpl5 {padding-left: 5px;}
+
+            tr.no-oc td, tr.no-oc span {color: yellow !important;}
+            tr.my-id td, tr.my-id span {background-color: rgba(108,195,21,.07);}
         `);
     }
-
-    // for sorting:
-    /*
-    since sorting by row, whole row needs all sort attrs?
-    i.e. <tr data-si="", data-s2="", ... data-s6="">, set attr: "data-s2", for example?
-    tinysort($(list), {attr: sortKey, order: sortOrder});
-    $("#x-csr-table tr"),
-    */
 
     function getMemberCsrArray(id, crimeSelect, roles) {
         const emptyCsrArr = [0, 0, 0, 0, 0, 0];
@@ -2302,49 +2350,46 @@
 
     function getCsrMemberRow(id, crimeSelect) {
         let member = csrList[id];
-        //log("getCsrMemberRow: ", id, csrList[id],  member);
+        let notInOc = (membersNotInOc[id] != undefined);
 
         if (!member || !member.name) {
             log("ERROR!!!");
             debugger;
         }
         let aka = nicknames[crimeSelect];
-        //log("nicknames: ", nicknames, " crime select: ", crimeSelect, " aka:", aka);
         let name = member.name;
 
         let csrEntry = member.crimeCsr[aka];
-
-
         let csrArr = getMemberCsrArray(id, crimeSelect);
-        //log("member ", id, " aka: ", aka, " array: ", csrArr, " *** entry ", csrEntry);
-
-        /*
-        for (const key in obj) {
-          console.log(key + ": " + obj[key]);
-        }
-        */
-
         let defCsr = '?';
-        let newRow = `<tr>
-                          <td class="cc1"><span class='csr-name'>${name} [${id}]</span></td>
-                          <td class="cc2">${csrArr[0]}</td><td class="cc3">${csrArr[1]}</td><td class="cc4">${csrArr[2]}</td>
-                          <td class="cc5">${csrArr[3]}</td><td class="cc6">${csrArr[4]}</td><td class="cc7">${csrArr[5]}</td>
+        let addlClass = (notInOc == true) ? 'no-oc' : '';
+        if (userId == id) addlClass = addlClass + " my-id";
+        let newRow = `<tr id='${id}-tr' class='${addlClass}'>
+                          <td class="cc1"><span class='csr-name' data-sort="${name}">${name} [${id}]</span></td>
+                          <td class="cc2" data-sort="${csrArr[0]}">${csrArr[0]}</td>
+                          <td class="cc3" data-sort="${csrArr[1]}">${csrArr[1]}</td>
+                          <td class="cc4" data-sort="${csrArr[2]}">${csrArr[2]}</td>
+                          <td class="cc5" data-sort="${csrArr[3]}">${csrArr[3]}</td>
+                          <td class="cc6" data-sort="${csrArr[4]}">${csrArr[4]}</td>
+                          <td class="cc7" data-sort="${csrArr[5]}">${csrArr[5]}</td>
                       </tr>`;
 
-        return newRow;
+        return $(newRow);
     }
 
     // Need to set currentCrimeRoles...
     function updateCsrTable(table, crimeSelect) {
         let keys = Object.keys(csrList);
         let body = $(table).find("tbody");
-        $(body).empty();
 
+        $(body).empty();
         for (let idx=0; idx < keys.length; idx++) {
-            let key = keys[idx];
-            let entry = csrList[key];
-            let row = getCsrMemberRow(key, crimeSelect)
+            let id = keys[idx];
+            let entry = csrList[id];
+            let row = getCsrMemberRow(id, crimeSelect);
+
             $(body).append(row);
+
         }
     }
 
@@ -2352,7 +2397,7 @@
         let sel = $("#sel-crime select").find("option:selected");
         GM_setValue("csrSelectVal", $(sel).val());
 
-        let roleList = $(".csr-hdr-span2  [class^='csr-role']");
+        let roleList = $(".csr-hdr-span2  [class*='csr-role']");
         let key1 = $(sel).attr("data-idx");
         let crimeName = $(sel).val();
         let entry = crimeDefsTable[key1];
@@ -2372,16 +2417,25 @@
 
         // Now need to update table, change the cell values...
         // Are the values updated yet?
-        log("handleCrimeSelect, update table for ", crimeName);
+        log("handleCrimeSelect, update table for ", crimeName, "|", $("#x-csr-table"));
         updateCsrTable($("#x-csr-table"), crimeName);
+    }
+
+    function handleCsrHdrSort(e) {
+        let target = $(e.currentTarget);
+        $(".role-btn").removeClass("active");
+        $(target).addClass("active");
+        let idx = $(target).index();
+        sortAndSwapCsrTable(idx+1);
+        return false;
     }
 
     function addCsrHandlers() {
         $("#sel-crime select").change(handleCrimeSelect);
-
-        // Add handlers to each span in hdr for sort...
+        $("span[class*='role-btn']").on('click', handleCsrHdrSort);
 
     }
+
 
     function getCsrHdr() {
         let csrHdr =
@@ -2395,14 +2449,14 @@
                       </div>
                   </div>
                   <div class="csr-hdr-wrap2 xhw2">
-                      <span class='csr-hdr-span2' style="border: 1px solid red;">
-                          <span class="w16p">Roles:</span>
-                          <span id="csr-role1" class="csr-role1 w13p">s13</span>
-                          <span id="csr-role2" class="csr-role2 w13p">s13</span>
-                          <span id="csr-role3" class="csr-role3 w13p">s13</span>
-                          <span id="csr-role4" class="csr-role4 w13p">s13</span>
-                          <span id="csr-role5" class="csr-role5 w13p">s13</span>
-                          <span id="csr-role6" class="csr-role6 w13p">s13</span>
+                      <span class='csr-hdr-span2' style="width: 749px; border: 1px solid red;">
+                          <span class="role-btn" style="width: 124px;">Roles:</span>
+                          <span id="csr-role1" class="csr-role1 role-btn" style="width: 104px;">s13</span>
+                          <span id="csr-role2" class="csr-role2 role-btn" style="width: 104px;"">s13</span>
+                          <span id="csr-role3" class="csr-role3 role-btn" style="width: 104px;"">s13</span>
+                          <span id="csr-role4" class="csr-role4 role-btn" style="width: 104px;"">s13</span>
+                          <span id="csr-role5" class="csr-role5 role-btn" style="width: 104px;"">s13</span>
+                          <span id="csr-role6" class="csr-role6 role-btn" style="width: 104px;"">s13</span>
                       </span>
                   </div>
               </div>
@@ -2432,18 +2486,8 @@
     }
 
     function installCsrTable() {
-        debug("installCsrTable");
         addCsrStyles();
-
-        let testTr = `<tr>
-                          <td class="cc1">User Name</td>
-                          <td class="cc2">junk stuff 1</td><td class="cc3">junk stuff 2</td><td class="cc4">junk stuff 3</td>
-                          <td class="cc5">junk stuff 4</td><td class="cc6">junk stuff 5</td><td class="cc7">junk stuff 6</td>
-                      </tr>`;
-
-
         let csrBody = `<tbody id="csr-tbody"></tbody>`;
-
         csrTable = $(`
               <table id="x-csr-table">
               </table>
@@ -2451,85 +2495,45 @@
 
         $(csrTable).append(getCsrHdr());
         $(csrTable).append(csrBody);
-
         updateCsrTable($(csrTable), defCsrSelectVal);
-
-        log("csr table: ", $(csrTable));
     }
 
-    function updateCsrMembersList(membersArray) {
-        log("updateCsrMembersList: ", membersArray.length, csrList.length);
+    if (false) {
+        // updateMemberCsrList
+        function eraseCsrMembersList(membersArray) {
+            if (logCsrData) log("eraseCsrMembersList: ", membersArray.length, csrList.length);
 
-        for (let idx=0; idx<membersArray.length; idx++) {
-            let member = membersArray[idx];
-            let id = member.id;
-            let name = member.name;
-            if (csrList.id) continue;
+            for (let idx=0; idx<membersArray.length; idx++) {
 
-            /*
-            crimeCsr: {"mm": {},
-                                          "pm": {"Kidnapper": 0, "Muscle": 0, "Picklock": 0},
-                                          "cm": {"Lookout": 0, "Thief": 0},
-                                          "mf": {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0},
-                                          "sf": {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0},
-                                          "lt": {"Techie": 0, "Impersonator": 0, "Negotiator": 0},
-                                          "ht": {"Enforcer": 0, "Muscle": 0},
-                                          "bp": {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0},
-                                          "bb": {"Thief": 0, "Muscle": 0, "Robber": 0},
-                                          "gw": {},
-                                          "ss": {},
-                                          "bc": {}
-                               }
-                               */
-
-            csrList[id] = {name: name};
-            csrList[id].crimeCsr = {};
-            csrList[id].crimeCsr["mm"] = {};
-            csrList[id].crimeCsr["pm"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
-            csrList[id].crimeCsr["mf"] = {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0};
-            csrList[id].crimeCsr["sf"] = {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0};
-            csrList[id].crimeCsr["lt"] = {"Techie": 0, "Impersonator": 0, "Negotiator": 0};
-            csrList[id].crimeCsr["ht"] = {"Enforcer": 0, "Muscle": 0};
-            csrList[id].crimeCsr["bp"] = {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0};
-            csrList[id].crimeCsr["bb"] = {"Thief": 0, "Muscle": 0, "Robber": 0};
-            csrList[id].crimeCsr["gw"] = {};
-            csrList[id].crimeCsr["ss"] = {};
-            csrList[id].crimeCsr["bc"] = {};
-
-            if (false) {
-                let clone = Object.assign({}, csrEntryTemplate);
-                csrList[id] = clone;
-                //log("****New entry for id: ", id, " is []: ", csrList[id]);
-                csrList[id].name = name;
-                //log("****New entry for id: ", id, " is []: ", csrList[id]);
-
-                //log("csrList.id: ", csrList.id, " csrList[id]: ", csrList[id]);
-
-                let len = csrList.length;
-                let keys = Object.keys(csrList);
-                //log("List len: ", len, " keys: ", keys);
-                let key = keys[len-1];
-                let item = csrList[key];
-                let item2 = csrList.key;
-                //log("key: ", key, " item: ", item, " item2: ", item2);
-
-                let entry = csrList[id];
-                //log("entry: ", entry);
+                log("**** ERASING list! 1");
+                let member = membersArray[idx];
+                let id = member.id;
+                let name = member.name;
+                if (csrList.id) continue;
+                csrList[id] = {name: name};
+                csrList[id].crimeCsr = {};
+                csrList[id].crimeCsr["mm"] = {};
+                csrList[id].crimeCsr["pp"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
+                csrList[id].crimeCsr["cm"] = {"Lookout": 0, "Thief": 0};
+                csrList[id].crimeCsr["pm"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
+                csrList[id].crimeCsr["mf"] = {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0};
+                csrList[id].crimeCsr["sf"] = {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0};
+                csrList[id].crimeCsr["lt"] = {"Techie": 0, "Impersonator": 0, "Negotiator": 0};
+                csrList[id].crimeCsr["ht"] = {"Enforcer": 0, "Muscle": 0};
+                csrList[id].crimeCsr["bp"] = {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0};
+                csrList[id].crimeCsr["bb"] = {"Thief": 0, "Muscle": 0, "Robber": 0};
+                csrList[id].crimeCsr["gw"] = {};
+                csrList[id].crimeCsr["ss"] = {};
+                csrList[id].crimeCsr["bc"] = {};
             }
+
+            if (logCsrData) log("eraseCsrMembersList, done: ", csrList.length, csrList);
+
+            writeCsrList();
         }
-
-        log("updateCsrMembersList, done: ", csrList.length, csrList);
-
-        writeCsrList();
     }
 
     // ========================= Table Management ==========================
-
-    // These will be tables that can be detached and re-appended
-    //var membersNotInOcTable;
-    //var optionsTable;
-    //var csrTable;
-    //var activeTable;
 
     function detachTable(tableName) {
         //debug("Detach table: ", tableName, activeTable);
@@ -2554,6 +2558,51 @@
             }
         }
         activeTable = null;
+    }
+
+    // Funky sorting required for tables. Fake out with a UL & LI's instead
+    function doPresort() {
+        $("#x-temp-csr-div").remove();
+        let sortableTable = $("<div  id='x-temp-csr-div' style='display: none; left: top: -8000;'><ul id='x-temp-csr'></ul></div>");
+        $("body").after(sortableTable);
+
+        let nodeList = $("#csr-tbody > tr");
+        for (let idx=0; idx<nodeList.length; idx++) {
+            let wrap = $("<li></li>");
+            let tr = nodeList[idx];
+            $(wrap).append($(tr).clone(true));
+            $("#x-temp-csr").append($(wrap));
+
+        }
+    }
+
+    var nameSortOrder = 1;
+    function sortAndSwapCsrTable(index) {
+        doPresort();
+
+        let sel = (index == 1) ? "tr > td:first-child > span" : `tr td:nth-child(${index})`;
+
+        if (index == 1) {
+            tinysort($("#x-temp-csr > li"),
+                 {selector: sel, order: csrSortOrders[nameSortOrder]});
+            nameSortOrder = nameSortOrder ? 0 : 1;
+        } else {
+            tinysort($("#x-temp-csr > li"),
+                 {selector: sel, attr: 'data-sort', order: csrSortOrders[csrSort]});
+        }
+
+        let newList = $("#x-temp-csr > li > tr");
+        let currList = $("#csr-tbody > tr");
+
+        for (let idx=0; idx<newList.length; idx++) {
+            let trNew = $($(newList)[idx]).detach();
+            $($(currList)[idx]).replaceWith($(trNew));
+        }
+
+        let keepOnTop = true;
+        if (keepOnTop) {
+            $("#csr-tbody").prepend($(`#${userId}-tr`).detach());
+        }
     }
 
     function attachTable(tableName) {
@@ -2581,6 +2630,7 @@
                 addCsrHandlers();
                 handleCrimeSelect();
                 updateCsrTable($("#x-csr-table"), defCsrSelectVal, currentCrimeRoles);
+
                 $("#x-csr-table").animate({"opacity": 1}, 250);
                 break;
             }
@@ -2733,7 +2783,6 @@
 
     // =================== Optional scroll lock on page ====================================
     function toggleScrollLock() {
-        log("Toggle scroll");
         let wrap = $($("#faction-crimes-root > div [class^='wrapper_']")[0]).parent();
         $(wrap).toggleClass("xscrollLock");
     }
@@ -2883,6 +2932,29 @@
         loadMiscStyles();
         addFlexStyles();
         addBorderStyles();
+
+        // 16% could be 124px ?? ... csr header
+        GM_addStyle(`
+            .csr-hdr-span2 {filter: brightness(.6);}
+
+            .role-btn {
+                display: flex;
+                align-content: center;
+                flex-wrap: wrap;
+                background: var(--tabs-bg-gradient);
+                border: none;
+                color: var(--tabs-color);
+                font-weight: 700;
+                font-size: 14px;
+                height: 36px;
+            }
+            .role-btn:hover {
+                box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
+            }
+            .role-btn.active {
+                background: var(--tabs-active-bg-gradient);
+            }
+        `);
 
         GM_addStyle(`
 
