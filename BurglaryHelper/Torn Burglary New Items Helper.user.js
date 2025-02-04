@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.3
-// @description  This script does...
+// @version      0.5
+// @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -19,28 +19,82 @@
 /*eslint no-undef: 0*/
 /*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint no-loop-func: 0*/
+
+/*
+https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn%20Burglary%20New%20Items%20Helper.user.js
+*/
 
 (function() {
     'use strict';
 
     const autoHideBanner = true;
     const alwaysHide = true;
+    const hideCrackingBanner = true;
+
+    const observerTargetSel = "#react-root > div > div.crime-root.burglary-root > div > [class^='currentCrime_'] > [class^='virtualList__']";
+    //const observerTargetSel = "[class*='currentCrime_'] [class^='crimeOptionWrapper_'] div[class*='crimeOptionSection__']";
+    var observerTarget;
 
     const crimeSelector =
-          "[class*='currentCrime_'] [class^='crimeOptionWrapper_'] div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc')";
+          `[class*='currentCrime_'] [class^='crimeOptionWrapper_']
+          div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc'):not('.xskip')`;
+
+    const specialTargets = {
+        'lake': "Net",
+        'foundry': "Zip Ties",
+        'fertilizer': "Zip Ties, Hand Drill",
+        'cottage': "Lockpicks, Zip Ties",
+        'beach': "Net",
+        'mobile': "Dog Treats, Hand Drill",
+        'suburban': "Dog Treats, Hand Drill",
+        'scout': "",
+        'tool': "Lockpicks, Hand Drill",
+        'cabin': "Lockpicks",
+        'cleaning': "Lockpicks",
+        'farm': "Hand Drill, C4",
+        'truckyard': "Dog Treats",
+        'funeral': "Scalpel",
+        'dentist': "Scalpel, Hand Drill",
+        'printing': "Scalpel",
+        'storage': "Card Programmer, C4",
+        'post': "Card Programmer",
+        'facility': "",
+        'market': "Card Programmer, Lockpicks",
+        'ship': "Hand Drill, C4",
+        'factory': "C4",
+  };
 
     function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
+    function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
 
     function hashChangeHandler() {
         log("hashChangeHandler");
+        if (intTimer) clearInterval(intTimer);
+        intTimer = null;
         handlePageLoad();
     }
 
     function pushStateChanged(e) {
         log("pushStateChanged");
+        if (intTimer) clearInterval(intTimer);
+        intTimer = null;
         handlePageLoad();
     }
 
+    function getSpecial(text) {
+        //log("getSpecial: ", text);
+        let keys = Object.keys(specialTargets);
+        for (let idx=0; idx<keys.length; idx++) {
+            if (text.indexOf(keys[idx]) > -1) {
+                //log("Found: ", specialTargets[keys[idx]]);
+                return specialTargets[keys[idx]];
+            }
+        }
+        //log("Not found!");
+    }
+
+    /*
     function checkSkipName(text) {
         if (text.indexOf('lake') > -1) return true;
         if (text.indexOf('foundry') > -1) return true;
@@ -50,9 +104,11 @@
         if (text.indexOf('mobile') > -1) return true;
         if (text.indexOf('suburban') > -1) return true;
         if (text.indexOf('scout') > -1) return true;
+        if (text.indexOf('post') > -1) return true;
 
         if (text.indexOf('truckyard') > -1) return true;
         if (text.indexOf('dentist') > -1) return true;
+        if (text.indexOf('funeral') > -1) return true;
         if (text.indexOf('printing') > -1) return true;
         if (text.indexOf('storage') > -1) return true;
         if (text.indexOf('facility') > -1) return true;
@@ -60,6 +116,7 @@
 
         return false;
     }
+    */
 
     var bannerArea;
     var bannerHeight;
@@ -118,14 +175,20 @@
     function hideBanner(forceHide) {
         log("hideBanner");
         bannerArea = $("[class^='currentCrime'] > [class^='bannerArea']");
+        if (!$(bannerArea).length) {
+            setTimeout(hideBanner, 1000, forceHide);
+            return false;
+        }
 
         if (alwaysHide) {
             $(bannerArea).css("display", "none");
             bannerHidden = true;
-            return;
+            return true;
         }
 
-        if (forceHide && $(bannerArea).length == 0) return setTimeout(hideBanner, 250, true);
+        if (forceHide && $(bannerArea).length == 0) {
+            return setTimeout(hideBanner, 1000, true);
+        }
 
         if (bannerHeight == 0 && $(bannerArea).css("height") > 0) {
             bannerHeight = $(bannerArea).css("height");
@@ -133,6 +196,8 @@
 
         if (forceHide) $(bannerArea).addClass("xshow");
         handleBannerBtn(bannerArea, bannerHeight);
+
+        return true;
     }
 
     function doClickYes(yesBtn, randClass, retries=0) {
@@ -148,7 +213,7 @@
         testBtn = $(sel);
         if ($(testBtn).length) {
             //log("found test btn: ", $(testBtn));
-            if (retries++ < 20) return setTimeout(doClickYes, 250, yesBtn, randClass, retries);
+            if (retries++ < 100) return setTimeout(doClickYes, 50, yesBtn, randClass, retries);
         }
     }
 
@@ -163,7 +228,7 @@
         let yesBtn = $(node).find("[aria-label='Yes, abandon']");
         //log("goFindYesBtn, len: ", $(yesBtn).length, " retries: ", retries);
         if (!$(yesBtn).length) {
-            if (retries++ < 30) return setTimeout(goFindYesBtn, 200, node, retries);
+            if (retries++ < 60) return setTimeout(goFindYesBtn, 50, node, retries);
             return log("too many retries, no btn...");
         }
 
@@ -181,46 +246,38 @@
 
     GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
     function addAbandonHandlers() {
-        //$(crimeSelector).each(function(index, element) {
-
         let list = $(crimeSelector);
         for (let idx=0; idx < $(list).length; idx++) {
             let element = $(list)[idx];
             let text  = $(element).text();
             if (text) {
                 text = text.toLowerCase();
-                //log("Name for element: ", text);
             } else {
-                //log("No text found for ", $(element));
                 continue;
             }
 
-            if ($(element).hasClass("xskip")) continue;
-            if (checkSkipName(text) == true) {
-                if (text.indexOf('scout') > -1)
-                    continue;
+            if ($(element).hasClass("xskip") || text.indexOf('scout') > -1) continue;
+
+            let special = getSpecial(text);
+            if (special && special.length > 0) {
+                let newText = $(element).text() + " (" + special +")";
+                $(element).text(newText);
                 $(element).addClass("xskip");
                 continue;
             }
 
             if (!$(element).hasClass("xbc")) {
-                //log("Adding context handler");
                 $(element).addClass("xbc");
                 $(element).on("contextmenu", function(e) {
                     let target = e.currentTarget;
-                    e.preventDefault(); // Prevent default right-click menu
-
+                    e.preventDefault(); 
                     let copt = $(target).closest(".crime-option");
                     let btn = $(copt).prev();
-
                     let abandonBtn = $(target).find("[class*='closeButton_']")[0];
                     $(abandonBtn).click();
-
                     goFindYesBtn(btn);
                     return false;
                 });
-            } else {
-                log("Already has class: ", $(element));
             }
 
             return false;
@@ -230,11 +287,22 @@
 
     var intTimer;
     function handlePageLoad() {
-        if (!isBurglary()) {
-            return log("Not on burglary, going home: ", location.hash);
+        if (intTimer) clearInterval(intTimer);
+        intTimer = null;
+
+        if (isCracking() && hideCrackingBanner == true) {
+            if (hideBanner() == true) {
+                $("[class^='bannerArea_']").css("display", "none");
+                return;
+            }
         }
+
+        if (!isBurglary()) {
+            return log("Not on burglary or cracking, going home: ", location.hash);
+        }
+
         let list = $(crimeSelector);
-        //if ($(list).length) logt("list: ", $(list));
+
         if (!$(list).length) {
             if (!intTimer) intTimer = setInterval(handlePageLoad, 2000);
             return;
@@ -242,10 +310,11 @@
 
         if (autoHideBanner == true && bannerHidden == false) hideBanner();
 
-        //$(list).css('border', '1px solid green');
-        addAbandonHandlers();
-
-        if (!intTimer) intTimer = setInterval(handlePageLoad, 2000);
+        if (isBurglary()) {
+            addAbandonHandlers();
+            if (intTimer) clearInterval(intTimer);
+            intTimer = setInterval(addAbandonHandlers, 500);
+        }
     }
 
     //////////////////////////////////////////////////////////////////////
