@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.14
+// @version      2.15
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -67,6 +67,9 @@
     var disableToolTips = GM_getValue('disableToolTips', false);
     var scrollLock = GM_getValue('scrollLock', true);
 
+    var facMamberRefreshMins = GM_getValue("facMamberRefreshMins", 15);    // Time minimum between fac member API calls. minutes
+    var csrListRefreshMins = GM_getValue("csrListRefreshMins", 10);        // Time minimum between crimes API calls. minutes
+
     // CSR options
     var trackMemberCsr = GM_getValue("trackMemberCsr", false);
     var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);      // Lowest crime level to look at
@@ -106,7 +109,6 @@
     // doing so on purpose. I sometimes leave in defaults set
     // the wrong way....
     const xedxDevMode = GM_getValue("xedxDevMode", false) && (userId == 2100735);
-    const enableReadyAlert = false;          // Not implemented yet...
     var timestampComplete = GM_getValue("timestampComplete", false);
 
     const recruitingIdx = 0;
@@ -227,9 +229,11 @@
     const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
     const isSortablePage = function () {return (btnIndex() == recruitingIdx || btnIndex() == planningIdx);}
     const sortPage = function (c=sortByTime) {tagAndSortScenarios(c);}
-    const getAvailableCrimes = function () { doFacOcQuery('available'); }
-    const getPlannedCrimes = function () { doFacOcQuery('planning'); }
-    const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
+
+    //const getAvailableCrimes = function () { doFacOcQuery('available'); }
+    //const getPlannedCrimes = function () { doFacOcQuery('planning'); }
+    //const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
+
     const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
     const onPlanningPage = function () {return (btnIndex() == planningIdx);}
     const onCompletedPage = function () {return (btnIndex() == completedIdx);}
@@ -251,6 +255,21 @@
     function secondsAgo(time) {return timeDiff(time).secs;}
     function hoursAgo(time) {return timeDiff(time).hrs;}
 
+    // Format time/date however we want
+    function tm_str(tm) {
+        let dt = new Date(tm*1000);
+        const mediumTime = new Intl.DateTimeFormat("en-GB", {
+          timeStyle: "medium",
+          hourCycle: "h24",
+        });
+
+        const shortDate = new Intl.DateTimeFormat("en-GB", {
+          dateStyle: "short",
+        });
+        const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
+        return formattedDate;
+    }
+
     // Sorting criteria
     const sortByTime = 1;
     const sortByLevel = 2;
@@ -260,83 +279,86 @@
     // Make sure opts and new ones I add are in storage...just a convenience for editing...
     writeOptions();
 
+    // ================== Options available on the options pane ===================
     const menuItems = [
         {name: "-- Options --",                                               type: "title", enabled: true,  validOn: "full"},
 
-        //{name: "Keep Last State", id: "oc-last-state", key: keepLastStateKey, type: "cb",    enabled: false, validOn: "full"},
-
-        {name: "Hide low level crimes",     id: "oc-hide",       key: hideLvlKey,       type: "cb",                    validOn: "context"},
-        {name: "Min Level",       id: "oc-hide-lvl",   key: hideLvlValKey,    type: "input",                 validOn: "context", min: 1, max: 10},
         {name: "Hide recruiting levels beneath #",
              id: {cb: "oc-hide", input: "oc-hide-lvl"}, key: {cb: hideLvlKey, input: hideLvlValKey},
              type: "combo",                                                                                  validOn: "full",  min: 1, max: 10,
-             tooltip: "This will hide crimes<br>on the recruitment page<br>that are less than the<br>specified level. You can show<br>" +
-                      "then again temporarily<br>with the 'Show Hidden<br>Recruits option"},
-        {name: "Show hidden recruits",     id: "show-hidden",                 type: "ctrl",    enabled: true, validOn: "full",
+             tooltip: "This will hide crimes<br>" +
+                      "on the recruitment page<br>" +
+                      "that are less than the<br>" +
+                      "specified level. You can show<br>" +
+                      "then again temporarily<br>" +
+                      "with the 'Show Hidden<br>" +
+                      "Recruits option"},
+        {name: "Show hidden recruits",     id: "show-recruits",                 type: "ctrl",    enabled: true, validOn: "full",
              fnName: "show-hidden",
              tooltip: "Show recruits hidden due to<br>" +
                       "being less than the level<br>" +
                       "configured above, until next refresh."},
-        {name: "Go To Crimes Page",    id: "oc-goto-crimes",                  type: "href",
-             href:"/factions.php?step=your&type=1#/tab=crimes", validOn: "context",
-             tooltip: "Opens the OC page"},
-        {name: "Refresh OC Start Time", id: "oc-refresh",                     type: "ctrl",      fnName: "refresh", validOn: "both",
+        {name: "Refresh OC Start Time", id: "oc-refresh",                     type: "ctrl",      fnName: "refresh", validOn: "full",
              tooltip: "Refreshes your OC start time."},
         {name: "Refresh Members not in an OC", id: "oc-mem-refresh",          type: "ctrl",      fnName: "mem-refresh", validOn: "full",
              tooltip: "Refreshes the table of<br>members not in an OC."},
-        {name: "Pause flashing Alerts (until refresh)",   id: "stop-alert",   type: "ctrl",     enabled: true, validOn: "both",
+
+        {name: "Pause flashing Alerts",   id: "stop-alert",                   type: "ctrl",      enabled: true, validOn: "full",
              fnName: "stop-alert",
              tooltip: "Stop the blinking alerts that<br>" +
                       "indicate you are not in an OC,<br>" +
                       "or that yours is due to start soon."},
 
-        {name: "Timestamp completed OCs", id: "ts-complete",    key: "timestampComplete",   type: "cb",    enabled: true, validOn: "full",
+        {name: "Timestamp completed OCs", id: "ts-complete",                   type: "cb",    enabled: true, validOn: "full",
+             key: "timestampComplete",
              /*fnName: "",*/
              tooltip: "Display the 'executed at' time<br>" +
                       "on the Completed page, which is<br>" +
                       "when the crime was actually<br>" +
                       "started (I think!)."},
 
-        {name: "Display time until your OC on the sidebar", id: "track-my-oc",    key: "trackMyOc",   type: "cb",    enabled: true, validOn: "both",
+        {name: "Display time until your OC on the sidebar",                     type: "cb", enabled: true, validOn: "full",
+             id: "track-my-oc", key: "trackMyOc",
              fnName: "track-my-oc",
              tooltip: "Display a small counter on<br>" +
                       "the sidebar indicating how long<br>" +
                       "until your OC, or a warning if<br>" +
                       "you are not in one (if enabled)."},
-        {name: "Disable Tool Tips", id: "disable-tool-tips",key: "disableToolTips", type: "cb", enabled: true, validOn: "full",
+        {name: "Disable Tool Tips", id: "disable-tool-tips",key: "disableToolTips",      type: "cb", enabled: true, validOn: "full",
              tooltip: "Disables these tooltips.<br>" +
                       "Takes effect after a refresh<br>" +
                       "or reload, and only affects<br>" +
                       "the tooltips on this menu."},
-        {name: "Enable Scroll Lock", id: "scroll-lock",key: "scrollLock", type: "cb", enabled: true, validOn: "full", fnName: "toggleScroll",
+        {name: "Enable Scroll Lock", id: "scroll-lock",key: "scrollLock",                type: "cb", enabled: true, validOn: "full",
+             fnName: "toggleScroll",
              tooltip: "Allows the OC's on each<br>" +
                       "page to scroll independently<br>" +
                       "of the page headers."},
-        {name: "Flash if you are not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb",    enabled: true, validOn: "both",
+        {name: "Flash if you are not in an OC", id: "warn-no-oc",    key: "warnOnNoOc",   type: "cb", enabled: true, validOn: "full",
              tooltip: "Flashes the sidebar display<br>" +
                       "if not in an OC yet."},
         {name: "Flash when your OC is almost ready, # minutes",
-             id: {cb: "notify-soon", input: "soon-min"}, key: {cb: "notifyOcSoon", input: "notifyOcSoonMin"}, type: "combo",
-             enabled: true, validOn: "full",
+             id: {cb: "notify-soon", input: "soon-min"},
+             key: {cb: "notifyOcSoon", input: "notifyOcSoonMin"},                         type: "combo", enabled: true, validOn: "full",
              tooltip: "The sidebar display will<br>" +
                       "flash hen you crime is due<br>" +
                       "to start soon."},
-        {name: "Keep your crime on top when sorting", id: "keep-on-top", key: "keepOnTop",    type: "cb",    enabled: true, validOn: "full",
+        {name: "Keep your crime on top when sorting", id: "keep-on-top", key: "keepOnTop", type: "cb",    enabled: true, validOn: "full",
              tooltip: "On the Planning page, puts<br>" +
                       "your crime on top, then the<br>" +
                       "remaining ones are sorted."},
-        {name: "Notify if a crime at or above level # is available",
-             id: {cb: "oc-min-avail", input: "oc-min-lvl"}, key: {cb: warnMinLvlKey, input: warnMinLvlValKey}, type: "combo", enabled: true,
-             validOn: "full",  min: 1, max: 10,
+        {name: "Notify if a crime at or above level # is available",                       type: "combo", enabled: true, validOn: "full",
+             id: {cb: "oc-min-avail", input: "oc-min-lvl"},
+             key: {cb: warnMinLvlKey, input: warnMinLvlValKey},
+             min: 1, max: 10,
              tooltip: "TBD TBD TBD<br>" +
                       "If a crime above the specified<br>" +
                       "level becomes available on the<br>" +
                       "recruiting page, a notification<br>" +
                       "is sent."},
+        ];
 
-        // TBD: "show hidden" context opt, recruit, see "hide beneath"...
-    ];
-
+    // ======================= Right-hand side: CSR options =======================
     const csrMenuOptions = [
         {name: "Track Member CSR", id: "track-csr",key: "trackMemberCsr", type: "cb", enabled: true, validOn: "full", /*fnName: "toggleCsr",*/
              tooltip: "Maintains a list of each fac<br>" +
@@ -369,6 +391,31 @@
              tooltip: "Erases all saved CSR values.<br>"},
         ];
 
+    // =========================== context menu only ==============================
+    var showExperimental = false;
+    const contextMenuItems = [
+        {name: "Refresh OC Start Time",   id: "oc-refresh", type: "ctrl", fnName: "refresh",
+             tooltip: "Refreshes your OC start time."},
+        {name: "Pause Flashing Alerts", id: "stop-alert", type: "ctrl", enabled: true, fnName: "stop-alert",
+             tooltip: "Stop the blinking alerts that<br>" +
+                      "indicate you are not in an OC,<br>" +
+                      "or that yours is due to start soon."},
+        {name: "Go To Crimes Page", id: "oc-goto-crimes", type: "href",
+             href:"/factions.php?step=your&type=1#/tab=crimes",
+             tooltip: "Opens the OC page"},
+        {name: "Hide low level crimes", id: "oc-hide", key: hideLvlKey, type: "cb", enabled: showExperimental},
+        {name: "Min Level", id: "oc-hide-lvl", key: hideLvlValKey, type: "input",  min: 1, max: 10, enabled: showExperimental},
+
+        {name: "Notify on level avail", id: "oc-min-avail", key: warnMinLvlKey,  type: "cb", enabled: showExperimental, min: 1, max: 10,
+             tooltip: "If a crime above the specified<br>" +
+                      "level becomes available on the<br>" +
+                      "recruiting page, a notification<br>" +
+                      "is sent."},
+        {name: "Min avail Level", id: "oc-min-lvl", key: warnMinLvlValKey, type: "input", min: 1, max: 10, enabled: showExperimental},
+
+        // TBD: "show hidden" context opt, recruit, see "hide beneath"...
+    ];
+
     function writeOptions() {
         //GM_setValue(keepLastStateKey, keepLastState);
         GM_setValue(hideLvlKey, hideLvl);
@@ -392,7 +439,6 @@
     }
 
     function updateOptions(doWriteOpts=true) {
-        //keepLastState = GM_getValue(keepLastStateKey, keepLastState);
         hideLvl = GM_getValue(hideLvlKey, hideLvl);
         hideLvlVal = GM_getValue(hideLvlValKey, hideLvlVal);
 
@@ -412,8 +458,6 @@
         lowestCsrLevel = GM_getValue("lowestCsrLevel", lowestCsrLevel);
         initCsrDays    = GM_getValue(initCsrDaysKey, initCsrDays);
 
-        // TBD: add new ones here
-        //$("#oc-last-state").prop('checked', keepLastState);
         $("#oc-hide").prop('checked', hideLvl);
         $("#oc-hide-lvl").val(hideLvlVal);
 
@@ -446,7 +490,7 @@
         validateApiKey();
         startMyOcTracking();
 
-        /* Don't return, other things may still run...
+        /* Don't return yet, other things may still run...
         if (!isFactionPage()) {
             addStyles();
             return;
@@ -488,6 +532,72 @@
         let timeUntil = parseOcTime(time);
         return timeUntil ? (+timeUntil.d * 24 * 60 + +timeUntil.h * 60 + +timeUntil.m) : 0;
     }
+
+    // =================== context menu and options pane run funcs ===============================
+
+    // Figure out what here is really needed...
+    // simplify mini context menu....
+
+    // Run a function from context menu/options pane
+    function doOptionMenuRunFunc(runFunc) {
+        switch (runFunc) {
+            case "refresh": {  // Refresh OC time ready, from context menu
+                $("#oc-tracker-time").text("Please wait...");
+                $("#oc-tracker-time").addClass("blink182");
+                myCrimeId = 0;
+                myCrimeStartTime = 0;
+                setTimeout(getMyNextOcTime, 2500, 'available');
+                break;
+            }
+            case "mem-refresh": {
+                refreshmembersNotInOc();
+                break;
+            }
+            case "xedx-test": { // Whatever I feel like testing...
+                toggleOcSoon();
+                break;
+            }
+            case "stop-alert": {
+                stopAllAlerts();
+                setAlertsPaused();
+                break;
+            }
+            case "show-hidden":
+                // TBD
+                debug("Show hidden crimes TBD... ");
+                showHiddenRecruits();
+                break;
+
+            case "track-my-oc":
+                onOcTrackerChange();
+                break;
+
+            case "toggleScroll":
+                toggleScrollLock();
+                break;
+
+            case "init-csr":
+                // Flash "Busy..." in grre somewhere?
+                clearCsrList();
+                initializeMemberCsrValues();
+                break;
+
+            case "clear-csr":
+                clearCsrList();
+                break;
+
+            case "upd-csr":
+                updateMemberCsrList();
+                break;
+
+            default:
+                debug("ERROR: Run func ", runFunc, " not recognized!");
+                break;
+        }
+
+    }
+
+    // ================ OC Tracker and it's context menu related functions ===============
 
     function setTrackerTime(time) {
         $("#oc-tracker-time").removeClass("blink182");
@@ -658,70 +768,7 @@
         getMyNextOcTime('available');
     }
 
-    // ============================== context menu ===============================
-
-    // Figure out what here is really needed...
-    // simplify mini context menu....
-
-    // Run a function from context menu
-    function doOptionMenuRunFunc(runFunc) {
-        switch (runFunc) {
-            case "refresh": {  // Refresh OC time ready, from context menu
-                $("#oc-tracker-time").text("Please wait...");
-                $("#oc-tracker-time").addClass("blink182");
-                myCrimeId = 0;
-                myCrimeStartTime = 0;
-                setTimeout(getMyNextOcTime, 2500, 'available');
-                break;
-            }
-            case "mem-refresh": {
-                refreshmembersNotInOc();
-                break;
-            }
-            case "xedx-test": { // Whatever I feel like testing...
-                toggleOcSoon();
-                break;
-            }
-            case "stop-alert": {
-                stopAllAlerts();
-                setAlertsPaused();
-                break;
-            }
-            case "show-hidden":
-                // TBD
-                debug("Show hidden crimes TBD... ");
-                showHiddenRecruits();
-                break;
-
-            case "track-my-oc":
-                onOcTrackerChange();
-                break;
-
-            case "toggleScroll":
-                toggleScrollLock();
-                break;
-
-            case "init-csr":
-                // Flash "Busy..." in grre somewhere?
-                clearCsrList();
-                initializeMemberCsrValues();
-                break;
-
-            case "clear-csr":
-                clearCsrList();
-                break;
-
-            case "upd-csr":
-                updateMemberCsrList();
-                break;
-
-            default:
-                debug("ERROR: Run func ", runFunc, " not recognized!");
-                break;
-        }
-
-    }
-
+    // Handles input changes on context menu (checkboxes, fields)
     function processMiniOpCb(e) {
         e.stopPropagation();
         let node = $(e.currentTarget);
@@ -760,6 +807,7 @@
         // TBD - any timed funcs to stop??
     }
 
+    // Called to enable/disable the sidebar tracker
     function onOcTrackerChange() {
         debug("onOcTrackerChange: ", trackMyOc, " saved: ", GM_getValue("trackMyOc", "not found"));
         if (trackMyOc == true) {
@@ -770,6 +818,7 @@
         }
     }
 
+    // Called when context menu list item clicked, like an href or function link
     function handleTrackerContextClick(event) {
         let target = $(event.currentTarget);
         let menuId = $(target).attr("id");
@@ -812,59 +861,59 @@
         return false;
     }
 
+    // Install sidebar OcTracker only options
     function installOcTrackerContextMenu() {
-        debug("installOcTrackerContextMenu");
-
-        let myMenu = `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;">
-                          <ul ></ul>
-                      </div>`;
-
+        let myMenu =
+            `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;"><ul ></ul></div>`;
 
         $('body').append(myMenu);
         $('#ocTracker').on('contextmenu', handleTrackerContextClick);
         $("#ocTracker").css("cursor", "pointer");
 
-        for (let idx=0; idx<menuItems.length; idx++) {
-            let opt = menuItems[idx];
+        for (let idx=0; idx<contextMenuItems.length; idx++) {
+            let opt = contextMenuItems[idx];
             if (opt.enabled == false) continue;
-            if (opt.validOn != "context" && opt.validOn != "both") continue;
 
             let sel = '#' + opt.id;
-            let optionalClass = (idx == 0) ?
-                "opt-first-li" :
-            (idx == menuItems.length - 1) ? "opt-last-li" : "";
+            let optionalClass =
+                (idx == 0) ? "opt-first-li" :
+                (idx == contextMenuItems.length - 1) ? "opt-last-li" : "";
 
-            let inputLine = (opt.type == "cb") ?
-               `<input type="checkbox" data-index="${idx}" name="${opt.key}">` :
-               (opt.type == 'input') ?
-               `<input type="number"   id="oc-opt-lvl" min="1" max="15">` :
-               (opt.type == 'href') ?
-                `<a href="${opt.href}"></a>` :
-               (opt.type == 'ctrl') ?
-                `<span class="xeval" data-run="${opt.fnName}"></span>` :
-                null;
-
-            if (!inputLine) {
-                debugger;
-                continue;
+            let inputLine;
+            switch (opt.type) {
+                case "cb":
+                    inputLine = `<input type="checkbox" data-index="${idx}" name="${opt.key}">`;
+                    break;
+                case "input":
+                    inputLine = `<input type="number" id="oc-opt-lvl" min="1" max="15">`;
+                    break;
+                case "href":
+                    inputLine = `<a href="${opt.href}"></a>`;
+                    break;
+                case "ctrl":
+                    inputLine = `<span class="xeval" data-run="${opt.fnName}"></span>`;
+                    break;
+                default:
+                    continue;
             }
 
-            let ocTrackerLi = `<li id="${opt.id}" class="xmed-li-rad ${optionalClass}">${inputLine}<span>${opt.name}</span></li>`;
+            let ocTrackerLi = `<li id="${opt.id}" class="xmed-li-rad ${optionalClass}">
+                                  ${inputLine}
+                                  <span>${opt.name}</span>
+                              </li>`;
             $("#ocTracker-cm > ul").append(ocTrackerLi);
 
-            if (opt.type == "input") $(sel).find("input").css("margin-right", "8px");
+            //if (opt.type == "input") $(sel).find("input").css("margin-right", "8px");
         }
 
         $("#oc-opt-hide").prop('checked', hideLvl);
         $("#oc-opt-lvl").val(hideLvlVal);
-
         $("#warn-no-oc").prop('checked', warnOnNoOc);
-        //$("#notify-soon").prop('checked', notifyOcSoon);
-        //$("#soon-min").val(notifyOcSoonMin);
 
         $("#ocTracker-cm > ul > li > span").on('click', handleTrackerContextClick);
         $("#ocTracker-cm > ul > li > input").on('change', processMiniOpCb);
 
+        // Close on click outside of menu
         $(document).click(function(event) {
             if (!$(event.target).closest('#ocTracker-cm').length) {
                 hideMenu();
@@ -872,22 +921,12 @@
         });
     }
 
-    // ============================ end context stuff ============================
-
     var ocTrackerStylesInstalled = false;
     function getMyOcTrackerDiv() {
-        if (!ocTrackerStylesInstalled) {
-            installTrackerStyles();
-        }
-
-        let myDiv = `
-            <div id="ocTracker">
-               <span id="oc-tracker-time">00:00:00</span>
-           </div>
-        `;
-
-        return myDiv;
+        if (!ocTrackerStylesInstalled) installTrackerStyles();
+        return `<div id="ocTracker"><span id="oc-tracker-time">00:00:00</span></div>`;
     }
+
 
     // ======================== Sorting portion of script ===========================
 
@@ -902,6 +941,7 @@
         //logCurrPage();
         switch (btnIndex()) {
             case recruitingIdx:
+                log("On recruiting page...");
                 setSortCaret(recruitSortOrder);
                 sortPage(sortByLevel);
                 $("#oc-opt-wrap").addClass("recruit-tab");
@@ -914,11 +954,11 @@
                 sortPage(sortByTime);
                 return;
             case completedIdx:
-                setSortCaret(completedSortOrder);
+                //setSortCaret(completedSortOrder);
                 $("#oc-opt-wrap").removeClass("recruit-tab");
                 $("#show-hidden").addClass("xhide");
-                getCompletedCrimes();
-                installCompletedPageButton(true);
+                //getCompletedCrimes();
+                //installCompletedPageButton(true);
                 return;
         }
 
@@ -1001,31 +1041,45 @@
     }
 
     function hideShowByLevel() {
+        //log("hideShowByLevel, paused: ", hideLvlPaused);
         let lvlList = $(".sort-lvl");
+
+        /*
         if (hideLvl == false || hideLvlPaused == true) {
-            $(lvlList).css("display", "");  //"block");
+            $(lvlList).css("display", "block");  //"block");
             tagAndSortScenarios(sortByLevel);
+            let tab = getRecruitingTab();
+            $(tab).text("Recruiting");
             return;
         }
+        */
 
-        if (!hideLvlVal || hideLvlVal < 1) return log("hideShowByLevel Error: no level set to hide...");
+        log("hideShowByLevel, paused: ", hideLvlPaused, ", sorting.");
+        log("List: ", $(lvlList));
+
+        //if (!hideLvlVal || hideLvlVal < 1) return log("hideShowByLevel Error: no level set to hide...");
         let countHidden = 0;
+
         for (let idx=0; idx<$(lvlList).length; idx++) {
             let panel = $(lvlList)[idx];
             let lvl = $(panel).attr("data-sort");
-            if (lvl < hideLvlVal) {
-                if (hideLvlPaused != true)
-                    $(panel).css("display", "none");
+            if (hideLvlVal > 0 && lvl < hideLvlVal && hideLvlPaused != true) {
+                $(panel).css("display", "none");
                 $(panel).addClass("xhidden");
                 countHidden++;
-            } else
-                $(panel).css("display", "");
+                log("Hiding panel ", $(panel));
+            } else {
+                $(panel).removeClass("xhidden");
+                $(panel).css("display", "block");
+                log("Showing panel ", $(panel));
+            }
             tagAndSortScenarios(sortByLevel);
         }
 
         let tab = getRecruitingTab();
         let text = "Recruiting";
-        if (countHidden > 0) text = text + " (" + countHidden + " hidden)";
+        if (hideLvlPaused != true)
+            if (countHidden > 0) text = text + " (" + countHidden + " hidden)";
         $(tab).text(text);
     }
 
@@ -1062,20 +1116,23 @@
                     break;
                 }
                 case sortByLevel: {
+                    let unHide = (hideLvlPaused == true && onRecruitingPage());
                     let elem = $(scenario).find("[class^='wrapper_'] > div > div > div > [class^='textLevel_'] [class^='levelValue_']");
                     if ($(elem).length) {
                         sortVal = parseInt($(elem).text());
                         $(scenario).parent().addClass("sort-lvl");
 
-                        if (hideLvl == true && hideLvlVal > 0) {
+                        if (!unHide && hideLvl == true && hideLvlVal > 0) {
                             if (hideLvlVal > sortVal) {
                                 countHidden++;
                                 $(scenario).parent().css("display", "none");
                                 $(scenario).parent().addClass("xhidden");
                             }
                         }
-                        else
-                            $(scenario).parent().css("display", "");
+                        else {
+                            $(scenario).parent().removeClass("xhidden");
+                            $(scenario).parent().css("display", "block");
+                        }
                     }
                     break;
                 }
@@ -1111,20 +1168,28 @@
     }
     */
 
-    function showHiddenRecruits() {
-        debug("showHiddenRecruits: ", $(".xhidden"));
+    var inUnhideCb = false;
+    function resetCbFlag() {inUnhideCb = false;}
+
+    function showHiddenRecruits(e) {
+        debug("showHiddenRecruits: ", inUnhideCb, " list: ", $(".xhidden"), " e: ", e);
+
+        inUnhideCb = true;
+        setTimeout(resetCbFlag, 1000);
         if (hideLvlPaused == false) {
             debug("Showing...");
-            $(".xhidden").css('display', '');
-            hideLvlPaused = false;
-            $("#show-hidden").text("Hide hidden recruits");
+            //$(".xhidden").css('display', 'block');
+            hideLvlPaused = true;
+            $("#show-recruits").text("Hide hidden recruits");
+            debug("Added style: ", $(".xhidden"));
         } else {
             debug("Hiding...");
-            $(".xhidden").css('display', 'none');
-            hideLvlPaused = true;
-            $("#show-hidden").text("Show hidden recruits");
+            //$(".xhidden").css('display', 'none');
+            hideLvlPaused = false;
+            $("#show-recruits").text("Show hidden recruits");
         }
         hideShowByLevel();
+        return false;
     }
 
     function addRecruitTabHandler() {
@@ -1135,34 +1200,6 @@
         $(tab).on('contextmenu', showHiddenRecruits);
 
         displayHtmlToolTip($(tab), "Right click to show<br>hidden crimes. Refresh<br>to hide again.", "tooltip4");
-    }
-
-    // ============================== CSV output support ========================
-
-    // This may be moot??? CSV still useful, but now is sorted...
-    function installCompletedPageButton(visible=false, retries=0) {
-        const csvBtn = `<span id="xcsvbtn" class="csv-btn">CSV</span>`;
-
-        if ($("#xcsvbtn").length == 0) {
-            // Should just start a mutation observer...
-            // Added callWhenElementExistsEx() for just that purpose
-            let cBtn = getCompletedTab();
-            if (!$(cBtn).length) {
-                if (retries++ < 20) return setTimeout(installCompletedPageButton, 200, visible, retries);
-                return log("ERROR: didn't find the Completed button!");
-            }
-            $(cBtn).append(csvBtn);
-            $("#xcsvbtn").on('click', writeCompletedCrimesAsCsv);
-            displayHtmlToolTip($("#xcsvbtn"),
-                           "Click here to view and save data<br>" +
-                           "in CSV format, to import into any<br>" +
-                           "spreadsheet program later.", "tooltip4");
-        }
-
-        if (visible == true)
-            $("#xcsvbtn").removeClass("vhide");
-        else
-            $("#xcsvbtn").addClass("vhide");
     }
 
     function initialScenarioLoad(retries=0) {
@@ -1189,156 +1226,9 @@
         }
     }
 
-    // Build a CSV to download, as well as an HTML table to display
-    const crimesTable = "<div><table id='comp-crimes'><tbody></tbody></table></div>";
-    const filter = function(t) {let tmp = t.toString().replace(/(\r\n|\n|\r)/gm, "");return tmp.trim();}
-
-    function writeCompletedCrimesAsCsv(e) {
-        if (e) e.preventDefault();
-        if (!completedCrimesArray) return false;
-
-        // Find max # "slots" before making header
-        let numSlots = 0;
-        completedCrimesArray.forEach(function (crime, index) {
-            let tmp = crime.slots.length;
-            if (tmp > numSlots) numSlots = tmp;
-        });
-
-        let csvHdr = "CrimeID, Name, Difficulty, Status, CreatedAt, InitiatedAt, ReadyAt, ExpiredAt, " +
-                  "Money, Items, Respect";
-        let csvHdrHtml = csvHdr;
-        for (let idx=0; idx<numSlots; idx++) {
-            csvHdr += ", Slot" + (idx+1) + ", Position, Success ";
-            csvHdrHtml += ", Slot" + (idx+1);
-        }
-
-        let fullCsvText = csvHdr + "\r\n";
-
-        let theTable = $(crimesTable);
-        crimesAddHdr(theTable, csvHdrHtml);
-
-        completedCrimesArray.forEach(function (crime, index) {
-            let rewards = crime.rewards;
-
-            let textLine =
-                `${crime.id},'${filter(crime.name)}',${filter(crime.difficulty)},${filter(crime.status.trim())},` +
-                `${filter(toCsvDateStr(crime.created_at * 1000))},${filter(toCsvDateStr(crime.initiated_at * 1000))},` +
-                `${filter(toCsvDateStr(crime.ready_at * 1000))},${filter(toCsvDateStr(crime.expired_at * 1000))},` +
-                `${filter(rewards.money)},${filter(rewards.items.length)},${filter(rewards.respect)}`;
-
-            let slots = crime.slots;
-            slots.forEach(function (slot, index) {
-                let name = facMembersJson[slot.user_id];
-                let slotTxt = `,  ${name} [${slot.user_id}], ${filter(slot.position)}, ${slot.success_chance}%`;
-                textLine += slotTxt;
-            });
-
-            crimesAddRow(theTable, textLine);
-            fullCsvText += (textLine + "\r\n");
-        });
-
-        // Display/download
-        var newWin = open("", "_blank",
-                  "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=760,height=450");
-
-        const style = newWin.document.createElement("style");
-        style.textContent = `
-            #comp-crimes {
-                border-collapse: collapse;
-                tr:nth-child(even) {background-color: #f2f2f2;}
-            }
-            #comp-crimes th {
-                padding: 2px 15px 2px 15px;
-                text-align: center;
-                border: 2px solid black;
-                background-color: #04AA6D;
-                color: white;
-            }
-            #comp-crimes td {
-                padding: 2px 15px 2px 15px;
-                text-align: left;
-                border: 1px solid black;
-            }
-        `;
-
-        newWin.document.head.appendChild(style);
-        newWin.document.body.innerHTML = $(theTable).html();
-
-        downloadCsvData(fullCsvText, newWin);
-        newWin.focus();
-
-        return false;
-
-        // =============================== local functions ======================
-        function closeMiniWin(win) {
-            win.close()
-        }
-
-        function toCsvDateStr(date) {
-            const mediumTime = new Intl.DateTimeFormat("en-GB", {
-              timeStyle: "medium",
-              hourCycle: "h24",
-            });
-            const shortDate = new Intl.DateTimeFormat("en-GB", {
-              dateStyle: "short",
-            });
-            const formattedDate = mediumTime.format(date) + "-" + shortDate.format(date);
-            return formattedDate;
-        }
-
-        function getFilename() {
-            let now = new Date();
-            const formattedDate = toCsvDateStr(now);
-
-            let filename = "CompletedCrimes_" + formattedDate + ".csv";
-            filename.replaceAll(' ', '%20');
-
-            debug("formattedDate: ", formattedDate, " filename: ", filename);
-            return filename;
-        }
-
-        function downloadCsvData(data, theWin) {
-            let blobx = new Blob([data], { type: 'text/plain' }); // ! Blob
-            let elemx = theWin.document.createElement('a');
-            elemx.href = theWin.URL.createObjectURL(blobx); // ! createObjectURL
-            let filename = getFilename();
-            elemx.download = filename;
-            elemx.style.display = 'none';
-            document.body.appendChild(elemx);
-            elemx.click();
-            document.body.removeChild(elemx);
-        }
-
-        function crimesAddRow(table, data) {
-            let cells = data.split(',');
-            let row = '<tr>';
-            cells.forEach(function (cellText, idx) {
-                row += `<td>${cellText}</td>`;
-            });
-            row += "</tr>";
-            let body = $(table).find("tbody");
-            $(table).find("tbody").append(row);
-        }
-
-        function crimesAddHdr(table, data) {
-            let cells = data.split(',');
-            let row = '<tr>';
-            cells.forEach(function (cellText, idx) {
-                if (cellText.indexOf("Slot") > -1)
-                    row += `<th colspan="3">${cellText}</th>`;
-                else
-                    row += `<th>${cellText}</th>`;
-            });
-            row += "</tr>";
-            let body = $(table).find("tbody");
-            $(table).find("tbody").append(row);
-        }
-    }
-
     // ========================== Entry point once page loaded ============================
 
     function handlePageLoad(node) {
-
         debug("handlePageLoad");
         if (!isOcPage()) {
             //if (trackMyOc == true) { getTimeUntilOc(); }
@@ -1370,8 +1260,9 @@
         }
 
         addPageBtnHandlers();
-        installCompletedPageButton();
-        //logCurrPage();
+
+        // Save completed crimes as CSV, no longer enabled...
+        //installCompletedPageButton();
 
         if (trackMyOc == true) { getTimeUntilOc(); }
 
@@ -1380,13 +1271,15 @@
         function onScrollTimer() {
             switch (btnIndex()) {
                 case recruitingIdx:
+                    log("Recruit scroll timer.");
+                    //hideShowByLevel();
                     tagAndSortScenarios(sortByLevel);
                     break;
                 case planningIdx:
                     tagAndSortScenarios(sortByTime);
                     break;
                 case completedIdx:
-                    getCompletedCrimes();
+                    //getCompletedCrimes();
                     break;
                 default:
                     break;
@@ -1398,139 +1291,11 @@
     //
     var membersNotInOc = {};
     var membersNotInOcReady = false;
-    var completedCrimesSynced = false;
-    var completedScenarios;
-    var completedScenariosLastLen = 0;
+    //var completedCrimesSynced = false;
+    //var completedScenarios;
+    //var completedScenariosLastLen = 0;
     var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
 
-    function getCompletedCrimes() {
-        let daysToGet = 10;
-        let nowTime = new Date().getTime();
-        // Note: this is in epoch time, to get Torn time,
-        // need to divide by 1,000. Or, divide the nowTime
-        // first and don't multiply by 1000.
-        let fromTime = nowTime - (daysToGet*24*60*60*1000);
-        let tornTime = parseInt(fromTime/1000);
-        if (cacheCompletedCrimes == true && completedCrimesArray) {
-            debug("using cached version..."); //, completedCrimesArray);
-            completedCrimesCb(completedCrimesArray);
-        } else {
-            debug("Do comp crime query, from: ", new Date(fromTime).toString());
-            doFacOcQuery('completed', tornTime);
-        }
-    }
-
-    // 'crimes' is parsed array of JSON crime objects
-    function completedCrimesCb(crimes) {
-        completedCrimesArray = crimes;
-        debug("Completed crimes CB: ", crimes ? crimes.length : 0);
-
-        if (!crimes) {
-            console.error("No crimes array!");
-            debugger;
-            return;
-        }
-
-        if (logFullApiResponses == true) {
-            crimes.forEach(function (crime, index) {
-                logCompletedCrime(crime);
-            });
-        } else {
-            //debug("Not logging details, 'logFullApiResponses' is off.");
-        }
-
-        if (btnIndex() == completedIdx) {
-            syncCompletedCrimeData();
-        }
-
-        // Local functions..sync adds timestamps to completed crimes -
-        // which is no longer needed, Torn now sorts...
-        function syncCompletedCrimeData(retries=0) {
-            completedScenarios = $("[class^='scenario_']");
-            debug("syncCompletedCrimeData, count: ",
-                  $(completedScenarios).length,
-                  " retries: ", retries);
-
-            // Scroll will call us anyways, don't retry too much.
-            if (!$(completedScenarios).length) {
-                if (retries++ < 10) return setTimeout(syncCompletedCrimeData, 250, retries);
-                return debug("Too many sync retries");
-            }
-
-            if (timestampComplete == true) {
-                for (let idx=0; idx < $(completedScenarios).length; idx++) {
-                    let scenario = $(completedScenarios)[idx];
-
-                    let crime = completedCrimesArray[idx];
-                    if (crime.status.toLowerCase() == 'failure') {
-                        log("Crime failed! ", $(scenario), crime);
-                        continue;
-                    }
-
-                    let desc = getCompCrimeDesc(idx);
-                    if (!desc) {
-                        log("No description! ", $(scenario), crime);
-                        continue;
-                    }
-
-                    let rewardDiv = $(scenario).find("[class^='rewardContainer_'] [class^='reward_'] ");
-                    if (!$(rewardDiv).length) continue; // Also indication of failure
-
-                    let prevDiv = $(rewardDiv).find(".xsort");
-                    if ($(prevDiv).length) continue;
-
-                    let item = $(rewardDiv).find("[class^='rewardItem_']")[0];
-                    let className = "";
-                    let classListRaw = $(item).attr('class');
-                    if (!classListRaw) {
-                        debug("Error: missing class list! ", $(item));
-                        //debugger;
-                    }
-                    let classList = classListRaw ? classListRaw.split(/\s+/) : null;
-                    if (classList) className = classList[0];
-                    let newDiv = `<div class="${className} xsort">${desc}</div>`;
-                    $(rewardDiv).append(newDiv);
-                }
-            }
-        }
-
-        // Format time/date however we want
-        function tm_str(tm) {
-            //log("tm_str: ", tm, new Date(tm*1000).toString());
-            let dt = new Date(tm*1000);
-            const mediumTime = new Intl.DateTimeFormat("en-GB", {
-              timeStyle: "medium",
-              hourCycle: "h24",
-            });
-            //log("time: ", mediumTime.format(dt));
-
-            const shortDate = new Intl.DateTimeFormat("en-GB", {
-              dateStyle: "short",
-            });
-            //log("Date: ", shortDate.format(dt));
-            const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
-            //log("formatted: ", formattedDate);
-            return formattedDate;
-        }
-
-        // Just for logging to dev console
-        function logCompletedCrime(crime) {
-            log("Completed crime, id: ", crime.id, " status: ", crime.status,
-                " created: ", tm_str(crime.created_at), " initiated: ", tm_str(crime.initiated_at),
-                " ready at: ", tm_str(crime.ready_at), " executed_at: ", tm_str(crime.executed_at));
-        }
-
-        // Build the span to display in a div on completed crime panel
-        function getCompCrimeDesc(idx) {
-            let crime = completedCrimesArray[idx];
-            //log("status: ", crime.status, " executed_at: ", crime.executed_at);
-            if (!crime.executed_at) return;
-            //let payout = asCurrency(crime.rewards.money);
-            let ready = tm_str(crime.executed_at);
-            let span = `<span class="oc-comp-span1">Completed:</span><span class="oc-comp-span2">${ready}</span>`;
-            return span;
-        }
-    }
     // =================== Get fac members, update list of not in OC =============
 
     // Build list of members not in an OC, and if csr is enabled,
@@ -1573,8 +1338,8 @@
     function getFacMembers(forced=false) {
         if (forced == false) {
             if (!isFactionPage()) return debug("getFacMembers: not on fac page");
-            if (lastFacMemberUpd > 0 && minutesAgo(lastFacMemberUpd) < 15)
-                return debug("getFacMember: only ", minutesAgo(lastFacMemberUpd), " minutes ago!");
+            if (lastFacMemberUpd > 0 && minutesAgo(lastFacMemberUpd) < facMamberRefreshMins)
+                return debug("getFacMember: only ", minutesAgo(lastFacMemberUpd).toFixed(2), " minutes ago!");
         }
         xedx_TornFactionQueryv2("", "members", facMemberCb);
         lastFacMemberUpd = new Date().getTime(); // move to CB
@@ -1736,7 +1501,7 @@
                     csrList[id].crimeCsr[aka][slot.position] = slot.success_chance;
             }
             if (missingCsr > 0) writeCsrList();
-        } //);
+        }
 
         if (logCsrData) logt("after cb: ", csrList);
 
@@ -1794,15 +1559,13 @@
             initializeMemberCsrValues();
         }
 
-        // TBD: have var for update interval...
-        debug("REMINDER check freq interval");
         let minAgo = minutesAgo(lastUpd);
-        debug("min ago for csr update: ", minAgo);
-        if (minAgo > 10)
+        debug("min ago for csr update: ", minAgo.toFixed(2));
+        if (minAgo > csrListRefreshMins)
             updateMemberCsrList();
     }
 
-    // Reset list from X days back, default 30.
+    // Reset list from X days back, default 14.
     // Will be notified when complete.
     function initializeMemberCsrValues() {
         if (trackMemberCsr != true) {
@@ -1824,7 +1587,7 @@
 
         logt("initializeMemberCsrValues past", daysToGet, " days, from ", new Date(fromTime).toString());
 
-        // quick cheat as a test...
+        // quick cheat as a test (test that the param matches the global)
         lastTornTime = tornTime;
         var options = {"from": tornTime, "offset": "0", "sort": "ASC", param: tornTime};
         xedx_TornFactionQueryv2("", "crimes", csrCrimesCb, options);
@@ -1846,16 +1609,7 @@
     versionCheck();
     addStyles();
 
-    // This only needs to be done now if we track csr,
-    // and should prob make on demand, or else in down time...
-    //getAvailableCrimes();
-    //getCompletedCrimes();
-
     callOnHashChange(hashChangeHandler);
-
-    // Kick off calls to get fac members in an OC as well
-    // as all our current members, diff is those not in an OC.
-    debug("Making API calls");
 
     // This gets member list as well as "is in an OC" flag, no longer need recruit/planning
     // data for this. But, do need to find our own crime for time until info.
@@ -1984,7 +1738,7 @@
             case "ctrl": {
                 content = `<td class="${style}" colspan="2">
                                <span class="ctrl-wrap">
-                                   <span class="oc-type-ctrl ctext ${entry.xttCl}" data-run="${entry.fnName}">${entry.name}</span>
+                                   <span id='${entry.id}' class="oc-type-ctrl ctext ${entry.xttCl}" data-run="${entry.fnName}">${entry.name}</span>
                                </span>
                            </td>`;
                 break;
@@ -2209,6 +1963,8 @@
     // ================= Member Crime Success Rate (CSR) table ============
 
     var currentCrimeRoles;
+
+    // Verify all these are used, move fn to end...
     function addCsrStyles() {
         GM_addStyle(`
             .csr-hdr-wrap {
@@ -2435,7 +2191,6 @@
         $("span[class*='role-btn']").on('click', handleCsrHdrSort);
 
     }
-
 
     function getCsrHdr() {
         let csrHdr =
@@ -3122,14 +2877,13 @@
                 display: flex;
                 flex-flow: row wrap;
                 padding: 3px;
-
                 font-size: 14px;
                 width: 90%;
             }
             .ocTracker-cb {
                 display: inline-flex;
                 flex-flow: row wrap;
-                margin-left: 5px;
+                /*margin-left: 5px;*/
                 align-items: center;
                 font-size: 10pt;
             }
@@ -3138,7 +2892,7 @@
             }
             #ocTracker-cm li {
                 height: 24px;
-                padding: 4px 0px 4px 0px;
+                padding: 4px 10px 4px 10px;
                 display: flex;
                 flex-flow: row wrap;
                 justify-content: center;
@@ -3163,19 +2917,21 @@
             }
             #ocTracker-cm input {
                 display: inline-flex;
-                margin-left: 10px;
+                /*margin-left: 10px;*/
                 width: fit-content;
-                margin-right: auto;
+                margin-right: 5px;
                 border-right: 1px solid black;
                 text-align: center;
             }
+            /*
             #ocTracker-cm span {
                 margin-right: auto;
             }
+            */
             #ocTracker-cm a {
                 display: inline-flex;
                 width: fit-content;
-                margin-right: auto;
+                /*margin-right: auto;*/
             }
 
         `);
