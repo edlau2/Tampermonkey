@@ -28,8 +28,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 (function() {
     'use strict';
 
-    const autoHideBanner = false;
-    const alwaysHide = false;
+    const autoHideBanner = true;
+    const alwaysHide = true;
     const hideCrackingBanner = true;
 
     const observerTargetSel = "#react-root > div > div.crime-root.burglary-root > div > [class^='currentCrime_'] > [class^='virtualList__']";
