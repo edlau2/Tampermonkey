@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.8
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -32,10 +32,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     const alwaysHide = true;
     const hideCrackingBanner = true;
 
-    const observerTargetSel = "#react-root > div > div.crime-root.burglary-root > div > [class^='currentCrime_'] > [class^='virtualList__']";
-    //const observerTargetSel = "[class*='currentCrime_'] [class^='crimeOptionWrapper_'] div[class*='crimeOptionSection__']";
-    var observerTarget;
-
     const crimeSelector =
           `[class*='currentCrime_'] [class^='crimeOptionWrapper_']
           div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc'):not('.xskip')`;
@@ -65,21 +61,33 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         'factory': "C4",
   };
 
+    var intTimer;
+
+    function startTimer(fn, time) {
+        if (intTimer) clearInterval(intTimer);
+        intTimer = setInterval(fn, time);
+        log("Set timer for ", fn.name, " id: ", intTimer);
+    }
+
+    function stopTimer() {
+        log("Clearing timer: ", intTimer);
+        if (intTimer) clearInterval(intTimer);
+        intTimer = null;
+    }
+
     function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
     function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
     function isCrimeType(crime) {if (location.hash && location.hash.indexOf(crime) > -1) return true;}
 
     function hashChangeHandler() {
         log("hashChangeHandler");
-        if (intTimer) clearInterval(intTimer);
-        intTimer = null;
+        stopTimer();
         handlePageLoad();
     }
 
     function pushStateChanged(e) {
         log("pushStateChanged");
-        if (intTimer) clearInterval(intTimer);
-        intTimer = null;
+        stopTimer();
         handlePageLoad();
     }
 
@@ -210,6 +218,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
     function addAbandonHandlers() {
+        log("addAbandonHandlers");
+        if (location.href.indexOf('burglary') < 0) return;
         let list = $(crimeSelector);
         for (let idx=0; idx < $(list).length; idx++) {
             let element = $(list)[idx];
@@ -233,6 +243,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
             }
 
             if (!$(element).hasClass("xbc")) {
+                log("adding class xbc!");
                 $(element).addClass("xbc");
                 $(element).on("contextmenu", function(e) {
                     let target = e.currentTarget;
@@ -251,16 +262,20 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     }
 
-    var intTimer;
+    $(window).on("unload", function() {
+        stopTimer();
+        $("div").removeClass("xbc");
+    });
+
     function handlePageLoad() {
-        if (intTimer) clearInterval(intTimer);
-        intTimer = null;
+        stopTimer();
+        $("div").removeClass("xbc");
 
         if ((isCrimeType('forgery') || isCracking()) && hideCrackingBanner == true) {
             if (hideBanner() == true) {
                 $("[class^='bannerArea_']").css("display", "none");
-                return;
             }
+            return;
         }
 
         if (!isBurglary()) {
@@ -270,7 +285,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         let list = $(crimeSelector);
 
         if (!$(list).length) {
-            if (!intTimer) intTimer = setInterval(handlePageLoad, 2000);
+            setTimeout(handlePageLoad, 2000);
             return;
         }
 
@@ -278,8 +293,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
         if (isBurglary()) {
             addAbandonHandlers();
-            if (intTimer) clearInterval(intTimer);
-            intTimer = setInterval(addAbandonHandlers, 500);
+            startTimer(addAbandonHandlers, 500);
         }
     }
 
