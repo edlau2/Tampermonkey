@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -28,8 +28,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 (function() {
     'use strict';
 
-    const autoHideBanner = true;
-    const alwaysHide = true;
+    const autoHideBanner = false;
+    const alwaysHide = false;
     const hideCrackingBanner = true;
 
     const observerTargetSel = "#react-root > div > div.crime-root.burglary-root > div > [class^='currentCrime_'] > [class^='virtualList__']";
@@ -67,6 +67,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
     function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
+    function isCrimeType(crime) {if (location.hash && location.hash.indexOf(crime) > -1) return true;}
 
     function hashChangeHandler() {
         log("hashChangeHandler");
@@ -83,40 +84,13 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     }
 
     function getSpecial(text) {
-        //log("getSpecial: ", text);
         let keys = Object.keys(specialTargets);
         for (let idx=0; idx<keys.length; idx++) {
             if (text.indexOf(keys[idx]) > -1) {
-                //log("Found: ", specialTargets[keys[idx]]);
                 return specialTargets[keys[idx]];
             }
         }
-        //log("Not found!");
     }
-
-    /*
-    function checkSkipName(text) {
-        if (text.indexOf('lake') > -1) return true;
-        if (text.indexOf('foundry') > -1) return true;
-        if (text.indexOf('fertilizer') > -1) return true;
-        if (text.indexOf('cottage') > -1) return true;
-        if (text.indexOf('beach') > -1) return true;
-        if (text.indexOf('mobile') > -1) return true;
-        if (text.indexOf('suburban') > -1) return true;
-        if (text.indexOf('scout') > -1) return true;
-        if (text.indexOf('post') > -1) return true;
-
-        if (text.indexOf('truckyard') > -1) return true;
-        if (text.indexOf('dentist') > -1) return true;
-        if (text.indexOf('funeral') > -1) return true;
-        if (text.indexOf('printing') > -1) return true;
-        if (text.indexOf('storage') > -1) return true;
-        if (text.indexOf('facility') > -1) return true;
-        if (text.indexOf('market') > -1) return true;
-
-        return false;
-    }
-    */
 
     var bannerArea;
     var bannerHeight;
@@ -201,18 +175,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     }
 
     function doClickYes(yesBtn, randClass, retries=0) {
-        //log("doClickYes try #", retries);
         let sel = "." + randClass;
         let testBtn = $(sel);
         if ($(testBtn).length) {
-            //log("found test btn: ", $(testBtn));
         }
 
         $(yesBtn).click();
 
         testBtn = $(sel);
         if ($(testBtn).length) {
-            //log("found test btn: ", $(testBtn));
             if (retries++ < 100) return setTimeout(doClickYes, 50, yesBtn, randClass, retries);
         }
     }
@@ -226,22 +197,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     function goFindYesBtn(node, retries = 0) {
         let yesBtn = $(node).find("[aria-label='Yes, abandon']");
-        //log("goFindYesBtn, len: ", $(yesBtn).length, " retries: ", retries);
         if (!$(yesBtn).length) {
             if (retries++ < 60) return setTimeout(goFindYesBtn, 50, node, retries);
             return log("too many retries, no btn...");
         }
-
-        // Check for the ones we DON'T want to abandon.....
-
-
-
         $(yesBtn).css("border", "2px solid red");
 
         let randClass = randomStr();
         $(yesBtn).addClass(randClass);
         doClickYes(yesBtn, randClass);
-
     }
 
     GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
@@ -260,8 +224,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
             let special = getSpecial(text);
             if (special && special.length > 0) {
-                let newText = $(element).text() + " (" + special +")";
-                $(element).text(newText);
+                let newText = "(" + special +")";
+                let abWrap = $(element).find("[class^='abandon']");
+                let spSpan = `<span style="padding-left: 5px;">${newText}</span>`;
+                $(abWrap).before(spSpan);
                 $(element).addClass("xskip");
                 continue;
             }
@@ -290,7 +256,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         if (intTimer) clearInterval(intTimer);
         intTimer = null;
 
-        if (isCracking() && hideCrackingBanner == true) {
+        if ((isCrimeType('forgery') || isCracking()) && hideCrackingBanner == true) {
             if (hideBanner() == true) {
                 $("[class^='bannerArea_']").css("display", "none");
                 return;
