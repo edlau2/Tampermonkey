@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -263,11 +263,11 @@
 
         if (autoHideBanner == true && bannerHidden == false) hideBanner();
 
-        if (isBurglary()) {
+        //if (isBurglary()) {
             addAbandonHandlers();
             if (intTimer) clearInterval(intTimer);
             intTimer = setInterval(addAbandonHandlers, 500);
-        }
+        //}
     }
 
     //////////////////////////////////////////////////////////////////////
