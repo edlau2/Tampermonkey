@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -25,10 +25,6 @@
     const hideCrackingBanner = true;
 
     var intTimer;
-
-    const observerTargetSel = "#react-root > div > div.crime-root.burglary-root > div > [class^='currentCrime_'] > [class^='virtualList__']";
-    //const observerTargetSel = "[class*='currentCrime_'] [class^='crimeOptionWrapper_'] div[class*='crimeOptionSection__']";
-    var observerTarget;
 
     const crimeSelector =
           `[class*='currentCrime_'] [class^='crimeOptionWrapper_']
@@ -59,9 +55,9 @@
         'factory': "C4",
   };
 
-    function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
-    function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
-    function isCrimeType(crime) {if (location.hash && location.hash.indexOf(crime) > -1) return true;}
+    function isBurglary() {if (window.location.href.indexOf("burglary") > -1) return true;}
+    function isCracking() {return (window.location.href.indexOf("cracking") > -1) ? true : false;}
+    function isCrimeType(crime) {if (window.location.href.indexOf(crime) > -1) return true;}
 
     function hashChangeHandler() {
         console.log("hashChangeHandler");
