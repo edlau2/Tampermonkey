@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -60,14 +60,14 @@
     function isCrimeType(crime) {if (window.location.href.indexOf(crime) > -1) return true;}
 
     function hashChangeHandler() {
-        console.log("hashChangeHandler");
+        //console.log("hashChangeHandler");
         if (intTimer) clearInterval(intTimer);
         intTimer = null;
         handlePageLoad();
     }
 
     function pushStateChanged(e) {
-        console.log("pushStateChanged");
+        //console.log("pushStateChanged");
         if (intTimer) clearInterval(intTimer);
         intTimer = null;
         handlePageLoad();
@@ -252,7 +252,7 @@
 
             //console.log("Not on burglary or cracking, going home? href: ", window.location.href, " root: ", length);
         } else {
-            console.log("On burglary! ", window.location.href, " root: ", length);
+            //console.log("On burglary! ", window.location.href, " root: ", length);
         }
 
         let list = $(crimeSelector);
