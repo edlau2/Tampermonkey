@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Enable Attack Btn
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Enable disabled attack btn on profile page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/profiles.php?XID=*
@@ -21,10 +21,6 @@
 (function() {
     'use strict';
 
-    // TBD: right-click or shift-click to open page anyways? New tab?
-
-    // Most important opt...make available via UI?
-
     // This is the most important option, I'll try to put on the page
     // to make it easier to change on the fly. What it does is make it
     // so that when this much time is left in hosp, clicking the attack
@@ -43,6 +39,8 @@
             {secsLeft: 'default', checkEvery: 2000}   // All else, every 2 secs...prob should be 5 or use time on page...
         ];
 
+    const allowGoOnGreen = false;
+    var goOnGreen = false;              // experimental...
     const statusCheckInt = 1000;        // Initially, check status every 1 sec
 
     logScriptStart();
@@ -55,25 +53,28 @@
           `rgba(153, 153, 153, 0.4)`;
     const btnSel = "#button0-profile-" + XID;
     const url = `https://www.torn.com/profiles.php`;
+    const userHref = `https://www.torn.com/loader.php?sid=attack&user2ID=${XID}`;
 
     const reqData = {step: 'getProfileData', XID: XID, rfcv: rfcv};
 
     callOnContentLoaded(handlePageLoad);
 
     function activateBtn() {
+        $(btnSel).off('click.xedx');
         $(btnSel).css("border", "1px solid rgba(0,255,0,1)");
         $(btnSel).addClass("alert-on");
         $(btnSel).on('click', function(e) {
-            window.location.href = `https://www.torn.com/loader.php?sid=attack&user2ID=${XID}`;
+            window.location.href = userHref;
             return false;
         });
+        if (goOnGreen == true)
+            window.location.href = userHref;
     }
 
     var statusInt = 0;
     function go() {
 
         let btn = $(btnSel);
-        //if ($(btn).length > 0) log("btn: ", $(btn));
         if ($(btn).length > 0 && $(btn).hasClass('disabled')) {
             let svg = $(btn).find("svg");
             $(btn).removeClass('disabled');
@@ -84,7 +85,12 @@
             $(btn).find("svg").css('fill', fillColor);
             $(btn).css("border", "1px solid red");
 
-            //$(btnSel).on('click', getStatus);
+            if (allowGoOnGreen == true) {
+                $(btn).on('click.xedx', function() {
+                    $(btnSel).css("border", "1px solid green");
+                    goOnGreen = true;}
+                );
+            }
 
             getStatus();
             return;
