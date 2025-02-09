@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC 2.0 Tracker
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Keep track of when your OC v2 will be ready
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -481,16 +481,13 @@
         handleTrackerContextClick(event) {
             let target = $(event.currentTarget);
             let menuId = $(target).attr("id");
-
-            debug("handleTrackerContextClick, target ID: ", menuId, " target: ", $(target));
-
             let parent = $(target).parent();
             let runFunc = $(parent).find(".xeval");
 
             if ($(runFunc).length) {
                 let fnName = $(runFunc).attr("data-run");
                 if (fnName) {
-                    doOptionMenuRunFunc(fnName);
+                    myOcTracker.doOptionMenuRunFunc(fnName);
                     myOcTracker.hideMenu();
                     return;
                 }
