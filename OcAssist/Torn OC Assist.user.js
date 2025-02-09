@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.15
+// @version      2.17
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -42,7 +42,501 @@
     const lastCsrDateKey = "lastCsr";
     const initCsrDaysKey = "initCsrDays";
 
-    // ======================== Configurable Options =======================
+    const onCrimesPage = function () {return (location.hash ? location.hash.indexOf("tab=crimes") > -1 : false);}
+
+    // format helper for time strings
+    const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+    addToolTipStyle();
+
+    var myOcTracker;
+    var ocTrackerStylesInstalled = false;
+
+    var myCrimeId; // = GM_getValue("myCrimeId", null);
+    var myCrimeStartTime; // = GM_getValue("myCrimeStartTime", 0);
+    var myCrimeStatus = ""; // = GM_getValue("myCrimeStatus", "");
+
+    const NO_OC_TIME = "No OC found.";
+    const secsInDay = 24 * 60 * 60;
+    const secsInHr = 60 * 60;
+    const showExperimental = false;
+
+    function myOcTrackingCb(responseText, ID, param) {
+        if (myOcTracker)
+            myOcTracker.handleOcResponse(responseText, ID, param);
+    }
+
+    // ================ OC Tracker and it's context menu related functions ===============
+    class OcTracker {
+        // Since there is only one OcTracker object (a singleton), "myOcTracker" and
+        // "this" are used somewhat interchangably here, the singleton would need to
+        // be used or the object passed into some functions, namely callbacks.
+        constructor() {
+
+        }
+
+        contextMenuItems = [
+            {name: "Refresh OC Start Time",   id: "oc-refresh", type: "ctrl", fnName: "refresh",
+                 tooltip: "Refreshes your OC start time."},
+            {name: "Pause Flashing Alerts", id: "stop-alert", type: "ctrl", enabled: true, fnName: "stop-alert",
+                 tooltip: "Stop the blinking alerts that<br>" +
+                          "indicate you are not in an OC,<br>" +
+                          "or that yours is due to start soon."},
+            {name: "Go To Crimes Page", id: "oc-goto-crimes", type: "href",
+                 href:"/factions.php?step=your&type=1#/tab=crimes",
+                 tooltip: "Opens the OC page"},
+            {name: "Hide low level crimes", id: "oc-hide", key: hideLvlKey, type: "cb", enabled: showExperimental},
+            {name: "Min Level", id: "oc-hide-lvl", key: hideLvlValKey, type: "input",  min: 1, max: 10, enabled: showExperimental},
+
+            {name: "Notify on level avail", id: "oc-min-avail", key: warnMinLvlKey,  type: "cb", enabled: showExperimental, min: 1, max: 10,
+                 tooltip: "If a crime above the specified<br>" +
+                          "level becomes available on the<br>" +
+                          "recruiting page, a notification<br>" +
+                          "is sent."},
+            {name: "Min avail Level", id: "oc-min-lvl", key: warnMinLvlValKey, type: "input", min: 1, max: 10, enabled: showExperimental},
+
+            // TBD: "show hidden" context opt, recruit, see "hide beneath"...
+        ];
+
+        missingReqItem = false;
+        missingReqItemId = 0;
+        missingReqItemName = null;
+
+        setTrackerTime(time) {
+            $("#oc-tracker-time").removeClass("blink182");
+            $("#oc-tracker-time").text(time);
+            if (time == NO_OC_TIME) return;
+            if (myCrimeStatus == 'Recruiting') {
+                $("#oc-tracker-time").addClass("def-yellow");
+            } else {
+                $("#oc-tracker-time").removeClass("def-yellow");
+            }
+
+            if (blinkingPaused) return;
+            if (this.timeMin(time) < 1) this.stopAllAlerts();
+
+            if (this.missingReqItem == true) {
+                $("#missing-item").addClass("blinkOcWarnBtn");
+                $("#missing-item").css("display", "flex");
+            } else if (this.missingReqItem == false) {
+                $("#missing-item").removeClass("blinkOcWarnBtn");
+                $("#missing-item").css("display", "none");
+            }
+
+            if (notifyOcSoon == true && +notifyOcSoonMin > 0) {
+                let untilMin = this.timeMin(time);
+                if (untilMin && untilMin < +notifyOcSoonMin)
+                    this.enableOcSoon();
+            }
+        }
+
+        getTimeUntilOc() {
+            if (!myCrimeStartTime || !this.validateSavedCrime()) {
+                this.scheduleOcCheck(5000);
+                return NO_OC_TIME;
+            }
+
+            let now = new Date();
+            let dt = new Date(myCrimeStartTime * 1000);
+
+            let diffSecs = +myCrimeStartTime - now.getTime()/1000;
+            let days = Math.floor(diffSecs / secsInDay);
+            let remains = (diffSecs - (days * secsInDay));
+            let hrs = Math.floor(remains / secsInHr);
+            remains = remains - (hrs * secsInHr);
+            let mins = Math.floor(remains/60);
+            let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
+
+            return timeStr;
+        }
+
+        enableNoOcAlert() {
+            if (!$("#oc-tracker-time").hasClass("blinkOcWarn") && !blinkingPaused) {
+                $("#oc-tracker-time").toggleClass("blinkOcWarn");
+                blinkingNoOc = true;
+            }
+        }
+
+        enableOcSoon() {
+            if (!blinkingPaused && !$("#oc-tracker-time").hasClass("blinkOcGreen")) {
+                $("#oc-tracker-time").addClass("blinkOcGreen");
+            }
+        }
+
+        // See if the cached crime has expired/completed.
+        // Return false if invalid/expired/not set, true otherwise.
+        validateSavedCrime(crimes) {
+            if (!myCrimeStartTime || !myCrimeId) return false;
+
+            let now = new Date();
+            let crimeTime = new Date(myCrimeStartTime * 1000);
+
+            // If now is after the start time, expired...
+            if (now.getTime() > myCrimeStartTime * 1000) {
+                myCrimeId = null;
+                myCrimeStartTime = 0;
+                myCrimeStatus = "";
+                this.saveMyCrimeData();
+                debug("validateSavedCrime Expired crimeTime");
+                return false;
+            }
+
+            return true;
+        }
+
+        // Give some sort of indication when no OC is selected
+        toggleNoOcWarning() {
+            if (blinkingPaused) return this.stopAllAlerts();
+            $("#oc-tracker-time").toggleClass("blinkOcWarn");
+            blinkingNoOc = $("#oc-tracker-time").hasClass("blinkOcWarn");
+        }
+
+        toggleOcSoon() {
+            if (blinkingPaused) return this.stopAllAlerts();
+            $("#oc-tracker-time").toggleClass("blinkOcGreen");
+        }
+
+        stopAllAlerts() {
+            $("#oc-tracker-time").removeClass("blinkOcWarn");
+            $("#oc-tracker-time").removeClass("blinkOcGreen");
+
+            $("#missing-item").removeClass("blinkOcWarnBtn");
+            $("#missing-item").css("display", "none");
+
+            blinkingNoOc = false;
+        }
+
+        missingReqItemCb(responseText, ID, param) {
+            let jsonResp = JSON.parse(responseText);
+            if (jsonResp.error) {
+                if (jsonResp.error.code == 6) return;
+                return handleError(responseText);
+            }
+            let item = jsonResp.items[ID];
+            myOcTracker.missingReqItemName = item.name;
+            let key = "missingItemId-" + ID;
+            myOcTracker.missingReqItemName = GM_setValue(key, item.name);
+            let ttText = "Missing required item!<br>A " +
+                myOcTracker.missingReqItemName + " is needed!";
+            $("#missing-item").tooltip( "option", "content", ttText );
+        }
+
+        handleOcResponse(responseText, ID, param) {
+            myOcTracker.ocCallPending = false;
+            let jsonObj = JSON.parse(responseText);
+            if (jsonObj.error) {
+                myOcTracker.scheduleOcCheck(60000);
+                return handleError(responseText);
+            }
+
+            let myCrime = jsonObj.organizedCrime;
+            if (!myCrime) {
+                myOcTracker.enableNoOcAlert();
+                myOcTracker.setTrackerTime(NO_OC_TIME);
+                myOcTracker.scheduleOcCheck(60000);
+                return;
+            }
+            let readyAt = myCrime.ready_at;
+
+            if (myCrime && readyAt) {
+                myCrimeId = myCrime.id;
+                myCrimeStartTime = readyAt;
+                myCrimeStatus = myCrime.status;
+                myOcTracker.saveMyCrimeData();
+                myOcTracker.stopAllAlerts();
+            } else if (!blinkingPaused) {
+                myOcTracker.enableNoOcAlert();
+                myOcTracker.setTrackerTime(NO_OC_TIME);
+                debug("Didn't locate my own OC!");
+                myOcTracker.scheduleOcCheck(60000);    // Try again in a minute...
+                return;
+            }
+
+            // See if there is a required item, and if so, do we have it?
+            let slots = myCrime.slots;
+            this.missingReqItem = false;
+            for (let idx=0; idx<slots.length; idx++) {
+                let slot = slots[idx];
+                if (slot.user_id == userId) {
+                    if (slot.item_requirement != null) {
+                        if (slot.item_requirement.is_available == false) {
+                            this.missingReqItem = true;
+                            this.missingReqItemId = slot.item_requirement.id;
+                            let key = "missingItemId-" + this.missingReqItemId;
+                            this.missingReqItemName = GM_getValue(key, null);
+                            if (!this.missingReqItemName) {
+                                xedx_TornTornQuery(this.missingReqItemId, "items",
+                                                   myOcTracker.missingReqItemCb);
+                            } else {
+                                let ttText = "Missing required item!<br>A " +
+                                    this.missingReqItemName + " is needed!";
+                                $("#missing-item").tooltip( "option", "content", ttText );
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            if (myCrimeStartTime) {
+                let dt = new Date(myCrimeStartTime * 1000);
+                myOcTracker.setTrackerTime(this.getTimeUntilOc());
+                setInterval(myOcTracker.updateTrackerTime, 31000, this);
+            }
+
+            function updateTrackerTime(obj) {
+                myOcTracker.setTrackerTime(myOcTracker.getTimeUntilOc());
+            }
+        }
+
+        // Do not call too often!
+        ocCallPending = false;
+        lastTimeReq = 0;
+        collisions= 0;
+
+        getMyNextOcTime() {
+            if (myOcTracker.ocCallPending == true) {
+                return;
+            }
+            myOcTracker.ocCallPending = true;
+            xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
+        }
+
+        scheduleOcCheck(time, param) {
+            if (myOcTracker.ocCallPending == true) {
+                myOcTracker.collisions++;
+                debug("Collided with pending request! Time: ", myOcTracker.lastTimeReq,
+                      " req time: ", time, " collisions: ", myOcTracker.collisions);
+                return;
+            }
+            myOcTracker.lastTimeReq = time;
+            setTimeout(myOcTracker.getMyNextOcTime, time, param);
+        }
+
+        startMyOcTracking() {
+            if ($("#ocTracker").length) {
+                return log("Warning: another instace of the OC Tracker is running!");
+            }
+
+            $("#oc2Timer").remove();
+            let elem = this.getMyOcTrackerDiv();
+            let parentSelector = makeXedxSidebarContentDiv('oc-tracker');
+
+            $(parentSelector).append(elem);
+            $(parentSelector).css("padding", "0px");
+            let ttText  = "Missing required item!";
+            if (myOcTracker.missingReqItemDesc) {
+                ttText = "Missing required item!<br>A " +
+                                    this.missingReqItemName + " is needed!";
+            }
+            displayHtmlToolTip($("#missing-item"), ttText, "tooltip5");
+
+            // Don't need the context menu on the fac crimes page,
+            // we have the regular options menu. Fix it so same
+            // calbacks are used?
+            if (!isOcPage())
+                this.installOcTrackerContextMenu();
+            else {
+                // maybe install tracker, but disable context menu...?
+                debug("startMyOcTracking, on OC page, not installing CM...");
+            }
+
+            // On fac page - we will be doing this call anyways,
+            // and the callback will call the above callback as well.
+            // So just return.
+            if (isFactionPage()) {
+                debug("startMyOcTracking: on fac page, will check later...");
+                return;
+            }
+
+            this.scheduleOcCheck(250, 'available');
+        }
+
+        // Handles input changes on context menu (checkboxes, fields)
+        processMiniOpCb(e) {
+            e.stopPropagation();
+            let node = $(e.currentTarget);
+            let idx = $(node).attr("data-index");
+            let opt = myOcTracker.contextMenuItems[idx];
+            let sel = "#" + opt.id + " > input";
+            if (opt.type == 'cb') {
+                let val = $(sel)[0].checked;
+                GM_setValue(opt.key, val);
+            } else if (opt.type == 'input') {
+                let val = $(sel).val()
+                GM_setValue(opt.key, val);
+            }
+
+            updateOptions();
+            if (opt.id == 'oc-opt-hide' || opt.id == 'oc-opt-lvl')
+                hideShowByLevel();
+        }
+
+        showMenu() {
+            let offset = $("#ocTracker").offset();
+            $("#ocTracker-cm").removeClass("oc-offscreen");
+            $("#ocTracker-cm").offset({top: offset.top - 10, left: offset.left + 50});
+            $("#ocTracker-cm").animate({opacity: 1}, 100);
+        }
+
+        hideMenu() {
+            $("#ocTracker-cm").attr("style", "opacity: 0;");
+            $("#ocTracker-cm").addClass("oc-offscreen");
+        }
+
+        removeOcTracker() {
+            debug("removeOcTracker");
+            $("#ocTracker").remove();
+            $("#ocTracker-cm").remove();
+
+            // TBD - any timed funcs to stop??
+        }
+
+        // Save cached crime data
+        saveMyCrimeData() {
+            GM_setValue("myCrimeId", myCrimeId);
+            GM_setValue("myCrimeStartTime", myCrimeStartTime);
+            GM_setValue("myCrimeStatus", myCrimeStatus);
+        }
+
+        parseOcTime(time) {
+            // OC in: 2d 12h 45m
+            let parts = time.split(' ');
+            if (parts.length < 5) return;
+            let d = parseInt(parts[2]);
+            let h = parseInt(parts[3]);
+            let m = parseInt(parts[4]);
+
+            return {d: d, h: h, m: m};
+        }
+
+        timeMin(time) {
+            let timeUntil = myOcTracker.parseOcTime(time);
+            return timeUntil ? (+timeUntil.d * 24 * 60 + +timeUntil.h * 60 + +timeUntil.m) : 0;
+        }
+
+        // Called to enable/disable the sidebar tracker
+        onOcTrackerChange() {
+            debug("onOcTrackerChange: ", trackMyOc, " saved: ", GM_getValue("trackMyOc", "not found"));
+            if (trackMyOc == true) {
+                myOcTracker.removeOcTracker();
+                myOcTracker.installOcTrackerContextMenu();
+            } else {
+                myOcTracker.removeOcTracker();
+            }
+        }
+
+        // Called when context menu list item clicked, like an href or function link
+        handleTrackerContextClick(event) {
+            let target = $(event.currentTarget);
+            let menuId = $(target).attr("id");
+
+            debug("handleTrackerContextClick, target ID: ", menuId, " target: ", $(target));
+
+            if (onCrimesPage()) {
+                return; // log("On crimes page, suppressing context");
+            }
+
+            let parent = $(target).parent();
+            let runFunc = $(parent).find(".xeval");
+
+            if ($(runFunc).length) {
+                let fnName = $(runFunc).attr("data-run");
+                if (fnName) {
+                    doOptionMenuRunFunc(fnName);
+                    myOcTracker.hideMenu();
+                    return;
+                }
+            }
+
+            let anchor = $(parent).find("a");
+            debug("handleTrackerContextClick: ", $(target), $(target).parent(), $(anchor));
+            if ($(anchor).length) {
+                let href = $(anchor).attr("href");
+                if (href) {
+                    window.location.href = href;
+                    myOcTracker.hideMenu();
+                }
+                return;
+            }
+
+            if (menuId == "ocTracker") {
+                myOcTracker.showMenu();
+                return false;
+            }
+
+            setTimeout(myOcTracker.hideMenu, 1500);
+            return false;
+
+        }
+
+        // Install sidebar OcTracker only options
+        installOcTrackerContextMenu() {
+            let myMenu =
+                `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;"><ul ></ul></div>`;
+
+            $('body').append(myMenu);
+            $('#ocTracker').on('contextmenu', myOcTracker.handleTrackerContextClick);
+            $("#ocTracker").css("cursor", "pointer");
+
+            for (let idx=0; idx<this.contextMenuItems.length; idx++) {
+                let opt = this.contextMenuItems[idx];
+                if (opt.enabled == false) continue;
+
+                let sel = '#' + opt.id;
+                let optionalClass =
+                    (idx == 0) ? "opt-first-li" :
+                    (idx == this.contextMenuItems.length - 1) ? "opt-last-li" : "";
+
+                let inputLine;
+                switch (opt.type) {
+                    case "cb":
+                        inputLine = `<input type="checkbox" data-index="${idx}" name="${opt.key}">`;
+                        break;
+                    case "input":
+                        inputLine = `<input type="number" id="oc-opt-lvl" min="1" max="15">`;
+                        break;
+                    case "href":
+                        inputLine = `<a href="${opt.href}"></a>`;
+                        break;
+                    case "ctrl":
+                        inputLine = `<span class="xeval" data-run="${opt.fnName}"></span>`;
+                        break;
+                    default:
+                        continue;
+                }
+
+                let ocTrackerLi = `<li id="${opt.id}" class="xmed-li-rad ${optionalClass}">
+                                      ${inputLine}
+                                      <span>${opt.name}</span>
+                                  </li>`;
+                $("#ocTracker-cm > ul").append(ocTrackerLi);
+            }
+
+            $("#oc-opt-hide").prop('checked', hideLvl);
+            $("#oc-opt-lvl").val(hideLvlVal);
+            $("#warn-no-oc").prop('checked', this.warnOnNoOc);
+
+            $("#ocTracker-cm > ul > li > span").on('click', myOcTracker.handleTrackerContextClick);
+            $("#ocTracker-cm > ul > li > input").on('change', myOcTracker.processMiniOpCb);
+
+            // Close on click outside of menu
+            $(document).click(function(event) {
+                if (!$(event.target).closest('#ocTracker-cm').length) {
+                    myOcTracker.hideMenu();
+                }
+            });
+        }
+
+        getMyOcTrackerDiv() {
+            installTrackerStyles();
+            return `<div id="ocTracker">
+                        <span id="oc-tracker-time">00:00:00</span>
+                        <span id="missing-item" class="x-round-btn xmr5" style="display: none;">!</span>
+                    </div>`;
+        }
+    }
+
+    // ======================== Configurable Options. Use UI to change. =======================
     //
     // Extra debug logging, for development
     const logFullApiResponses = GM_getValue("logFullApiResponses", false);
@@ -84,25 +578,21 @@
     var   csrCurrSortOrder = csrSortOrders[csrDefSortOrder];
 
     // Monitor and display when an OC you are in is due
+    // See ~488, start sooner and exit if we can!!
     var trackMyOc = GM_getValue("trackMyOc", true);
+    if (trackMyOc == true)
+        GM_addStyle(`#oc2Timer {display: none;}`);
 
     var blinkingPaused = false;    // Set via an option, temp disable blinking...
     var blinkingNoOc = false;      // Set when alerting re: no OC
+    const setAlertsPaused = function() {blinkingPaused = true;}
+
 
     // ====================== End Configurable Options ======================
 
     // Can run the OC watcher, to track when yours is due,
     // independently. Just start it and return if not on fac page.
     //
-    // Change of heart: just set to 0 and get every page refresh?
-    //
-    var myCrimeId; // = GM_getValue("myCrimeId", null);
-    var myCrimeStartTime; // = GM_getValue("myCrimeStartTime", 0);
-    var myCrimeStatus = ""; // = GM_getValue("myCrimeStatus", "");
-
-    const NO_OC_TIME = "No OC found.";
-    const secsInDay = 24 * 60 * 60;
-    const secsInHr = 60 * 60;
 
     // I can turn this on for dev-only stuff, only I will see -
     // and if I forget it won't be enabled without someone
@@ -110,6 +600,26 @@
     // the wrong way....
     const xedxDevMode = GM_getValue("xedxDevMode", false) && (userId == 2100735);
     var timestampComplete = GM_getValue("timestampComplete", false);
+
+    // Check to see if the OC tracker should be run independently...
+    if (trackMyOc == true && !onCrimesPage()) {
+        logScriptStart();
+        validateApiKey();
+
+        addStyles();
+
+        myOcTracker = new OcTracker();
+        myOcTracker.startMyOcTracking();
+        myOcTracker.getTimeUntilOc();
+        return;
+
+        // Don't return yet, other things may still run...
+        //if (!isFactionPage()) {
+        //    addStyles();
+        //    return;
+        //}
+
+    }
 
     const recruitingIdx = 0;
     const planningIdx = 1;
@@ -237,8 +747,7 @@
     const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
     const onPlanningPage = function () {return (btnIndex() == planningIdx);}
     const onCompletedPage = function () {return (btnIndex() == completedIdx);}
-    const onCrimesPage = function () {return (location.hash ? location.hash.indexOf("tab=crimes") > -1 : false);}
-    const setAlertsPaused = function() {blinkingPaused = true;}
+    //const setAlertsPaused = function() {blinkingPaused = true;}
 
     function timeDiff(checkTime) {
         let now = new Date().getTime();
@@ -391,31 +900,6 @@
              tooltip: "Erases all saved CSR values.<br>"},
         ];
 
-    // =========================== context menu only ==============================
-    var showExperimental = false;
-    const contextMenuItems = [
-        {name: "Refresh OC Start Time",   id: "oc-refresh", type: "ctrl", fnName: "refresh",
-             tooltip: "Refreshes your OC start time."},
-        {name: "Pause Flashing Alerts", id: "stop-alert", type: "ctrl", enabled: true, fnName: "stop-alert",
-             tooltip: "Stop the blinking alerts that<br>" +
-                      "indicate you are not in an OC,<br>" +
-                      "or that yours is due to start soon."},
-        {name: "Go To Crimes Page", id: "oc-goto-crimes", type: "href",
-             href:"/factions.php?step=your&type=1#/tab=crimes",
-             tooltip: "Opens the OC page"},
-        {name: "Hide low level crimes", id: "oc-hide", key: hideLvlKey, type: "cb", enabled: showExperimental},
-        {name: "Min Level", id: "oc-hide-lvl", key: hideLvlValKey, type: "input",  min: 1, max: 10, enabled: showExperimental},
-
-        {name: "Notify on level avail", id: "oc-min-avail", key: warnMinLvlKey,  type: "cb", enabled: showExperimental, min: 1, max: 10,
-             tooltip: "If a crime above the specified<br>" +
-                      "level becomes available on the<br>" +
-                      "recruiting page, a notification<br>" +
-                      "is sent."},
-        {name: "Min avail Level", id: "oc-min-lvl", key: warnMinLvlValKey, type: "input", min: 1, max: 10, enabled: showExperimental},
-
-        // TBD: "show hidden" context opt, recruit, see "hide beneath"...
-    ];
-
     function writeOptions() {
         //GM_setValue(keepLastStateKey, keepLastState);
         GM_setValue(hideLvlKey, hideLvl);
@@ -485,18 +969,25 @@
     // Will reset at page refresh, not permanent cache
     const cacheCompletedCrimes = true;
 
+
+    // Start sooner if we can!
     if (trackMyOc == true) {
         logScriptStart();
         validateApiKey();
-        startMyOcTracking();
 
-        /* Don't return yet, other things may still run...
-        if (!isFactionPage()) {
-            addStyles();
-            return;
-        }
-        */
+        myOcTracker = new OcTracker();
+        myOcTracker.startMyOcTracking();
+
+        //startMyOcTracking();
+
+        // Don't return yet, other things may still run...
+        //if (!isFactionPage()) {
+        //    addStyles();
+        //    return;
+        //}
+        
     }
+
 
     function logCurrPage() {
         let idx = btnIndex();
@@ -510,6 +1001,7 @@
         return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;
     }
 
+    /*
     // Save cached crime data
     function saveMyCrimeData() {
         GM_setValue("myCrimeId", myCrimeId);
@@ -532,6 +1024,7 @@
         let timeUntil = parseOcTime(time);
         return timeUntil ? (+timeUntil.d * 24 * 60 + +timeUntil.h * 60 + +timeUntil.m) : 0;
     }
+    */
 
     // =================== context menu and options pane run funcs ===============================
 
@@ -546,7 +1039,8 @@
                 $("#oc-tracker-time").addClass("blink182");
                 myCrimeId = 0;
                 myCrimeStartTime = 0;
-                setTimeout(getMyNextOcTime, 2500, 'available');
+                if (myOcTracker)
+                    myOcTracker.scheduleOcCheck(2500, 'available');
                 break;
             }
             case "mem-refresh": {
@@ -554,11 +1048,12 @@
                 break;
             }
             case "xedx-test": { // Whatever I feel like testing...
-                toggleOcSoon();
+                //toggleOcSoon();
                 break;
             }
             case "stop-alert": {
-                stopAllAlerts();
+                if (myOcTracker)
+                    myOcTracker.stopAllAlerts();
                 setAlertsPaused();
                 break;
             }
@@ -569,7 +1064,8 @@
                 break;
 
             case "track-my-oc":
-                onOcTrackerChange();
+                if (myOcTracker)
+                    onOcTrackerChange();
                 break;
 
             case "toggleScroll":
@@ -597,337 +1093,6 @@
 
     }
 
-    // ================ OC Tracker and it's context menu related functions ===============
-
-    function setTrackerTime(time) {
-        $("#oc-tracker-time").removeClass("blink182");
-        $("#oc-tracker-time").text(time);
-        if (time == NO_OC_TIME) return;
-        if (myCrimeStatus == 'Recruiting') {
-            $("#oc-tracker-time").addClass("def-yellow");
-        } else {
-            $("#oc-tracker-time").removeClass("def-yellow");
-        }
-
-        if (blinkingPaused) return;
-        if (timeMin(time) < 1) stopAllAlerts();
-
-        if (notifyOcSoon == true && +notifyOcSoonMin > 0) {
-            let untilMin = timeMin(time);
-            if (untilMin && untilMin < +notifyOcSoonMin)
-                enableOcSoon();
-        }
-    }
-
-    function nn(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
-    function getTimeUntilOc() {
-        if (!myCrimeStartTime || !validateSavedCrime()) {
-            getMyNextOcTime();
-            return NO_OC_TIME;
-        }
-
-        let now = new Date();
-        let dt = new Date(myCrimeStartTime * 1000);
-
-        let diffSecs = +myCrimeStartTime - now.getTime()/1000;
-        let days = Math.floor(diffSecs / secsInDay);
-        let remains = (diffSecs - (days * secsInDay));
-        let hrs = Math.floor(remains / secsInHr);
-        remains = remains - (hrs * secsInHr);
-        let mins = Math.floor(remains/60);
-        let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
-
-        return timeStr;
-    }
-
-    function enableNoOcAlert() {
-        if (!$("#oc-tracker-time").hasClass("blinkOcWarn") && !blinkingPaused) {
-            $("#oc-tracker-time").toggleClass("blinkOcWarn");
-            blinkingNoOc = true;
-        }
-    }
-
-    function enableOcSoon() {
-        if (!blinkingPaused && !$("#oc-tracker-time").hasClass("blinkOcGreen")) {
-            $("#oc-tracker-time").addClass("blinkOcGreen");
-        }
-    }
-
-    // See if the cached crime has expired/completed.
-    // Return false if invalid/expired/not set, true otherwise.
-    function validateSavedCrime(crimes) {
-        if (!myCrimeStartTime || !myCrimeId) return false;
-
-        let now = new Date();
-        let crimeTime = new Date(myCrimeStartTime * 1000);
-
-        // If now is after the start time, expired...
-        if (now.getTime() > myCrimeStartTime * 1000) {
-            myCrimeId = null;
-            myCrimeStartTime = 0;
-            myCrimeStatus = "";
-            saveMyCrimeData();
-            debug("validateSavedCrime Expired crimeTime");
-            return false;
-        }
-
-        return true;
-    }
-
-    // Give some sort of indication when no OC is selected
-    function toggleNoOcWarning() {
-        if (blinkingPaused) return stopAllAlerts();
-        $("#oc-tracker-time").toggleClass("blinkOcWarn");
-        blinkingNoOc = $("#oc-tracker-time").hasClass("blinkOcWarn");
-    }
-
-    function toggleOcSoon() {
-        if (blinkingPaused) return stopAllAlerts();
-        $("#oc-tracker-time").toggleClass("blinkOcGreen");
-    }
-
-    function stopAllAlerts() {
-        $("#oc-tracker-time").removeClass("blinkOcWarn");
-        $("#oc-tracker-time").removeClass("blinkOcGreen");
-        blinkingNoOc = false;
-    }
-
-    function myOcTrackingCb(responseText, ID, param) {
-        let jsonObj = JSON.parse(responseText);
-        if (jsonObj.error) {
-            setTimeout(getMyNextOcTime, 60000);
-            return handleError(responseText);
-        }
-
-        let myCrime = jsonObj.organizedCrime;
-        if (!myCrime) {
-            enableNoOcAlert();
-            setTrackerTime(NO_OC_TIME);
-            setTimeout(getMyNextOcTime, 60000);
-            return;
-        }
-        let readyAt = myCrime.ready_at;
-
-        if (myCrime && readyAt) {
-            myCrimeId = myCrime.id;
-            myCrimeStartTime = readyAt;
-            myCrimeStatus = myCrime.status;
-            saveMyCrimeData();
-            stopAllAlerts();
-        } else if (!blinkingPaused) {
-            enableNoOcAlert();
-            setTrackerTime(NO_OC_TIME);
-            debug("Didn't locate my own OC!");
-            setTimeout(getMyNextOcTime, 60000);    // Try again in a minute...
-        }
-
-        if (myCrimeStartTime) {
-            let dt = new Date(myCrimeStartTime * 1000);
-            setTrackerTime(getTimeUntilOc());
-            setInterval(updateTrackerTime, 31000);
-        }
-
-        function updateTrackerTime() {
-            setTrackerTime(getTimeUntilOc());
-        }
-    }
-
-    function getMyNextOcTime() {
-        xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
-    }
-
-    function startMyOcTracking() {
-        if ($("#ocTracker").length) {
-            return log("Warning: another instace of the OC Tracker is running!");
-        }
-
-        let elem = getMyOcTrackerDiv();
-        let parentSelector = makeXedxSidebarContentDiv('oc-tracker');
-
-        $(parentSelector).append(elem);
-        $(parentSelector).css("padding", "0px");
-
-        // Don't need the context menu on the fac crimes page,
-        // we have the regular options menu. Fix it so same
-        // calbacks are used?
-        if (!isOcPage())
-            installOcTrackerContextMenu();
-        else {
-            // maybe install tracker, but disable context menu...?
-            debug("startMyOcTracking, on OC page, not installing CM...");
-        }
-
-        // On fac page - we will be doing this call anyways,
-        // and the callback will call the above callback as well.
-        // So just return.
-        if (isFactionPage()) {
-            debug("startMyOcTracking: on fac page, will check later...");
-            return;
-        }
-
-        getMyNextOcTime('available');
-    }
-
-    // Handles input changes on context menu (checkboxes, fields)
-    function processMiniOpCb(e) {
-        e.stopPropagation();
-        let node = $(e.currentTarget);
-        let idx = $(node).attr("data-index");
-        let opt = menuItems[idx];
-        let sel = "#" + opt.id + " > input";
-        if (opt.type == 'cb') {
-            let val = $(sel)[0].checked;
-            GM_setValue(opt.key, val);
-        } else if (opt.type == 'input') {
-            let val = $(sel).val()
-            GM_setValue(opt.key, val);
-        }
-
-        updateOptions();
-        if (opt.id == 'oc-opt-hide' || opt.id == 'oc-opt-lvl') hideShowByLevel();
-    }
-
-    function showMenu() {
-        let offset = $("#ocTracker").offset();
-        $("#ocTracker-cm").removeClass("oc-offscreen");
-        $("#ocTracker-cm").offset({top: offset.top - 10, left: offset.left + 50});
-        $("#ocTracker-cm").animate({opacity: 1}, 100);
-    }
-
-    function hideMenu() {
-        $("#ocTracker-cm").attr("style", "opacity: 0;");
-        $("#ocTracker-cm").addClass("oc-offscreen");
-    }
-
-    function removeOcTracker() {
-        debug("removeOcTracker");
-        $("#ocTracker").remove();
-        $("#ocTracker-cm").remove();
-
-        // TBD - any timed funcs to stop??
-    }
-
-    // Called to enable/disable the sidebar tracker
-    function onOcTrackerChange() {
-        debug("onOcTrackerChange: ", trackMyOc, " saved: ", GM_getValue("trackMyOc", "not found"));
-        if (trackMyOc == true) {
-            removeOcTracker();
-            installOcTrackerContextMenu();
-        } else {
-            removeOcTracker();
-        }
-    }
-
-    // Called when context menu list item clicked, like an href or function link
-    function handleTrackerContextClick(event) {
-        let target = $(event.currentTarget);
-        let menuId = $(target).attr("id");
-
-        debug("handleTrackerContextClick, target ID: ", menuId, " target: ", $(target));
-
-        if (onCrimesPage()) {
-            return log("On crimes page, suppressing context");
-        }
-
-        let parent = $(target).parent();
-        let runFunc = $(parent).find(".xeval");
-
-        if ($(runFunc).length) {
-            let fnName = $(runFunc).attr("data-run");
-            if (fnName) {
-                doOptionMenuRunFunc(fnName);
-                hideMenu();
-                return;
-            }
-        }
-
-        let anchor = $(parent).find("a");
-        debug("handleTrackerContextClick: ", $(target), $(target).parent(), $(anchor));
-        if ($(anchor).length) {
-            let href = $(anchor).attr("href");
-            if (href) {
-                window.location.href = href;
-                hideMenu();
-            }
-            return;
-        }
-
-        if (menuId == "ocTracker") {
-            showMenu();
-            return false;
-        }
-
-        setTimeout(hideMenu, 1500);
-        return false;
-    }
-
-    // Install sidebar OcTracker only options
-    function installOcTrackerContextMenu() {
-        let myMenu =
-            `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;"><ul ></ul></div>`;
-
-        $('body').append(myMenu);
-        $('#ocTracker').on('contextmenu', handleTrackerContextClick);
-        $("#ocTracker").css("cursor", "pointer");
-
-        for (let idx=0; idx<contextMenuItems.length; idx++) {
-            let opt = contextMenuItems[idx];
-            if (opt.enabled == false) continue;
-
-            let sel = '#' + opt.id;
-            let optionalClass =
-                (idx == 0) ? "opt-first-li" :
-                (idx == contextMenuItems.length - 1) ? "opt-last-li" : "";
-
-            let inputLine;
-            switch (opt.type) {
-                case "cb":
-                    inputLine = `<input type="checkbox" data-index="${idx}" name="${opt.key}">`;
-                    break;
-                case "input":
-                    inputLine = `<input type="number" id="oc-opt-lvl" min="1" max="15">`;
-                    break;
-                case "href":
-                    inputLine = `<a href="${opt.href}"></a>`;
-                    break;
-                case "ctrl":
-                    inputLine = `<span class="xeval" data-run="${opt.fnName}"></span>`;
-                    break;
-                default:
-                    continue;
-            }
-
-            let ocTrackerLi = `<li id="${opt.id}" class="xmed-li-rad ${optionalClass}">
-                                  ${inputLine}
-                                  <span>${opt.name}</span>
-                              </li>`;
-            $("#ocTracker-cm > ul").append(ocTrackerLi);
-
-            //if (opt.type == "input") $(sel).find("input").css("margin-right", "8px");
-        }
-
-        $("#oc-opt-hide").prop('checked', hideLvl);
-        $("#oc-opt-lvl").val(hideLvlVal);
-        $("#warn-no-oc").prop('checked', warnOnNoOc);
-
-        $("#ocTracker-cm > ul > li > span").on('click', handleTrackerContextClick);
-        $("#ocTracker-cm > ul > li > input").on('change', processMiniOpCb);
-
-        // Close on click outside of menu
-        $(document).click(function(event) {
-            if (!$(event.target).closest('#ocTracker-cm').length) {
-                hideMenu();
-            }
-        });
-    }
-
-    var ocTrackerStylesInstalled = false;
-    function getMyOcTrackerDiv() {
-        if (!ocTrackerStylesInstalled) installTrackerStyles();
-        return `<div id="ocTracker"><span id="oc-tracker-time">00:00:00</span></div>`;
-    }
-
-
     // ======================== Sorting portion of script ===========================
 
     function setSortCaret(order) {
@@ -938,10 +1103,8 @@
     }
 
     function handlePageChange() {
-        //logCurrPage();
         switch (btnIndex()) {
             case recruitingIdx:
-                log("On recruiting page...");
                 setSortCaret(recruitSortOrder);
                 sortPage(sortByLevel);
                 $("#oc-opt-wrap").addClass("recruit-tab");
@@ -1011,7 +1174,6 @@
         else
             $("#show-hidden").removeClass("xhide");
 
-        //logCurrPage();
         handlePageChange();
     }
 
@@ -1041,23 +1203,7 @@
     }
 
     function hideShowByLevel() {
-        //log("hideShowByLevel, paused: ", hideLvlPaused);
         let lvlList = $(".sort-lvl");
-
-        /*
-        if (hideLvl == false || hideLvlPaused == true) {
-            $(lvlList).css("display", "block");  //"block");
-            tagAndSortScenarios(sortByLevel);
-            let tab = getRecruitingTab();
-            $(tab).text("Recruiting");
-            return;
-        }
-        */
-
-        log("hideShowByLevel, paused: ", hideLvlPaused, ", sorting.");
-        log("List: ", $(lvlList));
-
-        //if (!hideLvlVal || hideLvlVal < 1) return log("hideShowByLevel Error: no level set to hide...");
         let countHidden = 0;
 
         for (let idx=0; idx<$(lvlList).length; idx++) {
@@ -1067,11 +1213,9 @@
                 $(panel).css("display", "none");
                 $(panel).addClass("xhidden");
                 countHidden++;
-                log("Hiding panel ", $(panel));
             } else {
                 $(panel).removeClass("xhidden");
                 $(panel).css("display", "block");
-                log("Showing panel ", $(panel));
             }
             tagAndSortScenarios(sortByLevel);
         }
@@ -1097,8 +1241,6 @@
         if (!sortCriteria) {
             sortCriteria = sortByTime;
             if (onRecruitingPage()) sortCriteria = sortByLevel;
-            //else if (onPlanningPage()) sortCriteria = sortByTime;
-            //else if (onCompletedPage()) sortCriteria = sortByTime;
         }
 
         scenarios = $("[class^='scenario_']");
@@ -1156,35 +1298,16 @@
         sortList();
     }
 
-    // ======= Experimental - 'show hidden' option
-    /*
-    function showHiddenRecruits() {
-        log("showHiddenRecruits");
-        let tab = getRecruitingTab();
-        let lvlList = $(".sort-lvl");
-        $(lvlList).css("display", "");
-        $(tab).text("Recruiting");
-        return false;
-    }
-    */
-
     var inUnhideCb = false;
     function resetCbFlag() {inUnhideCb = false;}
 
     function showHiddenRecruits(e) {
-        debug("showHiddenRecruits: ", inUnhideCb, " list: ", $(".xhidden"), " e: ", e);
-
         inUnhideCb = true;
         setTimeout(resetCbFlag, 1000);
         if (hideLvlPaused == false) {
-            debug("Showing...");
-            //$(".xhidden").css('display', 'block');
             hideLvlPaused = true;
             $("#show-recruits").text("Hide hidden recruits");
-            debug("Added style: ", $(".xhidden"));
         } else {
-            debug("Hiding...");
-            //$(".xhidden").css('display', 'none');
             hideLvlPaused = false;
             $("#show-recruits").text("Show hidden recruits");
         }
@@ -1231,7 +1354,7 @@
     function handlePageLoad(node) {
         debug("handlePageLoad");
         if (!isOcPage()) {
-            //if (trackMyOc == true) { getTimeUntilOc(); }
+            if (trackMyOc == true) { getTimeUntilOc(); }
             return log("Not on crimes page, going home");
         }
 
@@ -1242,7 +1365,6 @@
         let root = $("#faction-crimes");
         if ($(root).length == 0) {
             debug("Root not found, started observer...");
-
             callWhenElementExistsEx("document", "#faction-crimes", handlePageLoad);
             return;
         }
@@ -1264,15 +1386,19 @@
         // Save completed crimes as CSV, no longer enabled...
         //installCompletedPageButton();
 
-        if (trackMyOc == true) { getTimeUntilOc(); }
+        if (trackMyOc == true) {
+            if (!myOcTracker) {
+                myOcTracker = new OcTracker();
+                myOcTracker.startMyOcTracking();
+            }
+            myOcTracker.getTimeUntilOc();
+        }
 
         setTimeout(initialScenarioLoad, 500);
 
         function onScrollTimer() {
             switch (btnIndex()) {
                 case recruitingIdx:
-                    log("Recruit scroll timer.");
-                    //hideShowByLevel();
                     tagAndSortScenarios(sortByLevel);
                     break;
                 case planningIdx:
@@ -1291,9 +1417,6 @@
     //
     var membersNotInOc = {};
     var membersNotInOcReady = false;
-    //var completedCrimesSynced = false;
-    //var completedScenarios;
-    //var completedScenariosLastLen = 0;
     var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
 
     // =================== Get fac members, update list of not in OC =============
@@ -1345,14 +1468,23 @@
         lastFacMemberUpd = new Date().getTime(); // move to CB
     }
 
+    var blinkInt;
+
+    function removeBlinkInt() {
+        clearInterval(blinkInt);
+        blinkInt = null;
+        $("#x-no-oc-table").removeClass("gb");
+        $("#x-no-oc-table").removeClass("bb");
+    }
+
     function refreshmembersNotInOc() {
-        var int = setInterval(doBlink, 500);
         $("#x-no-oc-table").addClass("gb");
-        const removeInt = function () {clearInterval(int); int = null;}
         const doBlink = function () { // could just add animate class....
             $("#x-no-oc-table").toggleClass("gb bb");
-            setTimeout(removeInt, 500);
+            setTimeout(removeBlinkInt, 500);
         }
+
+        blinkInt = setInterval(doBlink, 500);
 
         setTimeout(getFacMembers, 3000, true);
         return false;
@@ -1395,7 +1527,7 @@
     }
 
     function clearCsrList() {
-        log("clearCsrList");
+        //log("clearCsrList");
         let ids = Object.keys(csrList);
         for (let i=0; i<ids.length; i++) {
             let id = ids[i];
@@ -1467,7 +1599,7 @@
             }
 
             if (csrTimestamp > newestDate) {
-                log("Found newer date!! : ", idx, csrTimestamp, newestDate);
+                debug("Found newer date!! : ", idx, csrTimestamp, newestDate);
                 newestDate = csrTimestamp;
                 debugger;
             }
@@ -1491,7 +1623,7 @@
                 if (!userCsrs) {
                     missingCsr++;
                     entry.crimeCsr[aka] = 0;
-                    log("No csr! aka: '", aka, "' entry: ", entry, "' name: ", crime.name, "'");
+                    debug("No csr! aka: '", aka, "' entry: ", entry, "' name: ", crime.name, "'");
                     continue;
                 }
 
@@ -1597,11 +1729,11 @@
     // Main.
     //////////////////////////////////////////////////////////////////////
 
-    if (trackMyOc != true) logScriptStart();
+    logScriptStart();
     //if (isAttackPage()) return log("Won't run on attack page!");  // Moved to top
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
-    if (trackMyOc != true) validateApiKey();
+    validateApiKey();
 
     if (xedxDevMode) log("Dev Mode enabled");
     if (debugLoggingEnabled) log("Debug Logging enabled");
@@ -1618,28 +1750,18 @@
     if (trackMemberCsr == true)
         checkIfNeedCsrUpdate();
 
-    if (!isOcPage()) {
-        if (trackMyOc == true) {
-            getTimeUntilOc();
-        }
-        return log("Not on crimes page, going home");
-    }
+    //if (!isOcPage()) {
+    //    if (trackMyOc == true) {
+    //        getTimeUntilOc();
+    //    }
+    //    return log("Not on crimes page, going home");
+    //}
 
     callOnContentComplete(handlePageLoad);
 
     // ========================= UI stuff ===============================
 
-    // ============================ New options menu ============================
-
     function handleOptsMenuCb(e) {
-        /*
-        let target = $(e.currentTarget);
-        let varName = $(this).attr('name');
-        let fnName = $(this).attr("data-run");
-        let checked = $(this)[0].checked;
-
-        GM_setValue(varName, checked);
-        */
         GM_setValue($(this).attr('name'), $(this)[0].checked);
         updateOptions();
         if ($(this).attr("data-run"))
@@ -2173,7 +2295,7 @@
 
         // Now need to update table, change the cell values...
         // Are the values updated yet?
-        log("handleCrimeSelect, update table for ", crimeName, "|", $("#x-csr-table"));
+        debug("handleCrimeSelect, update table for ", crimeName, "|", $("#x-csr-table"));
         updateCsrTable($("#x-csr-table"), crimeName);
     }
 
@@ -2687,6 +2809,7 @@
         loadMiscStyles();
         addFlexStyles();
         addBorderStyles();
+        addButtonStyles();
 
         // 16% could be 124px ?? ... csr header
         GM_addStyle(`
@@ -2721,6 +2844,10 @@
 
            .blinkOcWarn {
                color: var(--default-red-color);
+               animation: blinker 1.8s linear infinite;
+           }
+           .blinkOcWarnBtn {
+               background: var(--default-red-color);
                animation: blinker 1.8s linear infinite;
            }
            .blinkOcGreen {
@@ -2862,6 +2989,8 @@
     function installTrackerStyles() {
         if (ocTrackerStylesInstalled == true) return;
         GM_addStyle(`
+            /*#oc2Timer {display: none;}*/
+
             #ocTracker {
                 display: flex;
                 position: relative;
@@ -2917,23 +3046,19 @@
             }
             #ocTracker-cm input {
                 display: inline-flex;
-                /*margin-left: 10px;*/
                 width: fit-content;
                 margin-right: 5px;
                 border-right: 1px solid black;
                 text-align: center;
             }
-            /*
-            #ocTracker-cm span {
-                margin-right: auto;
-            }
-            */
             #ocTracker-cm a {
                 display: inline-flex;
                 width: fit-content;
-                /*margin-right: auto;*/
             }
-
+            #missing-item {
+                width: 16px !important;
+                margin: 4px;
+            }
         `);
 
         ocTrackerStylesInstalled = true;
