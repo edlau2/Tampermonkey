@@ -2064,6 +2064,7 @@ function addSortBtnStyles() {
                 color: #666l
             }
     `);
+}
 
 
 // Add the style(s) I use for tool-tips
@@ -2174,7 +2175,6 @@ function addToolTipStyle() {
             z-index: 999;
         }
     `);
-
 }
 
 // Adds a tool tip to a node/element
@@ -2561,64 +2561,64 @@ function addFlexStyles() {
 function addBorderStyles() {
 
     GM_addStyle(`
-            .xbblue {border: 1px solid blue;}
-            .xbred {border: 1px solid red;}
-            .xbgreen {border: 1px solid limegreen;}
-            .xbyellow {border: 1px solid yellow;}
-            .xbwhite {border: 1px solid white;}
-            .xbblack {border: 1px solid black;}
+        .xbblue {border: 1px solid blue;}
+        .xbred {border: 1px solid red;}
+        .xbgreen {border: 1px solid limegreen;}
+        .xbyellow {border: 1px solid yellow;}
+        .xbwhite {border: 1px solid white;}
+        .xbblack {border: 1px solid black;}
 
-            .xbblue2 {border: 2px solid blue;}
-            .xbred2 {border: 2px solid red;}
-            .xbgreen2 {border: 2px solid limegreen;}
-            .xbyellow2 {border: 2px solid yellow;}
-            .xbwhite2 {border: 2px solid white;}
-            .xbblack2 {border: 2px solid black;}
+        .xbblue2 {border: 2px solid blue;}
+        .xbred2 {border: 2px solid red;}
+        .xbgreen2 {border: 2px solid limegreen;}
+        .xbyellow2 {border: 2px solid yellow;}
+        .xbwhite2 {border: 2px solid white;}
+        .xbblack2 {border: 2px solid black;}
 
-            .xbgreen-inset {box-shadow: inset 0px 0px 2px 4px limegreen;}
-            .xbgreen-inset-sm {box-shadow: inset 1px 0px 0px 2px #0eb30e;}
+        .xbgreen-inset {box-shadow: inset 0px 0px 2px 4px limegreen;}
+        .xbgreen-inset-sm {box-shadow: inset 1px 0px 0px 2px #0eb30e;}
 
-            .xopts-border-insert-tl {
-                border-radius: 15px;
-                box-shadow: 0 20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
-            }
-            .xopts-border-insert-br {
-                border-radius: 15px;
-                box-shadow: 0 -20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
-            }
-            .xopt-border-ml6 {
-                border-radius: 15px;
-                box-shadow: 0 29px 52px rgba(0,0,0,0.40), 0 25px 16px rgba(0,0,0,0.20);
-            }
-            .xopt-border-ml7 {
-                border-radius: 15px;
-                box-shadow: 0 45px 65px rgba(0,0,0,0.50), 0 35px 22px rgba(0,0,0,0.16);
-            }
-            .xopt-border-ml8 {
-                border-radius: 15px;
-                box-shadow: 0 60px 80px rgba(0,0,0,0.60), 0 45px 26px rgba(0,0,0,0.14);
-            }
-            .xopts-border-10 {
-                border-radius: 15px;
-                box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
-            }
-            .xopts-border-27 {
-                border-radius: 15px;
-                box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px inset, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px inset;
-            }
-            .xopts-border-87 {
-                border-radius: 15px;
-                box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
-            }
-            .xopts-border-89 {
-                border-radius: 15px;
-                border 3px solid darkslategray;
-            }
-            .xopts-border-89 {
-                border-radius: 15px;
-                box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
-            }
-        `);
+        .xopts-border-insert-tl {
+            border-radius: 15px;
+            box-shadow: 0 20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
+        }
+        .xopts-border-insert-br {
+            border-radius: 15px;
+            box-shadow: 0 -20px 10px -20px rgba(0,0,0,0.45) inset, -20px 0 10px -20px rgba(0,0,0,0.45) inset;
+        }
+        .xopt-border-ml6 {
+            border-radius: 15px;
+            box-shadow: 0 29px 52px rgba(0,0,0,0.40), 0 25px 16px rgba(0,0,0,0.20);
+        }
+        .xopt-border-ml7 {
+            border-radius: 15px;
+            box-shadow: 0 45px 65px rgba(0,0,0,0.50), 0 35px 22px rgba(0,0,0,0.16);
+        }
+        .xopt-border-ml8 {
+            border-radius: 15px;
+            box-shadow: 0 60px 80px rgba(0,0,0,0.60), 0 45px 26px rgba(0,0,0,0.14);
+        }
+        .xopts-border-10 {
+            border-radius: 15px;
+            box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+        }
+        .xopts-border-27 {
+            border-radius: 15px;
+            box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px inset, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px inset;
+        }
+        .xopts-border-87 {
+            border-radius: 15px;
+            box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
+        }
+        .xopts-border-89 {
+            border-radius: 15px;
+            border 3px solid darkslategray;
+        }
+        .xopts-border-89 {
+            border-radius: 15px;
+            box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
+        }
+    `);
 }
 
 // Styles for all sorts of cursors
@@ -2827,8 +2827,6 @@ function addDraggableStyles() {
         }
     `);
 }
-
-
 
 
 
