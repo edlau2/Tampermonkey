@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.36
+// @version     2.45.37
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.35";
+const thisLibVer = "2.45.37";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -1938,6 +1938,8 @@ function addFloatStyles() {
 // Replacement for class .torn-btn,which I find cab flicker
 // on hover-over sometimes, I think due to border width,
 // padding and margin issues.
+//
+// Note: included with addButtonStyles() !!!
 function addTornButtonExStyles() {
     GM_addStyle(`
         .xedx-torn-btn {
@@ -2017,6 +2019,7 @@ function addTornButtonExStyles() {
 
 function addButtonStyles() {
     addTornButtonExStyles();
+    addSortBtnStyles();
 
     // Add a width style to this to over-ride 20px if you want...
     GM_addStyle(`
@@ -2033,6 +2036,34 @@ function addButtonStyles() {
         }
     `);
 }
+
+// Button itself:
+// const toggleBtn = `<span class="x-toggle-sort"><i class="fas fa-caret-down"></i></span>`;
+// Can set initial position: "fa-caret-up" : "fa-caret-down"
+//
+// Note: included with addButtonStyles() !!!
+function addSortBtnStyles() {
+    GM_addStyle(`
+        .x-toggle-sort {
+                position: relative;
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                cursor: pointer;
+                width: 30px;
+                opacity: 1;
+                visibility: visible;
+                transition: all .2s ease-in-out;
+                float: right;
+                vertical-align: bottom;
+                align-content: center;
+            }
+            body:not(.dark-mode) .x-toggle-sort {
+                background-image: radial-gradient(rgba(255, 255, 255, 0.2) 0%, rgba(50, 50, 50, 0.6) 100%);
+                border: none;
+                color: #666l
+            }
+    `);
 
 
 // Add the style(s) I use for tool-tips
@@ -2118,6 +2149,31 @@ function addToolTipStyle() {
                 "font-size: 1em;" +
                 "z-index: 999999;" +
                 "}");
+
+    GM_addStyle(`
+        .tooltip6 {
+            position: relative;
+            top: 225px !important;
+            left: 480px !important;
+            transform: translateX(-110%);
+            background-color: #000000 !important;
+            filter: alpha(opacity=80);
+            opacity: 0.80;
+            padding: 5px 20px;
+            border: 2px solid gray;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 10px;
+            text-align: left;
+            font-weight: bold !important;
+            font-stretch: condensed;
+            text-decoration: none;
+            color: #FFF;
+            font-size: 13px;
+            line-height: 1.5;
+            z-index: 999;
+        }
+    `);
 
 }
 
@@ -2469,16 +2525,15 @@ function addFlexStyles() {
     GM_addStyle(`
         .xflexr {
             display: flex;
-            flex-direction: row;
+            flex-flow: row wrap;
+        }
+        .xflex-center {
+            align-content: center;
+            justify-content: center;
         }
         .xflexc {
             display: flex;
             flex-direction: column;
-        }
-        .xflexr-center {
-            flex-direction: row;
-            align-content: center;
-            justify-content: center;
         }
         .xflexc-center {
             flex-direction: column;
@@ -2638,6 +2693,9 @@ function loadMiscStyles() {
         .xshowif {
             display: inline-flex;
         }
+        .xshowf {
+            display: flex;
+        }
         .xhyperlink {
             /*filter: brightness(85%);*/
         }
@@ -2656,6 +2714,12 @@ function loadMiscStyles() {
         .xz {
             z-index: 999999;
         }
+       .xscrollLock {
+           max-height: 90vh;
+           overflow-y: auto;
+           top: 0px;
+           position: sticky;
+       }
 
         .w20p {width: 20%;}
         .w25p {width: 25%;}
