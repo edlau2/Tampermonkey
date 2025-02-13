@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.17
+// @version      2.18
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -292,12 +292,27 @@
         ocCallPending = false;
         lastTimeReq = 0;
         collisions= 0;
+        lastQueryTime = 0;
 
         getMyNextOcTime() {
-            if (myOcTracker.ocCallPending == true) {
+            let now = new Date().getTime();
+            let diff = now - myOcTracker.lastQueryTime;
+            debug("xxx getMyNextOcTime: ", diff, "|", document.visibilityState, "|", myOcTracker.ocCallPending);
+            if (diff < 20000) {
+                debug("ERROR: xxx Last call was under 20 secs!", diff);
                 return;
             }
-            myOcTracker.ocCallPending = true;
+            myOcTracker.lastQueryTime = now;
+            if (document.visibilityState != 'visible') {
+                debug("xxx Document not visible, don't call the API");
+                return;
+            }
+            if (myOcTracker.ocCallPending == true) {
+                debug("xxx API call already pending, don't call again!");
+                return;
+            }
+            debug(" xxx myOcTracker submitting request");
+            //myOcTracker.ocCallPending = true;
             xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
         }
 
@@ -308,6 +323,7 @@
                       " req time: ", time, " collisions: ", myOcTracker.collisions);
                 return;
             }
+            myOcTracker.ocCallPending = true;
             myOcTracker.lastTimeReq = time;
             setTimeout(myOcTracker.getMyNextOcTime, time, param);
         }
