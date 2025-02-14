@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.45.38
+// @version     2.46.00
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.45.38";
+const thisLibVer = "2.46.00";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -256,6 +256,18 @@ function callOnContentComplete(callback) {
         document.addEventListener('readystatechange',
                                   event => {if (document.readyState == 'complete') callback();});
     }
+}
+
+// Be notified if visibility changes (change tabs, for example)
+// Callback sig: cllbackFn(visible) {} // 'visible' is true if getting focus
+function callOnVisibilityChange(callback) {
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === 'visible') {
+        callback(true);
+      } else {
+        callback(false);
+      }
+    });
 }
 
 // Notify when an element exits, via polling. If possible,
@@ -574,6 +586,27 @@ function getCookie(cname) {
 // Get current rfcv value for request authorization
 function getRfcv() {
     return getCookie("rfc_id");
+}
+
+// ============ Dynamically load another script ==================
+// Alternative to @require if not always needed....
+//
+function loadScript(file, noisy) {
+  const newScript = document.createElement('script');
+  newScript.setAttribute('src', file);
+  newScript.setAttribute('async', 'true');
+
+    if (noisy == true) {
+      newScript.onload = () => {
+        displayMessage(`${file} loaded successfully.`, 'success');
+      };
+
+      newScript.onerror = () => {
+        displayMessage(`Error loading script: ${file}`, 'error');
+      };
+    }
+
+  document.head.appendChild(newScript);
 }
 
 // ===================== User ID functions ===========================
