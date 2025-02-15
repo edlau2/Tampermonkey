@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.18
+// @version      2.19
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -53,6 +53,7 @@
 
     var myCrimeId; // = GM_getValue("myCrimeId", null);
     var myCrimeStartTime; // = GM_getValue("myCrimeStartTime", 0);
+    var myCrimeStartTimeModifier;
     var myCrimeStatus = ""; // = GM_getValue("myCrimeStatus", "");
 
     const NO_OC_TIME = "No OC found.";
@@ -61,6 +62,7 @@
     const showExperimental = false;
 
     function myOcTrackingCb(responseText, ID, param) {
+        debug("myOcTrackingCb: ", myOcTracker);
         if (myOcTracker)
             myOcTracker.handleOcResponse(responseText, ID, param);
     }
@@ -129,7 +131,9 @@
             }
         }
 
-        getTimeUntilOc() {
+        // Recruit: add 24 hrs for each member not started...
+        getDisplayTimeUntilOc() {
+            //log("getDisplayTimeUntilOc");
             if (!myCrimeStartTime || !this.validateSavedCrime()) {
                 this.scheduleOcCheck(5000);
                 return NO_OC_TIME;
@@ -236,6 +240,16 @@
                 return;
             }
             let readyAt = myCrime.ready_at;
+            let expiredAt = myCrime.expired_at;
+
+            if (debugLoggingEnabled) {
+                log("Found my crime: ", myCrime);
+                log("ready at: ", new Date(readyAt * 1000).toString());
+                log("expired at: ", new Date(expiredAt * 1000).toString());
+                log("status: ", myCrime.status);
+            }
+
+            myOcTracker.scheduleOcCheck(58000);
 
             if (myCrime && readyAt) {
                 myCrimeId = myCrime.id;
@@ -247,7 +261,7 @@
                 myOcTracker.enableNoOcAlert();
                 myOcTracker.setTrackerTime(NO_OC_TIME);
                 debug("Didn't locate my own OC!");
-                myOcTracker.scheduleOcCheck(60000);    // Try again in a minute...
+                //myOcTracker.scheduleOcCheck(60000);    // Try again in a minute...
                 return;
             }
 
@@ -256,6 +270,8 @@
             this.missingReqItem = false;
             for (let idx=0; idx<slots.length; idx++) {
                 let slot = slots[idx];
+                // Empty slots add 24 hours to time...
+                if (!slot.user_id) myCrimeStartTime += secsInDay;
                 if (slot.user_id == userId) {
                     if (slot.item_requirement != null) {
                         if (slot.item_requirement.is_available == false) {
@@ -273,18 +289,18 @@
                             }
                         }
                     }
-                    break;
+                    // break;
                 }
             }
 
             if (myCrimeStartTime) {
                 let dt = new Date(myCrimeStartTime * 1000);
-                myOcTracker.setTrackerTime(this.getTimeUntilOc());
+                myOcTracker.setTrackerTime(this.getDisplayTimeUntilOc());
                 setInterval(myOcTracker.updateTrackerTime, 31000, this);
             }
 
             function updateTrackerTime(obj) {
-                myOcTracker.setTrackerTime(myOcTracker.getTimeUntilOc());
+                myOcTracker.setTrackerTime(myOcTracker.getDisplayTimeUntilOc());
             }
         }
 
@@ -293,43 +309,91 @@
         lastTimeReq = 0;
         collisions= 0;
         lastQueryTime = 0;
+        pendingReqId = 0;
 
-        getMyNextOcTime() {
+        clearPending() {myOcTracker.ocCallPending = false;}
+
+        getMyNextOcTime(force) {
+            if (force == true) {
+                debug(" xxx myOcTracker sending forced request");
+                xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
+                return;
+            }
             let now = new Date().getTime();
             let diff = now - myOcTracker.lastQueryTime;
             debug("xxx getMyNextOcTime: ", diff, "|", document.visibilityState, "|", myOcTracker.ocCallPending);
-            if (diff < 20000) {
+            if (!force && diff < 20000) {
                 debug("ERROR: xxx Last call was under 20 secs!", diff);
                 return;
             }
             myOcTracker.lastQueryTime = now;
-            if (document.visibilityState != 'visible') {
+            if (!force && document.visibilityState != 'visible') {
                 debug("xxx Document not visible, don't call the API");
                 return;
             }
-            if (myOcTracker.ocCallPending == true) {
-                debug("xxx API call already pending, don't call again!");
-                return;
+            if (!force && myOcTracker.ocCallPending == true) {
+                //debug("xxx API call already pending, don't call again!");
+                //return;
             }
-            debug(" xxx myOcTracker submitting request");
+            debug(" xxx myOcTracker sending request");
             //myOcTracker.ocCallPending = true;
             xedx_TornUserQueryv2("", "organizedcrime", myOcTrackingCb);
         }
 
         scheduleOcCheck(time, param) {
+            //log("scheduleOcCheck, ", time);
             if (myOcTracker.ocCallPending == true) {
                 myOcTracker.collisions++;
                 debug("Collided with pending request! Time: ", myOcTracker.lastTimeReq,
                       " req time: ", time, " collisions: ", myOcTracker.collisions);
-                return;
+                if (time < myOcTracker.lastTimeReq) {
+                    debug("Over-riding due to time");
+                    clearTimeout(myOcTracker.pendingReqId);
+                } else {
+                    return;
+                }
             }
             myOcTracker.ocCallPending = true;
             myOcTracker.lastTimeReq = time;
-            setTimeout(myOcTracker.getMyNextOcTime, time, param);
+            myOcTracker.pendingReqId = setTimeout(myOcTracker.getMyNextOcTime, time, param);
+        }
+
+        addMenuToSidebar() {
+            if (!isOcPage())
+                this.installOcTrackerContextMenu();
+            else {
+                // Add refresh opt only
+                // Remove first, just in case.
+                $("#ocTracker").off("contextmenu");
+                $("#ocTracker").on("contextmenu", function(e) {
+                    let target = e.currentTarget;
+                    e.preventDefault(); // Prevent default right-click menu
+
+                    let menuHtml = `<ul class='custom-menu'><li data-action="refresh">Refresh</li></ul>`;
+                    let menu = $(menuHtml);
+                    $(menu).css({top: e.pageY, left: e.pageX});
+                    $("body").append(menu);
+                    menu.show();
+
+                    $(".custom-menu li").click(function() {
+                        var choice = $(this).attr("data-action");
+                        doOptionMenuRunFunc(choice);
+                        menu.remove(); // Remove the menu
+                    });
+
+                    // Hide menu when clicking outside
+                    $(document).on("click", function(e) {
+                        if (!$(e.target).closest(".context-menu").length) {
+                            menu.remove();
+                        }
+                    });
+                });
+            }
         }
 
         startMyOcTracking() {
             if ($("#ocTracker").length) {
+                myOcTracker.addMenuToSidebar();
                 return log("Warning: another instace of the OC Tracker is running!");
             }
 
@@ -349,12 +413,7 @@
             // Don't need the context menu on the fac crimes page,
             // we have the regular options menu. Fix it so same
             // calbacks are used?
-            if (!isOcPage())
-                this.installOcTrackerContextMenu();
-            else {
-                // maybe install tracker, but disable context menu...?
-                debug("startMyOcTracking, on OC page, not installing CM...");
-            }
+            this.addMenuToSidebar();
 
             // On fac page - we will be doing this call anyways,
             // and the callback will call the above callback as well.
@@ -364,7 +423,9 @@
                 return;
             }
 
+            //getMyNextOcTime('available');
             this.scheduleOcCheck(250, 'available');
+            setInterval(myOcTracker.clearPending, 10000);
         }
 
         // Handles input changes on context menu (checkboxes, fields)
@@ -626,8 +687,9 @@
 
         myOcTracker = new OcTracker();
         myOcTracker.startMyOcTracking();
-        myOcTracker.getTimeUntilOc();
-        return;
+        myOcTracker.getMyNextOcTime(true);
+        //myOcTracker.scheduleOcCheck(100);
+        //return;
 
         // Don't return yet, other things may still run...
         //if (!isFactionPage()) {
@@ -1055,8 +1117,10 @@
                 $("#oc-tracker-time").addClass("blink182");
                 myCrimeId = 0;
                 myCrimeStartTime = 0;
-                if (myOcTracker)
-                    myOcTracker.scheduleOcCheck(2500, 'available');
+                if (myOcTracker) {
+                    //myOcTracker.scheduleOcCheck(2500, 'available');
+                    myOcTracker.getMyNextOcTime(true);
+                }
                 break;
             }
             case "mem-refresh": {
@@ -1369,8 +1433,16 @@
 
     function handlePageLoad(node) {
         debug("handlePageLoad");
+
+        // This won't add twice, but we can enter here for several reasons.
+        addStyles();
+
         if (!isOcPage()) {
-            if (trackMyOc == true) { getTimeUntilOc(); }
+            if (trackMyOc == true) {
+                myOcTracker.addMenuToSidebar();
+                myOcTracker.getMyNextOcTime(true);
+                //myOcTracker.scheduleOcCheck(100);
+            }
             return log("Not on crimes page, going home");
         }
 
@@ -1407,7 +1479,9 @@
                 myOcTracker = new OcTracker();
                 myOcTracker.startMyOcTracking();
             }
-            myOcTracker.getTimeUntilOc();
+            myOcTracker.addMenuToSidebar();
+            myOcTracker.getMyNextOcTime(true);
+            //myOcTracker.scheduleOcCheck(100);
         }
 
         setTimeout(initialScenarioLoad, 500);
@@ -1427,6 +1501,21 @@
                     break;
             }
         }
+    }
+
+
+    function pushStateChanged(e) {
+        debug("pushStateChanged: ", e, " | ", location.hash);
+        handlePageLoad();
+    }
+
+    function handleVisibilityChange(visible) {
+        debug("handleVisibilityChange: ", visible, "|", trackMyOc, "|", myOcTracker);
+        if (visible)
+            if (trackMyOc == true && myOcTracker) {
+                //myOcTracker.getMyNextOcTime();
+                myOcTracker.scheduleOcCheck(100);
+            } //getDisplayTimeUntilOc(); }
     }
    
     //============================== API calls ===================================
@@ -1758,6 +1847,8 @@
     addStyles();
 
     callOnHashChange(hashChangeHandler);
+    installPushStateHandler(pushStateChanged);
+    callOnVisibilityChange(handleVisibilityChange);
 
     // This gets member list as well as "is in an OC" flag, no longer need recruit/planning
     // data for this. But, do need to find our own crime for time until info.
@@ -1768,7 +1859,7 @@
 
     //if (!isOcPage()) {
     //    if (trackMyOc == true) {
-    //        getTimeUntilOc();
+    //        getDisplayTimeUntilOc();
     //    }
     //    return log("Not on crimes page, going home");
     //}
@@ -2200,6 +2291,9 @@
             .csr-name {
                padding-left: 5px;
             }
+            .csr-name:hover {
+                color: var(--default-blue-color) !important;
+            }
             .cc1 {/*width: 120px;*/}
             .cc2, .cc3, .cc4, .cc5, .cc6, .cc7 {/*width: 110px;*/}
             .w13p {width: 13%;}
@@ -2259,7 +2353,7 @@
         let addlClass = (notInOc == true) ? 'no-oc' : '';
         if (userId == id) addlClass = addlClass + " my-id";
         let newRow = `<tr id='${id}-tr' class='${addlClass}'>
-                          <td class="cc1"><span class='csr-name' data-sort="${name}">${name} [${id}]</span></td>
+                          <td class="cc1"><span class='csr-name' data-id="${id}" data-sort="${name}">${name} [${id}]</span></td>
                           <td class="cc2" data-sort="${csrArr[0]}">${csrArr[0]}</td>
                           <td class="cc3" data-sort="${csrArr[1]}">${csrArr[1]}</td>
                           <td class="cc4" data-sort="${csrArr[2]}">${csrArr[2]}</td>
@@ -2285,6 +2379,13 @@
             $(body).append(row);
 
         }
+
+        $(".csr-name").on('click', function(e) {
+            let target = $(e.currentTarget);
+            let id = $(target).attr("data-id");
+            let url = `https://www.torn.com/profiles.php?XID=${id}`;
+            openInNewTab(url);
+        });
     }
 
     function handleCrimeSelect(e) {
@@ -2826,6 +2927,35 @@
         addFlexStyles();
         addBorderStyles();
         addButtonStyles();
+
+        // This  is for the right-click "Refresh" option....
+        GM_addStyle(`
+            .custom-menu {
+                display: none;
+                z-index: 1000;
+                position: absolute;
+                overflow: hidden;
+                border: 1px solid green;
+                white-space: nowrap;
+                font-family: sans-serif;
+                background: #ddd;
+                color: #333;
+                border-radius: 5px;
+                padding: 0;
+            }
+
+            .custom-menu li {
+                padding: 8px 12px;
+                cursor: pointer;
+                list-style-type: none;
+                transition: all .3s ease;
+                user-select: none;
+            }
+
+            .custom-menu li:hover {
+                background-color: #DEF;
+            }
+        `);
 
         // 16% could be 124px ?? ... csr header
         GM_addStyle(`
