@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.19
+// @version      2.20
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -548,6 +548,9 @@
 
         // Install sidebar OcTracker only options
         installOcTrackerContextMenu() {
+
+            if ($("#ocTracker-cm").length) return;
+
             let myMenu =
                 `<div id="ocTracker-cm" class="context-menu xopts-border-89 oc-offscreen" style="opacity: 0;"><ul ></ul></div>`;
 
