@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Cross-Domain Chat
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  This script lets you keep an eye on chat from a tab open  in another domain.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -34,7 +34,7 @@
     const dbEnable = true;               // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
     const allowPublic = true;            // If true, let things like public trade, general, etc through
 
-    const doDevPings = true;             // true to constantly ping - dev test to make sure both ends work without focus
+    const doDevPings = false;             // true to constantly ping - dev test to make sure both ends work without focus
     const pingIntervalSecs = 30;         // Time between pings
 
     const historyLimit = 100;            // Chat message box will hold max this many messages before they scroll out.
@@ -54,24 +54,26 @@
         return;
     }
 
-    if (location.href.indexOf('bitsnbobs') < 0) {
-        log("Only configured for Bits 'n Bobs...going home.");
-        return;
-    }
+    //if (location.href.indexOf('bitsnbobs') < 0) {
+    //    log("Only configured for Bits 'n Bobs...going home.");
+    //    return;
+    //}
 
     function initYataCSS() {
+        addDraggableStyles();
+
         GM_addStyle(`
             .chat-box-wrapper {
                 align-items: flex-end;
-                bottom: 39px;
+                bottom: 0px;
                 display: flex;
                 position: absolute;
                 right: 1px;
 
-                height: 334px;
-                width: 268px;
+                /* height: 334px;
+                width: 268px; */
 
-                border: 1px solid limegreen;
+                /* border: 1px solid limegreen; */
             }
             .group-chat-box {
                 align-items: flex-end;
@@ -84,6 +86,7 @@
                 border-radius: 4px;
                 box-shadow: 0 4px 4px rgba(0,0,0,.25);
                 overflow: hidden;
+                word-break: break-word;
                 position: relative;
             }
             .chat-box-body {
@@ -92,11 +95,13 @@
                 overflow-y: auto;
                 overscroll-behavior: contain;
                 padding: 0 10px;
+                word-break: break-word;
             }
 
             [class^='chat-box-message'] {
                 margin-bottom: 2px;
                 display: flex;
+                word-break: break-word;
             }
             [class^='chat-box-message__avatar'] {
                 margin-right: 4px;
@@ -139,6 +144,7 @@
                 min-width: 100px;
                 padding: 10px 8px;
                 resize: none;
+                word-break: break-word;
             }
 
             .chat-box-message__box {
@@ -166,10 +172,10 @@
             .box-message p {
                 font-size: 12px !important;  /* var(--torntools-chat-font-size, 12px) !important; */
                 line-height: 1rem;
-
+                word-break: break-word;
                 color: #e3e3e3;  /* var(--chat-text-color); */
             }
-            .chat-box-header {
+            .chat-box-header,  .chat-box-header p {
                 align-items: center;
                 background: linear-gradient(180deg,#303030,#444 .01%,#363636 55.73%,#2e2e2e 99.99%,#2e2e2e);
                 cursor: pointer;
@@ -177,6 +183,13 @@
                 justify-content: space-between;
                 min-height: 34px;
                 padding: 0 0 0 6px;
+
+                color: #f6f6f6;
+                font-size: .875rem;
+                line-height: 1.125rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
         `);
     }
@@ -211,25 +224,31 @@
 
     function installYataChat() {
         let yataChatBox = `
-            <div class="chat-box-wrapper">
-                <div class="group-chat-box">
+            <div id="cdcb" class="chat-box-wrapper">
+                <div id="cdcbheader" class="group-chat-box">
                     <div class="chat-box" id="fac-chat">
-                        <div class="chat-box-header"></div>
+                        <div class="chat-box-header">
+                            <p id="ccbh"></p>
+                        </div>
                         <div style="height: 250px;">
-                        <div id='cbb' class='chat-box-body'>
+                            <div id='cbb' class='chat-box-body'>
 
+                            </div>
                         </div>
+                        <div class='chat-box-footer'>
+                            <textarea class="chat-box-footer__textarea" placeholder="Type your message here..." style="height: 14px !important;">
+                            </textarea>
                         </div>
-                    </div>
-                    <div class='chat-box-footer'>
-                        <textarea class="chat-box-footer__textarea" placeholder="Type your message here..." style="height: 14px !important;">
-                        </textarea>
                     </div>
                 </div>
             </div>
         `;
 
         $('body').append(yataChatBox);
+
+        $("#ccbh").text("Chat 3.14159");
+
+        dragElement(document.getElementById("cdcb"));
     }
 
     function keepScrolledToBottom() {
@@ -252,8 +271,10 @@
         if (!prevChat)
             prevChat = thisChat;
         else
-            if (prevChat.msg_id == thisChat.msg_id) return;
+            if (prevChat.msg_id == thisChat.msg_id)
+                return log("Same msg ID (", thisChat.msg_id, "), returning.");
 
+        log("Entry: ", thisChat);
 
         let newMsg = getChatMsgDiv(thisChat);
         $("#cbb").append(newMsg);
@@ -261,6 +282,8 @@
 
         if ($("#cbb").children().length > historyLimit)
             $("#cbb").children()[0].remove();
+
+        $("#ccbh").text("Chat 3.14159 (" +$("#cbb").children().length + " msgs)");
     }
 
     function handleYataPageLoad() {
