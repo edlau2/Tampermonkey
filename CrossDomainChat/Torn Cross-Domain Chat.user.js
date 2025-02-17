@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Cross-Domain Chat
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  This script lets you keep an eye on chat from a tab open  in another domain.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -26,24 +26,70 @@
 (function() {
     'use strict';
 
+    if (isAttackPage()) return log("Won't run on attack page!");
+
+    // =============== Editable Options =============
     debugLoggingEnabled = true;          // true for more verbose logging
 
-    const publishLastFacMsgs = true;     // Write fac msgs to storage for sharing
-    const publishAnyAllowedMsg = true;   // Publish any msg (not just fac) if not filtered out
-    const filterFacMsgsOnly = false;     // Only log fac messages. Supercedes previous option.
-    const dbEnable = true;               // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
-    const allowPublic = true;            // If true, let things like public trade, general, etc through
+    var options = {
+        publishLastFacMsgs: GM_getValue("publishLastFacMsgs", true),     // Write fac msgs to storage for sharing
+        publishAnyAllowedMsg: GM_getValue("publishAnyAllowedMsg", true),   // Publish any msg (not just fac) if not filtered out
+        filterFacMsgsOnly: GM_getValue("filterFacMsgsOnly", true),     // Only log fac messages. Supercedes previous option.
+        dbEnable: GM_getValue("dbEnable", true),               // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
+        verboseMsgs: GM_getValue("verboseMsgs", false),
 
-    const doDevPings = false;             // true to constantly ping - dev test to make sure both ends work without focus
-    const pingIntervalSecs = 30;         // Time between pings
+        allowPublic: GM_getValue("allowPublic", false),            // If true, let things like public trade, general, etc through
+        doDevPings: GM_getValue("doDevPings", true),             // true to constantly ping - dev test to make sure both ends work without focus
+        silentPings: GM_getValue("silentPings", true),          // If true don't log to chat window
+        pingLifespan: GM_getValue("pingLifespan", 1),            // How long pings stay in the window, secs
 
-    const historyLimit = 100;            // Chat message box will hold max this many messages before they scroll out.
+        historyLimit: GM_getValue("historyLimit", 100),            // Chat message box will hold max this many messages before they scroll out.
+        pingIntervalSecs: GM_getValue("pingIntervalSecs", 5)         // Time between pings
+};
+
+    // ========== End editable options ==========
 
     var db = null;
     var changeListener;
+    var listenerWatchdog;
+    var lastNonPingId = 0;
     const lastChatKey = "lastChat";
+    const verifyChatKey = "lastValidChat";
+
+    function updateOption(name, newVal) {
+        options[name] = newVal;
+        GM_setValue(name, newVal);
+    }
+
+    function writeOptions() {
+        let keys = Object.keys(options);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            log("Saving opt ", key, " as ", options[key]);
+            GM_setValue(key, options[key]);
+        }
+    }
+
+    function updateOptions() {
+        let keys = Object.keys(options);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            options[key] = GM_getValue(key, options[key]);
+            log("Read opt ", key, " as ", options[key]);
+        }
+    }
+
+    function logOptions() {
+        let keys = Object.keys(options);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx];
+            log("Option: ", key, " value: ", options[key]);
+        }
+    }
 
     var prevChat, thisChat;
+
+    //writeOptions();
 
     // ================= YATA specific portion of script =====================
 
@@ -54,11 +100,6 @@
         return;
     }
 
-    //if (location.href.indexOf('bitsnbobs') < 0) {
-    //    log("Only configured for Bits 'n Bobs...going home.");
-    //    return;
-    //}
-
     function initYataCSS() {
         addDraggableStyles();
 
@@ -67,22 +108,17 @@
                 align-items: flex-end;
                 bottom: 0px;
                 display: flex;
-                position: absolute;
+                position: fixed;
                 right: 1px;
-
-                /* height: 334px;
-                width: 268px; */
-
-                /* border: 1px solid limegreen; */
+                max-width: 262px;
             }
             .group-chat-box {
                 align-items: flex-end;
                 display: flex;
             }
             .chat-box {
-                height: 328px;
                 width: 262px;
-                background: #333;  /* var(--chat-box-bg); */
+                background: #333; 
                 border-radius: 4px;
                 box-shadow: 0 4px 4px rgba(0,0,0,.25);
                 overflow: hidden;
@@ -90,7 +126,6 @@
                 position: relative;
             }
             .chat-box-body {
-                border: 1px solid red; /* var(--chat-box-border); */
                 height: 100%;
                 overflow-y: auto;
                 overscroll-behavior: contain;
@@ -99,7 +134,6 @@
             }
 
             [class^='chat-box-message'] {
-                margin-bottom: 2px;
                 display: flex;
                 word-break: break-word;
             }
@@ -130,21 +164,23 @@
             .chat-box-footer {
                 align-items: center;
                 display: flex;
-                padding: 4px;
-                border: 1px solid blue;
+                /*padding: 4px;*/
+                /*border: 1px solid #676767;*/
+                border-top: 2px solid #555;
+                /*height: 34px;*/
+                min-height: 24px;
             }
             .chat-box-footer__textarea {
-                background: black;  /* var(--chat-box-input-bg); */
-                border: #999;  /* var(--chat-box-input-border); */
+                background: black;
                 border-radius: 4px;
-                color: white;  /* var(--chat-box-input-color); */
+                color: white;
                 flex-grow: 1;
                 font-family: Arial,Helvetica,sans-serif;
                 font-size: 12px;
-                min-width: 100px;
                 padding: 10px 8px;
                 resize: none;
                 word-break: break-word;
+                border: none;
             }
 
             .chat-box-message__box {
@@ -159,46 +195,66 @@
                 display: inline;
             }
             .message__sender p {
-                font-size: 12px;  /* var(--torntools-chat-font-size, 12px) !important; */
+                font-size: 12px;
                 color: #333;
-                color: #ccc;  /* var(--chat-box-sender-name-text); */
-
+                color: #ccc;
                 display: inline;
                 font-weight: 700;
                 margin-right: 4px;
-
                 word-break: break-word;
             }
             .box-message p {
-                font-size: 12px !important;  /* var(--torntools-chat-font-size, 12px) !important; */
+                font-size: 12px !important;
                 line-height: 1rem;
                 word-break: break-word;
-                color: #e3e3e3;  /* var(--chat-text-color); */
+                color: #e3e3e3;
             }
-            .chat-box-header,  .chat-box-header p {
+            .chat-box-header {
                 align-items: center;
-                background: linear-gradient(180deg,#303030,#444 .01%,#363636 55.73%,#2e2e2e 99.99%,#2e2e2e);
+                background: linear-gradient(180deg,#303030,#444 .01%,#565656 55.73%,#2e2e2e 99.99%,#2e2e2e);
                 cursor: pointer;
                 display: flex;
-                justify-content: space-between;
                 min-height: 34px;
-                padding: 0 0 0 6px;
-
+                justify-content: center;
+                align-content: center;
+                flex-flow: row wrap;
+                border-bottom: 2px solid #555;
+            }
+            .chat-box-header p {
                 color: #f6f6f6;
                 font-size: .875rem;
                 line-height: 1.125rem;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                margin-bottom: 0px;
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                width: 90%;
+            }
+            .chat-box-header:hover {
+                background: linear-gradient(180deg,#555,#000);
+            }
+            .led-rnd {
+                width: 10px;
+                aspect-ratio: 1 / 1;
+                border-radius: 50%;
+                opacity: 0;
+                margin-right: 0;
+                background: limegreen;
             }
         `);
     }
 
     function getChatMsgDiv(entry) {
+        log("getChatMsgDiv: ", entry);
         let avatarUrl = entry.avatar;
         let imgSrc = (avatarUrl && avatarUrl.length) ? `https://avatars.torn.com/48X48_${avatarUrl}` : ``;
+        let addlMsg = (entry.channel == "ping_channel" && options.verboseMsgs == true) ? (`(id=${entry.msg_id})`) : ``;
+        let sender = (options.verboseMsgs == true) ?  `${entry.name} (on ${entry.channel}):` : `${entry.name}:`;
         let msg =
-            `<div id="chat-${entry.msg_id}">
+            `<div id="${entry.msg_id}">
                 <div class="chat-box-message">
                     <div class="chat-box-message__avatar">
                         <a href="/profiles.php?XID=${entry.user_id}" class="avatar-status-wrapper">
@@ -208,11 +264,11 @@
                     </div>
                     <div class="chat-box-message__box" data-is-tooltip-opened="false">
                         <a href="/profiles.php?XID=${entry.user_id}" class="message__sender">
-                            ${entry.name}:
+                            ${sender}
                         </a>
                         <p class="box-message">
                             <span class="text-message">
-                            ${entry.msg}
+                            ${entry.msg} ${addlMsg}
                             </span>
                         </p>
                     </div>
@@ -225,38 +281,86 @@
     function installYataChat() {
         let yataChatBox = `
             <div id="cdcb" class="chat-box-wrapper">
+            <div class="xflexc">
                 <div id="cdcbheader" class="group-chat-box">
                     <div class="chat-box" id="fac-chat">
-                        <div class="chat-box-header">
+                        <div class="chat-box-header xflexr">
                             <p id="ccbh"></p>
+                            <span id="ping-led" class="led-rnd"></span>
                         </div>
                         <div style="height: 250px;">
                             <div id='cbb' class='chat-box-body'>
 
                             </div>
                         </div>
-                        <div class='chat-box-footer'>
-                            <textarea class="chat-box-footer__textarea" placeholder="Type your message here..." style="height: 14px !important;">
+                        <!-- div class='chat-box-footer'>
+                            <textarea class="chat-box-footer__textarea" placeholder="Type your message here...">
                             </textarea>
-                        </div>
+                        </div -->
                     </div>
                 </div>
+                <div class='chat-box-footer'>
+                    <textarea class="chat-box-footer__textarea" placeholder="Type your message here...">
+                    </textarea>
+                </div>
+            </div>
             </div>
         `;
 
         $('body').append(yataChatBox);
 
-        $("#ccbh").text("Chat 3.14159");
+        setHdrText();
 
         dragElement(document.getElementById("cdcb"));
+
+        if (debugLoggingEnabled == true) logOptions();
+
+        //setInterval(flashLed, 2000);
     }
 
     function keepScrolledToBottom() {
-        //let scrollableDiv = $("#cbb");
-        //let scrollHeight = $(scrollableDiv).scrollTop();
-        //$(scrollableDiv).scrollTop(scrollHeight);
-
         $("#cbb")[0].scrollTop = $("#cbb")[0].scrollHeight;
+    }
+
+    function setHdrText() {
+        if (options.verboseMsgs == true)
+            $("#ccbh").text("Chat v3.14159 (" +$("#cbb").children().length + " msgs)");
+        else
+            $("#ccbh").text("Chat v3.14159");
+    }
+
+    function removeMsg(selector) {
+        log("Removing ping ID ", selector);
+        $(selector).remove();
+        setHdrText();
+    }
+
+    function ledOn() {
+        $("#ping-led").animate({
+            opacity: 1
+        }, 50, function() {
+            setTimeout(ledOff, 500);
+        });
+    }
+
+    function ledOff() {
+        $("#ping-led").animate({
+            opacity: 0
+        }, 50);
+    }
+
+    function flashLed() {
+        log("Flashing LED");
+        ledOn();
+
+        /*
+        $("#ping-led").animate({
+            opacity: 1
+        }, 100, function() {
+            $("#ping-led").animate({
+            opacity: 0
+        }, 500)});
+        */
     }
 
     // Notified when our storage key value changes, re-read the list
@@ -264,9 +368,6 @@
         debug("storageChangeCallback, remote: ", remote, " key: ", key, " newValue? ", newValue ? true : false);
         if (!remote || !newValue) return;
         thisChat = JSON.parse(newValue);
-
-        //debug("storageChangeCallback, old: ", oldValue ? JSON.parse(oldValue) : "NA");
-        //debug("storageChangeCallback, new: ", thisChat);
 
         if (!prevChat)
             prevChat = thisChat;
@@ -276,14 +377,46 @@
 
         log("Entry: ", thisChat);
 
+        if (thisChat.channel == 'ping_channel')
+            flashLed();
+
+        if (thisChat.channel == 'ping_channel' && options.silentPings == true) {
+            debug("Ping detected, set to silent");
+            return;
+        }
+
         let newMsg = getChatMsgDiv(thisChat);
         $("#cbb").append(newMsg);
         keepScrolledToBottom();
 
-        if ($("#cbb").children().length > historyLimit)
+        if (thisChat.channel == 'ping_channel') {
+            let time = options.pingLifespan * 1000;
+            log("Will remove ping id ", thisChat.msg_id, " in ", time, " ms");
+            setTimeout(removeMsg, time, ("#" + thisChat.msg_id));
+        } else {
+            lastNonPingId = thisChat.msg_id;
+            log("Last ID: ", lastNonPingId);
+        }
+
+        if ($("#cbb").children().length > options.historyLimit)
             $("#cbb").children()[0].remove();
 
-        $("#ccbh").text("Chat 3.14159 (" +$("#cbb").children().length + " msgs)");
+        setHdrText();
+    }
+
+    function watchdogTimer() {
+        let tmpEntry = GM_getValue(verifyChatKey, null);
+        if (!tmpEntry || lastNonPingId == 0) return;
+        let entry = JSON.parse(tmpEntry);
+        if (entry.msg_id != lastNonPingId) {
+            log("ID's changed, entry: ", entry.msg_id, " last: ", lastNonPingId);
+            if (changeListener) GM_removeValueChangeListener(changeListener);
+            changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
+            lastNonPingId = 0;
+            log("***** chageListener reset! *****");
+        } else {
+            log("Watchdog test passed: ", entry.msg_id, " last: ", lastNonPingId);
+        }
     }
 
     function handleYataPageLoad() {
@@ -292,8 +425,10 @@
 
         if (changeListener) GM_removeValueChangeListener(changeListener);
         changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
-    }
 
+        // Periodically check to see if we've lost our listener
+        listenerWatchdog = setInterval(watchdogTimer, 5000);
+    }
 
     // =================== Torn Chat Hook portion of script =================
 
@@ -345,13 +480,13 @@
         openRequest.onupgradeneeded = function (e) {
             db = e.target.result;
             if (!db.objectStoreNames.contains("messageStore")) {
-                console.log("ChatRecorder: initIndexDB open onupgradeneeded create store");
+                log("ChatRecorder: initIndexDB open onupgradeneeded create store");
                 const objectStore = db.createObjectStore("messageStore", { keyPath: "messageId", autoIncrement: false });
                 objectStore.createIndex("targetPlayerId", "targetPlayerId", { unique: false });
             }
         };
         openRequest.onsuccess = function (e) {
-            console.log("ChatRecorder: initIndexDB open onsuccess");
+            log("ChatRecorder: initIndexDB open onsuccess");
             db = e.target.result;
         };
         openRequest.onerror = function (e) {
@@ -368,7 +503,7 @@
         let msg = {};
         const targetPlayer = getTargetPlayerFromMessage(message);
         if (!targetPlayer) {
-            log("[dbWrite] skipping msg: ", message.channel_url);
+            debug("[dbWrite] skipping msg: ", message.channel_url);
             return;
         }
         msg.targetPlayerId = targetPlayer.id;
@@ -382,24 +517,25 @@
         // console.log(msg);
 
         let isFacMsg = false;
-        if (filterFacMsgsOnly == true && targetPlayer.id == 'faction') {
+        if (options.filterFacMsgsOnly == true && targetPlayer.id == 'faction') {
             isFacMsg = true;
             debug("Fac msg received: ", msg);
             debug("Full: ", message);
-        } else if (filterFacMsgsOnly == false) {
+        } else if (options.filterFacMsgsOnly == false) {
             debug("Msg received: ", message.channel_url, msg);
             debug("Full: ", message);
         }
 
-        if ((isFacMsg == true && publishLastFacMsgs == true) || (publishAnyAllowedMsg == true)) {
+        if ((isFacMsg == true && options.publishLastFacMsgs == true) || (options.publishAnyAllowedMsg == true)) {
             let entry = {msg_id: message.msg_id, user_id: message.user.guest_id, avatar: message.user.image,
                          name: message.user.name, msg: message.message, channel: message.channel_url};
 
             debug("Writing entry: ", entry);
             GM_setValue(lastChatKey, JSON.stringify(entry));
+            GM_setValue(verifyChatKey, JSON.stringify(entry));
         }
 
-        if (dbEnable == false || !dbEnable) return;
+        if (options.dbEnable == false || !options.dbEnable) return;
 
         const transaction = db.transaction(["messageStore"], "readwrite");
         transaction.oncomplete = (event) => { };
@@ -426,6 +562,7 @@
     function dbWriteArray(messageArray) {
         if (!db) {
             console.error("ChatRecorder: dbWriteArray db is null");
+            return;
         }
 
         const transaction = db.transaction(["messageStore"], "readwrite");
@@ -455,6 +592,7 @@
     function dbReadByTargetPlayerId(targetPlayerId) {
         if (!db) {
             console.error("ChatRecorder: dbReadByTargetPlayerId db is null");
+            return;
         }
 
         const transaction = db.transaction(["messageStore"], "readonly");
@@ -487,6 +625,7 @@
     function dbReadAllPlayerId() {
         if (!db) {
             console.error("ChatRecorder: dbReadAllPlayerId db is null");
+            return;
         }
 
         const transaction = db.transaction(["messageStore"], "readonly");
@@ -517,7 +656,7 @@
     }
 
     function getTargetPlayerFromMessage(message) {
-        if (message.channel_url.startsWith("public_") && allowPublic == false) {
+        if (message.channel_url.startsWith("public_") && options.allowPublic == false) {
             return null;  // Ignore Globla, Trade, etc.
         } else if (message.channel_url.startsWith("faction-")) {
             return { id: "faction", name: "Faction" };  // Faction chat.
@@ -611,21 +750,9 @@
 
                       .chat-control-panel-item {
                         display: inline-block;
-                        margin: 2px 2px 2px 2px;
+                        /* margin: 2px 2px 2px 2px; */
                       }`);
-    }
 
-    function initControlPanel() {
-        debug("initControlPanel");
-        let $title; // = $("div#top-page-links-list");
-        let addlClass = "links-fmt";
-        //if ($title.length === 0) {
-            addlClass = "btn-wrap-fmt";
-            $title = $(".header-navigation.right > .header-buttons-wrapper > ul");
-        //}
-        if ($title.length === 0) {
-            console.error("ChatRecorder: nowhere to put control panel button");
-        }
         GM_addStyle(`
             #chatHistoryControl {
                 width: 30px;
@@ -639,7 +766,39 @@
                 margin-right: -34px;
                 top: 6px;
             }
+            #chat-target-id-input {
+                border-radius: 4px;
+                padding: 2px;
+                margin-left: 5px;
+            }
+
+            #cdc-opt-table td, label, input, .cpl-text {
+                line-height: 22px;
+                font-family: Arial, serif;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            #cdc-opt-table td label {
+                padding: 2px 20px 2px 20px;
+            }
+
+            .cdc-ip {
+
+            }
         `);
+    }
+
+    function initControlPanel() {
+        debug("initControlPanel");
+        let $title; // = $("div#top-page-links-list");
+        let addlClass = "links-fmt";
+        //if ($title.length === 0) {
+            addlClass = "btn-wrap-fmt";
+            $title = $(".header-navigation.right > .header-buttons-wrapper > ul");
+        //}
+        if ($title.length === 0) {
+            console.error("ChatRecorder: nowhere to put control panel button");
+        }
         const $controlBtn = $(`<a id="chatHistoryControl" class="t-clear h c-pointer right last ${addlClass}">
                                   <span class="icon-wrap svg-icon-wrap">
                                     <span class="link-icon-svg">
@@ -656,12 +815,8 @@
 
         //  chat-control-panel-item, replaced with xedx-torn-btn
         const $controlPanelOverlayDiv = $(`<div id="chatControlOverlayPanel" class="chat-control-panel-overlay"></div>`);
-        $controlPanelDiv.html(`
-        <input type="text" class="chat-control-panel-item" id="chat-target-id-input" placeholder="Player ID" size="10" />
-        <button id="chat-search" class="xedx-torn-btn" style="cursor: pointer;">Search</button><br>
-        <div id="chat-player-list"></div><br>
-        <textarea readonly id="chat-results" cols="120" rows="30"></textarea>
-        `);
+
+        $controlPanelDiv.html(getCtrlPanelHtml());
 
         // Control panel onClick listeners
         $controlPanelDiv.find("button#chat-search").click(function () {
@@ -680,10 +835,35 @@
         });
 
         $title.append($controlPanelDiv);
+
+        // Opaque overlay...
         //$title.append($controlPanelOverlayDiv);
+
+        // init checkboxes
+        let cbs = $(".cdc-cb");
+        for (let idx=0; idx<$(cbs).length; idx++) {
+            let cb = cbs[idx];
+            let optName = $(cb).attr('name');
+            $(`[name='${optName}']`).prop('checked', options[optName]);
+        }
+
+        // Checkbox handlers
+        $(".cdc-cb").on('click', function (e) {
+            let key = $(this).attr('name');
+            log("On cb click, ", key);
+            updateOption(key, $(this).prop('checked'));
+        });
+
+        // Input field handlers
+        $(".cdc-input").on('change', function (e) {
+            let key = $(this).attr('name');
+            log("On input change, key: ", key, " new val: ", $(this).val());
+            updateOption(key, $(this).val());
+        });
 
         $controlBtn.click(function () {
             dbReadAllPlayerId().then((result) => {
+                log("dbReadAllPlayerId res: ", result);
                 const $playerListDiv = $controlPanelDiv.find("div#chat-player-list");
                 $playerListDiv.empty();
                 let num = 0;
@@ -712,6 +892,44 @@
         });
     }
 
+    function getCtrlPanelHtml() {
+
+        let innerHtml = `
+            <div class="xflexr">
+                <div class="xflexc" style="width: 25%;">
+                    <div class=xflexr xmt10">
+                        <input type="text" class="chat-control-panel-item cpl-text xmr10" id="chat-target-id-input" placeholder="Player ID" size="10" />
+                        <button id="chat-search" class="xedx-torn-btn" style="cursor: pointer;">Search</button>
+                    </div>
+                    <div id="chat-player-list" class="cpl-text xmt10"></div><br>
+                </div>
+                <div>
+                    <table id="cdc-opt-table" class="xmt10"><tbody>
+                        <tr>
+                            <td><label>Ping: <input class="cdc-cb" type="checkbox" name="doDevPings"></label></td>
+                            <td><label>Public: <input class="cdc-cb" type="checkbox" name="allowPublic"></label></td>
+                            <td><label>Silent Pings: <input class="cdc-cb" type="checkbox" name="silentPings"></label></td>
+                        </tr>
+                        <tr>
+                            <td><label>publishAnyAllowedMsgs: <input class="cdc-cb" type="checkbox" name="publishAnyAllowedMsgs"></label></td>
+                            <td><label>filterFacMsgsOnly: <input class="cdc-cb" type="checkbox" name="filterFacMsgsOnly"></label></td>
+                            <td><label>dbEnable: <input class="cdc-cb" type="checkbox" name="dbEnable"></label></td>
+                        </tr>
+                        <tr>
+                            <td><label>Store in DB: <input class="cdc-cb" type="checkbox" name="dbEnable"></label></td>
+                            <td><label>Verbose: <input class="cdc-cb" type="checkbox" name="verboseMsgs"></label></td>
+                            <td><label style="display: none;"><input class="cdc-cb" type="checkbox" name=""></label></td>
+                        </tr>
+                    </tbody></table>
+                </div>
+                <!-- br -->
+            </div>
+            <textarea readonly id="chat-results" cols="120" rows="30"></textarea>
+        `;
+
+        return innerHtml;
+    }
+
     function formatDateString(date) {
         const pad = (v) => {
             return v < 10 ? "0" + v : v;
@@ -727,8 +945,8 @@
 
     function handlePageLoad() {
         initControlPanel();
-        if (doDevPings == true) {
-            setInterval(doPing, 10000);
+        if (options.doDevPings == true) {
+            setInterval(doPing, options.pingIntervalSecs*1000);
         }
     }
 
@@ -737,15 +955,37 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
-    //validateApiKey();
-    //versionCheck();
 
     // Initialize the database for storage
-    if (dbEnable == true) initIndexDB();
+    if (options.dbEnable == true) initIndexDB();
     initCSS();
 
     addTornButtonExStyles();
+    addFlexStyles();
 
     callOnContentLoaded(handlePageLoad);
 
 })();
+
+/*
+<div class="chat-box-header__actions___XuOq2">
+<button type="button" class="chat-box-header__action-wrapper___SCl9f">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20" viewBox="0 0 13 20" class="chat-box-header__minimize-icon___tl5yb">
+<defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_dark_default" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#868686"></stop><stop offset="1" stop-color="#656565"></stop></linearGradient>
+<linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_light_default" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#2A2B2B"></stop><stop offset="1" stop-color="#444444"></stop></linearGradient>
+<linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_dark_hover" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#bababa"></stop><stop offset="1" stop-color="#9f9f9f"></stop></linearGradient>
+<linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_light_hover" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="#000"></stop><stop offset="1" stop-color="#000"></stop></linearGradient></defs>
+<g transform="matrix(1, 0, 0, 1, 0, 0)"><path xmlns="http://www.w3.org/2000/svg" d="M1122,1060h16v2h-16Z" transform="translate(-1123 -1046)" fill="url(#minimize_dark_default)"></path></g></svg>
+</button></div>
+*/
+
+
+
+
+
+
+
