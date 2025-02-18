@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.20
+// @version      2.21
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -72,10 +72,7 @@
         // Since there is only one OcTracker object (a singleton), "myOcTracker" and
         // "this" are used somewhat interchangably here, the singleton would need to
         // be used or the object passed into some functions, namely callbacks.
-        constructor() {
-
-        }
-
+        constructor() {}
         contextMenuItems = [
             {name: "Refresh OC Start Time",   id: "oc-refresh", type: "ctrl", fnName: "refresh",
                  tooltip: "Refreshes your OC start time."},
@@ -131,9 +128,7 @@
             }
         }
 
-        // Recruit: add 24 hrs for each member not started...
         getDisplayTimeUntilOc() {
-            //log("getDisplayTimeUntilOc");
             if (!myCrimeStartTime || !this.validateSavedCrime()) {
                 this.scheduleOcCheck(5000);
                 return NO_OC_TIME;
@@ -141,7 +136,6 @@
 
             let now = new Date();
             let dt = new Date(myCrimeStartTime * 1000);
-
             let diffSecs = +myCrimeStartTime - now.getTime()/1000;
             let days = Math.floor(diffSecs / secsInDay);
             let remains = (diffSecs - (days * secsInDay));
@@ -218,9 +212,15 @@
             let item = jsonResp.items[ID];
             myOcTracker.missingReqItemName = item.name;
             let key = "missingItemId-" + ID;
-            myOcTracker.missingReqItemName = GM_setValue(key, item.name);
+            GM_setValue(key, item.name);
             let ttText = "Missing required item!<br>A " +
                 myOcTracker.missingReqItemName + " is needed!";
+
+            if (!myOcTracker.missingReqItemName) {
+                console.error("Missing name for required item! resp: ", jsonResp,
+                              " items: ", jsonResp.items, " ID: ", ID,
+                              " item: ", item);
+            }
             $("#missing-item").tooltip( "option", "content", ttText );
         }
 
@@ -288,6 +288,10 @@
                                 $("#missing-item").tooltip( "option", "content", ttText );
                             }
                         }
+                    }
+                    // Might as well see if csr needs updating
+                    if (trackMemberCsr == true) {
+                        log("My Slot, name: ", myCrime.name, " SR: ",slot.success_chance, " role: ", slot.position);
                     }
                     // break;
                 }
@@ -621,7 +625,7 @@
     // Extra debug logging, for development
     const logFullApiResponses = GM_getValue("logFullApiResponses", false);
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
-    const logCsrData = false;
+    const logCsrData = true;
 
     // Dev/debug...
     var debugNoOcFound = GM_getValue("debugNoOcFound", false);
@@ -645,7 +649,7 @@
     var csrListRefreshMins = GM_getValue("csrListRefreshMins", 10);        // Time minimum between crimes API calls. minutes
 
     // CSR options
-    var trackMemberCsr = GM_getValue("trackMemberCsr", false);
+    var trackMemberCsr = GM_getValue("trackMemberCsr", true);
     var lowestCsrLevel = GM_getValue("lowestCsrLevel", 5);      // Lowest crime level to look at
     var initCsrDays    = GM_getValue(initCsrDaysKey, 14);       // How many days back to check for crimes during init
 
