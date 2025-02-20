@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.36
+// @version      4.37
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -451,7 +451,7 @@
             let newNode =
             //'<li class="xadwrap" data-location="loader.php?sid=attackLog\u0026ID=' + obj.code + '" title="' + title + '">' +
             '<li class="xadwrap" title="' + title + '">' +
-                '<span class="x-rdivider" style="width: 80%;">' +
+                '<span class="x-rdivider" style="width: 80%; white-space: nowrap; overflow:hidden;">' +
                     '<a href="profiles.php?XID=' + obj.attacker_id + '" target="_blank">' + sp + attacker + sp + '</a>' +
                     result + stTxt + '<a href="profiles.php?XID=' + obj.defender_id + '" target="_blank">' +
                     sp + obj.defender_name + facName + '</a><br>' + respect +
@@ -1579,18 +1579,24 @@
                 else
                     resolve("tornFacRespect complete!");
             }).catch((error) => {
-            log("[tornFacRespect] ERROR: ", error);
-            rejectDebug(error);
-        });
+                log("[tornFacRespect] ERROR: ", error);
+                rejectDebug(error);
+            });
         }
 
         // Returns null on success, string error otherwise...
         // TBD FIX FOR API V2
         // TBD Add money in vault...
         function buildPersonalRespectLi() {
+            // Get balance while we are here...
+            log("personal respect and fac balance");
+            getFacBalance();
+
             let respect = personalStats.respectforfaction;
+            /*
             let children = document.querySelector("#column0").children;
             let useSel = null;
+
             let ul = null;
             for (let i=0; i<children.length; i++) {
                 //let title = children[i].querySelector("div.title.main-title.title-black.active.top-round > h5");
@@ -1603,7 +1609,9 @@
                 }
             };
             if (useSel) ul = $(useSel).find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
+            */
 
+            let ul = $("#item10961662  ul.info-cont-wrap");
             if (!ul) return '[tornFacRespect] Unable to find correct ul!';
 
             let li = '<li tabindex="0" role="row" aria-label="Personal Respect Earned" id="xedx-respect-li"><div id="xedx-respect">' +
@@ -1613,6 +1621,30 @@
             $(ul).append(li);
             addFacToolTip(li);
             return null;
+        }
+
+        // Little quick cheat, testing v2 new call...
+        function facBalanceCb(responseText, ID, param) {
+            log("facBalanceCb");
+            let jsonObj = JSON.parse(responseText);
+            log("JSON: ", jsonObj);
+            let balances = jsonObj.factionBalance;
+            if (balances) {
+                let cash = balances.money;
+                let targetUl = $("#item10961662 ul.info-cont-wrap");
+
+                let li = `<li tabindex="0" role="row" aria-label="Vault Balance"><div>
+                             <span class="divider"><span>Vault Balance</span></span>
+                             <span class="desc">${asCurrency(cash)}</span>
+                         </div></li>`;
+                $(targetUl).append(li);
+            }
+        }
+
+        function getFacBalance() {
+            log("getFacBalance");
+            xedx_TornUserQueryv2("", "factionbalance", facBalanceCb);
+            log("Queried v2");
         }
 
         // TBD FIX FOR API V2
@@ -1822,6 +1854,11 @@
             let keys = Object.keys(custLinksOpts);
             for (let i=0; i<keys.length; i++) {
                 let key = keys[i];
+
+                // If abroad or flying, the root nodes likely aren't there.
+                // Flag entries that we can add when travelling, add to top
+                // of the menu?
+
                 if (custLinksOpts[key].enabled) {
                     debug('[tornCustomizableSidebar] Adding: ' + key.replaceAll('custlink-', ''));
                     let node = buildCustLink(key, custLinksOpts[key]);
@@ -4382,6 +4419,39 @@
             $(cb).on('click', toggleReadyOnly);
         }
 
+        var claimProcessed = false;
+
+        // Gets called twice, once w/class  [button.torn-btn.green]
+        // then close btn,  [button.torn-btn.green]
+        function clickClaimBtn(target, retries=0) {
+            log("[tornStockProfits] Waiting for button: ", retries);
+            if (target && $(target).hasClass("xedx-clicked2")) {
+                return log("already clicked, ignored! ", $(target));
+            }
+            let btn = $("#panel-dividendTab > div > button");
+            if (!$(btn).length) {
+                if (retries++ < 20) return setTimeout(clickClaimBtn, 100, target, retries);
+                return log("[tornStockProfits] Too many retries!");
+            }
+            if (!$(target).hasClass("xedx-clicked2"))
+                $(target).addClass("xedx-clicked2");
+            log("[tornStockProfits] Got button! ", $(btn));
+            $(btn).click();
+            claimProcessed = true;
+        }
+
+        function handleStockCollect(e) {
+            let target = $(e.currentTarget);
+            $(target).off("click.xedx");
+            $(target).addClass("xedx-clicked");
+            log("[tornStockProfits] :  Clicked target: ", $(target));
+
+            log("[tornStockProfits] : calling clickClaimBtn");
+            claimProcessed = false;
+            clickClaimBtn(target);
+            //setTimeout(checkClick, 2000);
+        }
+
         function toggleReadyOnly(e) {
 
             let cb = $(e.currentTarget).find("input")[0];
@@ -4405,12 +4475,20 @@
                     if (text.has("Benefit")) {log(text + " matches Benefit!");$(sel).addClass("xblack").addClass("xedx-not-ready");}
                     else if (text.has("Ready in")) {log(text + " matches Ready in!");$(sel).addClass("xblack").addClass("xedx-not-ready");}
                     else if (text.has("Inactive")) {log(text + " matches Inactive!");$(sel).addClass("xblack").addClass("xedx-not-ready");}
-                    else if (text.has("collection")) {log(text + " matches collection !");$(sel).addClass("lime");}
+                    else if (text.has("collection")) {
+                        log(text + " matches collection !");
+                        $(sel).addClass("lime");
+                        $(el).parent().addClass("xedx-ready");
+                        log("[tornStockProfits] Added class xedx-ready to ", $(child2));
+                    }
                     else {log(text + " matches NOTHING !");$(sel).css("opacity", ".5").addClass("xedx-not-ready");}
                 } else {
                     $(sel).removeClass("xblack").removeClass("lime").css("opacity", "1.0");
                 }
             }
+
+            log("[tornStockProfits] Length: ", $(".xedx-ready").length);
+            $(".xedx-ready").on('click.xedx', handleStockCollect);
 
             log("[tornStockProfits] toggleReadyOnly: ", (checked ? "hiding" : "unhiding"), " elements");
 
@@ -8931,9 +9009,7 @@
 
                 if (opts_enabledScripts.drugStats.enabled) {tornDrugStats().then(a => _a(a), b => _b(b));}
 
-                if (isFactionPage()) {
-                    if (opts_enabledScripts.facRespect.enabled) {tornFacRespect().then(a => _a(a), b => _b(b));}
-                }
+                if (opts_enabledScripts.facRespect.enabled) {tornFacRespect().then(a => _a(a), b => _b(b));}
 
                 if (opts_enabledScripts.jailStats.enabled) {tornJailStats().then(a => _a(a), b => _b(b));}
             }
