@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.21
+// @version      2.22
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -1236,6 +1236,11 @@
         let scenario1 = $(scenarios)[0];
         let grandparent = $(scenario1).parent().parent();
         let list = $(grandparent).children("[class^='wrapper_']");
+        if (!$(list).length) {
+            list = $(grandparent).parent().children("[class^='wrapper_']");
+            if (!$(list).length)
+                list = $(".xscrollLock").children("[class^='wrapper_']");
+        }
 
         let sortOrder = sortOrders[0];
         if (onRecruitingPage()) sortOrder = sortOrders[recruitSortOrder];
@@ -1318,7 +1323,7 @@
     // sortCriteria over-rides....OOPS I don't think it does!!!!
     // Set by page in sort() fn!!!!
     //
-    function tagAndSortScenarios(sortCriteria) {
+    function tagAndSortScenarios(sortCriteria, retries=0) {
         if (!isSortablePage()) {
             debug("This page isn't sortable (by definition)");
             //logCurrPage();
@@ -1331,6 +1336,10 @@
         }
 
         scenarios = $("[class^='scenario_']");
+        if (!$(scenarios).length) {
+            if (retries++ < 10) return setTimeout(tagAndSortScenarios, 250, sortCriteria, retries);
+            return;
+        }
         let listRoot = $($(scenarios)[0]).parent().parent();
 
         let countHidden = 0;
@@ -1372,6 +1381,8 @@
                 }
             }
             $(scenario).parent().attr(sortKey, sortVal);
+            $(scenario).parent().parent().attr(sortKey, sortVal);
+            //debug("Added sort values to: ", $(scenario).parent(), $(scenario).parent().parent());
         }
 
         if (sortCriteria == sortByLevel) {
