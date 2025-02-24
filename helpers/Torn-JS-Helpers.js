@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.00
+// @version     2.46.01
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.00";
+const thisLibVer = "2.46.01";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -218,11 +218,17 @@ const logScriptStart = function () {
 // See if cloudflare is challenging - do I have to wait for page load?
 function checkCloudFlare(clickIt) {
     //if ($("#challenge-form").length > 0) {
+    let active = false;
     if (document.querySelector("#challenge-form")) {
-        console.log(GM_info.script.name + " Cloudflare challenge active!");
-        return true;
+        active = true;
+    } else if (document.querySelector(".iAmUnderAttack")) {
+        active = true;
     } else {
         console.log(GM_info.script.name + " no active Cloudflare challenge detected.");
+    }
+    if (active == true) {
+        console.log(GM_info.script.name + " Cloudflare challenge active!");
+        return true;
     }
     return false;
 }
@@ -299,8 +305,12 @@ function callWhenElementExists(selector, callback, freq=250, max=20) {
 // Mutation observer method, used if you have a parent to observe
 // callback sig: callback(node)
 function callWhenElementExistsEx(closestRoot, selector, callback) {
-    if (!$(closestRoot).length)
-        return console.error("ERROR: observer root does not exist!");
+    if (!$(closestRoot).length) {
+        console.error("ERROR: observer root does not exist: ", $(closestRoot));
+        if ($(selector).length > 0)
+            callback($(selector));
+        return;
+    }
 
     if ($(selector).length > 0) {
         callback($(selector));
@@ -1281,7 +1291,7 @@ function addLoadingLights() {
 //
 // Outermost div (elmt is ID of the div) must have position: absolute or fixed
 // Inside that must be a div called <outer-id>header ...
-// See "Torn Hospiral Timer" as an example.
+// See "Torn Hospital Timer" as an example.
 //
 function dragElement(elmnt) {
   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
