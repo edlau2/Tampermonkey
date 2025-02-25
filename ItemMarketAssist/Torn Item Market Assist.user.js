@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Item Market Assist
 // @namespace    http://tampermonkey.net/
-// @version      1.28
+// @version      1.29
 // @description  Makes Item Market slightly better, for buyers and sellers
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -229,6 +229,7 @@
     var watchList = tmp ? JSON.parse(tmp) : {};
 
     if (!isItemMarket() && marketWatch == true) {
+        if (checkCloudFlare()) return log("Won't run while challenge active!");
         if (logWatchList == true) log("Not at market, running market watch only!");
         validateApiKey();
         startMarketWatch();
@@ -685,6 +686,7 @@
     function findLowPriceOnMarket(itemId, target, callback) {
         const maxLowPricePerMin = 20;
         if (inAjax == true) return;
+        //if (checkCloudFlare()) return;
         let priceChecks = GM_getValue("priceChecks", -1);
         if (priceChecks == -1) {
             priceChecks = 0;
@@ -952,7 +954,7 @@
             debug("subtractMargin amt price: ", price, " minus ", autoPriceAmtLessValue, " return: ", newPrice);
             return newPrice;
         } else if (autoPricePctLess == true) {
-            let pctOff = (+autoPricePctLessValue/100)*price;
+            let pctOff = parseInt((+autoPricePctLessValue/100)*price);
             let newPrice = price - pctOff;
             debug("subtractMargin pct price: ", price, " minus pct ", autoPricePctLessValue, " (", pctOff, ") return: ", newPrice);
             return newPrice;
@@ -2109,6 +2111,7 @@
     }
 
     function startMarketWatch() {
+        if (checkCloudFlare()) return log("Won't run while challenge active!");
         log("startMarketWatch, running: ", marketWatchRunning);
         if (marketWatchRunning == true) return;
 
@@ -2489,6 +2492,8 @@
     //////////////////////////////////////////////////////////////////////
 
     //logScriptStart();
+
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     addStyles();
     validateApiKey();
