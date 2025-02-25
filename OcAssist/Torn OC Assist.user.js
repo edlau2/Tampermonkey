@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.22
+// @version      2.23
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -24,10 +24,18 @@
 /*eslint no-multi-spaces: 0*/
 /*eslint dot-notation: 0*/
 
+/*
+.planning___H0H9c .shadowLayer___mfCVN {
+    background-color: var(--oc-crime-highlighting-planning-color);
+    opacity: var(--oc-crime-highlighting-planning-opacity);
+}
+*/
+
 (function() {
     'use strict';
 
     if (isAttackPage()) return log("Won't run on attack page!");
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     // Constants used, some to load options..hence first.
     const userId = getThisUserId();    // Used to highlight yourself in list
@@ -1447,6 +1455,27 @@
         }
     }
 
+    // ==================== Completed crimes, get timestamp===============================
+
+    var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
+
+    // sot by key value:
+    // jsonArray.sort((a, b) => b.id - a.id);
+
+    /* find by key value
+    function findObjectByKey(array, key, value) {
+      return array.find(obj => obj[key] === value);
+    }
+    */
+    /*
+    1. get from api completed for say past 2 weeks.
+    2. sort desc by 'executed_at', should be same order as on screen?
+
+    --or--, from screen, get name of OC, and member names
+    - convet member names to id
+    - find crime in array by nae, then each member id
+    */
+
     // ========================== Entry point once page loaded ============================
 
     function handlePageLoad(node) {
@@ -1540,7 +1569,6 @@
     //
     var membersNotInOc = {};
     var membersNotInOcReady = false;
-    var completedCrimesArray;          // Array of completed crimes, will only get once per page visit
 
     // =================== Get fac members, update list of not in OC =============
 
