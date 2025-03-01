@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.7
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -11,7 +11,6 @@
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
-// @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
@@ -25,80 +24,44 @@
 (function() {
     'use strict'
 
-    // TBD - after closing if timerr has hit 0, don't re-alert or re-open...
-    // unless in hosp again.
-
     // ======   These values can be changed via the Tampermonkey editor, =======
     // ======   the Storage tab. One day I'll make an Options dialog...  =======
 
-    const hideWhenOK = GM_getValue("hideWhenOK", undefined);
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
+
+    const hideWhenOK = GM_getValue("hideWhenOK", false);
     const blinkWhiteWhenOk = GM_getValue("blinkWhiteWhenOk", false);
     const transparentBackground = GM_getValue("transparentBackground", false);
 
     // ====== Leave the rest alone, manipulated dynamically ======
 
-    if (hideWhenOK == undefined) {
-        GM_setValue("hideWhenOK", false);
+    var updateOpts = GM_getValue("updateOpts", true);
+    if (updateOpts == true) {
+        GM_setValue("hideWhenOK", hideWhenOK);
         GM_setValue("blinkWhiteWhenOk", blinkWhiteWhenOk);
         GM_setValue("transparentBackground", transparentBackground);
+        GM_setValue("updateOpts", false);
     }
 
-    var SecsUntilOut;
-    var intTimer = 0;        // Time update interval timer
-    var minCounter = 0;
-
-    var currState;
-    var currDesc;
+    var intTimer = 0;    
     var inHospital = false;
-
     var hidden = false;
     var minimized = false;
-
-    const secsmin = 60;
-    const secshr = secsmin * 60;
-    const secsday = secshr * 24;
-
     var lastStateRestored = false;
     var lastDisplaySize = GM_getValue("lastDisplaySize", undefined);
-
-    // ============================== Time stuff ===================================
-
-    function diffSecs(t1, t2) {
-        let h1 = t1.getUTCHours();
-        let m1 = t1.getUTCMinutes();
-        let s1 = t1.getUTCSeconds();
-        let t1secs = s1 + m1*secsmin + h1*secshr;
-        debug("[debugIntTimer] h1: ", h1, " m1: ", m1, " s1: ", s1, " t1secs: ", t1secs);
-
-        let h2 = t2.getUTCHours();
-        let m2 = t2.getUTCMinutes();
-        let s2 = t2.getUTCSeconds();
-        let t2secs = s2 + m2*secsmin + h2*secshr;
-        debug("[debugIntTimer] h2: ", h2, " m2: ", m2, " s2: ", s2, " t2secs: ", t2secs);
-
-        // Tomorrow: add t2 secs + (fullDaySecs - t1 secs)
-        // Same day: t2 secs - t1 secs
-        let ist2tomorrow = h2 < h1;
-        let secsdiff;
-        if (ist2tomorrow == true) {
-            secsdiff = t2secs + (secsday - t1secs);
-        } else {
-            secsdiff = t2secs - t1secs;
-        }
-
-        return secsdiff;
-    }
 
     function getHospTimerDiv() {
         const bgClass = (transparentBackground == true) ? "xbgt" : "xbgb-var";
         const hospTimerDiv = `
+            <div class="xsticky-bottom">
             <div id="x-hosp-watch" class="x-hosp-wrap x-drag ` + bgClass + `">
                 <div id="x-hosp-sec-wrap">
                     <div id="x-hosp-watchheader" class="grab x-hosp-hdr title-black hospital-dark top-round">
                         <div role="heading" aria-level="5">Hosp Timer</div>
                         <div class="x-hosp-hdr">
                             <span id="x-hsp-hide" class="x-rt-btn x-inner-span xml10">M</span>
-                            <span id="x-hsp-refresh" class="x-rt-btn x-inner-span xml5">R</span>
+                            <!-- span id="x-hsp-refresh" class="x-rt-btn x-inner-span xml5">R</span -->
                             <span id="x-hsp-close" class="x-rt-btn x-inner-span xml5 xmr5">X</span>
                         </div>
                     </div>
@@ -108,53 +71,37 @@
                     </div>
                 </div>
             </div>
+            </div>
         `;
 
         return hospTimerDiv;
     }
 
-    function queryTornApi() {
-        xedx_TornUserQuery(0, 'profile', queryCB);
+    function getSidebar() {
+        let key = Object.keys(sessionStorage).find(key => /sidebarData\d+/.test(key));
+        let sidebarData = JSON.parse(sessionStorage.getItem(key));
+        return sidebarData;
     }
 
-    function queryCB(responseText) {
-        if (responseText == undefined) {
-            debug("Error query user stats - no result!");
-            return;
-        }
+    function amIinHosp() {
+        let data = getSidebar();
+        let icons = data.statusIcons.icons;
+        let hosp = icons.hospital;
 
-        // Maybe make global to access in other places, namely the new
-        // custom user stats stuff....for now jst pass to fn.
-        let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {
-            if (jsonResp.error.code == 6)
-                return;
-            return handleError(responseText);
-        }
+        inHospital = hosp ? true : false;
+        return inHospital;
+    }
 
-        let status = jsonResp.status;
-        debug("Status: ", status);
-
-        currState = status.state;
-        currDesc = status.description;
-        debug("state: ", currState);
-
-        if (currState == "Hospital" && inHospital == false) {
-            removeFlash();
-            inHospital = true;
-        }
-
+    function checkHospStatus() {
+        inHospital = amIinHosp();
+        log("checkHospStatus: ", inHospital, hideWhenOK);
         if (inHospital == false && hideWhenOK == true && hidden == false) {
-            // On startup, have to delay this until the UI
-            // has actually been installed.
             if ($("#x-hosp-watch").length > 0) {
-                log("Hiding - not in hosp! ", $("#x-hosp-watch"));
-                handleHide();
+                if (!hidden) handleHide();
             }
         }
 
         if (inHospital == true) {
-
             // Handle hiding, minimizing. May want to allow this -
             // but user could just close. If we hid when the minimize
             // button was clicked, no way to re-open.
@@ -162,24 +109,6 @@
                 handleMaximizeClick();
 
             if (hidden == true) handleShow();
-
-            let allStates = jsonResp.states;
-            log("allStates: ", allStates);
-
-            let hosptime = allStates.hospital_timestamp;
-            log("hosptime: ", hosptime);
-
-            let hospEnd = new Date(hosptime);
-            log("hosp end: ", hospEnd.toString(), " or ==> ", currDesc);
-
-            SecsUntilOut = diffSecs(new Date(), new Date(hospEnd * 1000));
-            log("diff secs: ", SecsUntilOut);
-
-            let date = new Date(null);
-            date.setSeconds(SecsUntilOut);
-            let secDiffStr = date.toISOString().slice(11, 19);
-
-            log("secDiffStr: ", secDiffStr);
         }
 
         if (intTimer == 0)
@@ -198,39 +127,50 @@
             $("#hosptime").removeClass("flash-wht");
     }
 
+    function getSecsUntilOut() {
+        let data = getSidebar();
+        let icons = data.statusIcons.icons;
+        let hosp = icons.hospital;
+        if (!hosp) {
+            inHospital = false;
+            return 0;
+        }
+
+        let nowSecs = new Date().getTime() / 1000;
+        let diff = +hosp.timerExpiresAt - nowSecs;
+        if (diff > 0) inHospital = true;
+        return diff;
+    }
+
     function updateHospClock() {
-        SecsUntilOut--;
-        minCounter++;
-
+        let altSecs = getSecsUntilOut();
         if (inHospital == true) {
-            let date = new Date(null);
-            date.setSeconds(SecsUntilOut);
-            let secDiffStr = date.toISOString().slice(11, 19);
-
-            debug("secDiffStr: ", secDiffStr);
-            $("#hosptime").text(secDiffStr);
+            let date2 = new Date(null);
+            date2.setSeconds(altSecs);
+            let secDiffStr2 = date2.toISOString().slice(11, 19);
+            $("#hosptime").text(secDiffStr2);
         } else {
-            $("#hosptime").text(currDesc);
+            $("#hosptime").text("00:00:00");
             if (blinkWhiteWhenOk == true) flashWhite();
         }
-
-        if (minCounter == 60) {
-            minCounter = 0;
-            queryTornApi();
-        }
     }
 
-    function closeHospDiv(e) {
-        $("#x-hosp-watch").remove();
-    }
+    function closeHospDiv(e) {$("#x-hosp-watch").remove();}
 
-    // Keep checking to see if hosp icon goes away
+    var chkIconTimer = 0;
     function iconCallback(name, params, icon) {
-        log("iconCallback: ", name, " ", params, " ", $(icon));
+        let inHosp = amIinHosp();
+        if (!inHosp && hideWhenOK && !hidden) {
+            handleHide();
+        }
+        if (inHosp && hidden ) {
+            handleShow();
+        }
     }
 
     function startCheckingIcon() {
-        getSidebarIcon("hosp", iconCallback);
+        if (chkIconTimer) clearInterval(chkIconTimer);
+        chkIconTimer = setInterval(iconCallback, 5000);
     }
 
     function installUI(retries) {
@@ -243,22 +183,19 @@
 
         // Button handlers
         $("#x-hsp-close").on('click', closeHospDiv);
-        $("#x-hsp-refresh").on('click', handleRefreshClick);
+        //$("#x-hsp-refresh").on('click', handleRefreshClick);
         $("#x-hsp-hide").on('click', handleMinimize);
 
         // Tool tip help
         displayHtmlToolTip($("#x-hsp-close"), "Close", "tooltip4");
-        displayHtmlToolTip($("#x-hsp-refresh"), "Refresh", "tooltip4");
+        //displayHtmlToolTip($("#x-hsp-refresh"), "Refresh", "tooltip4");
         displayHtmlToolTip($("#x-hsp-hide"), "Minimize/Maximize", "tooltip4");
 
         // Make draggable
         dragElement(document.getElementById("x-hosp-watch"));
 
-        // This is the new way to save/restore position. Not state.
-
-        // Handle position auto-save and restore
-        startSavingPos(1500, "x-hosp-watch", true);
-
+        // Assume if we no longer have a hosp icon, we are OK
+        // Can always double check...
         startCheckingIcon();
 
         // Apply last known state of the window...this isn't position
@@ -268,9 +205,9 @@
         }
 
         // And optionally hide.
+        inHospital = amIinHosp();
         if (inHospital == false && hideWhenOK == true && hidden == false) {
-            log("Hiding - not in hosp! ", $("#x-hosp-watch"));
-            handleHide();
+            if (!hidden) handleHide();
         }
     }
 
@@ -287,20 +224,9 @@
 
     function handleMinimize() {
         if ($("#x-hosp-watch").height() == 32) {
-            //moveToBody();
             handleMaximizeClick();
         } else {
-            //moveToFooter();
             handleMinimizeClick();
-        }
-    }
-
-    // alternat method of minimizing - move to footer. Didn't quite work...
-    function moveToFooter() {
-        let footer = $("#chatRoot").find("[class^='group-minimized-chat-box_']")[0];
-        if ($(footer).length > 0) {
-            $("#x-hosp-watch").removeClass("x-hosp-wrap").addClass("x-hosp-wrap-min");
-            $("#x-hosp-watch").detach().appendTo(footer);
         }
     }
 
@@ -315,31 +241,36 @@
     // and other variants. Could make fns. to save the display:
     // when swapping...
     function handleHide() {
-        $("#x-hosp-watch").addClass("xhide");
+        debug("handleHide: ", hidden);
+        $("#x-hosp-watch").css("display", "none");
         hidden = true;
     }
 
     function handleShow() {
-        $("#x-hosp-watch").removeClass("xhide");
+        $("#x-hosp-watch").css("display", "flex");
         hidden = false;
     }
 
     function handleMinimizeClick() {
         $("#x-hosp-watch").css("height", "32px");
+        $("#x-hosp-watch").addClass("x91");
         GM_setValue("lastDisplaySize", "32px");
         minimized = true;
     }
 
     function handleMaximizeClick() {
         $("#x-hosp-watch").css("height", "134px");
+        $("#x-hosp-watch").removeClass("x91");
         GM_setValue("lastDisplaySize", "134px");
         minimized = false;
     }
 
+    /*
     function handleRefreshClick() {
-            flashGreen();
-            queryTornApi();
-        }
+        flashGreen();
+        //queryTornApi();
+    }
+    */
 
     function restoreLastKnownState() {
         if (lastDisplaySize) {
@@ -349,6 +280,7 @@
 
     function addStyles() {
 
+        loadMiscStyles();
         loadCommonMarginStyles();
         addToolTipStyle();
         addCursorMovingStyles();
@@ -360,12 +292,14 @@
                 -webkit-transform: translate(-20%,-95%) !important;
                 transform: translate(-20%,-95%) !important;
                 background: transparent;
-                top: 32%;
+                /*top: 32%;*/
+                top: 45%;
                 left: 84%;
             }
             .x-hosp-wrap-min {
                 left: 0;
             }
+            .x91 {top: 91% !important;}
             .x-hosp-inner-flex {
                 border-radius: 5px;
                 width: 200px;
@@ -458,6 +392,15 @@
                 from {color: #ededed;}
                 to {color: #888888;}
             }
+
+            .xsticky-bottom {
+                align-items: flex-end;
+                bottom: 0px;
+                left:0px;
+                display: flex;
+                position: fixed;
+                right: 1px;
+            }
         `);
     }
 
@@ -466,18 +409,18 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+
     if (isAttackPage()) return log("Won't run on attack page!");
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
-    validateApiKey();
     versionCheck();
 
     addStyles();
 
-    queryTornApi();
+    checkHospStatus();
 
-    installHashChangeHandler(queryTornApi);
-    installPushStateHandler(queryTornApi);
+    installHashChangeHandler(checkHospStatus);
+    installPushStateHandler(checkHospStatus);
 
 
 })();
