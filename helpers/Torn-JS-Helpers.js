@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.01
+// @version     2.46.02
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.01";
+const thisLibVer = "2.46.02";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -111,6 +111,7 @@ function getPlayerFullName() {
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Get the user's ID. Two methods, API and DOM
+// Use 'getPlayerId()' instead!
 ///////////////////////////////////////////////////////////////////////////////////
 
 function getThisUserId() {
@@ -554,11 +555,8 @@ function getRandomIntEx(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-//////////////////////////////////////////////////////////////////
 // Function to create a hash for a string. Returns a positive
 // 32 bit int.
-//////////////////////////////////////////////////////////////////
-
 String.prototype.hashCode = function(){
     var hash = 0;
     for (var i = 0; i < this.length; i++) {
@@ -567,6 +565,14 @@ String.prototype.hashCode = function(){
         hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash);
+}
+
+// Get sidebar data from session. Has all sorts of neat stuff...
+var gblSidebarData = getSidebarData();
+function getSidebarData() {
+    let key = Object.keys(sessionStorage).find(key => /sidebarData\d+/.test(key));
+    gblSidebarData = JSON.parse(sessionStorage.getItem(key));
+    return gblSidebarData;
 }
 
 // Return the page sid for cuurent page. For example, an attack log is at
@@ -627,11 +633,16 @@ function getUserId() {
     if (userId) {
         return userId;
     }
-    let tmp = $("#torn-user").val();
-    if (!tmp) return;
-    let parts = tmp.split('"');
-    if (!parts || parts.length < 4) return;
-    userId = parts[3];
+
+    if (gblSidebarData)
+        userId = gblSidebarData.user.userID;
+    if (!userId) {
+        let tmp = $("#torn-user").val();
+        if (!tmp) return;
+        let parts = tmp.split('"');
+        if (!parts || parts.length < 4) return;
+        userId = parts[3];
+    }
     GM_setValue("userId", userId);
     return userId;
 }
