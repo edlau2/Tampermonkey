@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.23
+// @version      2.25
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @xrequire      file://///Users/edlau/Documents/Documents - Ed’s MacBook Pro/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -373,21 +374,9 @@
             // Write out the 'difficulty', append to the level.
             var scoreStr = score.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-            let newLi;
-            //if (DEV_MODE) {
-                newLi = '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
+            let newLi = '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
                         '<span class="title bold"> Score </span>' +
-                         '<span style="display: block; width: 59px;">' + scoreStr + '</span>' + maxSR + '%</span>'
-
-                    //scoreStr + ' ' + maxSR + '% </span>';
-
-            //} else {
-            //    newLi = '<span class="score level" score="' + scoreStr.replace(',', '') + '" sr="' + maxSR + '">' +
-            //            '<span class="title bold"> Score <span>:</span></span>' + scoreStr + '</span>';
-            //}
-
-            //debug("Wrapper: ", $(wrapper));
-            //debug("SR:", maxSR);
+                        '<span style="display: block; width: 59px;">' + scoreStr + '</span>' + maxSR + '%</span>';
 
             if (DEV_MODE && autoBustOn) {
                 let bustNode = $(wrapper).siblings(".bust")[0];
@@ -408,7 +397,6 @@
 
             let saveData = {'name': name, 'time': timeStr, 'min': minutes, 'level':lvlStr, 'diff': score, 'sr': sr, 'msr': maxSR};
             addLogEntry(saveData, 'SCORE');
-
          }
 
         savedSortId = GM_getValue('savedSortId', savedSortId);
@@ -435,8 +423,7 @@
         let yesNode = $(bustNode).parent().find(".confirm-bust > div > .action-yes");
         let noNode = $(bustNode).parent().find(".confirm-bust > .ajax-action > .action-no");
 
-        debug("node: ", bustNode);
-        //log("node: ", $(bustNode));
+        debug("node: ", $(bustNode));
         debug("Yes node: ", $(yesNode));
         debug("href: ", $(bustNode).attr("href"));
 
@@ -448,7 +435,6 @@
         if ($(yesNode).text() === "Yes" && $(yesNode).parent().text().indexOf("try and break") > 0) {
             if (doClickYes) {
                 debug("Clicking yes");
-                //$(yesNode).click();
                 $(yesNode)[0].click();
             } else {
                 $(noNode)[0].click();
@@ -464,7 +450,6 @@
 
     // Handle clicking Time, Level or Score on the title bar
     // Sort, descending or ascending
-    //var lLvlOrder = 'asc', lTimeOrder = 'asc', lScoreOrder = 'asc';
     function handleTitleClick(ev) {
         debug('[handleTitleClick] ev: ', ev);
         debug('[handleTitleClick] target ID: ', ev.target.id);
@@ -548,12 +533,51 @@
 
     // Query the log for past busts
     var queryPastBustsStart;                    // Start time for profiling
+    // ========= temp
+    function _xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) {
+        const baseTornURL = "https://api.torn.com/";
+        if (ID == null) ID = '';
+        let comment = GM_info.script.name.replace('Torn', 'XedX');
+        let url = baseTornURL + section + "/" + ID + "?comment=" + comment + "&selections=" + selection + "&key=" + api_key;
+        log("URL: ", url);
+        console.debug('(JS-Helper) ' + GM_info.script.name + ' Querying ' + section + ':' + selection + ' ID: ' + ID);
+        let details = GM_xmlhttpRequest({
+            method:"POST",
+            url:url,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            onload: function(response) {
+                log("Resp: ", response);
+                callback(response.responseText, ID, param);
+            },
+            onerror: function(response) {
+                console.log('(JS-Helper) ' + GM_info.script.name + ' Error Response: ', response);
+                handleSysError(response);
+            },
+            onabort: function(response) {
+                console.log('(JS-Helper) ' + GM_info.script.name + ': onabort response: ', response);
+                handleSysError(response);
+            },
+            ontimeout: function(response) {
+                console.log('(JS-Helper) ' + GM_info.script.name +': ontimeout response: ', response);
+                handleSysError(response);
+            }
+        });
+    }
+
+    function _xedx_TornUserQuery(ID, selection, callback, param=null) {
+        _xedx_TornGenericQueryDbg('user', ID, selection, callback, param);
+    }
 
     function queryPastBusts(queryStats=true) {
         debug('[queryPastBusts]');
         queryPastBustsStart = _start();
         let queryStr = 'timestamp,log&log=5360';
-        xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
+        log("Query busts: ", queryStr);
+        log("Api: ", api_key);
+        _xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
     }
 
     // Callback for above
@@ -696,7 +720,9 @@
 
         if (recordStats) {
             let low = GM_getValue("p0low", -1);
-            if (totalPenalty < low) {
+            if (Number(low) == 0)
+                GM_setValue("p0low", round2(totalPenalty));
+            else if (totalPenalty < low) {
                 GM_setValue("p0low", round2(totalPenalty));
             }
             let hi = GM_getValue("p0hi", -1);
@@ -1461,9 +1487,9 @@
     var lastShowState = GM_getValue("lastShow", "show");
     if (lastShowState == "hide") setTimeout(doHide, 10);
 
-    function installUI(forceShow=false) {
+    function installUI(forceShow=false, retries=0) {
         debug('[installUI]: ', uiless, " lastShowState: ", lastShowState,
-            " forceShow: ", forceShow);
+            " forceShow: ", forceShow, " retries: ", retries);
         if ($("#xedx-reload-btn").length || $("#xedx-save-btn").length || $(MAIN_DIV_SEL).length ) {
             return;
         }
@@ -1482,6 +1508,12 @@
 
         if ($("#xedx-save-btn").length || $("#xedx-reload-btn").length) { // || waitingOnDivInst) {
             debug("Exit installUI, button exists.");
+            return;
+        }
+
+        if ($("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").length == 0) {
+            if (retries++ < 20) return setTimeout(installUI, 500, forceShow, retries);
+            callOnContentComplete(installUI);
             return;
         }
 
@@ -1717,32 +1749,6 @@
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
         optTryLastPages = DEV_MODE && $("#xlast-page-opt").is(":checked");
-
-        /*
-        let tmp = showResultHistory;
-        showResultHistory = $("#save-results").is(":checked");
-
-        if (tmp != showResultHistory) {
-            //if (showResultHistory == true)
-                installPastResultView();
-            //else
-            //    showResultPane(false);
-        }
-
-        tmp = showLimits;
-        showLimits = $("#show-limits").is(":checked");
-        log("handleSaveOpts, show limits: ", showLimits, " old: ", tmp);
-        if (tmp != showLimits) {
-            enableLimitAdjustUi();
-        }
-
-        tmp = lockAnimations;
-        lockAnimations = $("#lock-animations").is(":checked");
-        if (tmp != lockAnimations) {
-            enableLimitAdjustUi();
-            installPastResultView();
-        }
-        */
 
         showResultHistory = $("#save-results").is(":checked");
         showLimits = $("#show-limits").is(":checked");
@@ -2088,28 +2094,6 @@
 
         debug("setActivePage: curr: ", $(currPage));
         debug("setActivePage: active: ", $(activePage));
-
-        /*
-        log("Buttons: ", $("div.gallery-wrapper.pagination > a"));
-
-        let pages = $("div.gallery-wrapper.pagination > a");
-        let lastPage = undefined;
-        for (let idx=0; idx < $(pages).length; idx++) {
-            let thisPage = $(pages)[idx];
-            log("Checking: ", $(thisPage));
-            let whichPage = $(thisPage).attr("page");
-            if (!lastPage && whichPage == '2') {            // !!!!!! Need LAST page
-                log("Found page 2");
-                lastPage = $(thisPage);
-            }
-            $(thisPage).removeClass('active');
-        }
-
-        if ($(lastPage).length) {
-            $(lastPage).addClass('active');
-            log("Added active class to: ", $(lastPage));
-        }
-        */
     }
 
     function doLastPageJump() {
@@ -3062,6 +3046,7 @@
     function contentLoadHandler() {
         installHashChangeHandler(hashHandler);
         installObserver();
+        installUI();
     }
 
      // ==================================
@@ -3123,7 +3108,7 @@
 
         callOnContentLoaded(contentLoadHandler);
 
-        callOnContentComplete(installUI);
+        //callOnContentComplete(installUI);
 
         
 
