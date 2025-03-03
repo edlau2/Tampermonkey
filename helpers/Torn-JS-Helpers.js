@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.02
+// @version     2.46.04
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.02";
+const thisLibVer = "2.46.04";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -392,9 +392,20 @@ function log(...data) {
     }
 }
 
+function logtTime() {
+    let now = new Date().getTime();
+    let ms = now % 1000;
+    let sec = parseInt(now/1000);  // Only need at most last 3 digits
+    let smSec = sec % 60;
+
+    //let min = parseInt(sec / 60);
+
+    return smSec + "." + ms;
+}
+
 function logt(...data) {
     if (loggingEnabled) {
-        console.log(timeNow() + " " + GM_info.script.name + ': ', ...data);
+        console.log(logtTime() + " " + GM_info.script.name + ': ', ...data);
     }
 }
 
@@ -424,6 +435,7 @@ function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmod
 function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
 function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
 function isApiPage() {return (location.href.toLowerCase().indexOf("api.htm") > -1)};
+function isCrimePage() {return (location.href.indexOf("sid=crimes") > -1)}
 
 // Can't call from "run-at: start" with no jquery or top page headers...
 function isHomePage() {
