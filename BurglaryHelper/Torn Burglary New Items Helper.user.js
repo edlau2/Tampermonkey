@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -42,13 +42,13 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         'fertilizer': "Zip Ties, Hand Drill",
         'cottage': "Lockpicks, Zip Ties",
         'beach': "Net",
-        'mobile': "Dog Treats, Hand Drill",
+        'mobile': "Dog Treats, Hand Drill, Blowtorch",
         'suburban': "Dog Treats, Hand Drill",
         'scout': "",
-        'tool': "Lockpicks, Hand Drill",
+        'tool': "Lockpicks, Hand Drill, Blowtorch",
         'cabin': "Lockpicks",
         'cleaning': "Lockpicks",
-        'farm': "Hand Drill, C4",
+        'farm': "Hand Drill, C4, Blowtorch",
         'truckyard': "Dog Treats",
         'funeral': "Scalpel",
         'dentist': "Scalpel, Hand Drill",
@@ -56,7 +56,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         'storage': "Card Programmer, C4",
         'post': "Card Programmer",
         'facility': "",
-        'market': "Card Programmer, Lockpicks",
+        'market': "Card Programmer, Lockpicks, Bonded Latex",
         'ship': "Hand Drill, C4",
         'factory': "C4",
   };
