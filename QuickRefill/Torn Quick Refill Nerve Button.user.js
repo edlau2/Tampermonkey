@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Refill Nerve Button
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Adds a 'quick refill' button to crime and jail pages.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -110,7 +110,7 @@
         $("#xrefill").off();
         if ((dbgBtnAlwaysOn == false) && nerveUpdAvail == false) {
             $("#xrefill").addClass("x-notavail");
-            $("#xrefill").val("Used");
+            $("#xrefill").val("Unavailable");
             $("#xrefill").off();
             $("#xrefill").on('click', function(e) {return false;});
         } else {
@@ -137,7 +137,7 @@
                 margin-left: 15px;
                 margin-top: -4px;
                 height: 32px;
-                width: 82px;
+                min-width: 82px;
                 border-radius: 8px;
             }
             .x-notavail {
@@ -156,7 +156,7 @@
 
         if ((dbgBtnAlwaysOn == false) && nerveUpdAvail == false) {
             $("#xrefill").addClass("x-notavail");
-            $("#xrefill").val("Used");
+            $("#xrefill").val("Unavailable");
             $("#xrefill").off();
             $("#xrefill").on('click', function(e) {return false;});
         } else {
