@@ -23,7 +23,7 @@
     function log(...data) {console.log(GM_info.script.name + ': ', ...data);}
     log("Script started");
 
-    const api_key = GM_getValue('gm_api_key', "");
+    const api_key = GM_getValue('gm_api_key', "YOUR-KEY-HERE");
     const params = new URLSearchParams(location.search);
     const XID = params.get("user2ID");
 
