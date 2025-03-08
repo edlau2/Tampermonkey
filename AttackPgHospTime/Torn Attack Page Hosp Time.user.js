@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -21,6 +21,7 @@
 (function() {
     'use strict';
 
+    var wasInHosp = false;
     const XID = idFromURL(location.href);
     const getHospTime = function () {xedx_TornUserQueryv2(XID, "basic", queryCb);}
 
@@ -42,7 +43,8 @@
             $("#time-wrap").remove();
             clearInterval(apiTimer);
             clearInterval(clockTimer);
-            location.reload();
+            if (wasInHosp == true) location.reload();
+            wasInHosp = false;
             return;
         }
         outAt = status.until;
@@ -50,6 +52,7 @@
             apiTimer = setInterval(getHospTime, 2000);
         if (!clockTimer)
             startHospTimer();
+        wasInHosp == true;
     }
 
     function startHospTimer(retries=0) {
