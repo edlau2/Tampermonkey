@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -30,7 +30,7 @@
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
     GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
 
-    const hideWhenOK = GM_getValue("hideWhenOK", false);
+    const hideWhenOK = GM_getValue("hideWhenOK", true);
     const blinkWhiteWhenOk = GM_getValue("blinkWhiteWhenOk", false);
     const transparentBackground = GM_getValue("transparentBackground", false);
 
@@ -54,23 +54,22 @@
     function getHospTimerDiv() {
         const bgClass = (transparentBackground == true) ? "xbgt" : "xbgb-var";
         const hospTimerDiv = `
-            <div class="xsticky-bottom">
-            <div id="x-hosp-watch" class="x-hosp-wrap x-drag ` + bgClass + `">
-                <div id="x-hosp-sec-wrap">
-                    <div id="x-hosp-watchheader" class="grab x-hosp-hdr title-black hospital-dark top-round">
-                        <div role="heading" aria-level="5">Hosp Timer</div>
-                        <div class="x-hosp-hdr">
-                            <span id="x-hsp-hide" class="x-rt-btn x-inner-span xml10">M</span>
-                            <!-- span id="x-hsp-refresh" class="x-rt-btn x-inner-span xml5">R</span -->
-                            <span id="x-hsp-close" class="x-rt-btn x-inner-span xml5 xmr5">X</span>
+            <div id='x-hw-wrap' class="xsticky-bottom">
+                <div id="x-hosp-watch" class="x-hosp-wrap x-drag ${bgClass}">
+                    <div id="x-hosp-sec-wrap">
+                        <div id="x-hosp-watchheader" class="grab x-hosp-hdr title-black hospital-dark top-round">
+                            <div role="heading" aria-level="5">Hosp Timer</div>
+                            <div class="x-hosp-hdr">
+                                <span id="x-hsp-min" class="x-rt-btn x-inner-span xml10">M</span>
+                                <span id="x-hsp-hide" class="x-rt-btn x-inner-span xml5">H</span>
+                                <span id="x-hsp-close" class="x-rt-btn x-inner-span xml5 xmr5">X</span>
+                            </div>
+                        </div>
+                        <div id="x-hosp-inner" class="x-hosp-inner-flex xresizeable-vert">
+                            <span id="hosptime" class="flash-grn hosp-txt">00:00:00</span>
                         </div>
                     </div>
-                    <div id="x-hosp-inner" class="x-hosp-inner-flex xresizeable-vert">
-                    <!-- div id="x-hosp-inner" class="x-hosp-inner-flex" -->
-                        <span id="hosptime" class="flash-grn hosp-txt">00:00:00</span>
-                    </div>
                 </div>
-            </div>
             </div>
         `;
 
@@ -94,7 +93,7 @@
 
     function checkHospStatus() {
         inHospital = amIinHosp();
-        log("checkHospStatus: ", inHospital, hideWhenOK);
+        debug("checkHospStatus: ", inHospital, hideWhenOK);
         if (inHospital == false && hideWhenOK == true && hidden == false) {
             if ($("#x-hosp-watch").length > 0) {
                 if (!hidden) handleHide();
@@ -102,12 +101,8 @@
         }
 
         if (inHospital == true) {
-            // Handle hiding, minimizing. May want to allow this -
-            // but user could just close. If we hid when the minimize
-            // button was clicked, no way to re-open.
             if ($("#x-hosp-watch").height() == 32)
                 handleMaximizeClick();
-
             if (hidden == true) handleShow();
         }
 
@@ -181,30 +176,23 @@
         let hospDiv = $(hospTimerDiv);
         $("#mainContainer").append(hospDiv);
 
-        // Button handlers
         $("#x-hsp-close").on('click', closeHospDiv);
-        //$("#x-hsp-refresh").on('click', handleRefreshClick);
-        $("#x-hsp-hide").on('click', handleMinimize);
+        $("#x-hsp-min").on('click', handleMinimize);
+        $("#x-hsp-hide").on('click', handleHide);
 
-        // Tool tip help
         displayHtmlToolTip($("#x-hsp-close"), "Close", "tooltip4");
-        //displayHtmlToolTip($("#x-hsp-refresh"), "Refresh", "tooltip4");
-        displayHtmlToolTip($("#x-hsp-hide"), "Minimize/Maximize", "tooltip4");
+        displayHtmlToolTip($("#x-hsp-min"), "Minimize/Maximize", "tooltip4");
+        displayHtmlToolTip($("#x-hsp-hide"), "Hide", "tooltip4");
 
-        // Make draggable
         dragElement(document.getElementById("x-hosp-watch"));
 
-        // Assume if we no longer have a hosp icon, we are OK
-        // Can always double check...
         startCheckingIcon();
 
-        // Apply last known state of the window...this isn't position
         if (lastStateRestored == false) {
             restoreLastKnownState();
             lastStateRestored = true;
         }
 
-        // And optionally hide.
         inHospital = amIinHosp();
         if (inHospital == false && hideWhenOK == true && hidden == false) {
             if (!hidden) handleHide();
@@ -230,16 +218,6 @@
         }
     }
 
-    function moveToBody() {
-        let hospDiv = $("#x-hosp-watch");
-        $("#x-hosp-watch").detach().appendTo("#mainContainer");
-        $("#x-hosp-watch").addClass("x-hosp-wrap").removeClass("x-hosp-wrap-min");
-    }
-
-    // Could also togle between xhide/xshow, or xshowf (?)
-    // Need to be careful of 'display: block' vs 'display: flex'
-    // and other variants. Could make fns. to save the display:
-    // when swapping...
     function handleHide() {
         debug("handleHide: ", hidden);
         $("#x-hosp-watch").css("display", "none");
@@ -251,26 +229,38 @@
         hidden = false;
     }
 
+    function addMinimizeStyles() {
+        GM_addStyle(`
+            .x-hosp-min {
+                position: static !important;
+                overflow: hidden !important;
+                height: 32px;
+                pointer-events: auto;
+            }
+        `);
+    }
+
+    var savedPos;
     function handleMinimizeClick() {
-        $("#x-hosp-watch").css("height", "32px");
-        $("#x-hosp-watch").addClass("x91");
         GM_setValue("lastDisplaySize", "32px");
+        let wrapper = $($("[class^='group-chat-box_']")[0]);
+        savedPos = $("#x-hosp-watch").offset();
+
+        $("#x-hosp-watch").detach().prependTo(wrapper);
+        $("#x-hosp-watch").toggleClass("x-hosp-min");
+        $("#x-hosp-watch").toggleClass("x-hosp-wrap");
         minimized = true;
     }
 
     function handleMaximizeClick() {
-        $("#x-hosp-watch").css("height", "134px");
-        $("#x-hosp-watch").removeClass("x91");
         GM_setValue("lastDisplaySize", "134px");
+        $("#x-hosp-watch").detach().appendTo($("#x-hw-wrap"));
+        $("#x-hosp-watch").toggleClass("x-hosp-min");
+        $("#x-hosp-watch").toggleClass("x-hosp-wrap");
+        if (savedPos)
+            $("#x-hosp-watch").offset({top: savedPos.top, left: savedPos.left});
         minimized = false;
     }
-
-    /*
-    function handleRefreshClick() {
-        flashGreen();
-        //queryTornApi();
-    }
-    */
 
     function restoreLastKnownState() {
         if (lastDisplaySize) {
@@ -279,12 +269,12 @@
     }
 
     function addStyles() {
-
         loadMiscStyles();
         loadCommonMarginStyles();
         addToolTipStyle();
         addCursorMovingStyles();
         addCursorStyles();
+        addMinimizeStyles();
 
         GM_addStyle(`
              .x-hosp-wrap {
@@ -292,14 +282,9 @@
                 -webkit-transform: translate(-20%,-95%) !important;
                 transform: translate(-20%,-95%) !important;
                 background: transparent;
-                /*top: 32%;*/
-                top: 45%;
+                top: 40%;
                 left: 84%;
             }
-            .x-hosp-wrap-min {
-                left: 0;
-            }
-            .x91 {top: 91% !important;}
             .x-hosp-inner-flex {
                 border-radius: 5px;
                 width: 200px;
@@ -314,11 +299,6 @@
                 resize: vertical;
                 overflow: hidden;
                 cursor: ns-resize;
-            }
-            .xresizeable-both {
-                resize: both;
-                overflow: auto;
-                cursor: se-resize;
             }
             .hosp-txt {
                 font-size: 20px;
@@ -341,14 +321,10 @@
                 background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
             }
             .x-hosp-hdr {
-                /*border: 1px solid limegreen;*/
                 border-radius: 5px;
                 display: flex;
                 flex-direction: row;
                 justify-content: space-between;
-            }
-            .x-ontoptop {
-                z-index: 999998;
             }
             .x-drag {
                 position: fixed;
@@ -359,12 +335,6 @@
                 border-radius: 10px;
                 background: var(--default-bg-panel-color) none repeat scroll 0% 0% / auto padding-box border-box;
             }
-            .x-margin3 {
-                border-left: 2px solid steelblue;
-                border-right: 2px solid steelblue;
-                border-bottom: 2px solid steelblue;
-            }
-
             .flash-grn {
                animation-name: flash-green;
                 animation-duration: 0.8s;
@@ -373,12 +343,10 @@
                 animation-direction: alternate;
                 animation-play-state: running;
             }
-
             @keyframes flash-green {
                 from {color: #00ff00;}
                 to {color: #eeeeee;}
             }
-
             .flash-wht {
                 animation-name: flash-white;
                 animation-duration: 0.8s;
@@ -387,12 +355,10 @@
                 animation-direction: alternate;
                 animation-play-state: running;
             }
-
             @keyframes flash-white {
                 from {color: #ededed;}
                 to {color: #888888;}
             }
-
             .xsticky-bottom {
                 align-items: flex-end;
                 bottom: 0px;
@@ -416,11 +382,9 @@
     versionCheck();
 
     addStyles();
-
     checkHospStatus();
 
     installHashChangeHandler(checkHospStatus);
     installPushStateHandler(checkHospStatus);
-
 
 })();
