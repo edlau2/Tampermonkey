@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -31,8 +31,6 @@
     const doDisplayStart = true;      // Toggle display type on right click, time until or local start time
     const useLongDate = true;         // For display in window, use long or short format
 
-    var retries = 0;
-    var titleRetries = 0;
     const retryTime = 500;
     const maxRetries = 20;
 
@@ -44,62 +42,12 @@
 
     var clickState = GM_getValue("clickState", 0);
 
-    function pushStateChanged(e) {
-        log("pushStateChanged: ", e);
-        log("hash: ", window.location.hash);
-        handlePageLoad();
-    }
-
-    const bindEventListener = function (type) {
-        const historyEvent = history[type];
-        return function () {
-            const newEvent = historyEvent.apply(this, arguments);
-            const e = new Event(type);
-            e.arguments = arguments;
-            window.dispatchEvent(e);
-            return newEvent;
-        };
-    };
-
-    function handleHashChange() {
-        debug("hashChangeHandler: ", location.hash);
-        retries = 0;
-        titleRetries = 0;
-        addLocalTime();
-    }
-
-    function handlePageLoad() {
-        if (titleRetries >= maxRetries) {
-            log("[handlePageLoad] max retries met!");
-            return false;
-        }
-
-        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10 > span").text();
-
-        debug("titleBarText, retries: ", titleRetries, " text: ", titleBarText);
-        if (!titleBarText) {titleRetries++; return setTimeout(handlePageLoad, retryTime);}
-
-        titleRetries = 0;
-        if (titleBarText && titleBarText.indexOf("IS IN A WAR") > 0) {
-            log("Already warring, ignoring...");
-            return;
-        }
-
-        installHashChangeHandler(handleHashChange);
-        addLocalTime();
-    }
-
-    function addLocalTime() {
-        if (retries >= maxRetries) {
-            log("[addLocalTime] max retries met!");
-            return;
-        }
-
+    function addLocalTime(retries=0) {
         warList = $("#faction_war_list_id");
-        debug("warList: ", $(warList));
-
-        debug("Looking for DIV, retries: ", retries, " found: ", $(warList).length);
-        if ($(warList).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
+        if ($(warList).length == 0) {
+            if (retries++ < maxRetries) return setTimeout(addLocalTime, retryTime, retries);
+            return debug("Too many retries, war list not found.");
+        }
 
         // When war ended, warList had a class, "war-new", not sure during or enlisted...check!
         var classList = $('#faction_war_list_id').attr('class').split(/\s+/);
@@ -108,16 +56,14 @@
         }
 
         timer = $(warList).find("[class*='timer_']");
-        debug("timer: ", $(timer));
-        if ($(timer).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
-
         timeSpans = $(timer).find("span");
-        debug("timespans: ", $(timeSpans));
-        if ($(timeSpans).length == 0) {retries++; return setTimeout(addLocalTime, retryTime);}
+        debug("timer: ", $(timer), " spans: ", timeSpans);
+        if ($(timer).length == 0 || $(timeSpans).length == 0)  {
+            if (retries++ < maxRetries) return setTimeout(addLocalTime, retryTime, retries);
+            return debug("Too many retries, timer not found.");
+        }
 
-        retries = 0;
         let startTime = new Date();
-
         let day = timeSpans[0].innerText + timeSpans[1].innerText;
         let hour = timeSpans[3].innerText + timeSpans[4].innerText;
         let min = timeSpans[6].innerText + timeSpans[7].innerText;
@@ -139,7 +85,7 @@
 
         debug("start: ", formattedDate, " clickState: ", clickState);
 
-        if (doToolTip) addToolTip();
+        if (doToolTip) displayToolTip(timer, formattedDate, "tooltip4");
         if (doDisplayStart) addTimeDisplay();
 
         if (clickState > 0) {
@@ -191,13 +137,22 @@
         if (clickState == 4) clickState = 0;
 
         GM_setValue("clickState", clickState);
-        debug("clickState: ", clickState);
         return false;
     }
 
-    function addToolTip() {
-        addToolTipStyle();
-        displayToolTip(timer, formattedDate, "tooltip4");
+    function handlePageLoad(retries=0) {
+        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10 > span").text();
+        if (!titleBarText) {
+            if (retries++ < maxRetries) return setTimeout(handlePageLoad, retryTime, retries);
+            return debug("handlePageLoad, too many retries.");
+        }
+
+        if (titleBarText && titleBarText.indexOf("IS IN A WAR") > 0) {
+            debug("Already warring, ignoring...");
+            return;
+        }
+
+        addLocalTime();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -207,64 +162,69 @@
     logScriptStart();
     versionCheck();
 
-    history.pushState = bindEventListener("pushState");
+    addStyles();
 
-    GM_addStyle(`
-        .xedx-bgblack {
-            background: black !important;
-            box-shadow: inset 0 0 5px #ff3333;
-            border-radius: 10px;
-        }
-        body:not(.dark-mode) .xedx-bgblack {
-            background: #666 !important;
-            box-shadow: inset 0 0 5px #ff3333;
-            border-radius: 10px;
-        }
-
-        #xtime {
-            color: white;
-        }
-        body:not(.dark-mode) #xtime {
-            color: black !important;
-        }
-        body:not(.dark-mode) #xtime .xedx-bgblack1{
-            background: #666 !important;
-            color: black;
-        }
-        .xedx-bgblack1 {
-            background: black !important;
-        }
-        body:not(.dark-mode) .xedx-bgblack1 {
-            background: #666 !important;
-        }
-        .xedx-bgblack2 {
-            background: black !important;
-            border: 1px solid #ff3333;
-            border-radius: 10px;
-        }
-        body:not(.dark-mode) [class^='bottomBox_'] {
-            color: black !important;
-        }
-    `);
-
-    GM_addStyle(".xedx-tooltip {" +
-              "radius: 4px !important;" +
-              "background-color: #000000 !important;" +
-              "filter: alpha(opacity=80);" +
-              "opacity: 0.80;" +
-              "padding: 5px 20px;" +
-              "border: 2px solid gray;" +
-              "border-radius: 10px;" +
-              "width: auto;" +
-              "margin: 50px;" +
-              "text-align: left;" +
-              "font: bold 14px ;" +
-              "font-stretch: condensed;" +
-              "text-decoration: none;" +
-              "color: #FFF;" +
-              "font-size: 1em;" +
-              "}");
+    installHashChangeHandler(handlePageLoad);
+    installPushStateHandler(handlePageLoad);
 
     callOnContentLoaded(handlePageLoad);
+
+    function addStyles() {
+        addToolTipStyle();
+        GM_addStyle(`
+            .xedx-bgblack {
+                background: black !important;
+                box-shadow: inset 0 0 5px #ff3333;
+                border-radius: 10px;
+            }
+            body:not(.dark-mode) .xedx-bgblack {
+                background: #666 !important;
+                box-shadow: inset 0 0 5px #ff3333;
+                border-radius: 10px;
+            }
+
+            #xtime {
+                color: white;
+            }
+            body:not(.dark-mode) #xtime {
+                color: black !important;
+            }
+            body:not(.dark-mode) #xtime .xedx-bgblack1{
+                background: #666 !important;
+                color: black;
+            }
+            .xedx-bgblack1 {
+                background: black !important;
+            }
+            body:not(.dark-mode) .xedx-bgblack1 {
+                background: #666 !important;
+            }
+            .xedx-bgblack2 {
+                background: black !important;
+                border: 1px solid #ff3333;
+                border-radius: 10px;
+            }
+            body:not(.dark-mode) [class^='bottomBox_'] {
+                color: black !important;
+            }
+            .xedx-tooltip {
+                  radius: 4px !important;
+                  background-color: #000000 !important;
+                  filter: alpha(opacity=80);
+                  opacity: 0.80;
+                  padding: 5px 20px;
+                  border: 2px solid gray;
+                  border-radius: 10px;
+                  width: auto;
+                  margin: 50px;
+                  text-align: left;
+                  font: bold 14px ;
+                  font-stretch: condensed;
+                  text-decoration: none;
+                  color: #FFF;
+                  font-size: 1em;
+              }
+        `);
+    }
 
 })();
