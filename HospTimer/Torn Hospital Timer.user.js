@@ -44,6 +44,7 @@
         GM_setValue("updateOpts", false);
     }
 
+    const innerFlexHeight = 60;
     var intTimer = 0;    
     var inHospital = false;
     var hidden = false;
@@ -288,7 +289,7 @@
             .x-hosp-inner-flex {
                 border-radius: 5px;
                 width: 200px;
-                height: 100px;
+                height: ${innerFlexHeight}px;
                 align-content: center;
                 justify-content: center;
                 display: flex;
