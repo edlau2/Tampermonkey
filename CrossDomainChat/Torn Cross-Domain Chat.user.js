@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Cross-Domain Chat
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  This script lets you keep an eye on chat from a tab open  in another domain.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -9,6 +9,8 @@
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -16,6 +18,7 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // @grant        unsafeWindow
+
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
@@ -23,29 +26,36 @@
 /*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
 
+/*
+https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Torn%20Cross-Domain%20Chat.user.js
+*/
+
 (function() {
     'use strict';
 
     if (isAttackPage()) return log("Won't run on attack page!");
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     // =============== Editable Options =============
     debugLoggingEnabled = true;          // true for more verbose logging
 
     var options = {
-        publishLastFacMsgs: GM_getValue("publishLastFacMsgs", true),     // Write fac msgs to storage for sharing
+        publishLastFacMsgs: GM_getValue("publishLastFacMsgs", true),       // Write fac msgs to storage for sharing
         publishAnyAllowedMsg: GM_getValue("publishAnyAllowedMsg", true),   // Publish any msg (not just fac) if not filtered out
-        filterFacMsgsOnly: GM_getValue("filterFacMsgsOnly", true),     // Only log fac messages. Supercedes previous option.
-        dbEnable: GM_getValue("dbEnable", true),               // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
-        verboseMsgs: GM_getValue("verboseMsgs", false),
+        filterFacMsgsOnly: GM_getValue("filterFacMsgsOnly", true),         // Only log fac messages. Supercedes previous option.
+        dbEnable: GM_getValue("dbEnable", true),                           // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
+        verboseMsgs: GM_getValue("verboseMsgs", false),                    // For development - extra stuff in chat window
+        addTimestamps: GM_getValue("addTimestamps", false),                // Append short timestamp to message
 
         allowPublic: GM_getValue("allowPublic", false),            // If true, let things like public trade, general, etc through
-        doDevPings: GM_getValue("doDevPings", true),             // true to constantly ping - dev test to make sure both ends work without focus
-        silentPings: GM_getValue("silentPings", true),          // If true don't log to chat window
-        pingLifespan: GM_getValue("pingLifespan", 1),            // How long pings stay in the window, secs
+        doDevPings: GM_getValue("doDevPings", true),               // true to constantly ping - dev test to make sure both ends work without focus
+        silentPings: GM_getValue("silentPings", true),             // If true don't log to chat window
+        pingLifespan: GM_getValue("pingLifespan", 1),              // How long pings stay in the window, secs
 
         historyLimit: GM_getValue("historyLimit", 100),            // Chat message box will hold max this many messages before they scroll out.
-        pingIntervalSecs: GM_getValue("pingIntervalSecs", 5)         // Time between pings
-};
+        prepopulateChat: GM_getValue("prepopulateChat", true),     // Fill chat on open with past historyLimit messages
+        pingIntervalSecs: GM_getValue("pingIntervalSecs", 5)       // Time between pings
+    };
 
     // ========== End editable options ==========
 
@@ -55,6 +65,13 @@
     var lastNonPingId = 0;
     const lastChatKey = "lastChat";
     const verifyChatKey = "lastValidChat";
+    const dbName = "Chat2.0.MessagesDB";
+    const storeName = "messageStore";
+
+    const subLastChatKey = "subLastChats";
+    const pubLastChatKey = "pubLastChats";
+
+    var pubMsgsSkipped = 0;
 
     function updateOption(name, newVal) {
         options[name] = newVal;
@@ -65,7 +82,6 @@
         let keys = Object.keys(options);
         for (let idx=0; idx<keys.length; idx++) {
             let key = keys[idx];
-            log("Saving opt ", key, " as ", options[key]);
             GM_setValue(key, options[key]);
         }
     }
@@ -75,7 +91,6 @@
         for (let idx=0; idx<keys.length; idx++) {
             let key = keys[idx];
             options[key] = GM_getValue(key, options[key]);
-            log("Read opt ", key, " as ", options[key]);
         }
     }
 
@@ -89,28 +104,198 @@
 
     var prevChat, thisChat;
 
-    //writeOptions();
+    var needsWrite = GM_getValue("needsWrite", true);
+    if (needsWrite == true) {
+        writeOptions();
+        GM_setValue("needsWrite", false);
+    }
+
+    // ============================ Time stuff ===============================
+
+    const secsInMin = 60;
+    const minInHour = 60;
+    const secsInHr = secsInMin * minInHour;
+    const hrInDay = 24;
+    const secsInDay = hrInDay * secsInHr;
+
+     const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+
+    function tsToTimeAgo(ts) {
+        let nowSecs = new Date().getTime();
+        let secsDiff = Math.floor((nowSecs - ts)/1000);
+        let hrs = Math.floor(secsDiff/secsInHr);
+        let rem = secsDiff % secsInHr;
+        let min = Math.floor(rem/secsInMin);
+        let secs = rem % secsInMin;
+        let agoStrLong = hrs > 0 ?
+            (hrs + " hrs " + min + " min " + secs + " secs ago") :
+            min > 0 ? (min + " min " + secs + " secs ago") :
+            (secs + " secs ago");
+        let agoStrShort = nn(hrs) + ":" + nn(min) + ":" + nn(secs) + " ago";
+        let result = {hrs: hrs, min: min, secs: secs, strLong: agoStrLong, strShort: agoStrShort};
+        return result;
+    }
+
+    function formatDateStringLong(date) {
+        const pad = (v) => {
+            return v < 10 ? "0" + v : v;
+        };
+        let year = date.getFullYear();
+        let month = pad(date.getMonth() + 1);
+        let day = pad(date.getDate());
+        let hour = pad(date.getHours());
+        let min = pad(date.getMinutes());
+        let sec = pad(date.getSeconds());
+        return year + "/" + month + "/" + day + " " + hour + ":" + min + ":" + sec;
+    }
+
+    function formatTimeString(date) {
+        const pad = (v) => {
+            return v < 10 ? "0" + v : v;
+        };
+
+        let hour = pad(date.getHours());
+        let min = pad(date.getMinutes());
+        let sec = pad(date.getSeconds());
+        return  hour + ":" + min + ":" + sec;
+    }
+
+    // ================ Other misc helpers ==================
+    function arrayCopyLastN(arr, n) {
+        if (n > arr.length) {
+            return arr.slice();
+        }
+        return arr.slice(-n);
+    }
+
+     function savePosition(elementId) {
+        let el = $(("#" + elementId));
+        log("savePos: ", $(el));
+        let key = elementId + "-lastOff";
+        let pos = $(el).offset();
+        log("savePos: ", pos);
+        GM_setValue(key, JSON.stringify(pos));
+    }
+    function getSavedPosition(elementId) {
+        let key = elementId + "-lastOff";
+        let obj = GM_getValue(key, undefined);
+        if (!obj) return log("Nothing saved");
+        let pos = JSON.parse(obj);
+        return pos;
+    }
+
+    function setOffset(el, top, left) {
+        log("setOffset top: ", top, " left: ", left);
+        log("current: ", $(el).offset());
+        let elH = $(el).height();
+        $(el).offset({top: top, left: left});
+        log("new: ", $(el).offset());
+    }
+
+    function restorePosition(elementId) {
+        let key = elementId + "-lastOff";
+        let pos = getSavedPosition(elementId);
+        log("restorePos: ", pos);
+        if (!pos) return log("Invalid obj saved.");
+
+        let el = $(("#" + elementId));
+        log("restorePos: ", $(el));
+
+        setOffset(el, pos.top, pos.left)
+    }
+
 
     // ================= YATA specific portion of script =====================
 
-    if (location.hostname == 'yata.yt') {
+    /*
+    Maybe on YATA page init...ope DB, read fac list only, fill chat box
+    with 'history limit' entries. Start at list.length - histLimit, and
+    add until end. Then done with db....
+    */
+
+    var lastChatList = [];
+    //if (location.hostname == 'yata.yt') {
+    if (location.hostname.indexOf('torn.com') == -1) {
         logScriptStart();
         log("Listening at ", location.hostname);
+
+        // We can go ahead and get last 'historyLimit' msgs
+        // to populate the chat box....
+        //if (options.prepopulateChat == true && options.dbEnable == true)
+        //    getLastChats();
+
         callOnContentLoaded(handleYataPageLoad);
         return;
     }
 
+    // Save last 10 chats we've ead/dislayed, these can prepopulate on
+    // reload. Or...maybe have the server portion maintain the list?
+    // That would be more accurate but more contentious...
+    // The keys are for "publisher" and "subscriber", pub being
+    // Torn script, sub being YATA, in this case...
+    function loadLastChats(key) {
+        let tmp = GM_getValue(key, undefined);
+        if (tmp) lastChatList = JSON.parse(tmp);
+
+        log("Preloading ", lastChatList.length, " saved chats");
+        for (let idx=0; idx<lastChatList.length; idx++) {
+            let thisChat = lastChatList[idx];
+            let newMsg = getChatMsgDiv(thisChat);
+            $("#cbb").append(newMsg);
+
+            log("Loaded msg id ", thisChat.msg_id, " from ", thisChat.name);
+
+            $(`#${thisChat.ts}`).tooltip({
+            content: function( event, ui ) {
+                let id = $(this).attr("id");
+                let ago = tsToTimeAgo(+id);
+                $(this).tooltip("option", "content", ago.strLong);
+            },
+            open: doDynamicTtText,
+            classes: {"ui-tooltip": "tooltip5"}
+        });
+        }
+
+        // TBD: grab the last entry in storage also, if not in last chat list...
+        keepScrolledToBottom();
+    }
+
+    function saveLastChats(key) {
+        GM_setValue(key, JSON.stringify(lastChatList));
+    }
+
+    // The saved position needs to be relative to actual visible screen, not scrolled window!!!
+    function handleUnload() {
+        saveLastChats();
+        savePosition("cdcb");
+    }
+
     function initYataCSS() {
         addDraggableStyles();
+        addToolTipStyle();
 
         GM_addStyle(`
-            .chat-box-wrapper {
+            .test-sticky-bottom {
                 align-items: flex-end;
                 bottom: 0px;
+                /*top:0px;*/
+                left:0px;
+                display: flex;
+                position: fixed;
+                right: 1px;
+                /*max-width: 262px;*/
+                /*height:100%;
+                width:100%;
+                z-index: 0;*/
+            }
+            .chat-box-wrapper {
+                align-items: flex-end;
+                /*bottom: 0px;*/
                 display: flex;
                 position: fixed;
                 right: 1px;
                 max-width: 262px;
+                z-index: 999999;
             }
             .group-chat-box {
                 align-items: flex-end;
@@ -119,7 +304,7 @@
             .chat-box {
                 width: 262px;
                 background: #333; 
-                border-radius: 4px;
+                border-radius: 4px 4px 0 0;
                 box-shadow: 0 4px 4px rgba(0,0,0,.25);
                 overflow: hidden;
                 word-break: break-word;
@@ -162,7 +347,6 @@
             }
 
             .chat-box-footer {
-                align-items: center;
                 display: flex;
                 /*padding: 4px;*/
                 /*border: 1px solid #676767;*/
@@ -172,7 +356,7 @@
             }
             .chat-box-footer__textarea {
                 background: black;
-                border-radius: 4px;
+                border-radius: 0px 0px 4px 4px;
                 color: white;
                 flex-grow: 1;
                 font-family: Arial,Helvetica,sans-serif;
@@ -203,11 +387,15 @@
                 margin-right: 4px;
                 word-break: break-word;
             }
+            .box-message {
+                margin-bottom: 0px;
+            }
             .box-message p {
                 font-size: 12px !important;
                 line-height: 1rem;
                 word-break: break-word;
                 color: #e3e3e3;
+                margin-bottom: 0px !important;
             }
             .chat-box-header {
                 align-items: center;
@@ -244,15 +432,25 @@
                 margin-right: 0;
                 background: limegreen;
             }
+            .msg-ts {
+                font-family: arial;
+                font-size: 12px;
+                color: #777;
+            }
         `);
     }
 
     function getChatMsgDiv(entry) {
-        log("getChatMsgDiv: ", entry);
+        // debug("getChatMsgDiv: ", entry);
         let avatarUrl = entry.avatar;
         let imgSrc = (avatarUrl && avatarUrl.length) ? `https://avatars.torn.com/48X48_${avatarUrl}` : ``;
         let addlMsg = (entry.channel == "ping_channel" && options.verboseMsgs == true) ? (`(id=${entry.msg_id})`) : ``;
         let sender = (options.verboseMsgs == true) ?  `${entry.name} (on ${entry.channel}):` : `${entry.name}:`;
+        let tsSpan = '';
+        if (options.addTimestamps == true) {
+            let time = (entry.ts) ? formatTimeString(new Date(entry.ts)) : 'unknown';
+            tsSpan = `<span class="msg-ts"> (${time})</span>`;
+        }
         let msg =
             `<div id="${entry.msg_id}">
                 <div class="chat-box-message">
@@ -266,10 +464,11 @@
                         <a href="/profiles.php?XID=${entry.user_id}" class="message__sender">
                             ${sender}
                         </a>
-                        <p class="box-message">
+                        <p class="box-message" title="original" id="${entry.ts}" data-html="true">
                             <span class="text-message">
-                            ${entry.msg} ${addlMsg}
+                                ${entry.msg} ${addlMsg}
                             </span>
+                            ${tsSpan}
                         </p>
                     </div>
                 </div>
@@ -278,30 +477,37 @@
         return msg;
     }
 
+    function handleMinMax() {
+        if ($("#cbb").parent().css("display") == 'none') {
+            $("#cbb").parent().css("display", "block");
+            $(".chat-box-footer").css("display", "flex");
+        } else {
+            $("#cbb").parent().css("display", "none");
+            $(".chat-box-footer").css("display", "none");
+        }
+    }
+
     function installYataChat() {
         let yataChatBox = `
+        <div id="xcdcb-root" class="test-sticky-bottom">
             <div id="cdcb" class="chat-box-wrapper">
-            <div class="xflexc">
-                <div id="cdcbheader" class="group-chat-box">
-                    <div class="chat-box" id="fac-chat">
-                        <div class="chat-box-header xflexr">
-                            <p id="ccbh"></p>
-                            <span id="ping-led" class="led-rnd"></span>
-                        </div>
-                        <div style="height: 250px;">
-                            <div id='cbb' class='chat-box-body'>
+                <div class="xflexc">
+                    <div id="cdcbheader" class="group-chat-box">
+                        <div class="chat-box" id="fac-chat">
+                            <div class="chat-box-header xflexr">
+                                <p id="ccbh"></p>
+                                <span id="ping-led" class="led-rnd"></span>
+                            </div>
+                            <div style="height: 250px;">
+                                <div id='cbb' class='chat-box-body'>
 
+                                </div>
                             </div>
                         </div>
-                        <!-- div class='chat-box-footer'>
-                            <textarea class="chat-box-footer__textarea" placeholder="Type your message here...">
-                            </textarea>
-                        </div -->
                     </div>
-                </div>
-                <div class='chat-box-footer'>
-                    <textarea class="chat-box-footer__textarea" placeholder="Type your message here...">
-                    </textarea>
+                    <div class='chat-box-footer'>
+                        <textarea class="chat-box-footer__textarea" placeholder="Type your message here..."></textarea>
+                    </div>
                 </div>
             </div>
             </div>
@@ -313,9 +519,12 @@
 
         dragElement(document.getElementById("cdcb"));
 
+        //restorePosition("cdcb");
+
+        $(".chat-box-header").on('click', handleMinMax);
+
         if (debugLoggingEnabled == true) logOptions();
 
-        //setInterval(flashLed, 2000);
     }
 
     function keepScrolledToBottom() {
@@ -330,44 +539,33 @@
     }
 
     function removeMsg(selector) {
-        log("Removing ping ID ", selector);
         $(selector).remove();
         setHdrText();
     }
 
-    function ledOn() {
-        $("#ping-led").animate({
-            opacity: 1
-        }, 50, function() {
-            setTimeout(ledOff, 500);
-        });
-    }
-
-    function ledOff() {
-        $("#ping-led").animate({
-            opacity: 0
-        }, 50);
-    }
-
     function flashLed() {
-        log("Flashing LED");
-        ledOn();
+        function ledOff() {$("#ping-led").css("opacity", 0);}
 
-        /*
-        $("#ping-led").animate({
-            opacity: 1
-        }, 100, function() {
-            $("#ping-led").animate({
-            opacity: 0
-        }, 500)});
-        */
+        $("#ping-led").css("opacity", 1);
+        setTimeout(ledOff, 600);
+    }
+
+    function doDynamicTtText(event, ui) {
+        let target = $(event.currentTarget);
+        let id = $(target).attr("id");
+        let ago = tsToTimeAgo(+id);
+        $(target).tooltip("option", "content", ago.strLong);
     }
 
     // Notified when our storage key value changes, re-read the list
     function storageChangeCallback(key, oldValue, newValue, remote) {
-        debug("storageChangeCallback, remote: ", remote, " key: ", key, " newValue? ", newValue ? true : false);
+
+        //debug("storageChangeCallback, remote: ", remote, " key: ", key, " newValue? ", newValue ? true : false);
+
         if (!remote || !newValue) return;
         thisChat = JSON.parse(newValue);
+
+        if (thisChat.name != 'ping') debug("Entry: ", thisChat);
 
         if (!prevChat)
             prevChat = thisChat;
@@ -375,27 +573,60 @@
             if (prevChat.msg_id == thisChat.msg_id)
                 return log("Same msg ID (", thisChat.msg_id, "), returning.");
 
-        log("Entry: ", thisChat);
+        if ($(`#${thisChat.msg_id}`).length) {
+            //console.error("Error: trying to add dup ID ", thisChat.msg_id);
+            return;
+        }
 
+        // Ping handling
         if (thisChat.channel == 'ping_channel')
             flashLed();
 
         if (thisChat.channel == 'ping_channel' && options.silentPings == true) {
-            debug("Ping detected, set to silent");
+            //debug("Ping detected, set to silent");
+            return;
+        }
+
+        // Secondary handling if fac only is enabled
+        if (options.filterFacMsgsOnly == true && thisChat.channel.indexOf("faction") < 0) {
+            debug("filterFacMsgsOnly is on, not showing ", thisChat.channel);
             return;
         }
 
         let newMsg = getChatMsgDiv(thisChat);
+        log("Adding new message");
         $("#cbb").append(newMsg);
         keepScrolledToBottom();
 
+        /*
+        log("Saving chat to saved list");
+        if (thisChat.channel != 'ping_channel') {
+            let newLen = lastChatList.push(thisChat);
+            if (newLen > 10) lastChatList.shift();
+            saveLastChats(subLastChatKey);
+        }
+        */
+
+        // Replacing the inline function for content init
+        // with the function, causes this to fail - no
+        // clue why. Attaching an open handler later didn't
+        // seem to work, either, but may not have tried
+        // with the inline function here as well.
+        $(`#${thisChat.ts}`).tooltip({
+            content: function( event, ui ) {
+                let id = $(this).attr("id");
+                let ago = tsToTimeAgo(+id);
+                $(this).tooltip("option", "content", ago.strLong);
+            },
+            open: doDynamicTtText,
+            classes: {"ui-tooltip": "tooltip5"}
+        });
+
         if (thisChat.channel == 'ping_channel') {
             let time = options.pingLifespan * 1000;
-            log("Will remove ping id ", thisChat.msg_id, " in ", time, " ms");
             setTimeout(removeMsg, time, ("#" + thisChat.msg_id));
         } else {
             lastNonPingId = thisChat.msg_id;
-            log("Last ID: ", lastNonPingId);
         }
 
         if ($("#cbb").children().length > options.historyLimit)
@@ -409,13 +640,11 @@
         if (!tmpEntry || lastNonPingId == 0) return;
         let entry = JSON.parse(tmpEntry);
         if (entry.msg_id != lastNonPingId) {
-            log("ID's changed, entry: ", entry.msg_id, " last: ", lastNonPingId);
+            debug("ID's changed, entry: ", entry.msg_id, " last: ", lastNonPingId);
             if (changeListener) GM_removeValueChangeListener(changeListener);
             changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
             lastNonPingId = 0;
-            log("***** chageListener reset! *****");
-        } else {
-            log("Watchdog test passed: ", entry.msg_id, " last: ", lastNonPingId);
+            debug("***** chageListener reset! *****");
         }
     }
 
@@ -423,11 +652,17 @@
         initYataCSS();
         installYataChat();
 
+        $(window).on('unload', handleUnload);
+
         if (changeListener) GM_removeValueChangeListener(changeListener);
         changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
 
         // Periodically check to see if we've lost our listener
         listenerWatchdog = setInterval(watchdogTimer, 5000);
+
+        // Add last saved chats....saved from server or last open YATA?
+        //loadLastChats(subLastChatKey);
+        loadLastChats(pubLastChatKey);
     }
 
     // =================== Torn Chat Hook portion of script =================
@@ -454,7 +689,7 @@
     WebSocket.prototype.send = function (...args) {
         if (window.sockets.indexOf(this) === -1 && this.url.indexOf("sendbird.com") > -1) {
 
-            log("ChatRecorder: found chat2.0 websocket");
+            log("ChatRecorder: found chat 2.0 websocket");
             log("URL: ", this.url);
 
             window.sockets.push(this);
@@ -476,17 +711,18 @@
     }
 
     function initIndexDB() {
-        const openRequest = indexedDB.open("ScriptChat2.0RecorderDB", 2);
+        //const openRequest = indexedDB.open("ScriptChat2.0RecorderDB", 2);
+        const openRequest = indexedDB.open(dbName, 2);
         openRequest.onupgradeneeded = function (e) {
             db = e.target.result;
-            if (!db.objectStoreNames.contains("messageStore")) {
-                log("ChatRecorder: initIndexDB open onupgradeneeded create store");
-                const objectStore = db.createObjectStore("messageStore", { keyPath: "messageId", autoIncrement: false });
+            if (!db.objectStoreNames.contains(storeName)) {
+                debug("ChatRecorder: initIndexDB open onupgradeneeded create store");
+                const objectStore = db.createObjectStore(storeName, { keyPath: "messageId", autoIncrement: false });
                 objectStore.createIndex("targetPlayerId", "targetPlayerId", { unique: false });
             }
         };
         openRequest.onsuccess = function (e) {
-            log("ChatRecorder: initIndexDB open onsuccess");
+            debug("ChatRecorder: initIndexDB open onsuccess");
             db = e.target.result;
         };
         openRequest.onerror = function (e) {
@@ -501,11 +737,17 @@
         }
 
         let msg = {};
+
+        // This will filter out public chats, unless the "allowPublic"
+        // option is enabled.
         const targetPlayer = getTargetPlayerFromMessage(message);
         if (!targetPlayer) {
-            debug("[dbWrite] skipping msg: ", message.channel_url);
+            pubMsgsSkipped++;
+            if (pubMsgsSkipped % 10 == 0)
+               debug("[dbWrite] skipped ", pubMsgsSkipped, " public msgs, this one is: ", message.channel_url);
             return;
         }
+        //msg.channel = message.channel;
         msg.targetPlayerId = targetPlayer.id;
         msg.targetPlayerName = targetPlayer.name;
         msg.senderPlayerId = message.user.guest_id;
@@ -514,7 +756,6 @@
         msg.timestamp = message.ts;
         msg.messageText = message.message;
         msg.messageId = message.msg_id;
-        // console.log(msg);
 
         let isFacMsg = false;
         if (options.filterFacMsgsOnly == true && targetPlayer.id == 'faction') {
@@ -528,34 +769,54 @@
 
         if ((isFacMsg == true && options.publishLastFacMsgs == true) || (options.publishAnyAllowedMsg == true)) {
             let entry = {msg_id: message.msg_id, user_id: message.user.guest_id, avatar: message.user.image,
-                         name: message.user.name, msg: message.message, channel: message.channel_url};
+                         name: message.user.name, msg: message.message, channel: message.channel_url,
+                         ts: message.ts};
 
             debug("Writing entry: ", entry);
+
+            let prevEntry;
+            let tmp = GM_getValue(lastChatKey, null);
+            if (tmp) {
+                prevEntry = JSON.parse(tmp);
+                if (prevEntry.msg_id == entry.msg_id) {
+                    log("ERROR: Dup entry detected, this: ", entry, " prev: ", prevEntry);
+                    return;
+                }
+            }
             GM_setValue(lastChatKey, JSON.stringify(entry));
             GM_setValue(verifyChatKey, JSON.stringify(entry));
+
+            // Push prevEntry onto queue of last 'X' saved chats, so
+            // when the YATA half loads it can load last historyLimit chats
+            tmp = GM_getValue(pubLastChatKey, undefined);
+            let list = tmp ? JSON.parse(tmp) : [];
+            list.push(entry);
+            if (list.length > options.historyLimit) list.shift();
+            GM_setValue(pubLastChatKey, JSON.stringify(list));
         }
 
         if (options.dbEnable == false || !options.dbEnable) return;
 
-        const transaction = db.transaction(["messageStore"], "readwrite");
+        const transaction = db.transaction([storeName], "readwrite");
         transaction.oncomplete = (event) => { };
         transaction.onerror = (event) => {
             console.error("ChatRecorder: dbWrite transaction onerror [" + msg.targetPlayerId + " " + msg.senderName + ": " + msg.messageText + "]");
         };
 
-        const store = transaction.objectStore("messageStore");
+        const store = transaction.objectStore(storeName);
         const request = store.put(msg);
         request.onsuccess = (event) => { };
     }
 
     var rollingId = 0;
     function doPing() {
-        let msg = formatDateString(new Date());
+        let msg = formatDateStringLong(new Date());
         let elementId = "chat-ping-" + (rollingId++);
         let entry = {msg_id: elementId, user_id: 1, avatar: "",
-                         name: "ping", msg: msg, channel: "ping_channel"};
+                     name: "ping", msg: msg,
+                     channel: "ping_channel",
+                     ts: (new Date().getTime())};
 
-        log("Pinging: ", entry);
         GM_setValue(lastChatKey, JSON.stringify(entry));
     }
 
@@ -565,13 +826,13 @@
             return;
         }
 
-        const transaction = db.transaction(["messageStore"], "readwrite");
+        const transaction = db.transaction([storeName], "readwrite");
         transaction.oncomplete = (event) => { };
         transaction.onerror = (event) => {
             console.error("ChatRecorder: dbWrite transaction onerror [" + msg.targetPlayerId + " " + msg.senderName + ": " + msg.messageText + "]");
         };
 
-        const store = transaction.objectStore("messageStore");
+        const store = transaction.objectStore(storeName);
 
         for (const message of messageArray) {
             const targetPlayer = getTargetPlayerFromMessage(message);
@@ -595,13 +856,15 @@
             return;
         }
 
-        const transaction = db.transaction(["messageStore"], "readonly");
+        //log("dbReadByTargetPlayerId: ", targetPlayerId);
+
+        const transaction = db.transaction([storeName], "readonly");
         transaction.oncomplete = (event) => { };
         transaction.onerror = (event) => {
             console.error("ChatRecorder: dbReadByTargetPlayerId transaction onerror [" + targetPlayerId + "]");
         };
 
-        const store = transaction.objectStore("messageStore");
+        const store = transaction.objectStore(storeName);
         const index = store.index("targetPlayerId");
         const keyRange = IDBKeyRange.only(targetPlayerId);
 
@@ -616,6 +879,7 @@
                     resultList.push(cursor.value);
                     cursor.continue();
                 } else {
+                    //log("dbReadByTargetPlayerId, res: ", resultList);
                     resolve(resultList);
                 }
             };
@@ -628,13 +892,13 @@
             return;
         }
 
-        const transaction = db.transaction(["messageStore"], "readonly");
+        const transaction = db.transaction([storeName], "readonly");
         transaction.oncomplete = (event) => { };
         transaction.onerror = (event) => {
             console.error("ChatRecorder: dbReadAllPlayerId transaction onerror");
         };
 
-        const store = transaction.objectStore("messageStore");
+        const store = transaction.objectStore(storeName);
         const index = store.index("targetPlayerId");
         const keyRange = null;
 
@@ -649,6 +913,7 @@
                     resultList.push(cursor.value);
                     cursor.continue();
                 } else {
+                    //log("dbReadAllPlayerId res: ", resultList);
                     resolve(resultList);
                 }
             };
@@ -776,14 +1041,27 @@
                 line-height: 22px;
                 font-family: Arial, serif;
                 font-size: 14px;
-                font-weight: bold;
             }
             #cdc-opt-table td label {
                 padding: 2px 20px 2px 20px;
             }
 
+            .dbg-log {
+                /*line-height: 22px;*/
+                font-family: Arial, serif;
+                font-size: 12px;
+                color: black;
+                margin-top: 6px;
+            }
+
             .cdc-ip {
 
+            }
+            #history {
+                width: 50px;
+                border-radius: 5px;
+                padding-left: 5px;
+                margin-left: 5px;
             }
         `);
     }
@@ -822,9 +1100,11 @@
         $controlPanelDiv.find("button#chat-search").click(function () {
             const inputId = $controlPanelDiv.find("input#chat-target-id-input").val();
             dbReadByTargetPlayerId(inputId).then((result) => {
+                //log("InputId: ", inputId);
                 let text = "";
                 for (const message of result) {
-                    const timeStr = formatDateString(new Date(message.timestamp));
+                    //log("Res msg: ", message);
+                    const timeStr = formatDateStringLong(new Date(message.timestamp));
                     text += timeStr + " " + message.senderPlayerName + ": " + message.messageText + "\n";
                 }
                 text += "Found " + result.length + " records\n";
@@ -850,20 +1130,18 @@
         // Checkbox handlers
         $(".cdc-cb").on('click', function (e) {
             let key = $(this).attr('name');
-            log("On cb click, ", key);
             updateOption(key, $(this).prop('checked'));
         });
 
         // Input field handlers
         $(".cdc-input").on('change', function (e) {
             let key = $(this).attr('name');
-            log("On input change, key: ", key, " new val: ", $(this).val());
             updateOption(key, $(this).val());
         });
 
         $controlBtn.click(function () {
             dbReadAllPlayerId().then((result) => {
-                log("dbReadAllPlayerId res: ", result);
+                //log("dbReadAllPlayerId res: ", result);
                 const $playerListDiv = $controlPanelDiv.find("div#chat-player-list");
                 $playerListDiv.empty();
                 let num = 0;
@@ -887,6 +1165,11 @@
         });
 
         $controlPanelOverlayDiv.click(function () {
+            $controlPanelDiv.fadeOut(200);
+            $controlPanelOverlayDiv.fadeOut(200);
+        });
+
+        $("#chat-close").on('click', function () {
             $controlPanelDiv.fadeOut(200);
             $controlPanelOverlayDiv.fadeOut(200);
         });
@@ -918,29 +1201,22 @@
                         <tr>
                             <td><label>Store in DB: <input class="cdc-cb" type="checkbox" name="dbEnable"></label></td>
                             <td><label>Verbose: <input class="cdc-cb" type="checkbox" name="verboseMsgs"></label></td>
-                            <td><label style="display: none;"><input class="cdc-cb" type="checkbox" name=""></label></td>
+                            <td><label>Max History: <input id="history" type="number" name="maxHistory"></label></td>
                         </tr>
                     </tbody></table>
                 </div>
-                <!-- br -->
+                <div style="margin-left: auto;" class="xflexc">
+                    <button id="chat-close" class="xedx-torn-btn" style="cursor: pointer;margin-left: auto;">Close</button>
+                    <div style="display:flex;flex-flow:row wrap;align-items:center;">
+                        <input id="dbgLogging" class="xmr5 xmt5" type="checkbox" name="debugLoggingEnabled">
+                        <label for="dbgLogging" class="dbg-log">Debug Logging</label>
+                    </div>
+                </div>
             </div>
             <textarea readonly id="chat-results" cols="120" rows="30"></textarea>
         `;
 
         return innerHtml;
-    }
-
-    function formatDateString(date) {
-        const pad = (v) => {
-            return v < 10 ? "0" + v : v;
-        };
-        let year = date.getFullYear();
-        let month = pad(date.getMonth() + 1);
-        let day = pad(date.getDate());
-        let hour = pad(date.getHours());
-        let min = pad(date.getMinutes());
-        let sec = pad(date.getSeconds());
-        return year + "/" + month + "/" + day + " " + hour + ":" + min + ":" + sec;
     }
 
     function handlePageLoad() {
