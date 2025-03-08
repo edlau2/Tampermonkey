@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.4
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -16,29 +16,42 @@
 // ==/UserScript==
 
 /*eslint no-undef: 0*/
+/*eslint curly: 0*/
 
 (function() {
     'use strict';
 
     const XID = idFromURL(location.href);
+    const getHospTime = function () {xedx_TornUserQueryv2(XID, "basic", queryCb);}
 
     logScriptStart();
-
     validateApiKey();
-    xedx_TornUserQueryv2(XID, "basic", queryCb);
+    getHospTime();
+
 
     // Make this a simple ajax with embedded success fn
     var outAt = 0;
+    var clockTimer = null;
+    var apiTimer = null;
     function queryCb(responseText, ID, param) {
         let jsonObj = JSON.parse(responseText);
         if (jsonObj.error) return;
         let status = jsonObj.status;
-        if (!status || status.state != "Hospital") return;
+        if (!status || status.state != "Hospital") {
+            //log("*** Out of hosp!!! ***");
+            $("#time-wrap").remove();
+            clearInterval(apiTimer);
+            clearInterval(clockTimer);
+            location.reload();
+            return;
+        }
         outAt = status.until;
-        startHospTimer();
+        if (!apiTimer && getSecsUntilOut() > 12)
+            apiTimer = setInterval(getHospTime, 2000);
+        if (!clockTimer)
+            startHospTimer();
     }
 
-    var timer = 0;
     function startHospTimer(retries=0) {
         let hdr = $("[class^='titleContainer_'] > h4");
         if (!$(hdr).length) {
@@ -67,7 +80,7 @@
             }
         `);
         let btnSpan = `
-            <div class='xflexr xflex-center' style="margin-right: 36%;">
+            <div id="time-wrap" class='xflexr xflex-center' style="margin-right: 36%;">
                 <span id='time-left' class="time-span"></span>
             </div>
         `;
@@ -75,7 +88,7 @@
         $(hdr).after($(btnSpan));
         $(hdr).addClass("xflexr");
         updateHospClock();
-        timer = setInterval(updateHospClock, 1000);
+        clockTimer = setInterval(updateHospClock, 1000);
     }
 
     function getSecsUntilOut() {
@@ -87,8 +100,9 @@
     function updateHospClock() {
         let diff = getSecsUntilOut();
         if (diff <= 0) {
-            clearInterval(timer);
-            $("#time-left").remove();
+            clearInterval(clockTimer);
+            clearInterval(apiTimer);
+            $("#time-wrap").remove();
             return;
         }
         if (diff <= 10) $("#time-left").addClass("flash-grn");
