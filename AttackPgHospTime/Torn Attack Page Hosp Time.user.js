@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -21,16 +21,16 @@
 (function() {
     'use strict';
 
-    var wasInHosp = false;
-    const XID = idFromURL(location.href);
-    const getHospTime = function () {xedx_TornUserQueryv2(XID, "basic", queryCb);}
+    console.log(GM_info.script.name + ' version ' +
+        GM_info.script.version + ' script started');
 
-    logScriptStart();
+    var wasInHosp = false;
+    const XID = new URLSearchParams(location.search).get("user2ID");
+    const getHospTime = function() {xedx_TornUserQueryv2(XID, "basic", queryCb);}
+
     validateApiKey();
     getHospTime();
 
-
-    // Make this a simple ajax with embedded success fn
     var outAt = 0;
     var clockTimer = null;
     var apiTimer = null;
@@ -39,7 +39,6 @@
         if (jsonObj.error) return;
         let status = jsonObj.status;
         if (!status || status.state != "Hospital") {
-            //log("*** Out of hosp!!! ***");
             $("#time-wrap").remove();
             clearInterval(apiTimer);
             clearInterval(clockTimer);
@@ -61,8 +60,12 @@
             if (retries++ < 20) return setTimeout(startHospTimer, 250, retries);
             return;
         }
-        addFlexStyles();
+        
         GM_addStyle(`
+            .xflexr {
+                display: flex;
+                flex-flow: row wrap;
+            }
             .time-span {
                 padding: 2px 20px 2px 20px;
                 margin-right: 0;
