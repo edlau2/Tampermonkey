@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.08
+// @version     1.09
 // @description show tornstats spies on faction wall page
 // @author      finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
 // @run-at      document-end
 // @match       https://www.torn.com/factions.php*
 // @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require     https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @connect     api.torn.com
 // @grant       GM_xmlhttpRequest
 // @grant       GM_addStyle
@@ -24,6 +25,8 @@
 (function () {
   "use strict";
 
+    if (isAttackPage()) return;
+
     // This is at present no longer used, don't bother setting it!
     let manualApiKey = "<your API key here>";
 
@@ -38,7 +41,7 @@
     // Before doing anything, make sure we are on a good page.
     // Otherwise we constantly are doing stuff for no reason.
     if (validFacPage() == false) {
-        log("WARNING: Invalid page, going home: ", location.href);
+        log("Invalid page, going home: ", location.href);
         return;
     }
 
@@ -61,7 +64,16 @@
         return;
     }
 
-    let xedxDevMode = GM_getValue("xedxDevMode", false);
+    // My stuff
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+    let   xedxDevMode = GM_getValue("xedxDevMode", false);
+    const bsSortKey = "data-total";
+    const sortOrders = ['desc', 'asc'];
+    const useCustSort = true;
+    var   tableReady = false;
+    const defSortOrder = 0;
+    var   currSortOrder = sortOrders[defSortOrder];
+    var   bsSortOrder = defSortOrder;
 
     let bsCache = JSONparse(localStorage["finally.torn.bs"]) || {};
     let hospTime = {};
@@ -85,7 +97,7 @@
                              </a>`;
 
     callOnContentLoaded(installExtraUiElements);
-    log("Will replace travel icons on content complete");
+    debug("Will replace travel icons on content complete");
     callOnContentComplete(replaceTravelIcons);
 
     function installExtraUiElements() {
@@ -99,14 +111,15 @@
     }
 
     function handleRstBtnClick() {
-        log("handleRstBtnClick");
+        debug("handleRstBtnClick");
         api_key = '';
         validateApiKey();
     }
 
-    // temp!
+    // temp (experimental)
     function handleRightClick() {
         //initColWidths();
+        debug("handleRightClick: will try quick reload");
         quickReload();
         return false;
     }
@@ -145,7 +158,7 @@
     var apiRequests = 0;                // Track how many times we've prompted for a new API key
     var loadAttempts = 0;               // How many times we've retried the fetch
     function loadTSFactions(id) {
-        log("loadTSFactions");
+        debug("loadTSFactions");
       if (loadTSFactionLock) {
         if (
           id &&
@@ -154,7 +167,7 @@
         )
           loadTSFactionBacklog.push(id);
 
-        log("loadTSFactions - locked");
+        debug("loadTSFactions - locked");
         return;
       }
 
@@ -243,6 +256,9 @@
             localStorage["finally.torn.bs"] = JSON.stringify(bsCache);
 
             loadTSFactionsDone();
+
+            tableReady = true;
+            if (useCustSort) expSort('tableReady');
         },
         onabort: () => loadTSFactionsDone(),
         onerror: () => loadTSFactionsDone(),
@@ -259,88 +275,32 @@
       factionIds.forEach((id) => loadTSFactions(id));
     }
 
+    // Experiment: try my tinysort instead of finally custom sort
+    // bat stat cells: $(".finally-bs-col")
+    function expSort(from) {
+        let sortList = $(".faction-info-wrap  ul.table-body > li");
+        debug("expSort, from: ", from, " ready: ", tableReady, " len: ", $(sortList).length, +bsSortOrder, sortOrders[+bsSortOrder]);
+
+        if (!$(sortList).length || !tableReady) return log("Not ready or no items");
+
+        if (from == 'tableReady') {
+            bsSortOrder = defSortOrder;
+            currSortOrder = sortOrders[+bsSortOrder];
+            tinysort($(sortList), {attr: bsSortKey, order: sortOrders[+bsSortOrder]});
+            return;
+        }
+
+        currSortOrder = sortOrders[+bsSortOrder];
+
+        tinysort($(sortList), {attr: bsSortKey, order: sortOrders[+bsSortOrder]});
+        bsSortOrder = bsSortOrder ? 0 : 1;
+        //log("orders after:", +bsSortOrder, sortOrders[+bsSortOrder]);
+    }
+
     function sortStats(node, sort) {
-      if (!node) node = document.querySelector(".f-war-list .members-list");
-      if (!node) return;
-
-      let sortIcon = node.parentNode.querySelector(".bs > [class*='sortIcon']");
-
-      if (sort) node.finallySort = sort;
-      else if (node.finallySort == undefined) node.finallySort = 2;
-      else if (++node.finallySort > 2) node.finallySort = sortIcon ? 1 : 0;
-
-      if (sortIcon) {
-        if (node.finallySort > 0) {
-          let active = node.parentNode.querySelector(
-            "[class*='activeIcon']:not([class*='finally-bs-activeIcon'])"
-          );
-          if (active) {
-            let activeClass = active.className.match(
-              /(?:\s|^)(activeIcon(?:[^\s|$]+))(?:\s|$)/
-            )[1];
-            active.classList.remove(activeClass);
-          }
-
-          sortIcon.classList.add("finally-bs-activeIcon");
-          if (node.finallySort == 1) {
-            sortIcon.classList.remove("finally-bs-desc");
-            sortIcon.classList.add("finally-bs-asc");
-          } else {
-            sortIcon.classList.remove("finally-bs-asc");
-            sortIcon.classList.add("finally-bs-desc");
-          }
-        } else {
-          sortIcon.classList.remove("finally-bs-activeIcon");
-        }
-      }
-
-      let nodes = Array.from(
-        node.querySelectorAll(
-          ".table-body > .table-row, .your:not(.row-animation-new), .enemy:not(.row-animation-new)"
-        )
-      );
-      for (let i = 0; i < nodes.length; i++)
-        if (nodes[i].finallyPos == undefined) nodes[i].finallyPos = i;
-
-      nodes = nodes.sort((a, b) => {
-        let posA = a.finallyPos;
-        let idA = a
-          .querySelector('a[href*="XID"]')
-          .href.replace(/.*?XID=(\d+)/i, "$1");
-        let totalA =
-          (bsCache[idA] &&
-            typeof bsCache[idA].total == "number" &&
-            bsCache[idA].total) ||
-          posA;
-        let posB = b.finallyPos;
-        let idB = b
-          .querySelector('a[href*="XID"]')
-          .href.replace(/.*?XID=(\d+)/i, "$1");
-        let totalB =
-          (bsCache[idB] &&
-            typeof bsCache[idB].total == "number" &&
-            bsCache[idB].total) ||
-          posB;
-
-        let type = node.finallySort;
-        switch (node.finallySort) {
-          case 1:
-            if (totalA <= 100 && totalB <= 100) return totalB > totalA ? 1 : -1;
-            return totalA > totalB ? 1 : -1;
-          case 2:
-            return totalB > totalA ? 1 : -1;
-          default:
-            return posA > posB ? 1 : -1;
-        }
-      });
-
-      for (let i = 0; i < nodes.length; i++)
-        nodes[i].parentNode.appendChild(nodes[i]);
-
-      if (!sort) {
-        document.querySelectorAll(".members-list").forEach((e) => {
-          if (node != e) sortStats(e, node.finallySort);
-        });
+      if (useCustSort) {
+          if (!tableReady) return debug("Table not ready, not sorting yet!");
+          return expSort('sortStats');
       }
     }
 
@@ -392,6 +352,9 @@
       else {
          //debug("No entry found in cache for id ", id);
       }
+
+      // Save total for easy exp. sort access, but raw #
+      $(node).parent().attr(bsSortKey, stats[0]);
 
       let units = ["K", "M", "B", "T", "Q"];
       for (let i = 0; i < stats.length; i++) {
@@ -605,8 +568,8 @@
                   ? sortIcon.className.indexOf("desc") === -1
                   : false;
 
-                  // This controls sort direction, apparently from already existing icon.
-                  // For me seems to start ascending, I'd prefer descending, heavies on top.
+                // This controls sort direction, apparently from already existing icon.
+                // For me seems to start ascending, I'd prefer descending, heavies on top.
                 sort = desc ? sort : -sort;
                 localStorage.setItem("finally.torn.factionSort", sort);
 
@@ -618,9 +581,20 @@
               }, 100);
             });
           }
+
+            $(bsNode).attr("id", "bs-hdr-node");
+          // Add click to sort listener. When ready w/experimental
+          // sort, replace w/my own fn and handle all colums
+          // Can prob remove a lot of the code right above this, also...
+            //
+            // Isn't called???
+          /*
           bsNode.addEventListener("click", () => {
-            sortStats(observeNode);
+            log("Sort click");
+            useCustSort ? expSort('click') : sortStats(observeNode);
+            bsSortOrder = bsSortOrder ? 0 : 1;
           });
+          */
 
           let title = titleNode.children[Math.abs(previousSort) - 1];
           let sortIcon = title.querySelector("[class*='sortIcon']");
@@ -667,7 +641,7 @@
           observeNode.parentNode.querySelector(".finally-bs-activeIcon")
         ) {
           mo.disconnect();
-          sortStats(observeNode, observeNode.finallySort);
+          useCustSort ? expSort('mutation') : sortStats(observeNode, observeNode.finallySort);
           prevSortCheck = Array.from(observeNode.querySelectorAll('a[href*="XID"]'))
             .map((a) => a.href)
             .join(",");
@@ -696,11 +670,9 @@
 
     function memberList(observeNode) {
       if (!observeNode) return;
-
       loadFactions();
 
       let titleNode = observeNode.querySelector(".table-header");
-
       if (!titleNode || titleNode.querySelector(".bs")) return;
 
       let bsNode = document.createElement("li");
@@ -714,10 +686,10 @@
           localStorage.setItem("finally.torn.factionSort", sort);
         });
       }
-      bsNode.addEventListener("click", () => {
-        sortStats(observeNode);
-      });
 
+      bsNode.addEventListener("click", (e) => {
+          useCustSort ? expSort('click') : sortStats(observeNode);
+      });
       if (previousSort >= 0) {
         titleNode.children[previousSort - 1].click();
         titleNode.children[previousSort - 1].click();
@@ -824,7 +796,7 @@
 
     // Images for country flags
     function getAbroadFlag(country) {
-        log("getAbroadFlag: ", country);
+        //log("getAbroadFlag: ", country);
         if (country == 'UK') {
             return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
                 country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
@@ -880,27 +852,18 @@
 
         let desc = jsonResp.status.description;
         let country = getCountryFromStatus(desc);
-        log("BasiQuery: country: ", country);
         if (country) $(iconLi).replaceWith($(getAbroadFlag(country)));
-
-        if (xedxDevMode == true) {
-            log("country: ", country);
-            log("iconLi: ", $(iconLi));
-            log("$(getAbroadFlag(country)): ", $(getAbroadFlag(country)));
-        }
     }
 
     var countFlags = -1;
     function replaceTravelIcons(retries=0) {
-        log("replaceTravelIcons");
         let firstTime = (countFlags == -1)? true : false;
         if (firstTime == true) countFlags = 0;
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
         let len = $(travelIcons).length;
-        log("Icons: ", travelIcons);
         if (len < 1) {
             if (retries++ < 10) return setTimeout(replaceTravelIcons, 250 * retries, retries);
-            log("replaceTravelIcons timed out");
+            debug("replaceTravelIcons timed out");
             return;
         }
         // instead of adding an observer, just recheck in a few.
@@ -920,7 +883,6 @@
             if (!fullId) {log("no fullId!"); continue;}
 
             let id = fullId.match(/\d+/)[0];
-            log("Submitting query for user ", id);
             xedx_TornUserQuery(id, "basic", userBasicQueryCallback, iconLi);
         }
         if (firstTime == true) setTimeout(replaceTravelIcons, 5000);
@@ -930,13 +892,13 @@
     // ====================== Fast Reload testing ===================
     // This loads only the member portion of the page, so does not
     // have to reload everything. *Should* make things faster - but
-    // thi script also does it's own updating so mat not be neccesary.
+    // this script also does it's own updating so mat not be neccesary.
     var doingReload = false;
     function quickReload() {
 
         // https://www.torn.com/
         let reloadURL = location.href;
-        log("quickReload, URL: ", reloadURL);
+        debug("quickReload, URL: ", reloadURL);
 
         if (doingReload) {
             doingReload = false;
@@ -956,7 +918,7 @@
             //contentType: 'application/json; charset=utf-8',
             success: function (response, status, xhr) {
                 var ct = xhr.getResponseHeader("content-type") || "";
-                log("Response content type: ", ct);
+                debug("Response content type: ", ct);
                 if (ct.indexOf('html') > -1) {
                     parseResponseAsHTML(response, status, xhr);
                 } else if (ct.indexOf('json') > -1) {
@@ -967,7 +929,7 @@
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                log("Error in quickReload: ", textStatus);
+                debug("Error in quickReload: ", textStatus);
                 decodeQuickReloadError(jqXHR, textStatus, errorThrown);
             }
         });
@@ -975,7 +937,7 @@
     }
 
     function quickReloadCallBack(response, status, xhr) {
-        log("Handling quickReload response");
+        debug("Handling quickReload response: ", response);
 
         //var newWindow = window.open("", "new window", "width=400, height=200");
         //newWindow.document.write(response);
@@ -985,35 +947,33 @@
         try {
             jsonObj = JSON.parse(response);
         } catch (e) {
-            log("Exception: ", e);
-            log("Response: ", response);
+            debug("Exception: ", e);
+            debug("Response: ", response);
             //parseResponseAsHTML(response, status, xhr);
             return;
         }
 
-        log("jsonObj: ", jsonObj);
+        debug("jsonObj: ", jsonObj);
         if (jsonObj.success == true) {
-            log("Fast Reload, obj: ", jsonObj);
+            debug("Fast Reload, obj: ", jsonObj);
         }
 
         doingReload = false;
     }
 
     function parseResponseAsHTML(response, status, xhr) {
-        log("Handling quickReload response as HTML");
-
-        log("quickReload Response: ", $(response));
+        debug("Handling quickReload response as HTML");
+        debug("quickReload Response: ", $(response));
 
         var newWindow = window.open("", "new window", "width=400, height=200");
         newWindow.document.write(response);
     }
 
     function decodeQuickReloadError(jqXHR, textStatus, errorThrown) {
-
-        log("decodeQuickReloadError");
-        log("jqXHR: ", jqXHR);
-        log("textStatus: ", textStatus);
-        log("errorThrown: ", errorThrown);
+        debug("decodeQuickReloadError");
+        debug("jqXHR: ", jqXHR);
+        debug("textStatus: ", textStatus);
+        debug("errorThrown: ", errorThrown);
     }
     // ====================== End Fast Reload testing ===================
 
@@ -1035,15 +995,49 @@
     var descSortClassName;
     var currSortDirClassName;
 
-    //var colWidthRetries = 0;
+    function findActiveIconClasses(retries=0) {
+        let found = false;
+        let classList;
+        const tableHeader = $(".members-list > ul.table-header");
+        let headerColumnList = $(tableHeader).find("li");
+        bsTableHeader = $(headerColumnList)[2];
+        let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
+        let list = $(activeSortIcon).attr("class");
+        if (list && list.length) {
+            classList = $(activeSortIcon).attr("class").split(/\s+/);
+            for (let idx=0; idx < classList.length; idx++) {
+                if (classList[idx].indexOf('active') > -1) {
+                    activeClass = classList[idx];
+                    found = true;
+                    break;
+                }
+            }
+
+            currSortDirClassName = getAscDescClassName(classList);
+            getSortDirClassNames();
+        }
+
+        if (!found) {
+            if (retries++ < 30) return setTimeout(findActiveIconClasses, 500, retries);
+            return log("ERROR: Didn't find active icons!");
+        }
+
+        //log("Appending sort icon: ", $(activeSortIcon), $(bsTableHeader));
+        $(bsTableHeader).append($(activeSortIcon).clone());
+        $(activeSortIcon).removeClass(activeClass);
+
+        // Is this to sort twice??
+        if (!useCustSort) {
+            $(bsTableHeader).click();
+            $(bsTableHeader).click();
+        }
+    }
+
     function initColWidths(retries=0) {
         if (document.readyState != "complete") {
             if (retries++ < 10) return setTimeout(initColWidths, 300, retries);
             return;
         }
-        //colWidthRetries = 0;
-
-        log("Fixing up column widths...");
 
         const divider = " | ";
         const tableHeader = $(".members-list > ul.table-header");
@@ -1083,43 +1077,17 @@
         $($(headerColumnList)[2]).css("min-width", parseInt($(batBodyStatHeader).outerWidth()) + "px");
 
         // Find active one
-        let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
-        let list = $(activeSortIcon).attr("class");
-        if ($(list).length) {
-            classList = $(activeSortIcon).attr("class").split(/\s+/);
-            for (let idx=0; idx < classList.length; idx++) {
-                if (classList[idx].indexOf('active') > -1) {
-                    activeClass = classList[idx];
-                    break;
-                }
-            }
+        findActiveIconClasses();
+        bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column;
+        $(bsTableHeader).off();
 
-            //currSortDirClassName = getAscDescClassName(classList);
-            //getSortDirClassNames();
+        $(".members-list > ul.table-header > li.table-cell").on("click", handleTableHeaderClick);
+
+        // Is this to sort twice??
+        if (!useCustSort) {
+            $(bsTableHeader).click();
+            $(bsTableHeader).click();
         }
-
-        currSortDirClassName = getAscDescClassName(classList);
-        getSortDirClassNames();
-
-        bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column
-
-        /*
-        if (!$(activeSortIcon).length || !$(bsTableHeader).length) {
-            if (colWidthRetries++ > 10) return;
-            return setTimeout(initColWidths, 100);
-        }
-        colWidthRetries = 0;
-        */
-
-        $(bsTableHeader).append($(activeSortIcon).clone());
-        $(activeSortIcon).removeClass(activeClass);
-
-        $(tableHeader).children("li.table-cell").on("click", handleTableHeaderClick);
-
-        $(bsTableHeader).click();
-        $(bsTableHeader).click();
-
-        log("Done fixing up column widths.");
     }
 
     function getSortDirClassNames() {
@@ -1151,19 +1119,60 @@
     }
 
     // Note: there are two class for asc/desc....
+    var detachedBs;
+    var detachedother;
     function handleTableHeaderClick(e) {
+        log("handleTableHeaderClick");
         if ($(bsTableHeader).outerWidth() > 40) debugger;
+        log("handleTableHeaderClick: ", $(e.currentTarget));
+
+        const tableHeader = $(".members-list > ul.table-header");
+        //bsTableHeader = $(headerColumnList)[2];
+        let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
 
         let node = e.currentTarget;
         let bsIconNode = $(bsTableHeader).find("[class*='activeIcon']"); // "BS" col sort flag
         let thisIconNode = $(node).find("[class*='activeIcon']")[0];     // Same on this node (mat be BS column also)
 
+        log("activeSortIcon: ", $(activeSortIcon));
+        log("bs-sort-ico: ", $("#bs-sort-ico"));
+        log("bsIconNode: ", $(bsIconNode));
+        log("bsIconNode0: ", $($(bsIconNode)[0]));
+
         if (!$(node).hasClass("bs")) {
-            $(bsIconNode).removeClass(activeClass);
-            $(bsIconNode).removeClass("finally-bs-activeIcon");
+            log("Making BS node inactive");
+            //$(bsIconNode).remove();
+
+            if (!detachedBs) {
+                detachedBs = $(bsIconNode).detach();
+            }
+            //$("#bs-sort-ico").remove();
+
+            //$(bsIconNode).removeClass(activeClass);
+            //$(bsIconNode).removeClass("finally-bs-activeIcon");
         } else {
+            log("Making BS node active, curr order: ", currSortOrder, " det: ", $(detachedBs));
+            if (detachedBs)
+                $(bsTableHeader).append(detachedBs);
+            else {
+                $(bsTableHeader).append($(activeSortIcon).clone());
+            }
+            detachedBs = null;
+
+            //$(activeSortIcon).remove();
+            $(activeSortIcon).removeClass(activeClass);
+
+            bsIconNode = $(tableHeader).find("[class*='activeIcon']");
+            log("New bsIconNode: ", $(bsIconNode));
+            $(bsIconNode).attr("id", "bs-sort-ico");
+
+            let cl = $(bsIconNode).attr('class');
+            if (cl) log("Class list, before: ", cl.split(/\s+/));
+
             $(bsIconNode).addClass(activeClass);
-            if ($(bsIconNode).hasClass("finally-bs-desc")) {
+            //if ($(bsIconNode).hasClass("finally-bs-desc")) {
+            if (currSortOrder == 'asc') {
+                log("Making bsIconNode 'asc'");
                 $(bsIconNode).removeClass("finally-bs-desc").addClass("finally-bs-asc");
                 $(bsIconNode).removeClass(descSortClassName).addClass(ascSortClassName);
 
@@ -1171,6 +1180,10 @@
                 $(bsIconNode).removeClass("finally-bs-asc").addClass("finally-bs-desc");
                 $(bsIconNode).removeClass(ascSortClassName).addClass(descSortClassName);
             }
+
+            cl = $(bsIconNode).attr('class');
+            if (cl) log("Class list, after: ", $(bsIconNode).attr('class').split(/\s+/));
+            log("bsIconNode: ", $(bsIconNode));
         }
     }
 
@@ -1282,6 +1295,9 @@
 
         .xedx-api-rst {
             margin-left: 10px;
+        }
+        .table-cell.bs {
+            cursor: pointer;
         }
     `);
 
