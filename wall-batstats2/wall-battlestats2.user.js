@@ -3,7 +3,7 @@
 // @namespace   http://tampermonkey.net/
 // @version     1.09
 // @description show tornstats spies on faction wall page
-// @author      finally [2060206], seintz [2460991]
+// @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
 // @run-at      document-end
 // @match       https://www.torn.com/factions.php*
