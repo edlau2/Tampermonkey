@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.04
+// @version     2.46.05
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.04";
+const thisLibVer = "2.46.05";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -119,9 +119,8 @@ function getThisUserId() {
     if (!thisUserId) {
         let tmp = $("#torn-user").val();
         if (!tmp) return;
-        let parts = tmp.split('"');
-        if (!parts || parts.length < 4) return;
-        thisUserId = parts[3];
+        let jsonObj = JSON.parse(tmp);
+        thisUserId = jsonObj.id;
         GM_setValue("thisUserId", thisUserId);
     }
     return thisUserId;
@@ -675,11 +674,15 @@ function xidFromProfileURL(URL) {
     return ID;
 }
 
-// Generic version of above, "ID=" must be preset.
-// More accurately, "XID=" must be present :-)
-// We need the XID; the trailing '#' may not be present.
+// More generic version of above, "ID=" must be preset
+// or a user2ID attack page search param
 function idFromURL(URL) {
     if (!URL) return;
+    // Attack page format
+    const params = new URLSearchParams(location.search);
+    const XID = params.get("user2ID");
+    if (XID) return XID;
+
     var n = URL.indexOf('ID='); // Find the 'ID=' token
     if (n == -1) {return null;}
     var n2 = URL.slice(n).indexOf('#'); // Find the next '#' sign (may not exist)
@@ -690,6 +693,12 @@ function idFromURL(URL) {
         ID = URL.slice(n+3);
     }
     return ID;
+}
+
+function idFromURL2(URL) {
+    let path = location.pathname + location.search;
+    let nums = match('/\d+/');
+    return nums ? nums[0] : null;
 }
 
 // Another version of above, except search for 'userid='
@@ -1458,7 +1467,7 @@ function getSidebarIcon(iconName, callback, maxRetries=8) {
                             reason: msg, data: JSON.stringify(iconIndices)});
     }
 
-    let sel = "[class*='icon" + iconIndex + "_'";
+    let sel = "[class*='icon" + iconIndex + "_']";
     let params = {name: iconName, selector: sel, callback: callback, maxRetries: maxRetries};
     getIcon(params);
 }
