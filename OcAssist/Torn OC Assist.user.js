@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.23
+// @version      2.24
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -28,6 +28,8 @@
 .planning___H0H9c .shadowLayer___mfCVN {
     background-color: var(--oc-crime-highlighting-planning-color);
     opacity: var(--oc-crime-highlighting-planning-opacity);
+
+    $("[class*='planning_'] [class*='shadowLayer_']").css("background-color", "var(--oc-crime-highlighting-default-color) !important")
 }
 */
 
@@ -744,49 +746,58 @@
             "Pet Project": {level: 1, roles: ["Kidnapper", "Muscle", "Picklock"], aka: "pp"}
         },
         2: {
-            "Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief", "Thief"], aka: "cm"}
+            //"Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief", "Thief"], aka: "cm"}
+            "Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief"], aka: "cm"}
         },
         3: {
             "Market Forces": {level: 3, roles: ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"], aka: "mf"},
+            "Smoke and Wing Mirrors": {level: 3, roles: ["Car Thief", "Impersonator", "Hustler" /*, "Hustler"*/], aka: "sw"},
         },
         4: {
-            "Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"], aka: "sf"},
+            //"Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"], aka: "sf"},
+            //"Snow Blind": {level: 4, roles: ["Hustler", "Impersonator", "Muscle", "Muscle"], aka: "sb"},
+            "Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle"], aka: "sf"},
+            "Snow Blind": {level: 4, roles: ["Hustler", "Impersonator", "Muscle"], aka: "sb"},
         },
         5: {
             "Leave No Trace": {level: 5, roles: ["Techie", "Impersonator", "Negotiator"], aka: "lt"},
         },
         6: {
-            "Honey Trap": {level: 6, roles: ["Enforcer", "Muscle", "Muscle"], aka: "ht"},
+            //"Honey Trap": {level: 6, roles: ["Enforcer", "Muscle", "Muscle"], aka: "ht"},
+            "Honey Trap": {level: 6, roles: ["Enforcer", "Muscle"], aka: "ht"},
         },
         7: {
-            "Blast From The Past": {level: 7, roles: ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
+            //"Blast From The Past": {level: 7, roles: ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
+            "Blast From The Past": {level: 7, roles: ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
         },
         8: {
-            "Break The Bank": {level: 8, roles: ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"], aka: "bb"},
+            //"Break The Bank": {level: 8, roles: ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"], aka: "bb"},
+            "Break The Bank": {level: 8, roles: ["Thief", "Muscle", "Robber"], aka: "bb"},
         },
         9: {
             "Gaslight The Way": {enabled: false, level: 9, roles: ["?", "?", "?", "?", "?", "?"], aka: "gw"},
         },
         10: {
-            "Smoke and Smoke and Wing Mirrors": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "ss"},
             "Bidding on Chaos": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "bc"},
         }
     };
 
     const nicknames = {"Mob Mentality": "mm", "Pet Project": "pp", "Cash Me If You Can": "cm", "Market Forces": "mf",
                        "Stage Fright": "sf", "Leave No Trace": "lt", "Honey Trap": "ht", "Blast From The Past": "bp",
-                       "Break The Bank": "bb", "Gaslight The Way": "gw", "Smoke and Smoke and Wing Mirrors": "ss",
-                       "Bidding on Chaos": "bc"};
+                       "Break The Bank": "bb", "Gaslight The Way": "gw", "Smoke and Wing Mirrors": "sw",
+                       "Bidding on Chaos": "bc", "Snow Blind": "sb"};
 
     const roleLookup = {
         "Pet Project": ["Kidnapper", "Muscle", "Picklock"],
-        "Cash Me If You Can": ["Lookout", "Thief", "Thief"],
+        "Cash Me If You Can": ["Lookout", "Thief"],
         "Market Forces": ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"],
-        "Stage Fright": ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"],
+        "Snow Blind": ["Hustler", "Impersonator", "Muscle"],
+        "Stage Fright": ["Lookout", "Enforcer", "Sniper", "Muscle"],
         "Leave No Trace": ["Techie", "Impersonator", "Negotiator"],
-        "Honey Trap": ["Enforcer", "Muscle", "Muscle"],
-        "Blast From The Past": ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"],
-        "Break The Bank": ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"],
+        "Honey Trap": ["Enforcer", "Muscle"],
+        "Blast From The Past": ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"],
+        "Break The Bank": ["Thief", "Thief", "Muscle", "Robber"],
+        "Smoke and Wing Mirrors": ["Car Thief", "Impersonator", "Hustler"],
     };
 
     const csrEntryTemplate = {name: "",
@@ -794,13 +805,14 @@
                                           "pm": {"Kidnapper": 0, "Muscle": 0, "Picklock": 0},
                                           "cm": {"Lookout": 0, "Thief": 0},
                                           "mf": {"Enforcer": 0, "Negotiator": 0, "Lookout": 0, "Arsonist": 0, "Muscle": 0},
+                                          "sb": {"Hustler": 0, "Impersonator": 0, "Muscle": 0},
                                           "sf": {"Lookout": 0, "Enforcer": 0, "Sniper": 0, "Muscle": 0},
                                           "lt": {"Techie": 0, "Impersonator": 0, "Negotiator": 0},
                                           "ht": {"Enforcer": 0, "Muscle": 0},
                                           "bp": {"Picklock": 0, "Hacker": 0, "Engineer": 0, "Bomber": 0, "Muscle": 0},
                                           "bb": {"Thief": 0, "Muscle": 0, "Robber": 0},
                                           "gw": {},
-                                          "ss": {},
+                                          "sw": {"Car Thief": 0, "Impersonator": 0, "Hustler": 0},
                                           "bc": {}
                                }};
 
@@ -991,6 +1003,9 @@
         {name: "Clear all CSR values",   id: "clear-csr",    type: "ctrl",     enabled: true, validOn: "full",
              fnName: "clear-csr",
              tooltip: "Erases all saved CSR values.<br>"},
+        {name: "Update Your CSR (recruitment page only)",   id: "upd-recruit-csr",    type: "ctrl",     enabled: true, validOn: "full",
+             fnName: "upd-rec-csr",
+             tooltip: "Updates your saved csr values,<br>if on the recruitment page"},
         ];
 
     function writeOptions() {
@@ -1181,6 +1196,10 @@
                 updateMemberCsrList();
                 break;
 
+            case "upd-rec-csr":
+                updateCsrFromRecPg();
+                break;
+
             default:
                 debug("ERROR: Run func ", runFunc, " not recognized!");
                 break;
@@ -1292,6 +1311,9 @@
         let wrapper = $(me).closest("[class^='wrapper_']");
         $(wrapper).addClass("xoc-myself");
         $(wrapper).parent().parent().addClass("xoc-static");
+        $("[class*='planning_'] [class*='shadowLayer_']").attr("style", "background-color: transparent !important;");
+        $("[class*='planning_'] [class*='shadowLayer_']").next().attr("style", "background-color: transparent !important;");
+        //$("[class*='planning_'] [class*='shadowLayer_']").remove();
     }
 
     function secsFromeTimeStr(text) {
@@ -1799,6 +1821,63 @@
         handleCsrListUpdateComplete(newestDate);
     }
 
+    // From recruiting page: grab all entries: $("[class*='recruiting_']")
+    // each entry, get [class*='contentLayer_']
+    function updateUserCsrEntry(crimeName, difficulty, role, csr) {
+        debug("[updateUserCsrEntry] for crime: ", crimeName, " role ", role);
+        let entry = csrList[userId];
+        debug("[updateUserCsrEntry] id: ", userId, " entry: ", entry);
+
+        if (!entry) {
+            return debug("CSR entry for user ", userId, " not found!");
+        }
+        let aka = crimeDefsTable[difficulty][crimeName] ?
+                       crimeDefsTable[difficulty][crimeName].aka :
+                       (crimeName in nicknames) ? nicknames[crimeName] : null;
+        debug("aka: ", aka);
+
+        if (!aka) debugger;
+        let userCsrs = entry.crimeCsr[aka];
+        if (!userCsrs) {
+            entry.crimeCsr[aka] = csrEntryTemplate.crimeCsr[aka];
+            userCsrs = entry.crimeCsr[aka];
+        }
+        debug("csrs: ", userCsrs);
+
+        if (userCsrs) {
+            userCsrs[role] = csr;
+            writeCsrList();
+        }
+    }
+
+    function updateCsrFromRecPg() {
+        if (!onRecruitingPage()) {
+            alert("Only valid if on the recruiting page!");
+            return;
+        }
+
+        let crimes = $("[class*='recruiting_']");
+        for (let idx=0; idx<crimes.length; idx++) {
+            let crime = $(crimes[idx]).closest("[class^='contentLayer_']");
+            log("Crime ", idx, ": ", $(crime));
+            let name = $(crime).find("[class^='panelTitle_']").text();
+            let lvl = $(crime).find("[class^='levelValue_']").text();
+
+            debug("updateCsrFromRecPg, name: ", name, " level: ", lvl);
+
+            let open = $(crime).find("[class*='waitingJoin_']");
+            for (let j=0; j<open.length; j++) {
+                let avail = open[j];
+                let role = $(avail).find("[class*='title_']").text();
+                let csr = $(avail).find("[class*='successChance_']").text();
+
+                debug("Role: ", role, csr);
+
+                updateUserCsrEntry(name, lvl, role, csr);
+            }
+        }
+    }
+
     function getMemberCsrValuesFrom(from) {
         if (logCsrData) logt("getMemberCsrValuesFrom from ", from, "|", from, new Date(Number(from)*1000).toString());
 
@@ -2249,7 +2328,6 @@
                 background: var(--tabs-bg-gradient);
             }
             .csr-hdr-wrap select {
-                /*width: fit-content;*/
                 width: 250px;
                 border-radius: 5px;
                 padding-left: 5px;
@@ -2270,14 +2348,12 @@
                 align-content: center;
                 display: flex;
                 padding-left: 15px;
-                /*width: 100%;*/
                 height: 36px;
             }
             .csr-hdr-span2 {
                 flex-flow: row wrap;
                 align-content: center;
                 display: flex;
-                /*padding-left: 15px;*/
                 width: 799px;
                 height: 36px;
             }
@@ -2314,7 +2390,6 @@
                 align-content: center;
                 text-align: center;
                 color: var(--default-color);
-                /*width: 110px;*/
                 width: 13%;
                 height: 34px;
                 border-collapse: collapse;
@@ -2423,7 +2498,6 @@
             let row = getCsrMemberRow(id, crimeSelect);
 
             $(body).append(row);
-
         }
 
         $(".csr-name").on('click', function(e) {
@@ -2486,6 +2560,9 @@
                           <select>
 
                           </select>
+                      </div>
+                      <div class="xflexr xflex-center">
+                          <span id="csr-help" class="x-round-btn xml20" style="width: 30px; height: 30px;">?</span>
                       </div>
                   </div>
                   <div class="csr-hdr-wrap2 xhw2">
@@ -2553,6 +2630,7 @@
                 csrList[id] = {name: name};
                 csrList[id].crimeCsr = {};
                 csrList[id].crimeCsr["mm"] = {};
+                csrList[id].crimeCsr["sb"] = {"Hustler": 0, "Impersonator": 0, "Muscle": 0, "Muscle": 0};
                 csrList[id].crimeCsr["pp"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
                 csrList[id].crimeCsr["cm"] = {"Lookout": 0, "Thief": 0};
                 csrList[id].crimeCsr["pm"] = {"Kidnapper": 0, "Muscle": 0, "Picklock": 0};
@@ -2992,7 +3070,7 @@
 
             .custom-menu li {
                 padding: 8px 12px;
-                cursor: pointer;
+                cursor: pointer !important;
                 list-style-type: none;
                 transition: all .3s ease;
                 user-select: none;
@@ -3219,6 +3297,7 @@
                 justify-content: center;
                 align-content: center;
                 color: var(--tabs-color);
+                cursor: pointer;
 
                 background: var(--tabs-bg-gradient);
             }
