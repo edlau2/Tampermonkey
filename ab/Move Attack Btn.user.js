@@ -1,19 +1,15 @@
 // ==UserScript==
-// @name         Attack Better
+// @name         Move Attack Btn
 // @namespace    https://github.com/0xymandias
 // @version      1.7.6
-// @description  Move Torn "Start Fight" button on top of your weapon of choice and remove certain elements to help with load times.
-// @author       smokey_ [2492729]
+// @description  Move Torn "Start Fight" button on top of your weapon of choice.
+// @author       xedx [2100735], smokey_ [2492729]
 // @match        https://www.torn.com/loader.php*
-// @match        https://www.torn.com/factions.php*
-// @connect      api.torn.com
 // @run-at       document-body
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @license      WTFPL
 // ==/UserScript==
@@ -33,34 +29,15 @@
 (function () {
     'use strict';
 
+    console.log(GM_info.script.name + ' version ' +
+        GM_info.script.version + ' script started');
+
     //Global constants
-    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false); // Enables the 'debug()' function, which logs to console
-    const myFacId = 8151;                 // Fac ID, to get war status. Note that is the only reason an API key is required.
-                                          // Your API key will only be asked for (and used) if the option 'onlyInWar' is set,
-                                          // along with 'autoFire' or 'immediateAttack'
+    const loggingEnabled = true;
+    const debugLoggingEnabled =           // Turn on for extra debug logging, off for normal use
+        GM_getValue("debugLoggingEnabled", false);
     const moveFightBtn =                  // Setting this to true moves the start button to over your weapon of choice
         GM_getValue("moveFightBtn", true);
-
-    var advancedOpts =                        // true to display the advanced options button, which isn't 100% complete.
-        GM_getValue("advancedOpts", false);   // Here to make the Auto Fire legal, would need to click this to enable it....
-    var immediateAttack =                     // Clicks Start Fight ASAP, but not Join
-        GM_getValue("immediateAttack", false);
-    var autoFire =                            // Automatically fires chosen weapon ASAP after fight has started
-        GM_getValue("autoFire", false);       // 'autoFire' has no effect if 'immediateAttack' is not on.
-
-    const onlyInWar =                         // immediate attack and auto fire only activated if in a RW
-        GM_getValue("onlyInWar", true);
-
-    // This value is set only when this script runs when NOT on an attack page, which ATM is
-    // any faction page. But only set if the options 'onlyInWar' and either 'autoFire' or
-    // 'immediateAttack' are enabled, so you don't need an API key if those aren't turned on.
-    // 'autoFire' has no effect if 'immediateAttack' is not on.
-    var doWarCheck = (onlyInWar == true && (immediateAttack == true || autoFire == true));
-    var inWarNow = GM_getValue("activeWar", false);
-    if (inWarNow == true && onlyInWar == true) {
-        autoFire = false;
-        immediateAttack = false;
-    }
 
     const autoFireWeapon =                // Primary, Secondary, Melee, Temp - case sensitive!
         GM_getValue("autoFireWeapon", 'Primary');
@@ -69,13 +46,11 @@
 
     function saveOptions() {
         GM_setValue("moveFightBtn", moveFightBtn);
-        GM_setValue("onlyInWar", onlyInWar);
-        GM_setValue("autoFire", autoFire);
-        GM_setValue("immediateAttack", immediateAttack);
-        GM_setValue("autoFireWeapon", autoFireWeapon);
         GM_setValue("startBtnLocation", startBtnLocation);
-        GM_setValue("advancedOpts", advancedOpts);
     }
+
+    function log(...data) {if (loggingEnabled) {console.log(GM_info.script.name + ': ', ...data);}}
+    function debug(...data) {if (debugLoggingEnabled) {console.log(GM_info.script.name + ': ', ...data);}}
 
     saveOptions();
 
@@ -95,12 +70,8 @@
 
     // ============= Start of local functions, may fire immediately ===============
 
-    if (isAttackPage()) {
+    if (location.href.indexOf("loader.php?sid=attack&user2ID") > -1) {
         if (moveFightBtn == true) moveStartFightButton();
-        if (immediateAttack == true) doAttack();
-        if (advancedOpts == true) {
-            instAdvOptsBtn();
-        }
     }
 
     // Move the 'Start Fight' button over a weapon button
@@ -157,109 +128,6 @@
         }
     }
 
-    // Returns number of attacks you've made. Used as an
-    // auto-click safety net...
-    function getAttackCount() {
-        let t = $(cntSel).text();
-        if (t) {
-            return (t.indexOf(":") > -1) ? -1 :
-            (t.indexOf("/") > -1) ?
-            parseInt($(cntSel).text().split('/')[0]) : 0;
-        }
-    }
-
-    // Fires your selected weapon of choice
-    // Try up to 20 times (1 second) to auto hit, up to 1 time.
-    var fc = 0, maxFc = 20, maxAutoHit = 1;
-    function fireSelectedWeapon() {
-        $($(selector[autoFireWeapon])[0]).click();
-        if (getAttackCount() > (maxAutoHit-1)) return log("Stopping auto-click");
-        if (fc++ < maxFc) setTimeout(fireSelectedWeapon, 50);
-    }
-
-    // Click the "Start Fight" button - but not Join
-    // If enabled this is called immediately.
-    var retriesReset = false;
-    function doAttack(node, retries=0) {
-        let startFightButton = $("[class*='modal_'] [class*='btn__']")[0];
-        if (!$(startFightButton).length) {
-            startFightButton = $('.button-wrapper')[0];
-        }
-        if (!$(startFightButton).length) {
-            /*
-            if (callWhenElementExistsEx(defSel, startFightButton, doAttack)) {
-                if (retries++ < 80) return setTimeout(doAttack, 50, null, retries);
-            return  log("Timed out, retries: ", retries);
-            }
-            log("set obs");
-            return;
-            */
-
-            // 50ms == 20 in 1 sec, give 3 secs? 60 retries?
-            if (retries++ < 80) return setTimeout(doAttack, 100, null, retries);
-            return  log("Timed out, retries: ", retries);
-        }
-
-        let title = $(startFightButton).text();
-        if (!title) {
-            if (!retriesReset) retries=0;
-            retriesReset = true;
-            if (retries++ < 10) return setTimeout(doAttack, 10, null, retries);
-            return log("Timed out 2, retries: ", retries);
-        }
-        //logt("found2");
-        if (title) title = title.trim().toLowerCase();
-        if (title == "start fight") {
-            simulateMouseClick(startFightButton);
-            if (autoFire == true) setTimeout(fireSelectedWeapon, 20);
-        }
-    }
-
-    function handleAdvOptsBtn() {
-        autoFire = true;
-        if (immediateAttack == true) return;
-        doAttack();
-    }
-
-    function instAdvOptsBtn() {
-        addFlexStyles();
-        GM_addStyle(`#adv-opt-btn {width:60px;height:24px;background:red;color:black;border-radius:6px;position:absolute;top:19%;left:40%;}`);
-        let advBtn = `<div><span id="adv-opt-btn" class="xflexr xflex-center">Go!</span></div>`;
-
-        $("body").after(advBtn);
-        $("#adv-opt-btn").on('click', handleAdvOptsBtn);
-    }
-
-    // ================= Functions only called if NOT attacking =================
-
-    // Save status of ranked war - if currently in one or not.
-    // Whn on attack page, can just read from storage - certain
-    // options only trigger if actually in war. Might not want
-    // to for say mission targets, or trigger accidentally...
-    function rwReqCb(responseText, ID, options) {
-        let jsonObj = JSON.parse(responseText);
-        if (jsonObj.error) {
-            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
-            return;
-        }
-
-        let atWar = false;
-        let warsArray = jsonObj.rankedwars;
-        let war0 = warsArray[0];
-        if (war0) {
-            if (war0.end == 0 || war0.winner == null) {
-                atWar = true;
-            }
-        }
-
-        log("Faction ", ID, " at war? ", atWar);
-        GM_setValue("activeWar", atWar);
-    }
-
-    function saveWarStatus(facId) {
-        xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
-    }
-
     // ================= Minimal UI to select options=========================
     function installUi(retries=0) {
         let topBar = $("[class^='titleContainer_']");
@@ -314,10 +182,9 @@
         // if the element exists, remove it from the DOM to prevent it from being downloaded or loaded
         if (sidebarElement) {
             sidebarElement.remove();
-            debug('background removed.');
         }
 
-        // Add the UI component
+        // Add the UI component, weapon selection
         installUi();
     }
 
@@ -328,31 +195,18 @@
     // have already been kicked off....
     //////////////////////////////////////////////////////////////////////
 
-    logScriptStart();
-    if (!isAttackPage()) {
-        // If not on attack page, just save war status. We may want to
-        // disable certain opts when not at war.
-        if (doWarCheck == true) {
-            validateApiKey();
-            saveWarStatus(myFacId);
-        }
-        return log("Not attack page...");
-    } else {
-        // These have already been kicked off, above...
-        //
-        //if (moveFightBtn == true) moveStartFightButton();
-        //if (immediateAttack) doAttack();
-    }
-
     // This fires when DOMContentLoaded is true...handles suppressing
     // unnecessary Ui elements.
-    callOnContentLoaded(handlePageLoad);
+    if (document.readyState == 'loading') {
+        document.addEventListener('DOMContentLoaded', handlePageLoad);
+    } else {
+        handlePageLoad();
+    }
 
     // Defender Model
     debug("Setting interval for defender model");
     var startTimeDefender = Date.now();
     var intervalIdDefender = setInterval(function() {
-
         if (Date.now() - startTimeDefender > 10000) {
             debug("Didn't find def model within 10 secs, stopping");
             clearInterval(intervalIdDefender);
