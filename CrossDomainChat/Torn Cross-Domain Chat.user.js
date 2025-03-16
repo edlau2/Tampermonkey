@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Torn Cross-Domain Chat
 // @namespace    http://tampermonkey.net/
-// @version      0.4
-// @description  This script lets you keep an eye on chat from a tab open  in another domain.
+// @version      0.6
+// @description  This script lets you keep an eye on chat from a tab open in another domain.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @match        https://yata.yt/*
+// @run-at       document-start
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -36,33 +37,46 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     if (isAttackPage()) return log("Won't run on attack page!");
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
+    // TEMP debugging aid
+    function xGM_setValue(key, value) {
+        if (!key || key == undefined)
+            debugger;
+        else
+            GM_setValue(key, value);
+    }
+
     // =============== Editable Options =============
-    debugLoggingEnabled = true;          // true for more verbose logging
 
     var options = {
         publishLastFacMsgs: GM_getValue("publishLastFacMsgs", true),       // Write fac msgs to storage for sharing
         publishAnyAllowedMsg: GM_getValue("publishAnyAllowedMsg", true),   // Publish any msg (not just fac) if not filtered out
-        filterFacMsgsOnly: GM_getValue("filterFacMsgsOnly", true),         // Only log fac messages. Supercedes previous option.
+        allowFacMsgsOnly: GM_getValue("allowFacMsgsOnly", true),           // Only log fac messages. Supercedes previous option.
         dbEnable: GM_getValue("dbEnable", true),                           // Save received mesages in indexDB. Used for saved log (clicking the eyeball)
         verboseMsgs: GM_getValue("verboseMsgs", false),                    // For development - extra stuff in chat window
         addTimestamps: GM_getValue("addTimestamps", false),                // Append short timestamp to message
 
         allowPublic: GM_getValue("allowPublic", false),            // If true, let things like public trade, general, etc through
+        allowPrivate: GM_getValue("allowPrivate", true),           // If true, let tprivate msgs through
         doDevPings: GM_getValue("doDevPings", true),               // true to constantly ping - dev test to make sure both ends work without focus
         silentPings: GM_getValue("silentPings", true),             // If true don't log to chat window
         pingLifespan: GM_getValue("pingLifespan", 1),              // How long pings stay in the window, secs
 
         historyLimit: GM_getValue("historyLimit", 100),            // Chat message box will hold max this many messages before they scroll out.
         prepopulateChat: GM_getValue("prepopulateChat", true),     // Fill chat on open with past historyLimit messages
-        pingIntervalSecs: GM_getValue("pingIntervalSecs", 5)       // Time between pings
+        pingIntervalSecs: GM_getValue("pingIntervalSecs", 5),       // Time between pings
+        debugLoggingEnabled: GM_getValue("debugLoggingEnabled", false)
     };
+
+    debugLoggingEnabled = options.debugLoggingEnabled;          // true for more verbose logging
 
     // ========== End editable options ==========
 
     var db = null;
     var changeListener;
+    var optsUpdateListener;
     var listenerWatchdog;
     var lastNonPingId = 0;
+    const optsChangedKey = "optionsUpdated";
     const lastChatKey = "lastChat";
     const verifyChatKey = "lastValidChat";
     const dbName = "Chat2.0.MessagesDB";
@@ -75,14 +89,16 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
     function updateOption(name, newVal) {
         options[name] = newVal;
-        GM_setValue(name, newVal);
+        xGM_setValue(name, newVal);
+
+        GM_setValue(optsChangedKey, true);
     }
 
     function writeOptions() {
         let keys = Object.keys(options);
         for (let idx=0; idx<keys.length; idx++) {
             let key = keys[idx];
-            GM_setValue(key, options[key]);
+            xGM_setValue(key, options[key]);
         }
     }
 
@@ -107,7 +123,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     var needsWrite = GM_getValue("needsWrite", true);
     if (needsWrite == true) {
         writeOptions();
-        GM_setValue("needsWrite", false);
+        xGM_setValue("needsWrite", false);
     }
 
     // ============================ Time stuff ===============================
@@ -118,7 +134,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     const hrInDay = 24;
     const secsInDay = hrInDay * secsInHr;
 
-     const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+    const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
 
     function tsToTimeAgo(ts) {
         let nowSecs = new Date().getTime();
@@ -168,13 +184,13 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         return arr.slice(-n);
     }
 
-     function savePosition(elementId) {
+    function savePosition(elementId) {
         let el = $(("#" + elementId));
         log("savePos: ", $(el));
         let key = elementId + "-lastOff";
         let pos = $(el).offset();
         log("savePos: ", pos);
-        GM_setValue(key, JSON.stringify(pos));
+        xGM_setValue(key, JSON.stringify(pos));
     }
     function getSavedPosition(elementId) {
         let key = elementId + "-lastOff";
@@ -205,7 +221,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     }
 
 
-    // ================= YATA specific portion of script =====================
+    // ========= Cross-domain, YATA in this case, specific portion of script =========
 
     /*
     Maybe on YATA page init...ope DB, read fac list only, fill chat box
@@ -224,8 +240,54 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         //if (options.prepopulateChat == true && options.dbEnable == true)
         //    getLastChats();
 
-        callOnContentLoaded(handleYataPageLoad);
+        //callOnContentLoaded(handleCrossDomainPageLoad);
+        handleCrossDomainPageLoad();
         return;
+    }
+
+    function clearChats2(callback) {
+        $("#cbb").animate({opacity: 0}, 400, function() {
+            $("#cbb").empty();
+            $("#cbb").css("opacity", 1);
+            callback();
+        });
+    }
+
+    function clearChats3(callback) {
+
+        let msgs = $("#cbb > div:not('.gone')");
+        let len = $(msgs).length;
+        debug("clearChats3, len: ", len, " gone: ", $(".gone").length);
+
+        if (!$(msgs).length) {
+            $("#cbb").empty();
+            return callback();
+        }
+        let msg = msgs[len-1];
+
+        $(msg).animate({opacity: 0}, 10, function () {
+            //$(msg).remove();
+            $(msg).addClass("gone");
+            clearChats(animated, callback)
+        });
+    }
+
+    function clearChats(animated, callback) {
+        if (animated == true) {
+            let msgs = $("#cbb > div");
+            let len = $(msgs).length;
+            debug("clearChats, animated: ", len);
+
+            if (!$(msgs).length) return callback();
+            let msg = msgs[len-1];
+
+            $(msg).animate({opacity: 0}, 10, function () {
+                $(msg).remove();
+                clearChats(animated, callback)
+            });
+        } else {
+            $("#cbb").empty();
+        }
     }
 
     // Save last 10 chats we've ead/dislayed, these can prepopulate on
@@ -237,13 +299,20 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         let tmp = GM_getValue(key, undefined);
         if (tmp) lastChatList = JSON.parse(tmp);
 
-        log("Preloading ", lastChatList.length, " saved chats");
+        debug("Preloading ", lastChatList.length, " saved chats");
+        debug("options.allowFacMsgsOnly: ", options.allowFacMsgsOnly);
         for (let idx=0; idx<lastChatList.length; idx++) {
             let thisChat = lastChatList[idx];
+
+            if (options.allowFacMsgsOnly == true && thisChat.channel.indexOf("faction") < 0) {
+                debug("allowFacMsgsOnly is on, not showing ", thisChat.channel);
+                continue;
+            }
+
             let newMsg = getChatMsgDiv(thisChat);
             $("#cbb").append(newMsg);
 
-            log("Loaded msg id ", thisChat.msg_id, " from ", thisChat.name);
+            log("Loaded msg id ", thisChat.msg_id, " from ", thisChat.channel, ":", thisChat.name);
 
             $(`#${thisChat.ts}`).tooltip({
             content: function( event, ui ) {
@@ -260,8 +329,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         keepScrolledToBottom();
     }
 
+    function clearChatsCb() {loadLastChats(pubLastChatKey);}
+
+    function  handleRefresh() {
+        clearChats(true, clearChatsCb);
+        //clearChats2(clearChatsCb);
+    }
+
     function saveLastChats(key) {
-        GM_setValue(key, JSON.stringify(lastChatList));
+        xGM_setValue(key, JSON.stringify(lastChatList));
     }
 
     // The saved position needs to be relative to actual visible screen, not scrolled window!!!
@@ -273,6 +349,9 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     function initYataCSS() {
         addDraggableStyles();
         addToolTipStyle();
+        addBorderStyles();
+        addBackgroundStyles();
+        addContextStyles();
 
         GM_addStyle(`
             .test-sticky-bottom {
@@ -487,7 +566,37 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         }
     }
 
-    function installYataChat() {
+    function handleCtxClick(e) {
+        event.preventDefault();
+        let target = e.currentTarget;
+        let opt = $(target).attr("data-id");
+        log("handleCtxClick: ", opt);
+
+        if (opt == 'xcb-refresh') {
+            handleRefresh();
+        }
+
+        cmHideShow("#xcb-ctx", $("#ccbh"));
+        return false;
+    }
+
+    function installDefaultCtxItems() {
+        $("#xcb-ctx").css("border-radius", "10px");
+        $("#xcb-ctx > ul").css("border-radius", "10px");
+        $("#xcb-ctx").addClass("no-pos");
+
+        let refreshLi = `<li data-id="xcb-refresh" class="xmed-li-rad"><a>Refresh</a></li>`;
+        let saveHtmlLi = `<li data-id="xcb-html" class="xmed-li-rad"><a>Save as HTML</a></li>`;
+        let saveRawLi = `<li data-id="xcb-raw" class="xmed-li-rad"><a>Save raw msg data</a></li>`;
+
+        $("#xcb-ctx > ul").append(refreshLi);
+        $("#xcb-ctx > ul").append(saveHtmlLi);
+        $("#xcb-ctx > ul").append(saveRawLi);
+
+        $("#xcb-ctx > ul > li").on('click', handleCtxClick);
+    }
+
+    function installYataChat(retries=0) {
         let yataChatBox = `
         <div id="xcdcb-root" class="test-sticky-bottom">
             <div id="cdcb" class="chat-box-wrapper">
@@ -515,6 +624,11 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
         $('body').append(yataChatBox);
 
+        if (!$("#cdcb").length) {
+            if (retries++ < 20) return setTimeout(installYataChat, 250, retries);
+            return console.error("Unable to install UI!", $('body'), $("#cdcb"));
+        }
+
         setHdrText();
 
         dragElement(document.getElementById("cdcb"));
@@ -522,6 +636,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         //restorePosition("cdcb");
 
         $(".chat-box-header").on('click', handleMinMax);
+
+        installContextMenu($("#ccbh"), "xcb-ctx");
+        $("#xcb-ctx").addClass("xopts-border-89");
+        installDefaultCtxItems();
 
         if (debugLoggingEnabled == true) logOptions();
 
@@ -562,6 +680,12 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
         //debug("storageChangeCallback, remote: ", remote, " key: ", key, " newValue? ", newValue ? true : false);
 
+        if (key == optsChangedKey && remote == true) {
+            debug("Updating options, remote: ", remote, " key: ", key, " newValue? ", newValue ? true : false);
+            updateOptions();
+            return;
+        }
+
         if (!remote || !newValue) return;
         thisChat = JSON.parse(newValue);
 
@@ -574,7 +698,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 return log("Same msg ID (", thisChat.msg_id, "), returning.");
 
         if ($(`#${thisChat.msg_id}`).length) {
-            //console.error("Error: trying to add dup ID ", thisChat.msg_id);
+            log("Error: trying to add dup ID ", thisChat.msg_id);
             return;
         }
 
@@ -588,8 +712,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         }
 
         // Secondary handling if fac only is enabled
-        if (options.filterFacMsgsOnly == true && thisChat.channel.indexOf("faction") < 0) {
-            debug("filterFacMsgsOnly is on, not showing ", thisChat.channel);
+        if (options.allowFacMsgsOnly == true && thisChat.channel.indexOf("faction") < 0) {
+            debug("allowFacMsgsOnly is on, not showing ", thisChat.channel);
             return;
         }
 
@@ -648,7 +772,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         }
     }
 
-    function handleYataPageLoad() {
+    function handleCrossDomainPageLoad() {
         initYataCSS();
         installYataChat();
 
@@ -656,6 +780,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
         if (changeListener) GM_removeValueChangeListener(changeListener);
         changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
+
+        if (optsUpdateListener) GM_removeValueChangeListener(optsUpdateListener);
+        optsUpdateListener = GM_addValueChangeListener(optsChangedKey, storageChangeCallback);
+
 
         // Periodically check to see if we've lost our listener
         listenerWatchdog = setInterval(watchdogTimer, 5000);
@@ -732,6 +860,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     }
 
     function dbWrite(message) {
+        let pubMsg = false, privateMsg = false, facMsg = false;
         if (!db) {
             console.error("ChatRecorder: dbWrite db is null");
         }
@@ -742,14 +871,17 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         // option is enabled.
         const targetPlayer = getTargetPlayerFromMessage(message);
         if (!targetPlayer) {
-            pubMsgsSkipped++;
-            if (pubMsgsSkipped % 10 == 0)
-               debug("[dbWrite] skipped ", pubMsgsSkipped, " public msgs, this one is: ", message.channel_url);
-            return;
+            pubMsg = true;
+            debug("[dbWrite] pubMsg: ", message.channel_url, (options.allowPublic == false) ? ", Skipped" : "");
+            if (options.allowPublic == false) {
+                pubMsgsSkipped++;
+                return;
+            }
         }
+
         //msg.channel = message.channel;
-        msg.targetPlayerId = targetPlayer.id;
-        msg.targetPlayerName = targetPlayer.name;
+        msg.targetPlayerId = targetPlayer ? targetPlayer.id : message.channel_url;
+        msg.targetPlayerName = targetPlayer ? targetPlayer.name : message.channel_url;
         msg.senderPlayerId = message.user.guest_id;
         msg.senderPlayerName = message.user.name;
         msg.avatar = message.user.image;
@@ -757,17 +889,20 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         msg.messageText = message.message;
         msg.messageId = message.msg_id;
 
-        let isFacMsg = false;
-        if (options.filterFacMsgsOnly == true && targetPlayer.id == 'faction') {
-            isFacMsg = true;
+        if (targetPlayer && targetPlayer.id != 'faction') privateMsg = true;
+
+        if (options.allowFacMsgsOnly == true && targetPlayer && targetPlayer.id == 'faction') {
+            facMsg = true;
             debug("Fac msg received: ", msg);
             debug("Full: ", message);
-        } else if (options.filterFacMsgsOnly == false) {
+        } else if (options.allowFacMsgsOnly == false) {
             debug("Msg received: ", message.channel_url, msg);
             debug("Full: ", message);
         }
 
-        if ((isFacMsg == true && options.publishLastFacMsgs == true) || (options.publishAnyAllowedMsg == true)) {
+        debug("Filter msg, pub: ", pubMsg, " fac: ", facMsg, " private: ", privateMsg);
+        debug("Filter msg, isFac: ", facMsg, "|", options.allowFacMsgsOnly, "|", options.publishLastFacMsgs, "|", options.publishAnyAllowedMsg);
+        if ((facMsg == true && options.publishLastFacMsgs == true) || (options.publishAnyAllowedMsg == true)) {
             let entry = {msg_id: message.msg_id, user_id: message.user.guest_id, avatar: message.user.image,
                          name: message.user.name, msg: message.message, channel: message.channel_url,
                          ts: message.ts};
@@ -783,8 +918,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                     return;
                 }
             }
-            GM_setValue(lastChatKey, JSON.stringify(entry));
-            GM_setValue(verifyChatKey, JSON.stringify(entry));
+            xGM_setValue(lastChatKey, JSON.stringify(entry));
+            xGM_setValue(verifyChatKey, JSON.stringify(entry));
 
             // Push prevEntry onto queue of last 'X' saved chats, so
             // when the YATA half loads it can load last historyLimit chats
@@ -792,7 +927,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
             let list = tmp ? JSON.parse(tmp) : [];
             list.push(entry);
             if (list.length > options.historyLimit) list.shift();
-            GM_setValue(pubLastChatKey, JSON.stringify(list));
+            xGM_setValue(pubLastChatKey, JSON.stringify(list));
         }
 
         if (options.dbEnable == false || !options.dbEnable) return;
@@ -817,7 +952,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                      channel: "ping_channel",
                      ts: (new Date().getTime())};
 
-        GM_setValue(lastChatKey, JSON.stringify(entry));
+        xGM_setValue(lastChatKey, JSON.stringify(entry));
     }
 
     function dbWriteArray(messageArray) {
@@ -1066,7 +1201,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         `);
     }
 
-    function initControlPanel() {
+    function initControlPanel(retries=0) {
         debug("initControlPanel");
         let $title; // = $("div#top-page-links-list");
         let addlClass = "links-fmt";
@@ -1075,8 +1210,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
             $title = $(".header-navigation.right > .header-buttons-wrapper > ul");
         //}
         if ($title.length === 0) {
+            if (retries++ < 20) return setTimeout(initControlPanel, 250, retries);
             console.error("ChatRecorder: nowhere to put control panel button");
         }
+
         const $controlBtn = $(`<a id="chatHistoryControl" class="t-clear h c-pointer right last ${addlClass}">
                                   <span class="icon-wrap svg-icon-wrap">
                                     <span class="link-icon-svg">
@@ -1190,25 +1327,25 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                     <table id="cdc-opt-table" class="xmt10"><tbody>
                         <tr>
                             <td><label>Ping: <input class="cdc-cb" type="checkbox" name="doDevPings"></label></td>
-                            <td><label>Public: <input class="cdc-cb" type="checkbox" name="allowPublic"></label></td>
                             <td><label>Silent Pings: <input class="cdc-cb" type="checkbox" name="silentPings"></label></td>
-                        </tr>
-                        <tr>
-                            <td><label>publishAnyAllowedMsgs: <input class="cdc-cb" type="checkbox" name="publishAnyAllowedMsgs"></label></td>
-                            <td><label>filterFacMsgsOnly: <input class="cdc-cb" type="checkbox" name="filterFacMsgsOnly"></label></td>
-                            <td><label>dbEnable: <input class="cdc-cb" type="checkbox" name="dbEnable"></label></td>
-                        </tr>
-                        <tr>
                             <td><label>Store in DB: <input class="cdc-cb" type="checkbox" name="dbEnable"></label></td>
-                            <td><label>Verbose: <input class="cdc-cb" type="checkbox" name="verboseMsgs"></label></td>
+                        </tr>
+                        <tr>
+                            <td><label>Public: <input class="cdc-cb" type="checkbox" name="allowPublic"></label></td>
+                            <td><label>Private: <input class="cdc-cb" type="checkbox" name="allowPrivate"></label></td>
                             <td><label>Max History: <input id="history" type="number" name="maxHistory"></label></td>
+                        </tr>
+                        <tr>
+                            <td><label>publishAnyAllowedMsg: <input class="cdc-cb" type="checkbox" name="publishAnyAllowedMsg"></label></td>
+                            <td><label>allowFacMsgsOnly: <input class="cdc-cb" type="checkbox" name="allowFacMsgsOnly"></label></td>
+                            <td><label>Verbose: <input class="cdc-cb" type="checkbox" name="verboseMsgs"></label></td>
                         </tr>
                     </tbody></table>
                 </div>
                 <div style="margin-left: auto;" class="xflexc">
                     <button id="chat-close" class="xedx-torn-btn" style="cursor: pointer;margin-left: auto;">Close</button>
                     <div style="display:flex;flex-flow:row wrap;align-items:center;">
-                        <input id="dbgLogging" class="xmr5 xmt5" type="checkbox" name="debugLoggingEnabled">
+                        <input id="dbgLogging" class="cdc-cb xmr5 xmt5" type="checkbox" name="debugLoggingEnabled">
                         <label for="dbgLogging" class="dbg-log">Debug Logging</label>
                     </div>
                 </div>
