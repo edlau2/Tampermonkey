@@ -81,10 +81,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     const verifyChatKey = "lastValidChat";
     const dbName = "Chat2.0.MessagesDB";
     const storeName = "messageStore";
-
-    const subLastChatKey = "subLastChats";
     const pubLastChatKey = "pubLastChats";
-
     var pubMsgsSkipped = 0;
 
     function updateOption(name, newVal) {
@@ -224,14 +221,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     // ========= Cross-domain, YATA in this case, specific portion of script =========
 
     /*
-    Maybe on YATA page init...ope DB, read fac list only, fill chat box
+    Maybe on YATA page init...open DB, read fac list only, fill chat box
     with 'history limit' entries. Start at list.length - histLimit, and
-    add until end. Then done with db....
+    add until end. Then done with db....reading from publisher (the Torn
+    side) rolling list of saved chats now.
     */
 
     var lastChatList = [];
     //if (location.hostname == 'yata.yt') {
-    if (location.hostname.indexOf('torn.com') == -1) {
+    if (location.hostname.indexOf('torn.com') == -1) { // We don't care hat domain, just not Torn...
         logScriptStart();
         log("Listening at ", location.hostname);
 
@@ -346,7 +344,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         savePosition("cdcb");
     }
 
-    function initYataCSS() {
+    function initCrossDomainCSS() {
         addDraggableStyles();
         addToolTipStyle();
         addBorderStyles();
@@ -354,7 +352,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         addContextStyles();
 
         GM_addStyle(`
-            .test-sticky-bottom {
+            .sticky-bottom {
                 align-items: flex-end;
                 bottom: 0px;
                 /*top:0px;*/
@@ -362,10 +360,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 display: flex;
                 position: fixed;
                 right: 1px;
-                /*max-width: 262px;*/
-                /*height:100%;
-                width:100%;
-                z-index: 0;*/
             }
             .chat-box-wrapper {
                 align-items: flex-end;
@@ -427,10 +421,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
             .chat-box-footer {
                 display: flex;
-                /*padding: 4px;*/
-                /*border: 1px solid #676767;*/
                 border-top: 2px solid #555;
-                /*height: 34px;*/
                 min-height: 24px;
             }
             .chat-box-footer__textarea {
@@ -596,36 +587,36 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         $("#xcb-ctx > ul > li").on('click', handleCtxClick);
     }
 
-    function installYataChat(retries=0) {
-        let yataChatBox = `
-        <div id="xcdcb-root" class="test-sticky-bottom">
-            <div id="cdcb" class="chat-box-wrapper">
-                <div class="xflexc">
-                    <div id="cdcbheader" class="group-chat-box">
-                        <div class="chat-box" id="fac-chat">
-                            <div class="chat-box-header xflexr">
-                                <p id="ccbh"></p>
-                                <span id="ping-led" class="led-rnd"></span>
-                            </div>
-                            <div style="height: 250px;">
-                                <div id='cbb' class='chat-box-body'>
+    function installCrossDomainChatUI(retries=0) {
+        let cdChatBox = `
+            <div id="xcdcb-root" class="sticky-bottom">
+                <div id="cdcb" class="chat-box-wrapper">
+                    <div class="xflexc">
+                        <div id="cdcbheader" class="group-chat-box">
+                            <div class="chat-box" id="fac-chat">
+                                <div class="chat-box-header xflexr">
+                                    <p id="ccbh"></p>
+                                    <span id="ping-led" class="led-rnd"></span>
+                                </div>
+                                <div style="height: 250px;">
+                                    <div id='cbb' class='chat-box-body'>
 
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class='chat-box-footer'>
-                        <textarea class="chat-box-footer__textarea" placeholder="Type your message here..."></textarea>
+                        <div class='chat-box-footer'>
+                            <textarea class="chat-box-footer__textarea" placeholder="Type your message here..."></textarea>
+                        </div>
                     </div>
                 </div>
-            </div>
-            </div>
-        `;
+                </div>
+            `;
 
-        $('body').append(yataChatBox);
+        $('body').append(cdChatBox);
 
         if (!$("#cdcb").length) {
-            if (retries++ < 20) return setTimeout(installYataChat, 250, retries);
+            if (retries++ < 20) return setTimeout(installCrossDomainChatUI, 250, retries);
             return console.error("Unable to install UI!", $('body'), $("#cdcb"));
         }
 
@@ -722,15 +713,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         $("#cbb").append(newMsg);
         keepScrolledToBottom();
 
-        /*
-        log("Saving chat to saved list");
-        if (thisChat.channel != 'ping_channel') {
-            let newLen = lastChatList.push(thisChat);
-            if (newLen > 10) lastChatList.shift();
-            saveLastChats(subLastChatKey);
-        }
-        */
-
         // Replacing the inline function for content init
         // with the function, causes this to fail - no
         // clue why. Attaching an open handler later didn't
@@ -773,8 +755,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     }
 
     function handleCrossDomainPageLoad() {
-        initYataCSS();
-        installYataChat();
+        initCrossDomainCSS();
+        installCrossDomainChatUI();
 
         $(window).on('unload', handleUnload);
 
@@ -784,12 +766,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         if (optsUpdateListener) GM_removeValueChangeListener(optsUpdateListener);
         optsUpdateListener = GM_addValueChangeListener(optsChangedKey, storageChangeCallback);
 
-
         // Periodically check to see if we've lost our listener
         listenerWatchdog = setInterval(watchdogTimer, 5000);
 
-        // Add last saved chats....saved from server or last open YATA?
-        //loadLastChats(subLastChatKey);
+        // Add last saved chats
         loadLastChats(pubLastChatKey);
     }
 
@@ -817,7 +797,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     WebSocket.prototype.send = function (...args) {
         if (window.sockets.indexOf(this) === -1 && this.url.indexOf("sendbird.com") > -1) {
 
-            log("ChatRecorder: found chat 2.0 websocket");
+            log("Found chat 2.0 websocket");
             log("URL: ", this.url);
 
             window.sockets.push(this);
@@ -1211,7 +1191,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         //}
         if ($title.length === 0) {
             if (retries++ < 20) return setTimeout(initControlPanel, 250, retries);
-            console.error("ChatRecorder: nowhere to put control panel button");
+            console.error("Nowhere to put control panel button");
         }
 
         const $controlBtn = $(`<a id="chatHistoryControl" class="t-clear h c-pointer right last ${addlClass}">
