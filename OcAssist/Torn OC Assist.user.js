@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.24
+// @version      2.28
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -729,10 +729,187 @@
     const membersTableName = "membersNotInOcTable";
     const optsTableName = "optsTable";
     const csrTableName = "csrTable";
+    const statsTableName = "statsTable";
     var membersNotInOcTable;
     var optionsTable;
     var csrTable;
+    var statsTable;
     var activeTable;
+
+    // ======================== Get your crime stats ===================================
+
+    const myStatsKey = "myCompletedCrimeStats";
+    const globalStatsKey = "globalCrimeStats";
+    var firstPageOcComplete = {};
+    var statsUpToDate = false;
+    var tableNeedsInstall = false;
+    var myCompletedCrimes = [];
+    var myCompletedCrimeStats = {};
+    var globalCrimeStats = {};
+    var latestStatDateChecked = GM_getValue("latestStatDateChecked", 0);
+
+    // This can be started right away, stat table is used later for table building...
+    if (onCrimesPage()) loadCrimeStats();
+
+    // First API call: https://api.torn.com/v2/faction/crimes?cat=completed&offset=0
+    // (for runs later in time, save timestamp? There is no TS member in response?
+    // Use the "from" query param?)
+    // Subsequent calls: use offset += 100 - or - use resut._metadata.next as a URL,
+    // unless null.
+
+
+    function getMyStats() {
+        let tmp = GM_getValue(myStatsKey, null);
+        myCompletedCrimeStats = tmp ? JSON.parse(tmp) : {};
+    }
+
+    function saveMyStats() {
+        GM_setValue(myStatsKey, JSON.stringify(myCompletedCrimeStats));
+    }
+
+    function getGlobalStats() {
+        let tmp = GM_getValue(globalStatsKey, null);
+        globalCrimeStats = tmp ? JSON.parse(tmp) : {};
+    }
+
+    function saveGlobalStats() {
+        GM_setValue(globalStatsKey, JSON.stringify(globalCrimeStats));
+    }
+
+    function adjustStatCsrs(crime, stat) {
+        for (let idx=0; idx<crime.slots.length; idx++) {
+            let role = crime.slots[idx];
+            if (!stat.roles[role.position])
+                stat.roles[role.position] = {csr: 0};
+            if (role.user_id == userId) {
+                let currCsr = stat.roles[role.position].csr;
+                let newCsr = Math.max(currCsr, role.success_chance);
+                stat.roles[role.position].csr = newCsr;
+            }
+        }
+    }
+
+    function newStat(crime) {
+        let r = crime.rewards;
+        let p = r.payout.percentage;
+        let stat = {success: 0, fail: 0, total: 0, level: crime.difficulty,
+                    created: crime.created_at, roles: {}, payPct: p, money: 0};
+        adjustStatCsrs(crime, stat);
+        return stat;
+    }
+
+    function updateGlobalStats(crime) {
+
+        let gblStat = globalCrimeStats[crime.name];
+        if (!gblStat) gblStat = {success: 0, fail: 0, total: 0, money: 0};
+        let success = (crime.status == "Successful");
+
+        gblStat.total++;
+        if (success == true)
+            gblStat.success++;
+        else
+            gblStat.fail++;
+
+        let m = crime.rewards ? crime.rewards.money : 0;
+        gblStat.money += m;
+
+        globalCrimeStats[crime.name] = gblStat;
+    }
+
+    function addCrimeToStats(crime, idx, arr) {
+        latestStatDateChecked = Math.max(crime.created_at, latestStatDateChecked);
+
+        let success = (crime.status == "Successful");
+        let stat = myCompletedCrimeStats[crime.name];
+        if (!stat) stat = newStat(crime);
+
+        stat.total++;
+        if (success == true)
+            stat.success++;
+        else
+            stat.fail++;
+
+        stat.payPct = crime.rewards ? crime.rewards.payout.percentage : 0;
+        let m = crime.rewards ? crime.rewards.money : 0;
+        let money = parseInt(m / crime.slots.length);
+        let pay = parseInt(money * (stat.payPct/100));
+
+        stat.money += pay;
+
+        adjustStatCsrs(crime, stat);
+        myCompletedCrimeStats[crime.name] = stat;
+    }
+
+    function processStatsResultsComplete() {
+
+        myCompletedCrimes.forEach(addCrimeToStats);
+
+        GM_setValue("latestStatDateChecked", latestStatDateChecked);
+        saveMyStats();
+        saveGlobalStats();
+
+        statsUpToDate = true;
+
+        if (tableNeedsInstall == true) installStatsTable();
+    }
+
+    function processStatsResult(response, status, xhr, target) {
+        let nextQuery = response._metadata.next;
+        let prevQuery = response._metadata.prev;
+
+        // Use for dates on completed page
+        if (!prevQuery) firstPageOcComplete = response;
+
+        response.crimes.forEach((crime, idx, arr) => {
+            updateGlobalStats(crime);
+            for (let idx=0; idx < crime.slots.length; idx++) {
+                if (crime.slots[idx].user_id == userId) {
+                    myCompletedCrimes.push(crime);
+                    break;
+                }
+            }
+        });
+
+        if (nextQuery)
+            getCompletedCrimes(nextQuery);
+        else
+            processStatsResultsComplete();
+    }
+
+    function getCompletedCrimes(next) {
+        var defUrl = "https://api.torn.com/v2/faction/crimes?cat=completed&offset=0";
+        if (latestStatDateChecked > 0)
+            defUrl = defUrl + '&from=' + latestStatDateChecked;
+        let url = next ? next : defUrl;
+
+        $.ajax({
+            url: url,
+            headers: {'Authorization': ('ApiKey ' + api_key)},
+            type: 'GET',
+            success: processStatsResult,
+            error: function (jqXHR, textStatus, errorThrown) {
+                console.debug(GM_info.script.name + ": Error in ajax GET: ", textStatus, errorThrown, jqXHR);
+            }
+        });
+    }
+
+    function loadCrimeStats() {
+
+        getMyStats();
+        getGlobalStats();
+
+        latestStatDateChecked = GM_getValue("latestStatDateChecked", 0);
+
+        // For devlopment:
+        if (!latestStatDateChecked || latestStatDateChecked == 0) {
+            debug("statTracker: refreshing ALL stats");
+            myCompletedCrimeStats = {};
+            globalCrimeStats = {};
+            latestStatDateChecked = 0;
+        }
+
+        getCompletedCrimes();
+    }
 
     // ============================== CSR data =========================================
 
@@ -2117,6 +2294,127 @@
         return content;
     }
 
+    // ========================== Stats table ======================================
+    //
+    function installStatsTable() {
+
+        if (statsUpToDate == false) {
+            debug("statTracker: table: not ready yet!");
+            tableNeedsInstall = true;
+            return;
+        }
+        tableNeedsInstall = false;
+
+        statsTable = $(`
+             <table id="x-stats-table"><tbody>
+                <tr>
+                    <td><span class="xjcc">Crime</span></td>
+                    <td><span class="xjcc">Success</span></td>
+                    <td><span class="xjcc">Fail</span></td>
+                    <td><span class="xjcc">Total</span></td>
+                    <td><span class="xjcc">Success</span></td>
+                    <td><span class="xjcc">Fail</span></td>
+                    <td><span class="xjcc">Total</span></td>
+                </tr>
+              </tbody></table>
+        `);
+
+        //const cellPerRow = 3;
+        //let cellCount = 0, rowCount = 1;
+        //let currRow= $(`<tr style="width: 100%;"></tr>`);
+        let crimeLvls = Object.keys(crimeDefsTable);
+
+        for (let idx=0; idx<crimeLvls.length; idx++) {
+            let level = crimeLvls[idx];
+            let entry = crimeDefsTable[level];
+            let keys2 = Object.keys(entry);
+            for (let j=0; j<keys2.length; j++) {
+                //cellCount++;
+                let crimeName = keys2[j];
+                let crime = entry[keys2[j]];
+
+                let myStats = myCompletedCrimeStats[crimeName];
+                let gblStats = globalCrimeStats[crimeName];
+
+                //debug("*** statTracker: table stats: ", crimeName, myStats, gblStats);
+
+                let total = myStats ? myStats.total : 0;
+                let success = myStats ? myStats.success : 0;
+                let fail = myStats ? myStats.fail : 0;
+                let pctDiv = total ? total : 1;
+                let money = myStats ? myStats.money : 0;
+
+                let gblTotal = gblStats ? gblStats.total : 0;
+                let gblSuccess = gblStats ? gblStats.success : 0;
+                let gblFail = gblStats ? gblStats.fail : 0;
+                let gblPctDiv = gblTotal ? gblTotal : 1;
+                let gblMoney = gblStats ? gblStats.money : 0;
+
+                let csrForCrime = myStats ? formatCsrStatForCrime(myStats) : "N/A";
+
+                //debug("*** statTracker: table csrs: ", csrForCrime);
+                //debug("*** statTracker: table detail: ", total, success, fail, gblTotal, gblSuccess, gblFail);
+
+                let currRow= $(`
+                    <tr>
+                        <td><span class="xjcc">${crimeName} (level ${level})</span></td>
+                        <td><span class="">
+                            <span class="xjcc xml20">${success}/${total}</span>
+                        </span></td>
+                        <td><span class="xjcc ">
+                            <span class="xjcc xml20">${fail}/${total}</span>
+                        </span></td>
+                        <td><span class="">
+                            <span class="xjcc">${(success/pctDiv * 100).toFixed(2)}%</span>
+                        </span></td>
+
+                        <td><span class="">
+                            <span class="xjcc xml20">${gblSuccess}/${gblTotal}</span>
+                        </span></td>
+                        <td><span class="xjcc ">
+                            <span class="xjcc xml20">${gblFail}/${gblTotal}</span>
+                        </span></td>
+                        <td><span class="">
+                            <span class="xjcc">${(gblSuccess/gblPctDiv * 100).toFixed(2)}%</span>
+                        </span></td>
+                    </tr>
+                `);
+
+                $(statsTable).append($(currRow));
+
+                if (myStats) {
+                    let newRow = $(`
+                        <tr>
+                            <td colspan="6" class="csrStat1">${csrForCrime}</td>
+                            <td class="csrStat2">
+                                <span class="csrStat3">You: ${asCurrency(money)}</span>
+                                <span class="csrStat4">Fac: ${asCurrency(gblMoney)}</span>
+                            </td>
+                        </tr>
+                    `);
+                    $(statsTable).append($(newRow));
+                }
+            }
+        }
+    }
+
+    function formatCsrStatForCrime(crimeStat) {
+        let csrStat = "CSR's: ";
+        let roles = Object.keys(crimeStat.roles);
+        for (let idx=0; idx<roles.length; idx++) {
+            let role = roles[idx];
+            let csr = crimeStat.roles[role].csr;
+            //let txt = role.slice(0, 3) + ": " + csr;
+            let txt = role + ": " + csr;
+            if (idx < roles.length - 1) txt = txt + ", ";
+            csrStat = csrStat + txt;
+        }
+
+        return csrStat;
+    }
+
+    // ========================= Options pane ===============================
+
     function installOptionsPane() {
         optionsTable = $(`
               <table id="x-opts-table"><tbody></tbody></table>
@@ -2364,7 +2662,8 @@
                 align-content: center;
             }
 
-            #x-csr-table {
+            #x-csr-table,
+            #x-stats-table {
                 display: flex;
                 flex-direction: column;
                 opacity: 0;
@@ -2373,7 +2672,8 @@
             #csr-tbody {
                 overflow-x: hidden;
             }
-            #x-csr-table tr, .hdr-span {
+            #x-csr-table tr,
+            .hdr-span {
                 width: 100%;
                 display: flex;
                 flex-flow: row wrap;
@@ -2381,6 +2681,8 @@
             }
             #x-csr-table tr {
                 padding-left: 15px;
+                height: 30px;
+                margin: 0px auto 0px auto;
             }
 
             #x-csr-table tr td {
@@ -2397,17 +2699,88 @@
                 cursor: pointer;
                 border-bottom: none;
             }
-            #x-csr-table tr td span {
+            #x-stats-table tbody {
+                overflow-x: hidden;
+                padding-bottom: 20px;
+                margin-top: 20px;
+            }
+            #x-stats-table tr {
+                width: 100%;
+                display: flex;
+                flex-flow: row wrap;
+                border-collapse: collapse;
+                justify-content: left;
+                padding-left: 10px;
+            }
+            #x-stats-table tr td {
+                display: flex;
+                flex-flow: row wrap;
+                align-content: center;
+                text-align: left;
+                color: var(--default-color);
+                width: 10%;
+                height: 34px;
+                border-collapse: collapse;
+                border: 1px solid #666;
+                border-top: none;
+                padding-left: 10px;
+            }
+            #x-stats-table tr td:first-child {
+                justify-content: center;
+                text-align: center;
+                padding: 0px 5px 0px 5px;
+                /*border-color: blue;*/
+                width: 24%;
+                border-right-width: 4px !important;
+                border-left-width: 4px !important;
+            }
+            #x-stats-table tr td:last-child {
+                border-right-width: 4px !important;
+            }
+            #x-stats-table tr td:nth-child(4) {
+                border-right-width: 4px !important;
+            }
+            #x-stats-table tr td span {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+            #x-csr-table tr td span,
+            #x-stats-table tr td span {
                 color: var(--default-color);
                 font=family: arial;
                 font-size: 12px;
             }
-            #x-csr-table tr:last-child td {
+            #x-csr-table tr:last-child td,
+            #x-stats-table tr:last-child td {
                 border-bottom: 1px solid #666;
+                border-bottom-width: 4px  !important;
             }
             #x-csr-table tr td:first-child {
                 justify-content: left;
                 width: 16%;
+            }
+            #x-stats-table tr:first-child td {
+                border-bottom-width: 4px  !important;
+                border-top: 4px solid #666 !important;
+            }
+            .csrStat1 {width: 462px !important;}
+            .csrStat2 {
+                width: 260px !important;
+                display: flex !important;
+                flex-flow: row wrap !important;
+                justify-content: space-between;
+            }
+            .csrStat3 {
+                display: flex;
+                width: auto !important;
+                justify-content: left !important;
+            }
+            .csrStat4 {
+                display: flex !important;
+                width: auto !important;
+                justify-content: right !important;
+                padding-right: 10px;
             }
             .csr-name {
                padding-left: 5px;
@@ -2421,6 +2794,37 @@
             .w16p {width: 16%;}
             .xpl15 {padding-left: 15px;}
             .xpl5 {padding-left: 5px;}
+
+            .xjcl {justify-content: left !important;}
+            .xjcc {justify-content: center !important;}
+            .xjcr {justify-content: right !important;}
+
+            .xstatmt10 {margin-top: 10px !important;}
+
+            .xfr60 {
+                float: right;
+                width: 60px;
+            }
+            .fitwidth {
+                width: 1px;
+                white-space: nowrap;
+            }
+
+            .tbb2 {border-bottom-width: 2px;}
+            .tbb3 {border-bottom-width: 3px;}
+            .tbb4 {border-bottom-width: 4px;}
+
+            .tbl2 {border-left-width: 2px;}
+            .tbl3 {border-left-width: 3px;}
+            .tbl4 {border-left-width: 4px;}
+
+            .tbr2 {border-right-width: 2px;}
+            .tbr3 {border-right-width: 3px;}
+            .tbr4 {border-right-width: 4px;}
+
+            .tbt2 {border-top-width: 2px;}
+            .tbt3 {border-top-width: 3px;}
+            .tbt4 {border-top-width: 4px;}
 
             tr.no-oc td, tr.no-oc span {color: yellow !important;}
             tr.my-id td, tr.my-id span {background-color: rgba(108,195,21,.07);}
@@ -2454,7 +2858,20 @@
         });
 
         for (let idx=lastIdx+1; idx < 6; idx++) csrArray.push(0);
+
+        debug("getMemberCsrArray: ", id, " aka: ", aka, csrArray);
         return csrArray;
+    }
+
+    // For debugging - make data-role attr array for cells
+    function getDataRoleArr(csrArr, crimeSelect) {
+        let arr = ["none", "none", "none", "none", "none", "none"];
+        let aka = nicknames[crimeSelect];
+        let roles = roleLookup[crimeSelect]; // Object.keys(csrArr);
+        for (let idx=0; idx<roles.length; idx++) {
+            arr[idx] = aka + '-' + roles[idx];
+        }
+        return arr;
     }
 
     function getCsrMemberRow(id, crimeSelect) {
@@ -2473,16 +2890,18 @@
         let defCsr = '?';
         let addlClass = (notInOc == true) ? 'no-oc' : '';
         if (userId == id) addlClass = addlClass + " my-id";
+        let drs = getDataRoleArr(csrArr, crimeSelect);  //  data-role="${drs[0]}"
         let newRow = `<tr id='${id}-tr' class='${addlClass}'>
                           <td class="cc1"><span class='csr-name' data-id="${id}" data-sort="${name}">${name} [${id}]</span></td>
-                          <td class="cc2" data-sort="${csrArr[0]}">${csrArr[0]}</td>
-                          <td class="cc3" data-sort="${csrArr[1]}">${csrArr[1]}</td>
-                          <td class="cc4" data-sort="${csrArr[2]}">${csrArr[2]}</td>
-                          <td class="cc5" data-sort="${csrArr[3]}">${csrArr[3]}</td>
-                          <td class="cc6" data-sort="${csrArr[4]}">${csrArr[4]}</td>
-                          <td class="cc7" data-sort="${csrArr[5]}">${csrArr[5]}</td>
+                          <td class="cc2" data-sort="${csrArr[0]}" data-role="${drs[0]}">${csrArr[0]}</td>
+                          <td class="cc3" data-sort="${csrArr[1]}" data-role="${drs[1]}">${csrArr[1]}</td>
+                          <td class="cc4" data-sort="${csrArr[2]}" data-role="${drs[2]}">${csrArr[2]}</td>
+                          <td class="cc5" data-sort="${csrArr[3]}" data-role="${drs[3]}">${csrArr[3]}</td>
+                          <td class="cc6" data-sort="${csrArr[4]}" data-role="${drs[4]}">${csrArr[4]}</td>
+                          <td class="cc7" data-sort="${csrArr[5]}" data-role="${drs[5]}">${csrArr[5]}</td>
                       </tr>`;
 
+        debug("getCsrMemberRow for ", aka, id, csrArr, drs);
         return $(newRow);
     }
 
@@ -2666,6 +3085,10 @@
                 if ($("#x-opts-table").length) optionsTable = $("#x-opts-table").detach();
                 break;
             }
+            case statsTableName: {
+                if ($("#x-stats-table").length) statsTable = $("#x-stats-table").detach();
+                break;
+            }
             case csrTableName: {
                 if ($("#x-csr-table").length) csrTable = $("#x-csr-table").detach();
                 break;
@@ -2741,6 +3164,12 @@
                 addOptionsHandlers();
                 break;
             }
+            case statsTableName: {
+                $("#x-oc-tbl-wrap").append(statsTable);
+                $("#x-stats-table").animate({"opacity": 1}, 250);
+
+                break;
+            }
             case csrTableName: {
                 if (!csrTable)
                     debugger;
@@ -2798,6 +3227,7 @@
                 <div id="x-oc-can-click" class="hospital-dark top-round scroll-dark" role="table" aria-level="5">
                     <div class="ocbox refresh"><span id='x-oc-click'>Available Members</span></div>
                     <div class="ocbox"><span id='x-opts-click'>Options</span></div>
+                    <div class="ocbox"><span id='x-stats-click'>Stats</span></div>
                     <div class="ocbox"><span id='x-rates-click'>Success Rates</span></div>
                 </div>
                 <div id='x-oc-tbl-wrap' class="x-oc-wrap cont-gray bottom-round">
@@ -2832,8 +3262,8 @@
                     width: 100%;
                 }
                 #x-oc-tbl-wrap tr {
-                    height: 30px;
-                    margin: 0px auto 0px auto;
+                    /*height: 30px;
+                    margin: 0px auto 0px auto;*/
                 }
                 #x-oc-tbl-wrap tr li {
                     width: 100%;
@@ -2860,6 +3290,7 @@
         installSortBtn();
         installMembersTable();
         installOptionsPane();
+        installStatsTable();
 
         installCsrTable();
 
@@ -2872,6 +3303,16 @@
                 $("#x-opts-click").parent().addClass("active");
             }
             openTable(optsTableName);
+        });
+
+        $("#x-stats-click").on("click", function () {
+            if ($("#x-stats-click").parent().hasClass("active"))
+                $("#x-stats-click").parent().removeClass("active");
+            else {
+                $(".ocbox").removeClass("active");
+                $("#x-stats-click").parent().addClass("active");
+            }
+            openTable(statsTableName);
         });
 
         $("#x-oc-click").on("click", function() {
@@ -3230,12 +3671,12 @@
             #x-oc-can-click > div > span {
                 cursor: pointer;
             }
-            #x-oc-click, #x-opts-click, #x-rates-click  {
+            #x-oc-click, #x-opts-click, #x-rates-click, #x-stats-click  {
                 border-radius: 4px;
                 padding: 10px 30px 10px 20px;
             }
             .ocbox {
-                width: 32%;
+                width: 24%;
                 display: flex !important;
                 justify-content: center;
                 z-index: 9;
