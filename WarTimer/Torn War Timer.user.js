@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.9
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -24,7 +24,7 @@
     'use strict';
 
     // Enable for debug logging...
-    debugLoggingEnabled = false;
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
 
     // 'Mode' of operation - tooltip, or click to toggle to local start time.
     const doToolTip = true;           // Display local start time as tool tip.
@@ -141,10 +141,10 @@
     }
 
     function handlePageLoad(retries=0) {
-        let titleBarText = $("#react-root > div > div > div.f-msg.m-top10 > span").text();
+        let titleBarText = $("#react-root > div > div.f-msg > span").text();
         if (!titleBarText) {
             if (retries++ < maxRetries) return setTimeout(handlePageLoad, retryTime, retries);
-            return debug("handlePageLoad, too many retries.");
+            debug("handlePageLoad, too many retries. Adding anyways...");
         }
 
         if (titleBarText && titleBarText.indexOf("IS IN A WAR") > 0) {
