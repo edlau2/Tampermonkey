@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Armory Highlights
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  This script highlights Revits and Warlords in the fac armory
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -27,8 +27,8 @@
     function checkPageParams() {
         let params = new URLSearchParams(location.search);
         if (params.get('step') != 'your') return log("Not your armory page!");
-        let params2 = location.hash ? new URLSearchParams(location.hash.replace("#/", "?")) : {};
-        if (params2.get('sub') != 'weapons') return log("Not on weapons page!");
+        let params2 = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
+        if (params2 && params2.get('sub') != 'weapons') return log("Not on weapons page!");
         return true;
     }
 
