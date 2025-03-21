@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.37
+// @version      4.38
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -135,6 +135,8 @@
     loadApiCallLog();
     initDebugOptions();
     var xedxDevMode = false;
+
+    var enableDebugger = GM_getValue("enableDebugger", false);
 
     // Configuration page URL's
     const configHost = "18.119.136.223:8080";
@@ -6367,7 +6369,7 @@
                 log('[userListExtender] score: ' + score);
                 log('[userListExtender] innerText: ' + logMsg);
             } else {
-                if (xedxDevMode == true) debugger;
+                if (enableDebugger == true) debugger;
             }
         }
 
@@ -7198,11 +7200,23 @@
             let div = li.querySelector("div.center-side-bottom.left");
 
             if (opts.displayHealth) {
+                let newSpan = (cacheObj.fromCache == true) ?
+                    ('<span class="xedx-cached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>') :
+                    ('<span class="xedx-notcached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
+
+                // Fix for issue where this was displaying numerous times....
+                // See message from Spy, or this: https://imgur.com/DFUfLw2
+                $(div).find(".xedx-cached").remove();
+                $(div).find(".xedx-notcached").remove();
+                $(div).append(newSpan);
+
+                /*
                 if (cacheObj.fromCache) {
                     $(div).append('<span class="xedx-cached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
                 } else {
                     $(div).append('<span class="xedx-notcached"> ' + lifeCurrurr + '/' + lifeMaxax + '</span>');
                 }
+                */
             }
             if (statusNode && opts.displayLastAction) {
                 la = la.replace('minutes', 'min');
@@ -8813,7 +8827,7 @@
         let val = GM_getValue("custlink-");
         if (val) {
             log('[handleGenOptsSaveButton] ERROR: Invalid custom link saved!');
-            if (xedxDevMode == true) debugger;
+            if (enableDebugger == true) debugger;
             GM_deleteValue('custlink-');
         }
 
@@ -8884,7 +8898,7 @@
             error.toString().indexOf('not at home') > -1
         if (!wrongPage) {
             log('[ERROR] ' + error);
-            if (xedxDevMode == true) debugger;
+            if (enableDebugger == true) debugger;
         }
     }
 
