@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.38
+// @version      4.39
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -7222,8 +7222,14 @@
                 la = la.replace('minutes', 'min');
                 la = la.replace('minute', 'min');
                 la = la.replace('hours', 'hrs');
-                statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
-                statusNode.textContent = statusNode.textContent + ' ' + la;
+
+                if (statusNode.textContent.indexOf('Okay') > -1 ||statusNode.textContent.indexOf('OK') > -1) {
+
+                    statusNode.textContent = "OK " + la;
+
+                    //statusNode.textContent = statusNode.textContent.replace('Okay', 'OK');
+                    //statusNode.textContent = statusNode.textContent + ' ' + la;
+                }
             }
             // Add score!
             if (opts.displayRank) lvlNode.childNodes[2].data = text.trim() + '/' + (numeric_rank ? numeric_rank : '?')
