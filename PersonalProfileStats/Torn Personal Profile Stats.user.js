@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Personal Profile Stats
 // @namespace    http://tampermonkey.net/
-// @version      2.8
+// @version      2.11
 // @description  Estimates a user's battle stats, NW, and numeric rank and adds to the user's profile page
 // @author       xedx [2100735]
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -40,9 +40,6 @@
     const levelTriggers = [ 2, 6, 11, 26, 31, 50, 71, 100 ];
     const crimeTriggers = [ 100, 5000, 10000, 20000, 30000, 50000 ];
     const nwTriggers = [ 5000000, 50000000, 500000000, 5000000000, 50000000000 ];
-    const caretNode = '<span style="float:right;"><i id="xedx-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
-    var caretState = 'fa-caret-right';
-    var statCaretState = 'fa-caret-right';
 
     // This feature uses my batstats server, which gets estimates based
     // on FF calculations. It's still a WIP, my bats stat estimator script
@@ -52,8 +49,8 @@
     // The "// @connect      localhost" line is there for testing with my
     // local DB. Turn off if my IP (18.119.136.223) goes away, it's at AWS
     const custBatStatsEnabled = GM_getValue("custBatStatsEnabled", false);
-
     const displayCustomStats = true;
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
 
     // From: https://wiki.torn.com/wiki/Ranks
     // Total Battlestats	2k-2.5k, 20k-25k, 200k-250k, 2m-2.5m, 20m-35m, 200m-250m
@@ -68,81 +65,20 @@
         {estimate: "over 200m", low: 200000000, high: 0},
     ];
 
-    GM_addStyle(".xedx-caret {" +
-                "padding-top:5px;" +
-                "padding-bottom:5px;" +
-                "padding-left:20px;" +
-                "padding-right:10px;" +
-                "}");
+    GM_addStyle(`.xedx-caret { padding: 5px 10px 5px 20px;}`);
 
     const batStatLi = 'xedx-batstat-li';
-    var targetNode = document.getElementById('profileroot');
+    var targetNode = $("#profileroot");
 
-    function handleClick(event) {
-
-        let fromId = undefined;
-        if (event && event.data)
-            fromId = event.data.fromId;
-
-        let useCaretState = caretState;
-        let parentId = "#xedx-stat-det";
-        let personalInfoCaret = false;
-        if (fromId && fromId == "xedx-stats-caret") {
-            useCaretState = statCaretState;
-            parentId = "#xedx-cust-stats";
-            personalInfoCaret = true;
-        }
-
-        let targetNode = fromId ? document.querySelector("#" + fromId) : document.querySelector("#xedx-caret");
-
-        let baseHeight = notSharing ? 59 : 124;  // 59 is header (35) plus one row (24), ours. If shared, + 3 rows.
-        let elemState = 'block';
-        if (useCaretState == 'fa-caret-down') {
-            targetNode.classList.remove("fa-caret-down");
-            targetNode.classList.add("fa-caret-right");
-            if (personalInfoCaret) {
-                statCaretState = 'fa-caret-right';
-                setInfoSize(baseHeight.toString() + "px;");
-            } else
-                caretState = 'fa-caret-right';
-            elemState = 'none';
-        } else {
-            targetNode.classList.remove("fa-caret-right");
-            targetNode.classList.add("fa-caret-down");
-            if (personalInfoCaret) {
-                statCaretState = 'fa-caret-down';
-                let size = baseHeight + (numStatsAdded) * 24;
-                let sizeStr = size.toString() + "px;";
-                setInfoSize(sizeStr);
-            } else
-                caretState = 'fa-caret-down';
-        }
-
-        document.querySelector(parentId).setAttribute('style' , 'display: ' + elemState);
-    }
-
-    // Get data used to calc bat stats and get NW via the Torn API
-    function personalStatsQuery(ID) {
-        log('Calling xedx_TornUserQuery');
-        xedx_TornUserQueryDbg(ID, 'personalstats,crimes,profile', personalStatsQueryCB);
-    }
-
-    // Callback for above
-    let retries = 0;
-    function personalStatsQueryCB(responseText, ID) {
-        if (responseText == undefined) {
+    //let retries = 0;
+    function personalStatsQueryCB(responseText, ID, retries=0) {
+        if (!responseText) {
             // Retry without the 'profile' selection, but just once.
-            log("Error queryig user stats - no result!");
-            if (retries < 1) {
-                xedx_TornUserQueryDbg(ID, 'personalstats,crimes', personalStatsQueryCB);
-                retries++;
-                return;
-            }
+            log("Error querying user stats - no result!");
+            if (retries++ < 1) xedx_TornUserQueryDbg(ID, 'personalstats,crimes', personalStatsQueryCB, retries);
             return;
         }
 
-        // Maybe make global to access in other places, namely the new
-        // custom user stats stuff....for now jst pass to fn.
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
             if (jsonResp.error.code == 6)
@@ -157,8 +93,6 @@
 
         // Highlight life as appropriate
         doLifeHighlighting();
-
-        // Add NW to the profile
         addNetWorthToProfile(userNW);
 
         // Get bat stats estimate, based on rank triggers (sync)
@@ -166,10 +100,8 @@
             batStats = getEstimatedBatStats(userNW, userCrimes, userLvl, userRank); // Calculate bat stats estimate
 
         // Get any spies (async). On completion, get our estimated stats from FF DB.
-        log('Calling xedx_TornStatsSpy');
         xedx_TornStatsSpy(ID, getTornSpyCB);
 
-        // Display the numeric rank next to textual rank (sync)
         addNumericRank(userRank);
 
         if (displayCustomStats) {
@@ -177,173 +109,80 @@
         }
     }
 
+    // Get data used to calc bat stats and get NW via the Torn API
+    function personalStatsQuery(ID, param) {
+        xedx_TornUserQueryDbg(ID, 'personalstats,crimes,profile', personalStatsQueryCB, param);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////
     // Function to add custom stats to the "Personal Information" section.
-    // May change to custom DIV somewhere in there, collapsed by default....
     //////////////////////////////////////////////////////////////////////////////////
 
-    // When I get time, make fns to take ID as param to make node and onClick handler..
-    // And add to the js utilities script...
-    const statCaretNode = '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>';
-
-    // height in px, eg, "160px;"
-
-    // NO NO NO! Don't call this more than once, make two styles -
-    // open and closed....
-    var numStatsAdded = 0;
-    function setInfoSize(height) {
-        log("[setInfoSize] ", height);
-        GM_addStyle(`.d .profile-wrapper .profile-container.personal-info {
-            height: ` + height +
-            `line-height: 15px;
-            background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
-            background-color: var(--default-bg-panel-color);
-        }`);
-    }
-
-    function placeholderToFixAboveEventually() {
-    // height in px, eg, "160px;"
-        /* uncomment these...
-        var numStatsAdded = 0;
-        var baseHeight = 0;
-        var stylesSet = false;
-        */
-        function setInfoSizeStyles(closedHeight, openHeight) {
-            log("[setInfoSizeStyles] closed: ", closedHeight, " open: ", openHeight);
-            if (stylesSet == true) {
-                console.error("Should not set style twice!");
-                debugger;
-                return;
-            }
-            stylesSet = true;
-
-            // Could do this with a var.....
-            GM_addStyle(`
-                .cust-stat-open {
-                    height: ` + openHeight + `
-                }
-                .cust-stat-closed {
-                    height: ` + closedHeight + `
-                }
-                .comp-class-open {
-                    position: relative;
-                    top: ` + openHeight + `
-                }
-                .d .profile-wrapper .profile-container.personal-info {
-                    line-height: 15px;
-                    background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
-                    background-color: var(--default-bg-panel-color);
-                }
-            `);
-
-            /*
-            GM_addStyle(`.d .profile-wrapper .profile-container.personal-info {
-                height: ` + height +
-                `line-height: 15px;
-                background: url(/images/v2/profile/personal_info.png) -18px 14px no-repeat #F2F2F2;
-                background-color: var(--default-bg-panel-color);
-            }`);
-            */
-        }
-    }
-
-    var notSharing = false;
+    //var notSharing = false;
+    //var statsHeightCollapsed;
     function addCustomStats(personalStats) {
-        log("[addCustomStats]");
-        let sectionDiv = document.querySelector(".personal-information");
-        let table = sectionDiv.querySelector(".info-table");
+        var statsHeightCollapsed = $(".profile-right-wrapper .personal-info").height();
 
-        if (!sectionDiv) return log("ERROR sectionDiv not found!");
-
-        // The table may not exist. This is the case if the user
-        // isn't sharing information.
-        if (!table) {
-            notSharing = true;
+        let table = $(".profile-right-wrapper .info-table");
+        if (!$(table).length) {  // This is the case if the user isn't sharing information.
             let contDiv = $(".profile-container.personal-info");
-            let list = '<ul class="info-table"></ul>';
-            $(contDiv).append(list);
-            table = sectionDiv.querySelector(".info-table");
+            $(contDiv).append($('<ul class="info-table"></ul>'));
+            table = $(".profile-container.personal-info > ul"); //sectionDiv.querySelector(".info-table");
         }
 
-        // Add header, with caret and stats all at once.
-        let li = getCustStatsBody(personalStats);
-        $(table).append(li);
+        let node2 = $(`<li id="xedx-cust-stats2">
+                       <div class="user-information-section">
+                           <span class="bold">Custom Stats</span>
+                       </div>
+                       <div class="user-info-value">
+                           <span> Expand for more...</span>
+                           <span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>
+                       </div>
+                   </li>`);
 
-        if (document.getElementById("xedx-stats-caret")) {
-            $("#xedx-stats-caret").on('click', {fromId: "xedx-stats-caret"}, handleClick);
+        $(table).append(node2);
 
-            statCaretState = (statCaretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
+        //let root = $(".profile-right-wrapper .personal-info");
+        //statsHeightCollapsed = $(root).height();
 
-            let newEvent = event;
-            event.data = {};
-            newEvent.data.fromId = "xedx-stats-caret";
-            handleClick(newEvent);
-        }
-
-    }
-
-    // 'Owner' LI added to UL, stats go beneath and are collapsible.
-    function getCustStatsBody(ps) {
-        let li = '<li id="xedx-cust-stats2">' +
-                     '<div class="user-information-section"><span class="bold">Custom Stats</span></div>' +
-                     '<div class="user-info-value"><span> Expand for more...</span>' +
-                     '<span style="float:right;"><i id="xedx-stats-caret" class="icon fas fa-caret-right xedx-caret"></i></span>' +
-                 '</div></li>';
-
-        // Now hideable LI's...
-        li += '<div id="xedx-cust-stats" class="xedx-cx" style="display:block;">';
-
-        // Add as many stats as needed. Note: need to add 24px for each when setting style.
-        // See setInfoSize()
-        // I call two functions just to see which looks better. makeStatLi2 uses less real estate.
         for (let i=0; i<statArray.length; i += 2) {
             let stat1 = statArray[i];
             if (!stat1) break;
             let stat2 = statArray[i+1];
-            li += makeStatLi2(stat1 ? stat1.statDesc : '',
-                              stat1 ? ps[stat1.statVar] : '',
-                              stat2 ? stat2.statDesc : '',
-                              stat2 ? ps[stat2.statVar] : '');
-            numStatsAdded++;
+            let statLi = makeStatLi2(stat1.statDesc, personalStats[stat1.statVar],
+                              stat2 ? stat2.statDesc : '', stat2 ? personalStats[stat2.statVar] : '');
+
+            $(table).append(statLi);
             if (!stat2) break;
         }
 
-        // and close it.
-        li += "</div>";
+        $("#xedx-stats-caret").on('click', handleStatExpand);
 
-        return li;
+        function handleStatExpand(e) {
+            let target = $(e.currentTarget);
+            let expand = $(target).hasClass("fa-caret-right");
+            $(target).toggleClass("fa-caret-right fa-caret-down");
+            let root = $(".profile-right-wrapper .personal-info");
+            $(root).css("height", (expand ? "auto" : statsHeightCollapsed + "px"));
+        }
     }
 
-    // LI to contain cust stats beneath our collapsible 'owner' LI
-    // One stat per row
-    function makeStatLi(name, value) {
-        let li = '<li style="display:flex;">' +
-            '<div class="user-information-section">' +
-            //'<div class="user-info-value" style="border-right: 1px solid black;width:50%;">' +
-            '<span class="bold">' + name + '</span>' +
-            '</div>' +
-            '<div class="user-info-value">' +
-            //'<div class="user-info-value" style="width:50%;">' +
-            '<span>' + value + '</span>' +
-            '</div></li>';
-        return li;
-    }
-
-    // Two stats per row
     function makeStatLi2(name1, value1, name2, value2) {
-        let li = '<li style="display:flex;">' +
-            '<div class="user-info-value" style="border-right: 1px solid black; width:30%;">' +
-                '<span class="bold">' + name1 + '</span>' +
-            '</div>' +
-            '<div class="user-info-value" style="border-right: 1px solid black; width:20%;">' +
-                '<span>' + value1 + '</span>' +
-            '</div>' +
-            '<div class="user-info-value" style="border-right: 1px solid black; width:30%;">' +
-                '<span class="bold">' + name2 + '</span>' +
-            '</div>' +
-            '<div class="user-info-value" style="width:20%;">' +
-                '<span>' + value2 + '</span>' +
-            '</div></li>';
+        let li = `
+            <li class='xstat-pps' style="display:flex;">
+                <div class="user-info-value" style="border-right: 1px solid black; width:30%;">
+                    <span class="bold">${name1}</span>
+                </div>
+                <div class="user-info-value" style="border-right: 1px solid black; width:20%;">
+                    <span>${value1}</span>
+                </div>
+                <div class="user-info-value" style="border-right: 1px solid black; width:30%;">
+                    <span class="bold">${name2}</span>
+                </div>
+                <div class="user-info-value" style="width:20%;">
+                    <span>${value2}</span>
+                </div>
+            </li>`;
         return li;
     }
 
@@ -352,19 +191,15 @@
     //////////////////////////////////////////////////////////////////////////////////
 
     function doLifeHighlighting() {
-        log('[doLifeHighlighting]');
-        let liSpan = document.querySelector(/*"#profileroot > div > div > div > div:nth-child(5) >"*/
-                                        "div.basic-information.profile-left-wrapper.left > " +
-                                        " div > div.cont.bottom-round > div > ul > li:nth-child(5) > div.user-info-value > span");
-        if (!liSpan) return;
+        let liSpan =  $(".basic-information   ul.info-table > li:nth-child(5) > div.user-info-value > span");
+        if (!$(liSpan).length) return console.error("Couldn't find life bar!");
 
-        let life = liSpan.textContent;
+        let life = $(liSpan).text();
         let parts = life.split('/');
-        log('Life: ', life, ' parts: ', parts);
         if (parts[0].trim() == parts[1].trim())
-            liSpan.setAttribute('style', 'color: #00a500;');
+            $(liSpan).attr('style', 'color: #00a500;');
         else
-            liSpan.setAttribute('style', 'color: #d83500;');
+            $(liSpan).attr('style', 'color: #d83500;');
 
     }
 
@@ -407,13 +242,12 @@
                            estimate: data.spy.total,
                            high: data.spy.total,
                            low: low ? low : data.spy.total};
-                log('Spy result: ', jsonSpy);
+                debug('Spy result: ', jsonSpy);
             }
         }
 
         // Get our own custom 'spy' (async) if enabled.
         if (custBatStatsEnabled) {
-            log('Calling getCustomBatStatEst');
             getCustomBatStatEst(ID, customBatStatEstCB);
         } else {
             addBatStatsToProfile();
@@ -446,7 +280,6 @@
     // Parses the JSON data from our custom FF bat stat estimate, into a JSON object:
     // {estimate: estStat, low: lowStat, high: highStat}
     function customBatStatEstCB(resp, ID) {
-        log('*** Custom stats: ', resp);
         let values = [];
 
         try {
@@ -455,19 +288,17 @@
             for (let i=0; i<keys.length; i++) {
                 let stats = obj[keys[i]].oppStatsLow;
                 if (stats) stats = Number(stats.toString().replaceAll(',', '')); else stats = 0;
-                log('stats: ', stats);
+                debug('stats: ', stats);
                 if (!isNaN(stats) && stats != Infinity) values.push(stats);
             }
         } catch(e) {
             log('[customBatStatEstCB] Error: ', e);
         }
 
-        log('values: ', values);
         if (values.length) {
             let estStat = Math.max(...values);
             let lowStat = estStat;
             let highStat = estStat;
-            log("*** High stat: " + highStat);
 
             // Find range values
             let range = getRangeValues(highStat);
@@ -489,20 +320,6 @@
             if (highStat > estimatedStats[i].low && highStat < estimatedStats[i].high)
                 return estimatedStats[i];
         }
-        return null;
-    }
-
-    // Create the bat stats <li>, add to the profile page
-    function addBatStatsToProfile() {
-        log('Adding estimated bat stats to profile.');
-        let testDiv = document.getElementById(batStatLi);
-        if (validPointer(testDiv)) {return;} // Only do once
-
-        let rootDiv = targetNode.getElementsByClassName('basic-information profile-left-wrapper left')[0];
-        let targetUL = rootDiv.getElementsByClassName('info-table')[0];
-        if (!validPointer(targetUL)) {return;}
-
-        let li = createBatStatLI(targetUL); // And add to the display
     }
 
     // Helper, pick the best of below three values.
@@ -511,10 +328,6 @@
     var custBatStats = {estimate: 0, low: 0, high: 0};
 
     function getBestBatStatEstValues() {
-        log('batStats: ', batStats);
-        log('custBatStats: ',  custBatStats);
-        log('jsonSpy: ', jsonSpy);
-
         // No spy or custom estimate: return basic estimate
         if (!jsonSpy.estimate && !custBatStats.low) return batStats.estimate;
 
@@ -528,14 +341,12 @@
         // {estimate: "over 200m", low: 200000000, high: 0},
         if (!jsonSpy.estimate && custBatStats.estimate) {
             let estDisplay = massageEstimate(custBatStats.estimate);
-            log('Est. Display value: ' + estDisplay);
             if (batStats.estimate == 'N/A' || (batStats.estimate.indexOf('Unknown') > -1)) {
                 return 'Over ' + estDisplay + ' (Level holding?)';
             }
             if (custBatStats.estimate > batStats.high) {
                 if (custBatStats.estimate != custBatStats.high) {
                     let displayHigh = massageEstimate(custBatStats.high);
-                    log('Display values: ' + estDisplay + ', ' + displayHigh);
                     return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
                 } else {
                     return 'Min. ' + estDisplay + ' (FF estimate)';
@@ -546,7 +357,6 @@
             }
             if (custBatStats.estimate <= batStats.high) {
                 let displayHigh = massageEstimate(batStats.high);
-                log('Display values: ' + estDisplay + ', ' + displayHigh);
                 return estDisplay + ' to ' + displayHigh + ' (FF estimate)';
             }
             return 'Over ' + estDisplay + ' (FF estimate)';
@@ -567,23 +377,30 @@
     function massageEstimate(value) {
         if (value < 2000) return value;
         let base = Math.floor(value/1000);
-        log('massageEstimate: value = ' + value + ' base = ' + base);
         if (base.toString().length <=3) return (base + 'k');
 
         // 1000+
-        base = Math.floor(base/1000);
-        var rounded = Math.round(base * 10) / 10;
-        log('massageEstimate: base = ' + base + ' rounded = ' + rounded);
-        return numberWithCommas(rounded) + 'M';
+        //base = Math.floor(base/1000);
+        //base = Math.round(base * 10) / 10;
+        base = Math.round(Math.floor(base/1000) * 10) /10;
+        if (base.toString().length <=3) return numberWithCommas(base) + 'M';
+
+        //base = Math.round(base * 10) / 10;
+        base = Math.round(Math.floor(base/1000) * 10) /10;
+        if (base.toString().length <=3) return numberWithCommas(base) + 'B';
+
+        base = Math.round(Math.floor(base/1000) * 10) /10;
+        if (base.toString().length <=3) return numberWithCommas(base) + 'T';
+
+        base = Math.round(Math.floor(base/1000) * 10) /10;
+        if (base.toString().length <=3) return numberWithCommas(base) + 'Q';
     }
 
     // Helper, create <li> to display...
-    function createBatStatLI(ul) {
-        log('[createBatStatLI]');
-
-        // Need the best of the three - batStats, jsonSpy, and custBatStats.
+    function addBatStatsToProfile() {
+        let targetUL = $(".profile-left-wrapper .info-table");
         let display = getBestBatStatEstValues();
-        log('Best value: ' + display);
+        let caretNode = '<span style="float:right;"><i id="xedx-spy-caret" class="icon fas fa-caret-down xedx-caret"></i></span>';
 
         let li = '<li id="'+ batStatLi + '">' +
                      '<div class="user-information-section"><span class="bold">Est. Bat Stats</span></div>' +
@@ -592,7 +409,6 @@
                      '</div></li>';
 
         if (jsonSpy.status) {
-            //$("#xedx-collapsible").append(caretNode);
             li += '<div id="xedx-stat-det" class="xedx-cx" style="display:block;">' +
                   '<li style="display:flex;"><div class="user-info-value" style="border-right: 1px solid black;width:50%;"><span>Spd: ' +
                   numberWithCommas(jsonSpy.speed) + '</span></div>' +
@@ -603,25 +419,19 @@
                   '<div class="user-info-value" style="width:50%;"><span>Def: ' +
                   numberWithCommas(jsonSpy.defense) + '</span></div><li></div>';
         }
-        $(ul).append(li);
-
-        // Make the details 'collapsible'
-        if (document.getElementById("xedx-caret") && !abroad()) {
-            caretState = GM_getValue('lastState', caretState);
-            $("#xedx-caret").on('click', {fromId: "xedx-caret"}, handleClick);
-
-            //document.getElementById("xedx-caret").addEventListener('click', {fromId: "xedx-caret"}, function (event) {
-            //    handleClick(event)}, { passive: false });
-
-            caretState = (caretState == 'fa-caret-down') ? 'fa-caret-right' : 'fa-caret-down';
-
-            let newEvent = event;
-            event.data = {};
-            newEvent.data.fromId = "xedx-caret";
-            handleClick(newEvent);
+        $(targetUL).append(li);
+        if (!abroad()) {
+            $("#xedx-spy-caret").on('click', handleSpyExpand);
         }
 
-        return li;
+        var expandedHeight = $("#xedx-stat-det").height();
+        function handleSpyExpand(e) {
+            let target = $(e.currentTarget);
+            let expand = $(target).hasClass("fa-caret-right");
+            $(target).toggleClass("fa-caret-right fa-caret-down");
+
+            $("#xedx-stat-det").animate({"height": (expand ? (expandedHeight + "px") : "0px")}, 250);
+        }
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -635,7 +445,6 @@
     ////////////////////////////////////////////////////////////////////
 
     function getEstimatedBatStats(userNW, userCrimes, userLvl, userRank) {
-        log('[getEstimatedBatStats]');
         let trLevel = 0, trCrime = 0, trNetworth = 0;
         for (let l in levelTriggers) {if (levelTriggers[l] <= userLvl) trLevel++;}
         for (let c in crimeTriggers) {if (crimeTriggers[c] <= userCrimes) trCrime++;}
@@ -643,10 +452,6 @@
 
         let statLevel = userRank - trLevel - trCrime - trNetworth;
         let estimated = estimatedStats[statLevel];
-
-        log('Stat estimator: statLevel = ', statLevel, ' Estimated = ', ((estimated && estimated.estimate) ? estimated.estimate : 0));
-        log('Stat estimator: Level: ', userLvl + ' Crimes: ', userCrimes, ' NW: ', userNW, ' Rank: ', userRank);
-        log('Stat estimator: trLevel: ', trLevel, ' trCrimes: ', trCrime, ' trNW: ', trNetworth);
         if (!estimated) {
             if (userLvl < 76) {
                 estimated = {estimate: "Unknown, maybe level holding?", low: 0, high: 0};
@@ -664,9 +469,7 @@
 
     var nwRetries = 0;
     function addNetWorthToProfile(nw) {
-        log('Adding Net Worth to profile: $' + numberWithCommas(nw));
         if (validPointer(document.getElementById('xedx-networth-li'))) {
-            log('Node already present: xedx-networth-li');
             return;
         }
 
@@ -676,7 +479,6 @@
         var targetNode = document.getElementById('profileroot');
         let ul = $(basicInfo).find('ul.info-table');
         if (!ul.length) {
-            log('ul.info-table not found!');
             if (nwRetries++ < 4) setTimeout(addNetWorthToProfile(nw), 500);
             return;
         }
@@ -691,6 +493,7 @@
     //////////////////////////////////////////////////////////////////////
 
     // ['str-to-match', 'str-to-replace-with', 'attr', 'attr-value']
+    /*
     var ranks = [['Absolute beginner', 'Absolute noob', 'class', 'long'],
                  ['Beginner', 'Beginner', 'class','medium'],
                  ['Inexperienced', 'Inexperienced', 'class', 'long'],
@@ -717,9 +520,37 @@
                  ['Legendary', 'Legendary', 'class', 'long'],
                  ['Elite', 'Elite', 'class','medium'],
                  ['Invincible', 'Invincible', 'class', 'long']];
+    */
+
+    var ranksObj = { 'Absolute beginner': {name: 'Absolute noob', class: 'long'},
+                 'Beginner': {name: 'Beginner', class: 'medium'},
+                 'Inexperienced': {name: 'Inexperienced', class:  'long'},
+                 'Rookie': {name: 'Rookie', class: 'medium'},
+                 'Novice': {name: 'Novice', class: 'medium'},
+                 'Below average': {name: 'Below average', class:  'long'},
+                 'Average': {name: 'Average', class: 'medium'},
+                 'Reasonable': {name: 'Reasonable', class:  'long'},
+                 'Above average': {name: 'Above average', class:  'long'},
+                 'Competent': {name: 'Competent', class: 'medium'},
+                 'Highly competent': {name: 'Highly comp.', class:  'long'},
+                 'Veteran': {name: 'Veteran', class: 'medium'},
+                 'Distinguished': {name: 'Distinguished', class:  'long'},
+                 'Highly distinguished': {name: 'Highly dist.', class:  'long'},
+                 'Professional': {name: 'Professional', class:  'long'},
+                 'Star': {name: 'Star', class: 'medium'},
+                 'Master': {name: 'Master', class: 'medium'},
+                 'Outstanding': {name: 'Outstanding', class:  'long'},
+                 'Celebrity': {name: 'Celebrity', class:  'medium'},
+                 'Supreme': {name: 'Supreme', class: 'medium'},
+                 'Idolized': {name: 'Idolized', class: 'medium'},
+                 'Champion': {name: 'Champion', class: 'medium'},
+                 'Heroic': {name: 'Heroic', class: 'medium'},
+                 'Legendary': {name: 'Legendary', class:  'long'},
+                 'Elite': {name: 'Elite', class: 'medium'},
+                 'Invincible': {name: 'Invincible', class:  'long'}};
 
     function addNumericRank(userRank) { // userRank is unused
-        log('Adding Numeric Rank to profile.');
+        /*
         var elemList = document.getElementsByClassName('two-row');
         var element = elemList[0];
         if (element == 'undefined' || typeof element == 'undefined') {
@@ -727,16 +558,33 @@
         }
         var rank = element.firstChild;
         var html = rank.innerHTML;
-        for (var i = 0; i < ranks.length; i++) {
-            if (html == ranks[i][0]) {
-                while(rank.attributes.length > 0) {
-                    rank.removeAttribute(rank.attributes[0].name);
-                }
-                rank.setAttribute(ranks[i][2], ranks[i][3]);
-                rank.innerHTML = ranks[i][1] + ' (' + i +')';
-                return;
-            }
+        */
+
+        let span = $('.two-row > span')[0];
+        let text = $(span).text();
+        let entry = ranksObj[text];
+        log("span: ", $(span), " text: ", text, " entry: ", entry);
+
+        if (entry) {
+            $(span).text(entry.name);
+            $(span).attr("class", entry.class);
         }
+
+        /*else {
+            log("ERROR: entry not found!");
+
+            let html = $($('.two-row > span')[0]).text();
+            for (var i = 0; i < ranks.length; i++) {
+                if (html == ranks[i][0]) {
+                    while(rank.attributes.length > 0) {
+                        rank.removeAttribute(rank.attributes[0].name);
+                    }
+                    rank.setAttribute(ranks[i][2], ranks[i][3]);
+                    rank.innerHTML = ranks[i][1] + ' (' + i +')';
+                    return;
+                }
+            }
+        }*/
     }
 
     // Kick everything off...
