@@ -740,9 +740,12 @@
 
     const myStatsKey = "myCompletedCrimeStats";
     const globalStatsKey = "globalCrimeStats";
+    const statSpinnerId = "spin-id";
+    const statSpinnerSel = "#spin-id";
     var firstPageOcComplete = {};
     var statsUpToDate = false;
-    var tableNeedsInstall = false;
+    var statTableNeedsInstall = false;
+    var statTableNeedsReInstall = false;
     var myCompletedCrimes = [];
     var myCompletedCrimeStats = {};
     var globalCrimeStats = {};
@@ -838,9 +841,12 @@
 
         adjustStatCsrs(crime, stat);
         myCompletedCrimeStats[crime.name] = stat;
+
+        debug("Added crime stat: ", stat);
     }
 
     function processStatsResultsComplete() {
+        debug("processStatsResultsComplete: ", statTableNeedsInstall);
 
         myCompletedCrimes.forEach(addCrimeToStats);
 
@@ -850,12 +856,17 @@
 
         statsUpToDate = true;
 
-        if (tableNeedsInstall == true) installStatsTable();
+        debug("processStatsResultsComplete: ", statTableNeedsInstall);
+        if (statTableNeedsInstall == true || statTableNeedsReInstall == true) {
+            installStatsTable();
+        }
     }
 
     function processStatsResult(response, status, xhr, target) {
         let nextQuery = response._metadata.next;
         let prevQuery = response._metadata.prev;
+
+        debug("processStatsResult: ", nextQuery, prevQuery);
 
         // Use for dates on completed page
         if (!prevQuery) firstPageOcComplete = response;
@@ -865,6 +876,7 @@
             for (let idx=0; idx < crime.slots.length; idx++) {
                 if (crime.slots[idx].user_id == userId) {
                     myCompletedCrimes.push(crime);
+                    debug("processStatsResult: found my crime: ", crime);
                     break;
                 }
             }
@@ -882,6 +894,8 @@
             defUrl = defUrl + '&from=' + latestStatDateChecked;
         let url = next ? next : defUrl;
 
+        debug("getCompletedCrimes: ", url);
+
         $.ajax({
             url: url,
             headers: {'Authorization': ('ApiKey ' + api_key)},
@@ -893,19 +907,16 @@
         });
     }
 
-    function loadCrimeStats() {
-
-        getMyStats();
-        getGlobalStats();
-
+    function loadCrimeStats(reload) {
         latestStatDateChecked = GM_getValue("latestStatDateChecked", 0);
-
-        // For devlopment:
-        if (!latestStatDateChecked || latestStatDateChecked == 0) {
+        if (!latestStatDateChecked || latestStatDateChecked == 0 || reload == true) {
             debug("statTracker: refreshing ALL stats");
             myCompletedCrimeStats = {};
             globalCrimeStats = {};
             latestStatDateChecked = 0;
+        } else {
+            getMyStats();
+            getGlobalStats();
         }
 
         getCompletedCrimes();
@@ -1398,6 +1409,10 @@
             case recruitingIdx:
                 setSortCaret(recruitSortOrder);
                 sortPage(sortByLevel);
+
+                if (trackMemberCsr == true)
+                    updateCsrFromRecPg();
+
                 $("#oc-opt-wrap").addClass("recruit-tab");
                 $("#show-hidden").removeClass("xhide");
                 return;
@@ -2033,6 +2048,9 @@
             return;
         }
 
+        let recruitDivsOnPage = $("#faction-crimes-root > div > div > [class^='wrapper_']")
+;
+
         let crimes = $("[class*='recruiting_']");
         for (let idx=0; idx<crimes.length; idx++) {
             let crime = $(crimes[idx]).closest("[class^='contentLayer_']");
@@ -2296,19 +2314,39 @@
 
     // ========================== Stats table ======================================
     //
+
+    function handleStatReload(e) {
+        debug("handleStatReload");
+        statsUpToDate == false;
+        displaySpinner($("#x-stats-table"), statSpinnerId);
+        //statTableNeedsInstall = true;
+        statTableNeedsReInstall = true;
+        loadCrimeStats(true);
+    }
+
     function installStatsTable() {
+        debug("installStatsTable: ", statTableNeedsInstall, statTableNeedsReInstall, statsUpToDate);
 
         if (statsUpToDate == false) {
             debug("statTracker: table: not ready yet!");
-            tableNeedsInstall = true;
+            statTableNeedsInstall = true;
             return;
         }
-        tableNeedsInstall = false;
+        statTableNeedsInstall = false;
+
+        if (statTableNeedsReInstall && $(statSpinnerSel).length > 0) {
+            removeSpinner(statSpinnerId);
+            $("#x-stats-table").attr("id", "old-stat-table");
+            //$("#x-stats-table").animate({opacity: .1}, 500, installStatsTable);
+            //return;
+        }
 
         statsTable = $(`
              <table id="x-stats-table"><tbody>
                 <tr>
-                    <td><span class="xjcc">Crime</span></td>
+                    <td><span class="xjcc">
+                        <input id="xstat-reload-btn" type="submit" class="xedx-torn-btn" value="Reload">
+                    </span></td>
                     <td><span class="xjcc">Success</span></td>
                     <td><span class="xjcc">Fail</span></td>
                     <td><span class="xjcc">Total</span></td>
@@ -2324,6 +2362,7 @@
         //let currRow= $(`<tr style="width: 100%;"></tr>`);
         let crimeLvls = Object.keys(crimeDefsTable);
 
+        debug("Going to add ", crimeLvls.length, " crimes to table");
         for (let idx=0; idx<crimeLvls.length; idx++) {
             let level = crimeLvls[idx];
             let entry = crimeDefsTable[level];
@@ -2382,6 +2421,8 @@
 
                 $(statsTable).append($(currRow));
 
+                debug("Added ", crimeName);
+
                 if (myStats) {
                     let newRow = $(`
                         <tr>
@@ -2395,6 +2436,21 @@
                     $(statsTable).append($(newRow));
                 }
             }
+        }
+
+        //$("#xstat-reload-btn").on('click', handleStatReload);
+
+        debug("Re-attach table? ", statTableNeedsReInstall);
+        if (statTableNeedsReInstall == true) {
+            $("#old-stat-table").animate({opacity: 0}, 500, function() {
+                activeTable = null;
+                $("#old-stat-table").remove();
+                debug("Removed ", $("#old-stat-table"));
+                attachTable(statsTableName);
+                debug("Attached ", statsTableName, $("#x-stats-table"));
+            });
+            //attachTable(statsTableName);
+            statTableNeedsReInstall = false;
         }
     }
 
@@ -3167,7 +3223,7 @@
             case statsTableName: {
                 $("#x-oc-tbl-wrap").append(statsTable);
                 $("#x-stats-table").animate({"opacity": 1}, 250);
-
+                $("#xstat-reload-btn").on('click', handleStatReload);
                 break;
             }
             case csrTableName: {
