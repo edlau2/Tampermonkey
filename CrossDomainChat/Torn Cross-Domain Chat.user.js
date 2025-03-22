@@ -37,14 +37,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     if (isAttackPage()) return log("Won't run on attack page!");
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
-    // TEMP debugging aid
-    function xGM_setValue(key, value) {
-        if (!key || key == undefined)
-            debugger;
-        else
-            GM_setValue(key, value);
-    }
-
     // =============== Editable Options =============
 
     var options = {
@@ -69,6 +61,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
     debugLoggingEnabled = options.debugLoggingEnabled;          // true for more verbose logging
 
+
     // ========== End editable options ==========
 
     var db = null;
@@ -83,10 +76,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     const storeName = "messageStore";
     const pubLastChatKey = "pubLastChats";
     var pubMsgsSkipped = 0;
+    var lastChatLoadFailed = false;
+    var lastChatsLoaded = 0;
 
     function updateOption(name, newVal) {
         options[name] = newVal;
-        xGM_setValue(name, newVal);
+        GM_setValue(name, newVal);
+
+        if (name == "debugLoggingEnabled")
+            debugLoggingEnabled = newVal;
 
         GM_setValue(optsChangedKey, true);
     }
@@ -95,7 +93,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         let keys = Object.keys(options);
         for (let idx=0; idx<keys.length; idx++) {
             let key = keys[idx];
-            xGM_setValue(key, options[key]);
+            GM_setValue(key, options[key]);
         }
     }
 
@@ -120,7 +118,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     var needsWrite = GM_getValue("needsWrite", true);
     if (needsWrite == true) {
         writeOptions();
-        xGM_setValue("needsWrite", false);
+        GM_setValue("needsWrite", false);
     }
 
     // ============================ Time stuff ===============================
@@ -132,6 +130,24 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     const secsInDay = hrInDay * secsInHr;
 
     const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+
+    function tm_str_now() {
+        let dt = new Date();
+        const mediumTime = new Intl.DateTimeFormat("en-GB", {
+          timeStyle: "medium",
+          hourCycle: "h24",
+        });
+
+        const shortDate = new Intl.DateTimeFormat("en-GB", {
+          dateStyle: "short",
+        });
+        const formattedDate = mediumTime.format(dt) + " - " + shortDate.format(dt);
+        return formattedDate;
+    }
+
+    function logNow() {
+        logt("Time is: ", tm_str_now());
+    }
 
     function tsToTimeAgo(ts) {
         let nowSecs = new Date().getTime();
@@ -183,11 +199,9 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
     function savePosition(elementId) {
         let el = $(("#" + elementId));
-        log("savePos: ", $(el));
         let key = elementId + "-lastOff";
         let pos = $(el).offset();
-        log("savePos: ", pos);
-        xGM_setValue(key, JSON.stringify(pos));
+        GM_setValue(key, JSON.stringify(pos));
     }
     function getSavedPosition(elementId) {
         let key = elementId + "-lastOff";
@@ -198,22 +212,16 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     }
 
     function setOffset(el, top, left) {
-        log("setOffset top: ", top, " left: ", left);
-        log("current: ", $(el).offset());
         let elH = $(el).height();
         $(el).offset({top: top, left: left});
-        log("new: ", $(el).offset());
     }
 
     function restorePosition(elementId) {
         let key = elementId + "-lastOff";
         let pos = getSavedPosition(elementId);
-        log("restorePos: ", pos);
-        if (!pos) return log("Invalid obj saved.");
+        if (!pos) return debug("Invalid obj saved.");
 
         let el = $(("#" + elementId));
-        log("restorePos: ", $(el));
-
         setOffset(el, pos.top, pos.left)
     }
 
@@ -228,21 +236,15 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     */
 
     var lastChatList = [];
-    //if (location.hostname == 'yata.yt') {
     if (location.hostname.indexOf('torn.com') == -1) { // We don't care hat domain, just not Torn...
         logScriptStart();
         log("Listening at ", location.hostname);
 
-        // We can go ahead and get last 'historyLimit' msgs
-        // to populate the chat box....
-        //if (options.prepopulateChat == true && options.dbEnable == true)
-        //    getLastChats();
-
-        //callOnContentLoaded(handleCrossDomainPageLoad);
         handleCrossDomainPageLoad();
         return;
     }
 
+    /*
     function clearChats2(callback) {
         $("#cbb").animate({opacity: 0}, 400, function() {
             $("#cbb").empty();
@@ -269,12 +271,12 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
             clearChats(animated, callback)
         });
     }
+    */
 
     function clearChats(animated, callback) {
         if (animated == true) {
             let msgs = $("#cbb > div");
             let len = $(msgs).length;
-            debug("clearChats, animated: ", len);
 
             if (!$(msgs).length) return callback();
             let msg = msgs[len-1];
@@ -285,6 +287,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
             });
         } else {
             $("#cbb").empty();
+            callback();
         }
     }
 
@@ -293,12 +296,21 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     // That would be more accurate but more contentious...
     // The keys are for "publisher" and "subscriber", pub being
     // Torn script, sub being YATA, in this case...
-    function loadLastChats(key) {
+    function loadLastChats(key, retries=0) {
+        if (retries == 0) lastChatLoadFailed = false;
+        logt("loadLastChats: ", retries);
+        logNow();
+        if ($("#cbb").length == 0) {
+            if (retries++ < 30) return setTimeout(loadLastChats, 250, key, retries);
+            log("Didn't find $('#cbb'), last chats may not load");
+            lastChatLoadFailed = true;
+        }
         let tmp = GM_getValue(key, undefined);
         if (tmp) lastChatList = JSON.parse(tmp);
 
         debug("Preloading ", lastChatList.length, " saved chats");
         debug("options.allowFacMsgsOnly: ", options.allowFacMsgsOnly);
+        lastChatsLoaded = 0;
         for (let idx=0; idx<lastChatList.length; idx++) {
             let thisChat = lastChatList[idx];
 
@@ -307,10 +319,26 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 continue;
             }
 
-            let newMsg = getChatMsgDiv(thisChat);
-            $("#cbb").append(newMsg);
+            if ($(`#${thisChat.ts}`).length > 0) {
+                debug("*** loadLastChats: chat already exists! ", thisChat);
+                debug("Node: ", $(`#${thisChat.ts}`));
+                continue;
+            }
 
-            log("Loaded msg id ", thisChat.msg_id, " from ", thisChat.channel, ":", thisChat.name);
+            let newMsg = getChatMsgDiv(thisChat);
+            try {
+                $("#cbb").append(newMsg);
+            } catch(err) {
+                debug("node: ", $("#cbb"), " chat: ", thisChat, " msg: ", $(newMsg));
+                console.error("Error appending loaded msg!");
+                continue;
+            }
+
+            debug("Loaded msg id ", thisChat.msg_id, " from ", thisChat.channel, ":", thisChat.name);
+            debug("node: ", $(`#${thisChat.ts}`));
+
+            if ($(`#${thisChat.ts}`).length > 0)
+                lastChatsLoaded++;
 
             $(`#${thisChat.ts}`).tooltip({
             content: function( event, ui ) {
@@ -325,23 +353,28 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
         // TBD: grab the last entry in storage also, if not in last chat list...
         keepScrolledToBottom();
+
+        logt("Chats preloaded: ", lastChatsLoaded, " lastChatLoadFailed: ", lastChatLoadFailed);
+        logNow();
     }
 
     function clearChatsCb() {loadLastChats(pubLastChatKey);}
 
     function  handleRefresh() {
         clearChats(true, clearChatsCb);
-        //clearChats2(clearChatsCb);
-    }
-
-    function saveLastChats(key) {
-        xGM_setValue(key, JSON.stringify(lastChatList));
     }
 
     // The saved position needs to be relative to actual visible screen, not scrolled window!!!
     function handleUnload() {
-        saveLastChats();
+        logt("handleUnload");
+        logNow();
         savePosition("cdcb");
+    }
+
+    function handleGainFocus() {
+        logt("handleGainFocus");
+        logNow();
+        loadLastChats(pubLastChatKey);
     }
 
     function initCrossDomainCSS() {
@@ -369,6 +402,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 right: 1px;
                 max-width: 262px;
                 z-index: 999999;
+                opacity: 1;
             }
             .group-chat-box {
                 align-items: flex-end;
@@ -489,7 +523,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 display: flex;
                 flex-flow: row wrap;
                 justify-content: center;
-                width: 90%;
+                width: 80%;
             }
             .chat-box-header:hover {
                 background: linear-gradient(180deg,#555,#000);
@@ -507,6 +541,27 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 font-size: 12px;
                 color: #777;
             }
+            .cb-min-icon {
+                filter: drop-shadow(0 0 2px rgba(0,0,0,.6509803922));
+            }
+            .tooltip7 {
+                radius: 4px !important;
+                background-color: #000000 !important;
+                /*filter: alpha(opacity=80);*/
+                /*opacity: 0.80;*/
+                padding: 5px 20px;
+                border: 2px solid gray;
+                border-radius: 10px;
+                width: fit-content;
+                margin: 10px;
+                text-align: left;
+                font: bold 14px;
+                font-stretch: condensed;
+                text-decoration: none;
+                color: #FFF;
+                font-size: 1em;
+                z-index: 999999;
+                }
         `);
     }
 
@@ -557,14 +612,32 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         }
     }
 
+    function handleClose() {
+        GM_removeValueChangeListener(changeListener);
+        GM_removeValueChangeListener(optsUpdateListener);
+        clearInterval(listenerWatchdog);
+
+        $("#xcdcb-root").animate({opacity: 0}, 250, function(){
+            $("#xcdcb-root").remove();
+        });
+    }
+
     function handleCtxClick(e) {
         event.preventDefault();
         let target = e.currentTarget;
         let opt = $(target).attr("data-id");
-        log("handleCtxClick: ", opt);
 
-        if (opt == 'xcb-refresh') {
-            handleRefresh();
+        switch (opt) {
+            case 'xcb-close':
+                handleClose();
+                break;
+            case 'xcb-refresh':
+                handleRefresh();
+                break;
+            case 'xcb-html':
+                break;
+            case 'xcb-raw':
+                break;
         }
 
         cmHideShow("#xcb-ctx", $("#ccbh"));
@@ -576,18 +649,45 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         $("#xcb-ctx > ul").css("border-radius", "10px");
         $("#xcb-ctx").addClass("no-pos");
 
-        let refreshLi = `<li data-id="xcb-refresh" class="xmed-li-rad"><a>Refresh</a></li>`;
-        let saveHtmlLi = `<li data-id="xcb-html" class="xmed-li-rad"><a>Save as HTML</a></li>`;
-        let saveRawLi = `<li data-id="xcb-raw" class="xmed-li-rad"><a>Save raw msg data</a></li>`;
-
-        $("#xcb-ctx > ul").append(refreshLi);
-        $("#xcb-ctx > ul").append(saveHtmlLi);
-        $("#xcb-ctx > ul").append(saveRawLi);
+        let ctxItems = [`<li data-id="xcb-refresh" class="xmed-li-rad"><a>Refresh</a></li>`,
+                        `<li data-id="xcb-html" class="xmed-li-rad"><a>Save as HTML</a></li>`,
+                        `<li data-id="xcb-raw" class="xmed-li-rad"><a>Save raw msg data</a></li>`,
+                        `<li data-id="xcb-close" class="xmed-li-rad"><a>Close</a></li>`];
+        ctxItems.forEach( li => $("#xcb-ctx > ul").append(li));
 
         $("#xcb-ctx > ul > li").on('click', handleCtxClick);
     }
 
+    function getMinimizeIconSvg() {
+        return `
+                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20" viewBox="0 0 13 20" class="cb-min-icon">
+                    <defs>
+                        <linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_dark_default" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+                            <stop offset="0" stop-color="#868686"></stop>
+                            <stop offset="1" stop-color="#656565"></stop>
+                        </linearGradient>
+                        <linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_light_default" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+                            <stop offset="0" stop-color="#2A2B2B"></stop>
+                            <stop offset="1" stop-color="#444444"></stop>
+                        </linearGradient>
+                        <linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_dark_hover" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+                            <stop offset="0" stop-color="#bababa"></stop>
+                            <stop offset="1" stop-color="#9f9f9f"></stop>
+                        </linearGradient>
+                        <linearGradient xmlns="http://www.w3.org/2000/svg" id="minimize_light_hover" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+                            <stop offset="0" stop-color="#000"></stop>
+                            <stop offset="1" stop-color="#000"></stop>
+                        </linearGradient>
+                    </defs>
+                    <g transform="matrix(1, 0, 0, 1, 0, 0)">
+                        <path xmlns="http://www.w3.org/2000/svg" d="M1122,1060h16v2h-16Z" transform="translate(-1123 -1046)" fill="url(#minimize_dark_default)"></path>
+                    </g>
+                </svg>
+            `;
+    }
+
     function installCrossDomainChatUI(retries=0) {
+        let minSvgIcon = getMinimizeIconSvg();
         let cdChatBox = `
             <div id="xcdcb-root" class="sticky-bottom">
                 <div id="cdcb" class="chat-box-wrapper">
@@ -595,8 +695,10 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                         <div id="cdcbheader" class="group-chat-box">
                             <div class="chat-box" id="fac-chat">
                                 <div class="chat-box-header xflexr">
-                                    <p id="ccbh"></p>
                                     <span id="ping-led" class="led-rnd"></span>
+                                    <p id="ccbh"></p>
+                                    <!-- span id="ping-led" class="led-rnd"></span -->
+                                    <div id='min-icon'>${minSvgIcon}</div>
                                 </div>
                                 <div style="height: 250px;">
                                     <div id='cbb' class='chat-box-body'>
@@ -636,7 +738,11 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
 
     }
 
-    function keepScrolledToBottom() {
+    function keepScrolledToBottom(retries=0) {
+        if (!$("#cbb").length) {
+            if (retries++ < 20) return setTimeout(keepScrolledToBottom, 250, retries);
+            return;
+        }
         $("#cbb")[0].scrollTop = $("#cbb")[0].scrollHeight;
     }
 
@@ -709,7 +815,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
         }
 
         let newMsg = getChatMsgDiv(thisChat);
-        log("Adding new message");
+        //logt("Adding new message");
+        debug("Adding new message");
         $("#cbb").append(newMsg);
         keepScrolledToBottom();
 
@@ -725,7 +832,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                 $(this).tooltip("option", "content", ago.strLong);
             },
             open: doDynamicTtText,
-            classes: {"ui-tooltip": "tooltip5"}
+            classes: {"ui-tooltip": "tooltip7"}
         });
 
         if (thisChat.channel == 'ping_channel') {
@@ -755,10 +862,13 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     }
 
     function handleCrossDomainPageLoad() {
+        logt("handleCrossDomainPageLoad");
+        logNow();
         initCrossDomainCSS();
         installCrossDomainChatUI();
 
         $(window).on('unload', handleUnload);
+        $(window).on('focus', handleGainFocus);
 
         if (changeListener) GM_removeValueChangeListener(changeListener);
         changeListener = GM_addValueChangeListener(lastChatKey, storageChangeCallback);
@@ -797,8 +907,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
     WebSocket.prototype.send = function (...args) {
         if (window.sockets.indexOf(this) === -1 && this.url.indexOf("sendbird.com") > -1) {
 
-            log("Found chat 2.0 websocket");
-            log("URL: ", this.url);
+            log("Found chat 2.0 websocket: ", this.url);
 
             window.sockets.push(this);
             this.addEventListener("message", function (event) {
@@ -898,8 +1007,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                     return;
                 }
             }
-            xGM_setValue(lastChatKey, JSON.stringify(entry));
-            xGM_setValue(verifyChatKey, JSON.stringify(entry));
+            GM_setValue(lastChatKey, JSON.stringify(entry));
+            GM_setValue(verifyChatKey, JSON.stringify(entry));
 
             // Push prevEntry onto queue of last 'X' saved chats, so
             // when the YATA half loads it can load last historyLimit chats
@@ -907,7 +1016,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
             let list = tmp ? JSON.parse(tmp) : [];
             list.push(entry);
             if (list.length > options.historyLimit) list.shift();
-            xGM_setValue(pubLastChatKey, JSON.stringify(list));
+            GM_setValue(pubLastChatKey, JSON.stringify(list));
         }
 
         if (options.dbEnable == false || !options.dbEnable) return;
@@ -932,7 +1041,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/CrossDomainChat/Tor
                      channel: "ping_channel",
                      ts: (new Date().getTime())};
 
-        xGM_setValue(lastChatKey, JSON.stringify(entry));
+        GM_setValue(lastChatKey, JSON.stringify(entry));
     }
 
     function dbWriteArray(messageArray) {
