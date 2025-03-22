@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -44,6 +44,7 @@
         GM_setValue("updateOpts", false);
     }
 
+    const secsInDay = 60 * 60 * 24;
     const innerFlexHeight = 60;
     var intTimer = 0;    
     var inHospital = false;
@@ -51,6 +52,7 @@
     var minimized = false;
     var lastStateRestored = false;
     var lastDisplaySize = GM_getValue("lastDisplaySize", undefined);
+    const fmt_nn = function(x) {if (x < 10) return ("0" + x + ":"); else return (x + ":");}
 
     function getHospTimerDiv() {
         const bgClass = (transparentBackground == true) ? "xbgt" : "xbgb-var";
@@ -143,7 +145,9 @@
         if (inHospital == true) {
             let date2 = new Date(null);
             date2.setSeconds(altSecs);
+            let days = parseInt(altSecs / secsInDay);
             let secDiffStr2 = date2.toISOString().slice(11, 19);
+            if (days > 0) secDiffStr2 = fmt_nn(days) + secDiffStr2;
             $("#hosptime").text(secDiffStr2);
         } else {
             $("#hosptime").text("00:00:00");
