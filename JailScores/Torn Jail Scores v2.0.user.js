@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.25
+// @version      2.27
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -81,6 +81,14 @@
     const recordStats = true;
     var firstSort = true;
 
+    var doingReload = false;
+    var reloadStart;
+    var forceReloadPageNum = 0;
+    var forcedPageReload = false;
+    var playerCount = 0;
+    var hiddenPlayers = 0;
+    var totalPlayers = 0;
+
     // ms between calls to the API to check/recalculate penalty.
     // Eventually refine and recalc on any new bust w/o an API call, but
     // will be tricky to factor in decay (I think....)
@@ -104,6 +112,8 @@
     var extraExtraDebug = GM_getValue("extraExtraDebug", false);
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
     loggingEnabled = GM_getValue("loggingEnabled", true);
+    const debugPastBusts = GM_getValue("debugPastBusts", false);
+    const debugPenalty = GM_getValue("debugPenalty", false);
 
     // DO NOT EDIT!
     const MAIN_DIV_ID = "xd1";
@@ -241,7 +251,7 @@
     const c = 0.1;
     function getPenalty(p0, t) {
         let penalty_t =  (t >= 72) ? 0 : (p0 / (1 + (c * t)));
-        debug('[getPenalty] p0: ', p0, ' t: ', t, ' Penalty: ', penalty_t);
+        if (debugPenalty == true) debug('[getPenalty] p0: ', p0, ' t: ', t, ' Penalty: ', penalty_t);
         return penalty_t;
     }
 
@@ -697,7 +707,7 @@
     const oldestTimeMinutes = 72 * 60; // 72 hours, in minutes.
     function processPastBusts(obj) {
         pastBustsStats.length = 0;
-        debug('[processPastBusts]');
+        if (debugPastBusts == true) debug('[processPastBusts]');
         let timeNow = obj.timestamp; // In seconds since epoch
         let bustLog = obj.log;
         let keys = Object.keys(bustLog);
@@ -708,8 +718,10 @@
             let entry = bustLog[key];
             let ageMinutes = Math.ceil((timeNow - entry.timestamp) / 60); // Minutes
             if (ageMinutes > oldestTimeMinutes) break; // Older than 72 hours, doesn't matter.
-            debug('Entry: ', entry);
-            debug('Time: ', ageMinutes + ' minutes ago.');
+            if (debugPastBusts == true) {
+                debug('Entry: ', entry);
+                debug('Time: ', ageMinutes + ' minutes ago.');
+            }
 
             let indPenalty = getPenalty(getP0(), ageMinutes/60);
             totalPenalty += indPenalty;
@@ -729,8 +741,10 @@
             if (totalPenalty > hi) GM_setValue("p0hi", round2(totalPenalty));
         }
 
-        debug('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
-        debug('pastBustsStats: ', pastBustsStats);
+        if (debugPastBusts == true) {
+            debug('Total penalty: ', round2(totalPenalty), ' p0:', getP0());
+            debug('pastBustsStats: ', pastBustsStats);
+        }
 
         addLogEntry(pastBustsStats, 'OLDBUST');
 
@@ -814,15 +828,19 @@
                                 fillJailStatsDiv();
 
                                 let currBustsToday = 0;
-                                if (dateOlderThanDay) {
+                                //if (dateOlderThanDay) {
+                                if (isToday() == false) {
                                     currBustsToday = 1;
                                 } else {
                                     currBustsToday = GM_getValue("currBusts", 0) + 1;
                                 }
 
+
                                 GM_setValue("currBusts", currBustsToday);
                                 setTodaysBusts(currBustsToday);
                                 $("#daily-busts").text(/*"Today's busts: " +*/ GM_getValue("currBusts", 0));
+
+                                debug("Setting current busts: ", dateOlderThanDay, currBustsToday, GM_getValue("currBusts", 0));
 
                                 // Try to adjust add'l penalty on the fly....
                                 if (enablePreRelease && livePenaltyUpdate) {
@@ -895,20 +913,41 @@
 
     // Move to helper lib!!!
     function isToday(date) {
+
         const now = new Date();
 
-        const yearDate = date.getYear();
-        const monthDate = date.getMonth();
-        const dayDate = date.getDate();
+        const yearDate = date  ? date.getYear() : 0;
+        const monthDate = date ? date.getMonth() : 0;
+        const dayDate = date ? ((tzDisplay == 'local') ? date.getDate() : date.getUTCDate()) : 0;
 
         const yearNow = now.getYear();
         const monthNow = now.getMonth();
-        const dayNow = now.getDate();
+
+        const dayNow = (tzDisplay == 'local') ? now.getDate() : now.getUTCDate();
+
+        let savedDay = GM_getValue("savedDay", -1);
+
+        debug("*** isToday: ", (new Date().toString()));
+        debug("*** isToday, saved: ", savedDay, " dayNow: ", dayNow);
+        if (savedDay == -1) {
+            savedDay = dayNow;
+            GM_setValue("savedDay", dayNow);
+        }
 
         let rc = false;
-        if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
+        if (date) {
+            if (dayDate == dayNow) rc = true;
+        } else if (savedDay == dayNow) {
             rc = true;
+        } else {
+            GM_setValue("savedDay", dayNow);
         }
+
+        debug("*** isToday, saved: ", GM_getValue("savedDay", -1), " date: ", dayDate, " now: ", dayNow, " result: ", rc);
+
+        //if (yearDate === yearNow && monthDate === monthNow && dayDate === dayNow) {
+        //    rc = true;
+        //}
 
         return rc;
     }
@@ -1550,17 +1589,18 @@
         let temp = GM_getValue("lastBust", undefined);
         if (temp) {
             let lastBust = new Date(parseInt(temp, 10));
-            debug("lastBust: ", lastBust.toLocaleString());
-            if (useLocal? !isToday(lastBust) : !isTodayUTC(lastBust)) {
+            debug("*** lastBust: ", lastBust.toLocaleString());
+            //if (useLocal? !isToday(lastBust) : !isTodayUTC(lastBust)) {
+            if (!isToday(lastBust)) {
                 setTodaysBusts(0);
-                debug("setTodaysBusts(0) - 1");
+                debug("*** setTodaysBusts(0) - 1");
             } else {
                 setTodaysBusts(GM_getValue("currBusts", 0));
-                debug("setTodaysBusts(0) - 2");
+                debug("*** setTodaysBusts(0) - 2");
             }
         } else {
             setTodaysBusts(0);
-            debug("setTodaysBusts(0) - 3");
+            debug("*** setTodaysBusts(0) - 3");
         }
 
         // TEMP: set timer to update text for penalty/busts, won't need later
@@ -1910,6 +1950,8 @@
     }
 
     function setTodaysBusts(numBusts) {
+        debug("setTodaysBusts: ", numBusts);
+
         /*
         let msg = "(Today: " + numBusts +  ")";
         if (enablePreRelease && dispPenalty)
@@ -2007,14 +2049,6 @@
     const activePageSel = "div.gallery-wrapper.pagination > a.page-show.active";
     const lastPageSel = "a.page-number.page-show.last";
 
-    var doingReload = false;
-    var reloadStart;
-    var forceReloadPageNum = 0;
-    var forcedPageReload = false;
-    var playerCount = 0;
-    var hiddenPlayers = 0;
-    var totalPlayers = 0;
-
     // Actual fast reload call
     function reloadUserList(event) {
         debug("reloadUserList, page (1): ", forceReloadPageNum);
@@ -2097,7 +2131,7 @@
     }
 
     function doLastPageJump() {
-        debug("doLastPageJump");
+        debug("doLastPageJump, totalPlayers: ", totalPlayers);
 
         if (!DEV_MODE || !optTryLastPages) {
             debug("Jumping not allowed!");
@@ -2113,21 +2147,24 @@
 
             if ($(clickBtn).length == 0 || $(currPgBtn).length == 0) {
                 log("Cant find page buttons");
-                debugger;
+                //debugger;
                 return false;
             }
 
             let lastPageNum = $(lastPgBtn).attr("page");
             let thisPageNum = $(currPgBtn).attr("page");
 
+            debug("Pages: ", thisPageNum, " | ", lastPageNum);
+            debug("currPgBtn: ", $(currPgBtn));
+            debug("clickBtn: ", $(clickBtn));
+
+            $(clickBtn).css("border", "1px solid green");
+            $(clickBtn).css("color", "limegreen");
+
             if (lastPageNum == thisPageNum) {
                 debug("On last page already! Pages: ", thisPageNum, "|", lastPageNum);
                 return false;
             }
-
-            debug("Pages: ", thisPageNum, " | ", lastPageNum);
-            debug("currPgBtn: ", $(currPgBtn));
-            debug("clickBtn: ", $(clickBtn));
 
             // Note: this doesn't do scores!!!!
             if (confirm("Jump to last page?")) {
@@ -2225,13 +2262,13 @@
     // ============================ Fast reload call on ajax response =====================
 
     var timerOn;
-    function blinkButtons(turnOn=false) {
-        let color = 'xlg';
+    function blinkButtons(turnOn=false, altColor) {
+        let color = altColor ? altColor : 'xlg';
         if (turnOn == true) {
             $("#xedx-reload-btn").addClass(color);
             $("#xedx-reload-btn2").addClass(color);
             $("#xedx-quick-bust-btn").addClass(color);
-            if (!timerOn) setTimeout(blinkButtons, 100);
+            if (!timerOn) setTimeout(blinkButtons, 200, false, color);
             timerOn = true;
         } else {
             timerOn = undefined;
@@ -2247,13 +2284,22 @@
         let targetUl = $(targetUlSel);
         let jsonObj = JSON.parse(response);
 
-        // Just to indicate the response, flash the text yellow...
-        if (blinkOnSuccess == true) blinkButtons(true);
+        // Just to indicate the response, flash the text green...
+        if (blinkOnSuccess == true) {
+            if (jsonObj.success == true)
+                blinkButtons(true);
+            else {
+                debugger;
+                blinkButtons(true, "xred");
+            }
+        }
 
         if (jsonObj.success == true) {
             let players = jsonObj.data.players;
             playerCount = players ? players.length : 0;
-            totalPlayers = jsonObj.data.total;
+            totalPlayers = jsonObj.total;
+
+            debug("*** Response: ", jsonObj);
 
             // Set counter on bar, not updated automatically
             // Why plus 1??
@@ -2277,6 +2323,11 @@
                      observerOff();
                  }
                  return;
+            }
+
+            if (!totalPlayers) {
+                debug("json: ", jsonObj);
+                debugger;
             }
 
             // Handle not on last page - which is where the easiest to bust are.
@@ -2916,6 +2967,7 @@
             .xyt {color: yellow !important; border: 1px solid yellow; filter: brightness(1.6);}
             .xbt {color: blue !important; border: 1px solid blue; filter: brightness(1.6);}
             .xlg {color: limegreen !important;}
+            .xred {color: red !important;}
 
             .xod {
                 min-width: 784px;
