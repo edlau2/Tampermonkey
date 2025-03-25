@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.10
+// @version      1.11
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -103,7 +103,7 @@
         inHospital = amIinHosp();
         debug("checkHospStatus: ", inHospital, hideWhenOK);
         if (inHospital == false && hideWhenOK == true && hidden == false) {
-            if ($("#x-hosp-watch").length > 0) {
+            if ($("#x-hosp-watch").length > 0 || $("#hospTimer").length > 0) {
                 if (!hidden) handleHide();
             }
         }
@@ -117,7 +117,9 @@
         if (intTimer == 0)
             intTimer = setInterval(updateHospClock, 1000);
 
-        if ($("#x-hosp-watch").length == 0)
+        // Don't forget sidebar...
+        if ($("#x-hosp-watch").length == 0 ||
+           (displayOnSidebar == true && $("#hospTimer").length == 0))
             installUI();
 
         setTimeout(removeFlash, 1000);
@@ -243,11 +245,13 @@
     function handleHide() {
         debug("handleHide: ", hidden);
         $("#x-hosp-watch").css("display", "none");
+        $("#hospTimer").css("display", "none");
         hidden = true;
     }
 
     function handleShow() {
         $("#x-hosp-watch").css("display", "flex");
+        $("#hospTimer").css("display", "flex");
         hidden = false;
     }
 
