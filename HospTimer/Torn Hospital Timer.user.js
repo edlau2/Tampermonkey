@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.10
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
+// @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
@@ -30,9 +31,10 @@
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
     GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
 
-    const hideWhenOK = GM_getValue("hideWhenOK", true);
-    const blinkWhiteWhenOk = GM_getValue("blinkWhiteWhenOk", false);
-    const transparentBackground = GM_getValue("transparentBackground", false);
+    var hideWhenOK = GM_getValue("hideWhenOK", true);
+    var blinkWhiteWhenOk = GM_getValue("blinkWhiteWhenOk", false);
+    var transparentBackground = GM_getValue("transparentBackground", false);
+    var displayOnSidebar = GM_getValue("displayOnSidebar", true);
 
     // ====== Leave the rest alone, manipulated dynamically ======
 
@@ -41,6 +43,8 @@
         GM_setValue("hideWhenOK", hideWhenOK);
         GM_setValue("blinkWhiteWhenOk", blinkWhiteWhenOk);
         GM_setValue("transparentBackground", transparentBackground);
+        GM_setValue("displayOnSidebar", displayOnSidebar);
+
         GM_setValue("updateOpts", false);
     }
 
@@ -69,7 +73,7 @@
                             </div>
                         </div>
                         <div id="x-hosp-inner" class="x-hosp-inner-flex xresizeable-vert">
-                            <span id="hosptime" class="flash-grn hosp-txt">00:00:00</span>
+                            <span id="hosptime" class="xht flash-grn hosp-txt">00:00:00</span>
                         </div>
                     </div>
                 </div>
@@ -79,14 +83,15 @@
         return hospTimerDiv;
     }
 
-    function getSidebar() {
+    // Should be able to remove this now, in library...
+    function getSidebarData() {
         let key = Object.keys(sessionStorage).find(key => /sidebarData\d+/.test(key));
         let sidebarData = JSON.parse(sessionStorage.getItem(key));
         return sidebarData;
     }
 
     function amIinHosp() {
-        let data = getSidebar();
+        let data = getSidebarData();
         let icons = data.statusIcons.icons;
         let hosp = icons.hospital;
 
@@ -119,14 +124,12 @@
     }
 
     function removeFlash() {
-        if ($("#hosptime").hasClass("flash-grn"))
-            $("#hosptime").removeClass("flash-grn");
-        if ($("#hosptime").hasClass("flash-wht"))
-            $("#hosptime").removeClass("flash-wht");
+        $(".xht").removeClass("flash-grn");
+        $(".xht").removeClass("flash-white");
     }
 
     function getSecsUntilOut() {
-        let data = getSidebar();
+        let data = getSidebarData();
         let icons = data.statusIcons.icons;
         let hosp = icons.hospital;
         if (!hosp) {
@@ -148,9 +151,9 @@
             let days = parseInt(altSecs / secsInDay);
             let secDiffStr2 = date2.toISOString().slice(11, 19);
             if (days > 0) secDiffStr2 = fmt_nn(days) + secDiffStr2;
-            $("#hosptime").text(secDiffStr2);
+            $(".xht").text(secDiffStr2);
         } else {
-            $("#hosptime").text("00:00:00");
+            $(".xht").text("00:00:00");
             if (blinkWhiteWhenOk == true) flashWhite();
         }
     }
@@ -175,6 +178,14 @@
 
     function installUI(retries) {
         debug("[installUI]");
+
+        if (displayOnSidebar == true) {
+            if ($("#hospTimer").length == 0) {
+                let parentSelector = makeXedxSidebarContentDiv('hospTimer');
+                $(parentSelector).append(getHospSidebarDiv());
+                $(parentSelector).css("padding", "0px");
+            }
+        }
 
         // Make the window
         let hospTimerDiv = getHospTimerDiv();
@@ -202,17 +213,23 @@
         if (inHospital == false && hideWhenOK == true && hidden == false) {
             if (!hidden) handleHide();
         }
+
+        function getHospSidebarDiv() {
+            return `<div id="hospTimer">
+                        <span>Hosp: </span><span class="xht">00:00:00</span>
+                    </div>`;
+        }
     }
 
     // Let these take a selector, and move to lib....
     function flashGreen() {
         removeFlash();
-        $("#hosptime").addClass("flash-grn");
+        $(".xht").addClass("flash-grn");
     }
 
     function flashWhite() {
         removeFlash();
-        $("#hosptime").addClass("flash-wht");
+        $(".xht").addClass("flash-wht");
     }
 
     function handleMinimize() {
@@ -280,6 +297,22 @@
         addCursorMovingStyles();
         addCursorStyles();
         addMinimizeStyles();
+
+        // Sidebar div
+        GM_addStyle(`
+            #hospTimer { display: flex; position: relative; }
+
+            #hospTimer span {
+                align-content: center;
+                display: flex;
+                flex-flow: row wrap;
+                padding: 3px;
+                font-size: 14px;
+                width: 90%;
+            }
+            #hospTimer span:first-child { justify-content: center;}
+            #hospTimer span:nth-child(2) { justify-content: left;}
+        `);
 
         GM_addStyle(`
              .x-hosp-wrap {
@@ -381,7 +414,6 @@
 
     logScriptStart();
 
-    if (isAttackPage()) return log("Won't run on attack page!");
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
     versionCheck();
