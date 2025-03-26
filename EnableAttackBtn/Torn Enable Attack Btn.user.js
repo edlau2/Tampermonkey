@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Enable Attack Btn
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Enable disabled attack btn on profile page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/profiles.php?XID=*
@@ -32,6 +32,24 @@
     // not terribly accurate
     var timeLeftLimit  = GM_getValue("timeLeftLimit", 4.5);         // Enable button when this many seconds remain...
 
+    // 'States' the button may be in, indicated by color
+    const waitingStateColor = "1px solid rgba(255, 0, 0, .7)";      // Click will turn green so next click goes to page
+    const activatedStateColor = "1px solid rgba(0, 200, 0, .5)";    // Activated, click goes to attack loader page
+    const activeWarningStateColor = "1px solid rgba(0, 255, 0, .8)";  // Active and at warning seconds
+    const svgWarningStateColor = "rgba(0, 255, 0, .6)";
+
+    GM_addStyle(`
+        .wait-state {
+            border: ${waitingStateColor};
+        }
+        .active-state {
+            border: ${activatedStateColor};}
+    `);
+
+    const btnState =
+          Object.freeze({ UNMODIFIED: 'unmodified', WAITING: 'waiting', ACTIVE: 'active', WARNING: 'warning'});
+    var currBtnState = btnState.UNMODIFIED;
+
     var inHospital = false;
     var statusValid = false;
     var waitingForStatus = false;
@@ -47,14 +65,14 @@
 
     // Checkbox options
     var options = {
-        enableAttack: GM_getValue("enableAttack", false),
-        enableAt: GM_getValue("enableAt", false),
-        enableContext: GM_getValue("enableContext", false),
-        enableNow: GM_getValue("enableNow", false)
+        enableBtn: GM_getValue("enableBtn", true),    // Button will be enabled or not
+        warnAt: GM_getValue("warnAt", true),
+        //enableContext: GM_getValue("enableContext", false),
+        enableNow: GM_getValue("enableNow", false),
+        newTab: GM_getValue("newTab", false)
     }
+    writeOptions();
 
-    const allowGoOnGreen = true;
-    var goOnGreen = false;              // experimental...
     const statusCheckInt = 1000;        // Initially, check status every 1 sec
 
     logScriptStart();
@@ -66,8 +84,10 @@
           `url(#linear-gradient-dark-mode)` :
           `rgba(153, 153, 153, 0.4)`;
     const btnSel = "#button0-profile-" + XID;
+    const svgSel = "#button0-profile-" + XID + " > svg";
     const url = `https://www.torn.com/profiles.php`;
     const userHref = `https://www.torn.com/loader.php?sid=attack&user2ID=${XID}`;
+    var btnClone;
 
     const reqData = {step: 'getProfileData', XID: XID, rfcv: rfcv};
 
@@ -76,27 +96,49 @@
 
     callOnContentLoaded(handlePageLoad);
 
-    function handleRightClick() {
-        openInNewTab(userHref);
+    function goToAttackPg(e) {
+        if (options.newTab == true)
+            openInNewTab(userHref);
+        else
+            window.location.href = userHref;
         return false;
     }
 
-    function activateBtn() {
-        debug("activateBtn");
-        $(btnSel).off('click.xedx');
-        $(btnSel).css("border", "1px solid rgba(0,255,0,1)");
-        $(btnSel).addClass("alert-on");
-        $(btnSel).on('click', function(e) {
-            window.location.href = userHref;
-            return false;
-        });
-        if (goOnGreen == true)
-            window.location.href = userHref;
+    function restoreBtn() {
+        $(btnSel).replaceWith($(btnClone));
+        btnClone = null;
     }
 
+    // Fully activate the button - clicking will go to loader.
+    function activateBtn(e) {
+        debug("activateBtn");
+        $(btnSel).off();
+        $(btnSel).css("border", activatedStateColor);
+        $(btnSel).removeClass("wait-state");
+        $(btnSel).addClass("active-state");
+
+        log("Activate: state: ", currBtnState);
+        log("btn: ", $(btnSel));
+        log("svg: ", $(svgSel));
+        if (currBtnState == btnState.WARNING) {
+            log("Adding warning animations");
+            $(btnSel).addClass("alert-on");
+
+            let svgElement = $(svgSel)[0]; // Get the raw DOM element
+            log("svg el: ", svgElement);
+            if (svgElement) svgElement.classList.add('svg-alert-on');
+        }
+
+        $(btnSel).on('click', goToAttackPg);
+        currBtnState = btnState.ACTIVE;
+    }
+
+    // Enable the button, but does not fully enable yet. A click is stiil
+    // required to go fully active - unless the enableNow ("Immediate")
+    // option is on.
     var statusInt = 0;
-    function go() {
-        debug("go, statusValid: ", statusValid, " waiting: ", waitingForStatus, " in hosp: ", inHospital);
+    function enableButton() {
+        debug("enableButton, statusValid: ", statusValid, " waiting: ", waitingForStatus, " in hosp: ", inHospital);
         if (statusValid == false) {
             waitingForStatus = true;
             return;
@@ -104,41 +146,38 @@
         waitingForStatus = false;
 
         let btn = $(btnSel);
-        debug("Attack btn: ", $(btn), " has class: ", $(btn).hasClass('disabled'));
-        debug("selector: $('" + btnSel + "')");
-        let cl = getClassList($(btn));
-        debug("Class list: ", cl);
+        if ($(btn).length > 0 && !$(btnClone).length) {
+            btnClone = $(btn).clone();
+            debug("Saving clone: ", $(btnClone));
+        }
 
         debug("$(btn).length: ", $(btn).length, " $(btn).hasClass('disabled'): ", $(btn).hasClass('disabled'));
         if ($(btn).length > 0 && $(btn).hasClass('disabled') == true) {
-
-            debug("**** Editing btn: ", $(btn));
-
             let svg = $(btn).find("svg");
             $(btn).removeClass('disabled');
             $(btn).addClass('active');
             $(btn).removeAttr('aria-disabled');
             $(btn).removeAttr('href');
 
-            $(btn).find("svg").css('fill', fillColor);
-            $(btn).css("border", "1px solid red");
+            $(svg).css('fill', fillColor);
 
-            if (allowGoOnGreen == true) {
-                $(btn).on('click.xedx', function() {
-                    debug("on click, adding greem");
-                    $(btnSel).css("border", "1px solid green");
-                    goOnGreen = true;}
-                );
-            }
+            $(btn).css("border", waitingStateColor);
+            $(btn).addClass("wait-state");
+            currBtnState = btnState.WAITING;
 
-            $(btn).on('contextmenu', handleRightClick);
+            $(btn).off();
+            $(btn).on('click', activateBtn);
+
+            // Fully activate if that option is on.
+            if (options.enableNow)
+                activateBtn();
 
             getStatus();
             return;
         }
         if ($(btn).length > 0) return;
 
-        setTimeout(go, 250);
+        setTimeout(enableButton, 250);
     }
 
     function getSecsAndAdjust(time) {
@@ -185,10 +224,12 @@
                       }
 
                       statusValid = true;
-                      if (waitingForStatus == true) go();
+                      if (waitingForStatus == true) enableButton();
 
-                      if (remainsMs < timeLeftLimit*1000) {
+                      if (remainsMs < timeLeftLimit*1000) {// && options.warnAt == true) {
                           debug("Activating at ", rc.diffMs/1000, " seconds");
+                          if (options.warnAt == true)
+                              currBtnState = btnState.WARNING;
                           activateBtn();
                           return;
                       }
@@ -198,7 +239,7 @@
                       //activateBtn();
                   }
                   statusValid = true;
-                  if (waitingForStatus == true) go();
+                  if (waitingForStatus == true) enableButton();
               }
           },
           error: function(error) {log("Error: ", error);}
@@ -214,14 +255,21 @@
                display: inline-flex;
            }
            .alert-on {
-               animation: blinker .5s step-end infinite alternate;
+               animation: btn-blink .5s step-end infinite alternate;
            }
 
-           @keyframes blinker {
-               50% {border: 1px solid rgba(0,255,0,.2);}
+           @keyframes btn-blink {
+               0%, 100% {border: ${activatedStateColor};}
+               50% {border: ${activeWarningStateColor};}
+           }
+           .svg-alert-on {
+               animation: svg-blink .5s step-end infinite alternate;
+           }
+           @keyframes svg-blink {
+               50% {fill: ${svgWarningStateColor};}
            }
            #xtime {
-               width: 30px;
+               width: 36px;
                border-radius: 4px;
                margin: 0px 6px 0px;
                padding-left: 4px;
@@ -287,11 +335,11 @@
 
         const newDiv = `<div id="eab" class="time-wrap">
                             <table><tbody><tr>
-                                <td><label>Btn enable: <input class="cdc-cb" type="checkbox" name="enableAttack"></label></td>
-                                <td class="xfes"><label>Immediate: <input class="cdc-cb" type="checkbox" name="enableNow"></label></td>
-                                <td class="xfes"><label>Context: <input class="cdc-cb" type="checkbox" name="enableContext"></label></td>
-                                <td class="xfes"><label>Go at<input type="number" id="xtime" value="${timeLeftLimit}"></label></td>
-                                <td class="xfes"><label>secs<input class="cdc-cb" type="checkbox" name="enableAt"></label>
+                                <td><label>Btn enable: <input class="cdc-cb" type="checkbox" name="enableBtn"></label></td>
+                                <td class="xfes"><label>Always On: <input class="cdc-cb" type="checkbox" name="enableNow"></label></td>
+                                <td class="xfes"><label>New tab: <input class="cdc-cb" type="checkbox" name="newTab"></label></td>
+                                <td class="xfes"><label>Warn at<input type="number" id="xtime" value="${timeLeftLimit}"></label></td>
+                                <td class="xfes"><label>secs<input class="cdc-cb" type="checkbox" name="warnAt"></label>
                             </tr></tbody></table>
                         </div>`;
 
@@ -299,7 +347,7 @@
         $(hdr).css("flex-flow", "row wrap");
         $(hdr).append(newDiv);
 
-        if (options.enableAttack == true)
+        if (options.enableBtn == true)
             $(".xfes").css("display", "table-cell");
         else
             $(".xfes").css("display", "none");
@@ -309,7 +357,6 @@
         $("#xtime").on('change', function() {
             timeLeftLimit = $("#xtime").val();
             GM_setValue("timeLeftLimit", timeLeftLimit);
-            debug("New xtime value: ", timeLeftLimit);
         });
 
         // init checkboxes
@@ -323,14 +370,26 @@
         // Checkbox handlers
         $(".cdc-cb").on('click', function (e) {
             let key = $(this).attr('name');
+            let checked = $(this).prop('checked');
             updateOption(key, $(this).prop('checked'));
 
-            if (options.enableAttack == true)
+            if (key == 'enableNow' && checked == true) {
+                activateBtn();
+            }
+
+            if (key == 'enableBtn') {
+                if (options.enableBtn == true) {
+                    enableButton();
+                } else {
+                    restoreBtn();
+                }
+            }
+
+            if (options.enableBtn == true)
                 $(".xfes").css("display", "table-cell");
             else
                 $(".xfes").css("display", "none");
 
-            log("Opt change: (", $(this).attr('name'), ")");
             logOptions();
         });
 
@@ -342,7 +401,7 @@
     function handlePageLoad() {
         addStyles();
         installUI();
-        go();
+        if (options.enableBtn == true) enableButton();
     }
 
 })();
