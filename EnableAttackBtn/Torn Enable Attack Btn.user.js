@@ -105,6 +105,7 @@
     }
 
     function restoreBtn() {
+        if (!btnClone || !$(btnClone).length) return;
         $(btnSel).replaceWith($(btnClone));
         btnClone = null;
     }
