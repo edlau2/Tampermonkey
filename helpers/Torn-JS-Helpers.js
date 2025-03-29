@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.05
+// @version     2.46.07
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.05";
+const thisLibVer = "2.46.06";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -154,11 +154,11 @@ function queryUserId(callback, retries=0) {
 // userIds = [1234, 5678, ....];
 // callback sig: myCallback(jsonData)
 // jsonData, for example: {1446944: 'offline', 2100735: 'online', 2603798: 'offline'}
-function getStatusForUserArray(userIds, callback) {
+function getStatusForUserArray(userIds, callback, options) {
     const statusURL = "https://www.torn.com/chat/online-status";
     var reqCb = callback;
     function localCb(response, status, xhr) {
-        if (reqCb) reqCb(response);
+        if (reqCb) reqCb(response, options);
     }
 
     function doPost(URL, postData, optCallback) {
@@ -426,6 +426,7 @@ function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&us
 function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
 function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
 function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
+function isHospPage() {return (location.href.indexOf("hospital.php") > -1)}
 function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
 function isPointsPage() {return (location.href.indexOf("page.php?sid=points") > -1)} //https://www.torn.com/page.php?sid=points
 function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
@@ -1696,7 +1697,7 @@ function startSavingPos(interval, outerDivId, stayInWindow) {
 }
 
 //
-// Functions to attach a context menu to an element.
+// Functions to attach a context menu to an element. Don't forget 'addContextStyles()'!
 
 // 'selector' is the elemt to handle the right-click.
 // 'menuID' is the ID of the menu.
@@ -2106,6 +2107,7 @@ function addButtonStyles() {
             cursor: pointer;
             background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
             width: 20px;
+            height: 20px;
             aspect-ratio: 1 / 1;
             border-radius: 50%;
         }
@@ -2602,6 +2604,12 @@ function addFlexStyles() {
             display: flex;
             flex-flow: row wrap;
         }
+        .xflexr-center {
+            display: flex;
+            flex-flow: row wrap;
+            align-content: center;
+            justify-content: center;
+        }
         .xflex-center {
             align-content: center;
             justify-content: center;
@@ -2795,17 +2803,23 @@ function loadMiscStyles() {
            top: 0px;
            position: sticky;
        }
+       .xedx-caret {
+           padding-top:5px;
+           padding-bottom:5px;
+           padding-left:20px;
+           padding-right:10px;
+       }
 
-        .w20p {width: 20%;}
-        .w25p {width: 25%;}
-        .w30p {width: 30%;}
-        .w35p {width: 35%;}
-        .w40p {width: 40%;}
-        .w45p {width: 45%;}
-        .w50p {width: 50%;}
-        .w60p {width: 60%;}
-        .w70p {width: 70%;}
-        .w80p {width: 80%;}
+       .w20p {width: 20%;}
+       .w25p {width: 25%;}
+       .w30p {width: 30%;}
+       .w35p {width: 35%;}
+       .w40p {width: 40%;}
+       .w45p {width: 45%;}
+       .w50p {width: 50%;}
+       .w60p {width: 60%;}
+       .w70p {width: 70%;}
+       .w80p {width: 80%;}
     `);
 }
 
