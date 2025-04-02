@@ -1,13 +1,16 @@
 // ==UserScript==
-// @name         Torn Quick Flight
+// @name         Torn One Mile Club
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
+// @version      1.2
+// @description  This script adds a sidebar menu to jump to the Travel Agency
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -19,22 +22,15 @@
 (function() {
     'use strict';
 
-    const clickTravel = true;
-    const debugLoggingEnabled = false;
+    var clickTravel = GM_getValue("clickTravel", true);
+    var clickConfirm = GM_getValue("clickConfirm", false);
 
-    const xedx_addStyle = function(styles) {
-        (typeof GM_addStyle != "undefined") ?
-            GM_addStyle(styles) :
-            (styles) => {
-                const styleElement = document.createElement("style");
-                styleElement.setAttribute("type", "text/css");
-                styleElement.innerHTML = styles;
-                document.head.appendChild(styleElement);
-            }
-    };
+    debugLoggingEnabled =
+        GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
 
-    function log(...data) {console.log('Torn Quick Flight: ', ...data);}
-    function debug(...data){if (debugLoggingEnabled == true) log(...data);}
+    GM_setValue("clickTravel", clickTravel);
+    GM_setValue("clickConfirm", clickConfirm);
+    GM_getValue("debugLoggingEnabled", debugLoggingEnabled);
 
     const searchParams = new URLSearchParams(window.location.search);
 
@@ -54,6 +50,8 @@
     var sidebarParentSel;
     var destinationLinks;
 
+    function hashChangeHandler() {callOnContentLoaded(handlePageLoad);}
+    function pushStateChanged(e) {callOnContentLoaded(handlePageLoad);}
     function getTravelLinks() {return $("[class^='destinationLabel_'] > input");}
     function atTravelAgency() {return location.href.indexOf('sid=travel') > -1;}
     function getConfirmBtn(retries=0) {return $("#travel-root > [class*='destinationPanel__'] > div > div > [class^='buttons_'] > button.torn-btn.btn-dark-bg");}
@@ -86,31 +84,20 @@
         return false;
     }
 
-    // Just a helper cut-and-pasted from my helper lib,
-    // so PDA compatible and don't need lib
-    function makeXedxSidebarContentDiv(elemId) {
-        let newElemId = "x-scrollbar-content" + (elemId ? ("-" + elemId) : "");
-        let selector = '#'+ newElemId;
-        if ($(selector).length > 0) return selector;
-        let node = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]:not([id^="x-scroll"])');
-        if ($(node).length < 1) return;
-
-        let clone = $($(node)[0]).clone();
-        $(clone).children().remove();
-        $(node).after(clone);
-        $(clone).attr("id", newElemId);
-        return selector;
-    }
-
+    // Called after travel btn clicked
     function handleTravelBtnClicked(retries=0) {
         let btn = getConfirmBtn();
         if (!$(btn).length) {
             if (retries++ < 20) return setTimeout(handleTravelBtnClicked, 200, retries);
             return log("handleTravelBtnClicked: too many retries");
         }
-        $(btn).css("border", "1px solid limegreen");
+        if (clickConfirm == true)
+            $(btn).click();
+        else
+            $(btn).css("border", "1px solid limegreen");
     }
 
+    // Called after dest country icon clicked
     function handleDestClicked(retries = 0) {
         let btn = getTravelBtn();
         if (!$(btn).length) {
@@ -135,6 +122,10 @@
         handleDestClicked();
     }
 
+    // Handle clicking a country in the list. If on
+    // the travel agency page, can click the destination button.
+    // If not, need to go to the page and then select it, so
+    // pass the country in the URL
     function handleCountryClick(e) {
         let target = $(e.currentTarget);
         let dest = $(target).attr('data-ctry');
@@ -191,25 +182,27 @@
     }
 
     //////////////////////////////////////////////////////////////////////
-    // Main entry point.
+    // Main.
     //////////////////////////////////////////////////////////////////////
 
-    log("Script started!");
+    logScriptStart();
+
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
+
+    versionCheck();
 
     addStyles();
 
-    if (document.readyState == 'loading') {
-        document.addEventListener('DOMContentLoaded', handlePageLoad);
-    } else {
-        handlePageLoad();
-    }
+    callOnHashChange(hashChangeHandler);
+    installPushStateHandler(pushStateChanged);
+    callOnContentLoaded(handlePageLoad);
 
     // ==================== UI stuff down here, out of the way ===================
 
     function getSidebarDiv() {
         let div = `
-            <div id="xtravelbar" style='display: flex; flex-direction: column;'>
-                <div style="display: flex; flex-flow: row wrap;">
+            <div id="xtravelbar" class='xflexc'>
+                <div class="xflexr">
                     <span class="t-title">Travel</span>
                     <span class="xcaret-wrap" style="float:right;">
                         <i id="xtrav-cs" class="icon fas fa-caret-down xedx-tcaret"></i>
@@ -226,9 +219,9 @@
     }
 
     function addStyles() {
-        //addFlexStyles();
+        addFlexStyles();
 
-        xedx_addStyle(`
+        GM_addStyle(`
             .xedx-tcaret {
                 padding-top:5px;
                 padding-bottom:5px;
