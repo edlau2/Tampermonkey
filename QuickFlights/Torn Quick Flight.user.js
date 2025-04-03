@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.51
+// @version      1.6
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
