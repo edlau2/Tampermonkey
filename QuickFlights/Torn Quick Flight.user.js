@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -63,25 +63,28 @@
     var maxHeight;
     var inAnimate = false;
     function handleCaretClick(e) {
-        log("handleCaretClick: ", inAnimate);
+        log("handleCaretClick: ", $("#xtrav-cs").length, $("#xtrav-cs"));
         if (inAnimate == true) return;
         inAnimate = true;
 
         let closing = $("#xtrav-cs").hasClass("fa-caret-down");
         $("#xtrav-cs").toggleClass("fa-caret-down fa-caret-right");
 
-        log("handleCaretClick: ", $("#xtrav-cs"));
+        log("handleCaretClick: ", $("#xtrav-cs").length);
         log("handleCaretClick: closing: ", closing, $("#xtrav-cs").hasClass("fa-caret-down"));
 
         if (!closing) {
-            if (!savedUl) {return log("ERROR: no saved UL!!!");}
-            $("#ctry-list").append(savedUl);
+            //if (!savedUl) {return log("ERROR: no saved UL!!!");}
+            //$("#ctry-list").append(savedUl);
+            log("not closing: ", $(savedUl).length, $("#ctry-list > ul").length);
+            addDestinations();
         }
 
         $("#ctry-list > ul").animate({height: (closing ? "0px" : maxHeight)}, 500, function () {
             if (closing) {
                 $(sidebarParentSel).css("padding-bottom", "0px");
                 savedUl = $("#ctry-list > ul").detach();
+                log("closing: ", $(savedUl).length, $("#ctry-list > ul").length);
             } else {
                 $(sidebarParentSel).css("padding-bottom", "142px");
             }
@@ -154,15 +157,10 @@
         return false;
     }
 
-    function installUi(retries=0) {
-        log("installUI: ", $("#xtravelbar"));
-        if ($("#xtravelbar").length == 0) {
-            sidebarParentSel = makeXedxSidebarContentDiv('xtravelbar');
-            log("parent: ", $(sidebarParentSel));
-            $(sidebarParentSel).append(getSidebarDiv());
-            $(sidebarParentSel).css("padding", "0px");
-        }
-
+    function addDestinations() {
+        log("addDestinations");
+        $("#ctry-list").empty();
+        $("#ctry-list").append(`<ul id="xloc"></ul>`);
         let keys = Object.keys(destinations);
         for (let idx=0; idx<keys.length; idx++) {
             let country = keys[idx];
@@ -180,7 +178,44 @@
         let liH = $($("#xloc > li")[0]).height();
         if (!maxHeight) maxHeight = (countLi * liH) + "px";
 
-        log("installUI 2: ", $("#xtravelbar"));
+        log("addDestinations done: ",  $("#xloc").length);
+    }
+
+    function installUi(retries=0) {
+        log("installUI: ", $("#xtravelbar"));
+        if ($("#xtravelbar").length == 0) {
+            sidebarParentSel = makeXedxSidebarContentDiv('xtravelbar');
+            log("parent: ", $(sidebarParentSel));
+            $(sidebarParentSel).append(getSidebarDiv());
+            $(sidebarParentSel).css("padding", "0px");
+        }
+
+        addDestinations();
+
+        /*
+        let keys = Object.keys(destinations);
+        for (let idx=0; idx<keys.length; idx++) {
+            let country = keys[idx];
+            let data = destinations[country];
+            let li = `<li data-ctry="${data.icon}" data-idx="${data.idx}">
+                          <span><img class="flag" src="/images/v2/travel_agency/flags/fl_${data.icon}.svg"></span>
+                          <span>${country}</span>
+                      </li>`;
+            $("#xloc").append(li);
+        }
+        */
+
+        log("made list: ", keys.length, $("#xloc").length);
+
+        /*
+        $("#xloc > li").on('click', handleCountryClick);
+
+        let countLi = $("#xloc > li").length;
+        let liH = $($("#xloc > li")[0]).height();
+        if (!maxHeight) maxHeight = (countLi * liH) + "px";
+        */
+
+        log("installUI 2: ", $("#xtravelbar").length, $("#xloc").length);
 
         handleCaretClick();
 
