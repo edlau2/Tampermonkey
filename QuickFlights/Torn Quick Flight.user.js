@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -37,7 +37,6 @@
     function debug(...data){if (debugLoggingEnabled == true) log(...data);}
 
     const searchParams = new URLSearchParams(window.location.search);
-
     const destinations = { "Mexico": {fullName: "Mexico", icon: "mexico", idx: 0, std: "26min", pi: "18min", wlt: "13min", bct: "8min"},
                            "Caymans": {fullName: "Cayman Islands", icon: "cayman", idx: 1, std: "35min", pi: "25min", wlt: "18min", bct: "11min"},
                            "Canada": {fullName: "Canada", icon: "canada", idx: 2, std: "41min", pi: "29min", wlt: "20min", bct: "12min"},
@@ -60,23 +59,15 @@
     function getTravelBtn() {return $("#travel-root > [class*='destinationPanel__'] > div > div > div > div:nth-child(4) > button");}
 
     var savedUl;
-    var maxHeight;
+    const maxHeight = 176;
     var inAnimate = false;
     function handleCaretClick(e) {
-        log("handleCaretClick: ", $("#xtrav-cs").length, $("#xtrav-cs"));
         if (inAnimate == true) return;
         inAnimate = true;
 
         let closing = $("#xtrav-cs").hasClass("fa-caret-down");
         $("#xtrav-cs").toggleClass("fa-caret-down fa-caret-right");
-
-        log("handleCaretClick: ", $("#xtrav-cs").length);
-        log("handleCaretClick: closing: ", closing, $("#xtrav-cs").hasClass("fa-caret-down"));
-
         if (!closing) {
-            //if (!savedUl) {return log("ERROR: no saved UL!!!");}
-            //$("#ctry-list").append(savedUl);
-            log("not closing: ", $(savedUl).length, $("#ctry-list > ul").length);
             addDestinations();
         }
 
@@ -84,7 +75,6 @@
             if (closing) {
                 $(sidebarParentSel).css("padding-bottom", "0px");
                 savedUl = $("#ctry-list > ul").detach();
-                log("closing: ", $(savedUl).length, $("#ctry-list > ul").length);
             } else {
                 $(sidebarParentSel).css("padding-bottom", "142px");
             }
@@ -116,6 +106,7 @@
             if (retries++ < 20) return setTimeout(handleTravelBtnClicked, 200, retries);
             return log("handleTravelBtnClicked: too many retries");
         }
+        //$(btn).addClass('border-button');
         $(btn).css("border", "1px solid limegreen");
     }
 
@@ -158,9 +149,8 @@
     }
 
     function addDestinations() {
-        log("addDestinations");
         $("#ctry-list").empty();
-        $("#ctry-list").append(`<ul id="xloc"></ul>`);
+        $("#ctry-list").append(`<ul id="xloc" style="height: 0px;"></ul>`);
         let keys = Object.keys(destinations);
         for (let idx=0; idx<keys.length; idx++) {
             let country = keys[idx];
@@ -173,58 +163,28 @@
         }
 
         $("#xloc > li").on('click', handleCountryClick);
-
-        let countLi = $("#xloc > li").length;
-        let liH = $($("#xloc > li")[0]).height();
-        if (!maxHeight) maxHeight = (countLi * liH) + "px";
-
-        log("addDestinations done: ",  $("#xloc").length);
     }
 
     function installUi(retries=0) {
-        log("installUI: ", $("#xtravelbar").length);
+        debug("installUI: ", $("#xtravelbar").length);
         if ($("#xtravelbar").length == 0) {
             sidebarParentSel = makeXedxSidebarContentDiv('xtravelbar');
-            log("parent: ", $(sidebarParentSel).length);
+            debug("parent: ", $(sidebarParentSel).length);
             $(sidebarParentSel).append(getSidebarDiv());
             $(sidebarParentSel).css("padding", "0px");
         }
 
         addDestinations();
 
-
         let keys = Object.keys(destinations);
-        /*
-        for (let idx=0; idx<keys.length; idx++) {
-            let country = keys[idx];
-            let data = destinations[country];
-            let li = `<li data-ctry="${data.icon}" data-idx="${data.idx}">
-                          <span><img class="flag" src="/images/v2/travel_agency/flags/fl_${data.icon}.svg"></span>
-                          <span>${country}</span>
-                      </li>`;
-            $("#xloc").append(li);
-        }
-        */
-
-        log("made list: ", keys.length, $("#xloc").length);
-
-        /*
-        $("#xloc > li").on('click', handleCountryClick);
-
-        let countLi = $("#xloc > li").length;
-        let liH = $($("#xloc > li")[0]).height();
-        if (!maxHeight) maxHeight = (countLi * liH) + "px";
-        */
-
-        log("installUI 2: ", $("#xtravelbar").length, $("#xloc").length);
-
-        handleCaretClick();
+        debug("made list: ", keys.length, $("#xloc").length);
+        debug("installUI 2: ", $("#xtravelbar").length, $("#xloc").length);
 
         $("#xtrav-cs").on('click', handleCaretClick);
     }
 
     function handlePageLoad(retries=0) {
-        log("handlePageLoad");
+        debug("handlePageLoad");
         installUi();
 
         if (atTravelAgency()) {
@@ -258,7 +218,7 @@
                 <div style="display: flex; flex-flow: row wrap;">
                     <span class="t-title">Travel</span>
                     <span class="xcaret-wrap" style="float:right;">
-                        <i id="xtrav-cs" class="icon fas fa-caret-down xedx-tcaret"></i>
+                        <i id="xtrav-cs" class="icon fas fa-caret-right xedx-tcaret"></i>
                     </span>
                 </div>
                 <div id="ctry-list">
@@ -272,8 +232,6 @@
     }
 
     function addStyles() {
-        //addFlexStyles();
-
         xedx_addStyle(`
             .xedx-tcaret {
                 padding-top:5px;
@@ -329,6 +287,14 @@
             }
             #xloc li img {
                 padding-left: 10px;
+            }
+
+            .border-button {
+                animation: bblink 0.6s linear infinite;
+            }
+            @keyframes bblink {
+               0%, 100% {box-shadow: 0px 0px 0px 1px #007700;}
+               50%, 70% {box-shadow: 0px 0px 0px 1px #00ff00;}
             }
         `);
     }
