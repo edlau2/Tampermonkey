@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -63,16 +63,21 @@
     var maxHeight;
     var inAnimate = false;
     function handleCaretClick(e) {
+        log("handleCaretClick: ", inAnimate);
         if (inAnimate == true) return;
         inAnimate = true;
 
         let closing = $("#xtrav-cs").hasClass("fa-caret-down");
         $("#xtrav-cs").toggleClass("fa-caret-down fa-caret-right");
 
+        log("handleCaretClick: ", $("#xtrav-cs"));
+        log("handleCaretClick: closing: ", closing, $("#xtrav-cs").hasClass("fa-caret-down"));
+
         if (!closing) {
             if (!savedUl) {return log("ERROR: no saved UL!!!");}
             $("#ctry-list").append(savedUl);
         }
+
         $("#ctry-list > ul").animate({height: (closing ? "0px" : maxHeight)}, 500, function () {
             if (closing) {
                 $(sidebarParentSel).css("padding-bottom", "0px");
@@ -150,8 +155,10 @@
     }
 
     function installUi(retries=0) {
+        log("installUI: ", $("#xtravelbar"));
         if ($("#xtravelbar").length == 0) {
             sidebarParentSel = makeXedxSidebarContentDiv('xtravelbar');
+            log("parent: ", $(sidebarParentSel));
             $(sidebarParentSel).append(getSidebarDiv());
             $(sidebarParentSel).css("padding", "0px");
         }
@@ -173,12 +180,15 @@
         let liH = $($("#xloc > li")[0]).height();
         if (!maxHeight) maxHeight = (countLi * liH) + "px";
 
+        log("installUI 2: ", $("#xtravelbar"));
+
         handleCaretClick();
 
         $("#xtrav-cs").on('click', handleCaretClick);
     }
 
     function handlePageLoad(retries=0) {
+        log("handlePageLoad");
         installUi();
 
         if (atTravelAgency()) {
