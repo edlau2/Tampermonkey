@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.51
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -182,18 +182,19 @@
     }
 
     function installUi(retries=0) {
-        log("installUI: ", $("#xtravelbar"));
+        log("installUI: ", $("#xtravelbar").length);
         if ($("#xtravelbar").length == 0) {
             sidebarParentSel = makeXedxSidebarContentDiv('xtravelbar');
-            log("parent: ", $(sidebarParentSel));
+            log("parent: ", $(sidebarParentSel).length);
             $(sidebarParentSel).append(getSidebarDiv());
             $(sidebarParentSel).css("padding", "0px");
         }
 
         addDestinations();
 
-        /*
+
         let keys = Object.keys(destinations);
+        /*
         for (let idx=0; idx<keys.length; idx++) {
             let country = keys[idx];
             let data = destinations[country];
