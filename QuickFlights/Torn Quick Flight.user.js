@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         Torn Quick Flight
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  This script adds a sidebar menu to jump to the Travel Agency, PDA compatible
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
 // @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
-// @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @grant        GM_addStyle
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -20,7 +19,7 @@
     'use strict';
 
     const clickTravel = true;
-    const debugLoggingEnabled = false;
+    const debugLoggingEnabled = true;
 
     const xedx_addStyle = function(styles) {
         (typeof GM_addStyle != "undefined") ?
@@ -113,7 +112,7 @@
     function handleDestClicked(retries = 0) {
         let btn = getTravelBtn();
         if (!$(btn).length) {
-            if (retries++ < 20) return setTimeout(handleDestClicked, 200, retries);
+            if (retries++ < 100) return setTimeout(handleDestClicked, 200, retries);
             return log("handleDestClicked: too many retries");
         }
         if (clickTravel == true) {
