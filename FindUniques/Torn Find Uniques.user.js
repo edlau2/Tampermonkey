@@ -25,11 +25,9 @@
     'use strict';
 
     const autoRun = true;                  // Will start checking when the script runs. For testing only...leave set to true!
-
     const browserNotify = true;            // Enable browser notifications
     const notifyMinSecsBetween = 30;       // Wait at least 30 secs before another notification
     const notifyTimeoutSecs = 30;          // Time notification is displayed
-
     const secsDelayEachCrime = 3;          // Check each crime, waiting this many secs between requests
     const secsDelayBetweenRuns = 15;       // Wait this many secs before checking each crime again.
 
@@ -49,26 +47,15 @@
     const noUniqueSlugs = ['cardskimming', 'hustling', 'disposal', 'cracking', 'forgery', 'scamming'];
     const noUniqueIds = [6, 8, 9, 10, 11, 12];
 
+    function logOptions() {
+        log("debugLoggingEnabled: ", debugLoggingEnabled, " testMode: ", testMode, " testHasUnique: ", testHasUnique,
+            " autoRun: ", autoRun, " browserNotify: ", browserNotify);
+        log("notifyMinSecsBetween: ", notifyMinSecsBetween, " notifyTimeoutSecs: ", notifyTimeoutSecs,
+            " secsDelayEachCrime: ", secsDelayEachCrime, " secsDelayBetweenRuns: ", secsDelayBetweenRuns);
+    }
+
     function atCrimeHub() {return (location.href.indexOf('sid=crimes') > -1 && location.hash == '#/');}
 
-    /*
-    function findKeyPath(obj, key, path = '') {
-      if (obj && typeof obj === 'object') {
-        if (obj.hasOwnProperty(key)) {
-          return { value: obj[key], path: path ? `${path}.${key}` : key };
-        }
-        for (const k in obj) {
-          const result = findKeyPath(obj[k], key, path ? `${path}.${k}` : k);
-          if (result) {
-            return result;
-          }
-        }
-      }
-      return null;
-    }
-    */
-
-    // As above, but supports arrays in data
     function findKeyPathAndValue(obj, key, path = '', results = []) {
       if (typeof obj !== 'object' || obj === null) {
         return results;
@@ -175,7 +162,7 @@
                 allCrimes[idx]['uniqueCount'] = 0;
                 allCrimes[idx]['hasUniques'] = noUniqueIds.includes(crime.ID) ? false : true;
             });
-            logAllCrimes();
+            if (debugLoggingEnabled == true) logAllCrimes();
         }
 
         let crimes = DB.crimesByType;
@@ -212,7 +199,7 @@
                     if (!alreadyLogged) {
                         alreadyLogged = true;
                         alertsOn(crimeId);
-                        log(`Unique found in ${crimeName}\nKey: ${entry.path}`);
+                        log(`Unique found in ${crimeName}\nKey: ${root}${entry.path}`);
                     }
                 }
             });
@@ -308,6 +295,8 @@
 
     if (isAttackPage()) return log("Won't run on attack page!");
     if (checkCloudFlare()) return log("Won't run while challenge active!");
+
+    logOptions();
 
     addStyles();
 
