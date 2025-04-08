@@ -20,7 +20,7 @@
             color: lightblue !important;
         }
         .root___NVIc9, .root___NVIc9.self___IbPax {
-            background-color: transparent;
+            background-color: transparent !important;
         }
     `);
 
