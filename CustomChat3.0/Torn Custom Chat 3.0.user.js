@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -13,14 +13,35 @@
 (function() {
     'use strict';
 
-    GM_addStyle(`
+    const xedx_addStyle = function(styles) {
+        (typeof GM_addStyle != "undefined") ?
+            GM_addStyle(styles) :
+            (styles) => {
+                const styleElement = document.createElement("style");
+                styleElement.setAttribute("type", "text/css");
+                styleElement.innerHTML = styles;
+                document.head.appendChild(styleElement);
+            }
+    };
+
+    xedx_addStyle(`
         .root___Xw4jI {
             font-family: arial !important;
             font-size: 14px !important;
+            /*color: lightblue !important;*/
+        }
+        .root___NVIc9 {
+            background-color: transparent !important;
+        }
+        .root___NVIc9:not(.self___IbPax) span {
             color: lightblue !important;
         }
-        .root___NVIc9, .root___NVIc9.self___IbPax {
-            background-color: transparent !important;
+        .self___IbPax span {
+            color: red !important;
+        }
+
+        .root___NVIc9.self___IbPax {
+            border: 1px solid pink !important;
         }
     `);
 
