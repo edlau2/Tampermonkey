@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
 // @match        https://www.torn.com/*
 // @grant        unsafeWindow
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
 (function() {
@@ -25,6 +27,9 @@
     };
 
     xedx_addStyle(`
+        .item___ydsFW {
+            width: 260px;
+        }
         .root___Xw4jI {
             font-family: arial !important;
             font-size: 14px !important;
