@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -27,6 +27,9 @@
     };
 
     xedx_addStyle(`
+        .textarea___V8HsV {
+            height: 76px !important;
+        }
         .item___ydsFW {
             width: 260px;
         }
