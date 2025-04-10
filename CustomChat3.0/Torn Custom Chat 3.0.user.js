@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -24,7 +24,9 @@
         MY_BORDER: '1px solid limegreen',
         THEM_BORDER: 'none',
         MY_BG_COLOR: 'black',
-        THEM_BG_COLOR: 'transparent'
+        THEM_BG_COLOR: 'transparent',
+        BODY_BG_COLOR: 'none',
+        FOOTER_BG_COLOR: 'black'
     }
 
     // Options for private chat messages
@@ -34,13 +36,15 @@
         MY_BORDER: '1px solid #000099',
         THEM_BORDER: 'none',
         MY_BG_COLOR: 'black',
-        THEM_BG_COLOR: 'transparent'
+        THEM_BG_COLOR: 'transparent',
+        BODY_BG_COLOR: 'transparent',
+        FOOTER_BG_COLOR: 'none'
     }
 
     // Applies to all chat msg text
     const GEN_OPTS = {
         FONT_FAMILY: 'arial',
-        FONT_SIZE: '14px'
+        FONT_SIZE: '14px',
     }
 
     // =========== End editable options ===============
@@ -52,10 +56,14 @@
 
     const FAC_SEL = `#chatRoot [id^='faction-']`;
     const PRIV_SEL = `#chatRoot [id^='private-']`;
+    const BODY = `[class^='content_']`;
+    const FOOTER = `[class^='content_'] > [class*='root_']:nth-child(2)`;
+
 
     const ALL_MSGS_SEL = `[class^='list_'] [class*='root_']:not([class*='divider'])`;
     const MY_MSGS_SEL = `[class^='list_'] [class*='self_']`;
     const THEM_MSGS_SEL = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
+
 
     const xedx_addStyle = function(styles) {
         (typeof GM_addStyle != "undefined") ?
@@ -89,6 +97,16 @@
         if (opt.indexOf('BORDER') > -1) {
             style = `${rootSel} ${subSel} {
                 border: ${val} !important;
+            }`;
+        }
+        if (opt.indexOf('BODY_BG') > -1) {
+            style = `${rootSel} ${BODY} {
+                background-color: ${val};
+            }`;
+        }
+        if (opt.indexOf('FOOTER') > -1) {
+            style = `${rootSel} ${FOOTER} {
+                background-color: ${val};
             }`;
         }
 
