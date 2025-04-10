@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.07
+// @version     2.46.08
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.06";
+const thisLibVer = "2.46.08";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -57,10 +57,10 @@ var xedxDevMode = GM_getValue("xedxDevMode", false);
 // I haven't tested this yet, is meant
 // for systems (such as Greasemonkey) that don't
 // have GM_setValue/GM_getValue
-if (GM) {
-    window.GM_getValue = GM.getValue;
-    window.GM_setValue = GM.setValue;
-}
+//if (GM) {
+//    window.GM_getValue = GM.getValue;
+//    window.GM_setValue = GM.setValue;
+//}
 
 alertOnError = GM_getValue("alertOnError", alertOnError);
 alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
