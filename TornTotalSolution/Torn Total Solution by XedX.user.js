@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.39
+// @version      4.41
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -1828,8 +1828,9 @@
     var custLinkClassNames = {};
 
     function tornCustomizableSidebar() {
-        log('[tornCustomizableSidebar]');
+        debug('[tornCustomizableSidebar]');
 
+        let inHosp = false;
         let cs_caretState = 'fa-caret-down';
         let initialState = "down";
 
@@ -1840,19 +1841,29 @@
                 "padding-right:10px;" +
                 "}");
 
+        let sbData = getSidebarData();
+        if (sbData.statusIcons.icons.hospital)
+            inHosp = true;
+
         installCollapsibleCaret("nav-city");
         installCollapsibleCaret("nav-home");
         installCollapsibleCaret("nav-casino");
         installCollapsibleCaret("nav-crimes");
+        if (awayFromHome()) {
+            installCollapsibleCaret("nav-traveling");
+        }
+        if (inHosp) {
+            installCollapsibleCaret("nav-hospital");
+        }
 
         // Need new func to install all 3...
         installHashChangeHandler(installCollapsibleCaret);
 
         return new Promise((resolve, reject) => {
             initCustLinksObject();
-            log("[tornCustomizableSidebar] links obj installed.");
+            debug("[tornCustomizableSidebar] links obj installed.");
             initCustLinkClassNames();
-            log("[tornCustomizableSidebar] class names installed.");
+            debug("[tornCustomizableSidebar] class names installed.");
             let keys = Object.keys(custLinksOpts);
             for (let i=0; i<keys.length; i++) {
                 let key = keys[i];
@@ -1881,6 +1892,8 @@
             initCustLinkState("nav-home");
             initCustLinkState("nav-casino");
             initCustLinkState("nav-crimes");
+            if (awayFromHome() == true) initCustLinkState("nav-traveling");
+            initCustLinkState("nav-hospital");
 
             resolve("tornCustomizableSidebar complete!");
         }).catch((error) => {
@@ -1890,19 +1903,53 @@
         });
 
         function initCustLinkClassNames() {
-            if($('#nav-items').length){
-                custLinkClassNames.link_class = $('#nav-items').attr('class').split(" ")[0];
-                custLinkClassNames.row_class  = $('#nav-items > div:first').attr('class');
-                custLinkClassNames.a_class    = $('#nav-items a').attr('class');
-                custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
-                custLinkClassNames.icon_class = $('#nav-items a span').attr('class');
-                custLinkClassNames.link_name_class = $('#nav-items a span').eq(1).attr('class');
+            let sel = '#nav-items';
+            if(!$(sel).length)
+                sel = '#nav-newspaper';
+            if(!$(sel).length)
+                sel = '#nav-calendar';
+            if($(sel).length){
+                custLinkClassNames.link_class = $(sel).attr('class').split(" ")[0];
+                custLinkClassNames.row_class  = $((sel + ' > div:first')).attr('class');
+                custLinkClassNames.a_class    = $((sel + ' a')).attr('class');
+                custLinkClassNames.icon_class = $((sel + ' a span')).attr('class');
+                custLinkClassNames.icon_class = $((sel + ' a span')).attr('class');
+                custLinkClassNames.link_name_class = $((sel + ' a span')).eq(1).attr('class');
             }
             debug('[initCustLinkClassNames] custLinkClassNames: ', custLinkClassNames);
         }
 
+        function validInHosp(key) {
+            let searchKey = key.replace('custlink-', '');
+
+            switch (searchKey) {
+                case 'log':
+                case 'personalstats':
+                case 'pc':
+                case 'laptop':
+                case 'faction':
+                    return true;
+            }
+            return false;
+        }
+
+        function validAbroad(key) {
+            let searchKey = key.replace('custlink-', '');
+
+            switch (searchKey) {
+                case 'log':
+                case 'personalstats':
+                case 'pc':
+                case 'laptop':
+                case 'faction':
+                    return true;
+            }
+            return false;
+        }
+
         function custLinkGetRoot(key) {
             let cat = custLinksOpts[key].cat;
+            let hospOk = validInHosp(key);
             let node = null;
             switch (cat.toLowerCase()) {
                 case 'home':
@@ -1920,13 +1967,16 @@
                     break;
             }
 
+            if (!node && inHosp == true && hospOk == true)
+                node = document.getElementById('nav-hospital');
+            if (!node && awayFromHome() == true && validAbroad(key) == true)
+                node = document.getElementById('nav-traveling');
+
             return node;
         }
 
         function custLinkInsert(root, node, key=null) {
-            debug('[custLinkInsert] root: ', root);
-            debug('[custLinkInsert] node: ', node);
-            debug('[custLinkInsert] key: ', key);
+            debug('[custLinkInsert] root: ', $(root), ' node: ', $(node), ' key: ', key);
             $(node).insertAfter(root);
         }
 
@@ -1939,9 +1989,9 @@
             let root = custLinkGetRoot(key);
             let rootId = '';
             if (root) rootId = $(root).attr("id");
-            debug("[buildCustLink] key: ", key);
-            debug("[buildCustLink] rootId: ", rootId);
-            debug("[buildCustLink] root: ", custLinkGetRoot(key));
+            debug("[buildCustLink] key: ", key, " rootId: ", rootId, " root: ", $(root));
+
+            if (!$(root).length) return;
 
             let data = custLinksOpts[key];
             let fullLink = (data.link.indexOf('www.torn.com') > -1) ? data.link : "https://www.torn.com/" + data.link;
@@ -1951,12 +2001,14 @@
             // Don't add twice!
             let sel = "#" + custLinkId;
             if ($(sel).length > 0) {
-                log(" **** temp **** link already exists!");
-                return undefined;
+                //log(" **** temp **** link already exists!");
+                return;
             }
 
+            let className = custLinkClassNames.link_class;
+
             let rootHeight = $(root).css("height");
-            let outerDiv = '<div class="' + custLinkClassNames.link_class +
+            let outerDiv = '<div class="' + className +
                 '" style="display: block;" id="' + custLinkId + '"><div class="' +
                 custLinkClassNames.row_class  + '" style="height: ' + rootHeight + ';">';
 
@@ -1995,7 +2047,7 @@
             let nodeId = nodeName + "-collapse";
 
             if (document.querySelector("#" + nodeId)) {
-                log("collapse node exists, not adding again!");
+                //log("collapse node exists, not adding again!");
                 return;
             }
 
@@ -2123,6 +2175,11 @@
                                                                                        link: "page.php?sid=russianRoulette", cat: "Casino"})));
         let link10 = JSON.parse(GM_getValue("custlink-personalstats", JSON.stringify({enabled:true, cust: false, desc: "Personal Stats",
                                                                                        link: "personalstats.php", cat: "Home"})));
+
+        //GM_setValue("custlink-personalstats", JSON.stringify({enabled:true, cust: false, desc: "Personal Stats",
+        //                                                                               link: "personalstats.php", cat: "Home", hospOK: true}));
+        //GM_setValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log",
+        //                                                                   link: "page.php?sid=log", cat: "Home", hospOK: true}));
 
         // Add crimes...
         const crimeURLRoot = "https://www.torn.com/loader.php?sid=crimes#/";
@@ -8872,25 +8929,6 @@
     //
     //////////////////////////////////////////////////////////////////////
 
-    // Page checking fns. Moved to helper lib
-    /*
-    function isIndexPage() {return (location.href.indexOf("index.php") > -1)}
-    function isItemPage() {return (location.href.indexOf("item.php") > -1)}
-    function isFactionPage() {return (location.href.indexOf("factions.php") > -1)}
-    function isGymPage() {return (location.href.indexOf("gym.php") > -1)}
-    function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&user2ID") > -1)}
-    function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
-    function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
-    function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
-    function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
-    function isPointsPage() {return (location.href.indexOf("page.php?sid=points") > -1)} //https://www.torn.com/page.php?sid=points
-    function isUserListPage() {return (location.href.toLowerCase().indexOf("userlist") > -1)}
-    function isAmmoPage() {return (location.href.toLowerCase().indexOf("sid=ammo") > -1)}
-    function isModsPage() {return (location.href.toLowerCase().indexOf("sid=itemsmods") > -1)};
-    function isJobsPage() {return (location.href.toLowerCase().indexOf("joblist") > -1)};
-    function isTravelPage() {return (location.href.toLowerCase().indexOf("travelagency") > -1)};
-    */
-
     // Shorthand for the result of a promise, here, they are just logged
     // promise.then(a => _a(a), b => _b(b));
     // instead of
@@ -8967,9 +9005,6 @@
     // And some need to wait until the page is complete. (readystatecomplete)
     function handlePageComplete() {
         log('[handlePageComplete]');
-
-        // Experimental
-        //if (checkCloudflare) return setTimeout(handlePageComplete, 250);
 
         // Everything that returns "not at home" if abroad ... put in here
         if (!awayFromHome()) {
@@ -9342,6 +9377,7 @@
     if (leftAlign) $("#mainContainer").attr("style", "display: flex; justify-content: left;");
 
     addStyles();
+    addToolTipStyle();
     loadTtsColors();
 
     //
