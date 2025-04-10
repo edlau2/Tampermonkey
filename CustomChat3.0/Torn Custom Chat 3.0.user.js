@@ -38,7 +38,7 @@
         MY_BG_COLOR: 'black',
         THEM_BG_COLOR: 'transparent',
         BODY_BG_COLOR: 'transparent',
-        FOOTER_BG_COLOR: 'none'
+        FOOTER_BG_COLOR: 'black'
     }
 
     // Applies to all chat msg text
