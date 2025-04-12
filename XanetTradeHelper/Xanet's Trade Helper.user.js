@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Xanet's Trade Helper-PDA
+// @name         Xanet's Trade Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.02
+// @version      3.13
 // @description  Records accepted trades and item values
 // @author       xedx [2100735]
 // @match        https://www.torn.com/trade.php*
@@ -34,9 +34,10 @@
     //////////////////////////////////////////////////////////////////////
 
     loggingEnabled = true;           // Declared in Torn-JS-helpers, true to log to console, false otherwise
-    debugLoggingEnabled = true;      // Declared in Torn-JS-helpers, turn of to disable debug() output
+    debugLoggingEnabled =            // Declared in Torn-JS-helpers, turn of to disable debug() output
+        GM_getValue("debugLoggingEnabled", false);
+    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
 
-    const supressWarnings = true;    // Suppress misc. warnings
     const uiDelay = 500;             // Delay, in ms, before loading the mini UI. Needed if the script runs too quickly.
 
     var autoUpload = true;           // true to auto-upload when we have data - for pricing info.
@@ -44,6 +45,9 @@
     var dispBadItemInfoOnly = false; // true to ONLY disp alert when missing data
     var testData = false;            // true to emulate using test data
     var priceDetails = false;        // true to display price details
+
+    // New option, used to disable the "auto add money" step
+    var autoAddMoney = true;
 
     //////////////////////////////////////////////////////////////////////
     // Development tools/variables
@@ -54,7 +58,7 @@
     // Allows the UI to display when travelling (for testing while I'm not in Torn)
     // Suppresses the 'Accept' button from being propogated. (commented out)
     //
-    var xedxDevMode = false;
+    var xedxDevMode = true;
 
     //
     // Test data to upload when there is no active trade
@@ -73,6 +77,8 @@
                        {"id":"786444001","name":"Heather ","qty":"32","price":"0","total":"0"},
                        {"id":"786444001","name":"Tribulus Omanense ","qty":"42","price":"0","total":"0"},
                        {"id":"786444001","name":"Some Crap ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Snow Cannon ","qty":"2","price":"0","total":"0"},
+                       {"id":"786444001","name":"Spear ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Quran Script : Ubay Ibn Kab ","qty":"2","price":"0","total":"0"},
                        {"id":"786444001","name":"Single Red Rose ","qty":"2","price":"0","total":"0"}];
 
@@ -122,6 +128,7 @@
                 log('Invalid trade item, probably cash.');
                 return;
             }
+            name = name.replaceAll('&', '%26');
             found = true;
             debug('Parsed, case 1: name = ' + name + ', qty = ' + qty);
         }
@@ -135,6 +142,7 @@
                 if (isNaN(char)) {
                     qty = '1';
                     name = title.trim();
+                    name = name.replaceAll('&', '%26');
                     found = true;
                     debug('Parsed, case 2: name = ' + name + ', qty = ' + qty);
                 }
@@ -147,6 +155,7 @@
             let parsed = reversed.replace(/\x/,'&').split('&');
             qty = reverseString(parsed[0]).trim();
             name = reverseString(parsed[1]).trim();
+            name = name.replaceAll('&', '%26');
             log('Parsed, case 3: name = ' + name + ', qty = ' + qty);
         }
 
@@ -192,7 +201,7 @@
         let useArray = deepCopy(testData ? testArray : dataArray);
 
         // Nothing in trade, don't do this.
-        if (!useArray.length && !supressWarnings) {
+        if (!useArray.length) {
             hideStatus();
             let msg = 'No ' + (testData ? 'test' : 'live') + ' data in trade, unable to upload!';
             log('[uploadDataArray] ' + msg);
@@ -275,7 +284,6 @@
     function handleScriptError(response) {
         let errorText = GM_info.script.name + ': An error has occurred submitting data:\n\n' +
             response.error;
-
         log(errorText);
         alert(errorText + '\n\nPress OK to continue.');
     }
@@ -336,8 +344,12 @@
         if (Number(tradeID) == 0) {tradeID = dataArray[0].id;}
 
         log('Setting total price to ' + asCurrency(dispPrice).replace('$', ''));
-        $('#xedx-total-price')[0].innerText = asCurrency(dispPrice).replace('$', '');
-        $('#xedx-trade-id')[0].innerText = tradeID;
+
+        //$('#xedx-total-price')[0].innerText = asCurrency(dispPrice).replace('$', '');
+        //$('#xedx-trade-id')[0].innerText = tradeID;
+
+        $('#xedx-total-price').text(asCurrency(dispPrice).replace('$', ''));
+        $('#xedx-trade-id').text(tradeID);
 
         log('[parseResponse]  Result: ' + JSON.stringify(cmdObj) + ' Length: ' + len);
         log('[parseResponse]  Command: ' + cmd);
@@ -789,6 +801,13 @@
     // Helper to handle the page asking for how much $$ to add to the trade.
     // This basically adds a listener.
     function handleAddMoneyPage() {
+
+        if (!autoAddMoney)
+        {
+            log("[handleAddMoneyPage] autoAddMoney disabled, not installing handler");
+            return;
+        }
+
         let hash = location.hash;
         let step = hash.split(/=|#|&/)[2];
         log('[handleAddMoneyPage] step = ' + step);
@@ -808,6 +827,12 @@
 
     // Helper for above, actually fills the field.
     function addMoney(target1, target2) {
+        if (!autoAddMoney)
+        {
+            log("[addMoney] autoAddMoney disabled, not updating");
+            return;
+        }
+
         log('[addMoney]');
         let value = target2.getAttribute('value');
         if (value == '' || value == null || value == undefined) {
