@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -39,7 +39,8 @@
             BODY_BG_COLOR: '#181818',
             FOOTER_BG_COLOR: 'black',
             SNDR_AVATAR_COLOR: '#666',           // In fac chat, color of sender's name
-            MSGS_UNREAD: 'none'                  // 'none' hides the blue pop-up that says "x unread messages"
+            MSGS_UNREAD: 'none',                 // 'none' hides the blue pop-up that says "x unread messages"
+            HDR_USE_ICON: true                   // Display icon in header, links to fac page
         },
 
         priv: {
@@ -54,12 +55,34 @@
         }
     };
 
-    //log("Options: ", options);
+    log("Options: ", Object.keys(options));
 
     // =========== End editable options ===============
 
     const addDevStyles = false;    // This ATM puts borders on various chat boxes, I use during development to locate elements
     const pendStyles = false;
+
+    // ================= API test kinda stuff ===============
+    // For fac tag name, need API, or scrape from fac page...
+    const facIcon = "https://factiontags.torn.com/8151-16121.png";
+    /*
+        API call: GET, 'https://api.torn.com/v2/faction/basic'
+        Headers:
+            'accept: application/json'
+            'Authorization: ApiKey 4ZMAvIBON4zZLrd9'
+    */
+
+
+
+    // Sidebar data
+    function getSidebarData() {
+        let key = Object.keys(sessionStorage).find(key => /sidebarData\d+/.test(key));
+        return JSON.parse(sessionStorage.getItem(key));
+    }
+    var sidebarData = getSidebarData();
+    log("Sidebar data: ", sidebarData);
+
+    // =======================================================
 
     // Selectors
     const FAC_SEL = `#chatRoot [id^='faction-']`;
@@ -118,6 +141,11 @@
 
     logStyle("GEN_OPTS: ", GEN_OPTS);
 
+    const KEY_MAP = {
+        'fac': {opts: FAC_OPTS, sel: FAC_SEL, title: "Fac Chat Options", bg: 'gray'}, //'rgba(180, 0, 0, .4)'},
+        'priv': {opts: PRIV_OPTS, sel: PRIV_SEL, title: "Private Chats", bg: 'dodgerblue'} //'rgba(0, 0, 180, .4)'}
+    };
+
     const xedx_addStyle = function(styles) {
         (typeof GM_addStyle != "undefined") ?
             GM_addStyle(styles) :
@@ -134,9 +162,7 @@
     let pendStylesList = "";
     let atLoadStylesList = "";
     function addStyleToList(rootSel, subSel, val, when='now') {
-        let style = `${rootSel} ${subSel} {
-                ${val}
-            }`;
+        let style = `${rootSel} ${subSel} {${val}}`;
 
         logStyle("Adding style: ", style, " when: ", when);
 
@@ -150,40 +176,30 @@
             atLoadStylesList = atLoadStylesList + ' ' + style;
     }
 
-    let opts = FAC_OPTS;
-    let keys = Object.keys(opts);
-    for (let idx=0; idx<keys.length; idx++) {
-        let opt = keys[idx];
-        let entry = opts[opt];
-        let val = entry.val;
-        if (val == 'default') continue;
-        let subSel = entry.subSel;
-        let styleStr = entry.style;
-        let when = entry.when;
-        if (styleStr) {
-            val = styleStr.replace('${val}', val);
+    // ================== Install styles ============================
+
+    let optionKeys = Object.keys(options);
+    log("optionKeys: ", optionKeys);
+    for (let keyIdx=0; keyIdx<optionKeys.length; keyIdx++) {
+        let key = optionKeys[keyIdx];
+        let opts = KEY_MAP[key].opts;
+        let sel = KEY_MAP[key].sel;
+        let keys = Object.keys(opts);
+
+        log("Styles for: ", key, opts, sel, keys);
+
+        for (let idx=0; idx<keys.length; idx++) {
+            let opt = keys[idx];
+            let entry = opts[opt];
+            let val = entry.val;
+            if (val == 'default') continue;
+            let styleStr = entry.style;
+            if (styleStr) {
+                val = styleStr.replace('${val}', val);
+            }
+
+            addStyleToList(sel, entry.subSel, val, entry.when);
         }
-
-        addStyleToList(FAC_SEL, subSel, val, when);
-    }
-
-    opts = PRIV_OPTS;
-    keys = Object.keys(opts);
-    for (let idx=0; idx<keys.length; idx++) {
-        let opt = keys[idx];
-        let entry = opts[opt];
-        let val = entry.val;
-        let when = entry.when;
-        if (val == 'default') continue;
-        let subSel = entry.subSel;
-        let styleStr = entry.style;
-        if (styleStr) {
-            //log("val: ", val);
-            val = styleStr.replace('${val}', val);
-            //log("New val: ", val);
-        }
-
-        addStyleToList(PRIV_SEL, subSel, val, when);
     }
 
     if (pendStylesList.length) {
@@ -192,7 +208,7 @@
     }
 
     // Font over-ride
-    log("Adding style: ", `
+    logStyle("Adding style: ", `
         ${FAC_SEL} ${ALL_MSGS_SEL}, ${PRIV_SEL} ${ALL_MSGS_SEL} {
             font-family: ${GEN_OPTS.FONT_FAMILY} !important;
             font-size: ${GEN_OPTS.FONT_SIZE} !important;
@@ -205,20 +221,6 @@
             font-size: ${GEN_OPTS.FONT_SIZE} !important;
         }
     `);
-
-    // 'Unread Messages" pop-up balloon
-    /*
-    log("Adding style: ", `
-        ${FAC_SEL} ${UNREAD_MSGS_SEL} {
-            display: none;
-        }
-    `);
-    xedx_addStyle(`
-        ${FAC_SEL} ${UNREAD_MSGS_SEL} {
-            display: none;
-        }
-    `);
-    */
 
     if (addDevStyles == true) {    // Development only
         xedx_addStyle(`
@@ -255,44 +257,6 @@
 
     // ================ After page load =====================
 
-    function addScrollLockToBottom() {
-        /*
-        addScrollLockStyles();
-        let anchorDiv = `<div id="anchor"></div>`;
-        let scrollWrap = $("#chatRoot [id^='faction-'] [class^='scrollContainer_']");
-        let list = $("#chatRoot [id^='faction-'] [class^='scrollContainer_'] [class^='list_']");
-
-        log("List: ", $(list));
-
-        let classList;
-        let tmp = $(list).attr("class");
-        if (tmp) {
-            classList = tmp.split(/\s+/);
-            log("CL: ", classList);
-            let listItemClass = classList[0].trim();
-            let style = `${listItemClass} * {overflow-anchor: none;}`;
-            xedx_addStyle(style);
-            log("Added style: ", style);
-        }
-
-        $(list).append(anchorDiv);
-        */
-
-        /*
-        <style type="text/css">
-        .scrollarea-content{margin:0;padding:0;overflow:hidden;position:relative;touch-action:none}
-        .scrollarea-content:focus{outline:0}
-        .scrollarea{position:relative;overflow:hidden}
-        .scrollarea .scrollbar-container{position:absolute;background:none;opacity:.1;z-index:99;-webkit-transition:all .4s;transition:all .4s}
-        .scrollarea .scrollbar-container.horizontal{width:100%;height:10px;left:0;bottom:0}
-        .scrollarea .scrollbar-container.horizontal .scrollbar{width:20px;height:8px;background:#000;margin-top:1px}
-        .scrollarea .scrollbar-container.vertical{width:10px;height:100%;right:0;top:0}
-        .scrollarea .scrollbar-container.vertical .scrollbar{width:8px;height:20px;background:#000;margin-left:1px}
-        .scrollarea .scrollbar-container.active,.scrollarea .scrollbar-container:hover{background:gray;opacity:.6!important}
-        .scrollarea:hover .scrollbar-container{opacity:.3}</style>
-        */
-    }
-
     function hookSettingsBtn() {
         log("hookSettingsBtn: ", $("#notes_settings_button").length);
         $("#notes_settings_button").on('click', function() {
@@ -312,25 +276,25 @@
             logStyle("Sending atLoad style list: ", atLoadStylesList);
             xedx_addStyle(atLoadStylesList);
         }
-
-
-        addScrollLockToBottom();
-    }
-
-    // $("#faction-8151 > div[class*='content_'] > div[class*='root_'] > button[class*='subtitle_']")
-
-    function addScrollLockStyles() {
-
-        xedx_addStyle(`
-            #anchor {
-                overflow-anchor: auto;
-                height: 1px;
-            }
-        `);
     }
 
     function addScrollOptStyles() {
         xedx_addStyle(`
+            #tcc-outer-opts {
+                position: fixed;
+                width: 400px;
+                height: 400px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                display: flex;
+                flex-direction: column;
+                /*margin: 0px 10px 10px 10px;*/
+                z-index: 999999999;
+
+                border: 1px solid pink;
+
+            }
             #tcc-opts {
                 position: fixed;
                 width: 400px;
@@ -341,8 +305,12 @@
                 transform: translate(-50%, -50%);
                 display: flex;
                 flex-direction: column;
+                /*margin: 0px 10px 10px 10px;*/
+                background-color: black;
+                border-radius: 6px;
+                z-index: 9999999;
 
-                border: 1px solid limegreen;
+                /*border: 1px solid limegreen;*/
             }
             #tcc-tbl-wrap {
                 /*position: relative;*/
@@ -354,23 +322,30 @@
                 /*height: 100%;*/
                 justify-content: center;
                 display: flex;
+
+                border-left: 3px solid var(--title-black-gradient);
+                border-right: 3px solid var(--title-black-gradient);
             }
             #tcc-tbl-wrap tbody {
-                overflow-y: scroll;
+                /*overflow-y: scroll;*/
                 /*height: 400px;*/
                 max-height: 372px;
                 display: block;
                 /*width: 100%;*/
                 /*padding: 10px;*/
-                margin: 5px;
-                border: 1px solid blue;
+                margin: 0px 5px 0px 5px;
+
+                /*border: 1px solid blue;*/
             }
             #tcc-tbl-wrap tr {
                 /*height: 30px;*/
                 /*margin: auto;*/
                 display: flex;
                 width: 100%;
-                border: 1px solid lightblue;
+                height: 26px;
+                border-bottom: 2px solid black;
+
+                /*border: 1px solid lightblue;*/
             }
             #tcc-tbl-wrap tr td {
                 width: 100%;
@@ -378,13 +353,16 @@
                 flex-flow: row wrap;
             }
             #tcc-tbl-wrap tr td input[type='checkbox'] {
-                width: 30px;
-                border: 1px solid yellow;
+                /*width: 30px;*/
+                /*border: 1px solid yellow;*/
+                margin-left: 10px;
             }
             #tcc-tbl-wrap tr td input[type='text'] {
                 width: 40%;
-                margin-right: 10px;
-                border: 1px solid yellow;
+                margin: 4px;
+                /*border: 1px solid yellow;*/
+                padding-left: 10px;
+                border-radius: 4px;
             }
             #tcc-tbl-wrap tr td span {
                 /*width: 33%;*/
@@ -392,48 +370,104 @@
                 justify-content: center;
                 display: flex;
                 flex-flow: row wrap;
+                color: white;
+                font-family: arial;
+                font-size: 12px;
             }
             #tcc-opts-table {
                  table-layout: fixed;
                  width: 400px;
-                 margin: 10px;
+                 margin: 0px 10px 0px 10px;
                  height: 372px;
                  max-height: 372px;
                  /*opacity: 0;*/
                  border-collapse: collapse;
-                 border: 1px solid blue;
+                 /*border: 1px solid blue;*/
              }
-             #tcc-hdr {
+             #tcc-hdr, #tcc-ftr {
                 height: 28px;
                 width: 100%;
                 display: flex;
                 align-content: center;
                 flex-flow: row wrap;
-                background: var(--tabs-bg-gradient);
+                background: var(--title-black-gradient);
                 border: none;
                 color: var(--tabs-color);
                 font-weight: 700;
                 font-size: 14px;
-                justify-content: space-between;
+                justify-content: center;
             }
+            #tcc-hdr { cursor: pointer; border-top-left-radius: 6px; border-top-right-radius: 6px;}
+            #tcc-hdr > span { color: white; font-family: arial; font-size: 14px;}
+            #tcc-ftr { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;}
         `);
+    }
+
+    function addTableRows() {
+        let optionKeys = Object.keys(options);
+        for (let keyIdx=0; keyIdx<optionKeys.length; keyIdx++) {
+            let key = optionKeys[keyIdx];
+            let opts = KEY_MAP[key].opts;
+            let bg = KEY_MAP[key].bg;
+            let title = KEY_MAP[key].title;
+            let keys = Object.keys(opts);
+
+            let row = `<tr><td style="background: ${bg};">
+                         <span style="color: white; font-size:14px;">${title}</span>
+                       </td></tr)`;
+            $("#tcc-opts-table > tbody").append(row);
+
+            for (let idx=0; idx<keys.length; idx++) {
+                let opt = keys[idx];
+                let entry = opts[opt];
+                let val = entry.val;
+
+                let row = `<tr><td style="background: ${bg};">
+                             <input type="checkbox">
+                             <span style="color: white; font-size:12px;">${opt}</span>
+                             <input type="text" value="${val}">
+                           </td></tr)`;
+                $("#tcc-opts-table > tbody").append(row);
+            }
+        }
     }
 
     function buildOptsDiv() {
         if ($("#tcc-opts").length) return;
         let div = `
-            <div id="tcc-opts">
-                <div id="tcc-hdr"><span>Options (click here to close)</span></div>
-                <div id="tcc-tbl-wrap">
-                    <table id="tcc-opts-table">
-                        <tbody>
-                        </tbody>
-                    </table>
+                <div id="tcc-opts">
+                <div id="tcc-hdr" ><span>Options (click here to close)</span></div>
+                <div style="height: 10px; width:100%;background-color: black"></div>
+                    <div id="tcc-tbl-wrap">
+                        <table id="tcc-opts-table">
+                            <tbody>
+                            </tbody>
+                        </table>
+                     </div>
+                 <div style="height:10px; width:100%;background-color: black"></div>
+                 <div id="tcc-ftr"><span></span></div>
                  </div>
+        `;
+
+        let div2 = `
+            <div id="tcc-outer-opts">
+                <div id="tcc-hdr" ><span>Options (click here to close)</span></div>
+                <div id="tcc-opts">
+                    <div id="tcc-tbl-wrap">
+                        <table id="tcc-opts-table">
+                            <tbody>
+                            </tbody>
+                        </table>
+                     </div>
+                 </div>
+                 <div style="height:10px; width:100%;background-color: black"></div>
+                 <div id="tcc-ftr"><span></span></div>
              </div>
         `;
         $('body').after(div);
 
+        addTableRows();
+        /*
         for (let idx=0; idx<30; idx++) {
             let bg = (idx % 2 == 1) ? 'background: rgba(80, 80, 80, 0.8);' : 'background: rgba(160, 160, 160, 0.9);';
             let row = `
@@ -447,6 +481,7 @@
             `;
             $("#tcc-opts-table > tbody").append(row);
         }
+        */
 
         $("#tcc-hdr").on('click', function(e) { $("#tcc-opts").remove(); });
     }
