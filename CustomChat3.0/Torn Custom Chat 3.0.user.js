@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -11,6 +11,11 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
+
+/*eslint no-unused-vars: 0*/
+/*eslint no-undef: 0*/
+/*eslint curly: 0*/
+/*eslint no-multi-spaces: 0*/
 
 (function() {
     'use strict';
@@ -28,9 +33,9 @@
     // You could change that line to "// MSGS_UNREAD: 'none'" (no double quotes)
     // to prevent processing that option.
     //
-    const options = {
+    var options = {
         fac: {
-            MY_TEXT_COLOR: '#dd0000',
+            MY_TEXT_COLOR: '#990000',
             THEM_TEXT_COLOR: 'white',
             MY_BORDER: '1px solid #008800',
             THEM_BORDER: 'default',
@@ -40,20 +45,57 @@
             FOOTER_BG_COLOR: 'black',
             SNDR_AVATAR_COLOR: '#666',           // In fac chat, color of sender's name
             MSGS_UNREAD: 'none',                 // 'none' hides the blue pop-up that says "x unread messages"
-            HDR_USE_ICON: true                   // Display icon in header, links to fac page
+            HDR_USE_ICON: true                   // Display icon in header, links to fac page (TBD)
         },
 
         priv: {
-            MY_TEXT_COLOR: 'red',
-            THEM_TEXT_COLOR: 'dodgerblue',
-            MY_BORDER: '1px solid #000099',
-            THEM_BORDER: '1px solid blue',
+            MY_TEXT_COLOR: 'white',
+            THEM_TEXT_COLOR: 'white',
+            MY_BORDER: '1px solid blue',
+            THEM_BORDER: 'default',
             MY_BG_COLOR: 'black',
-            THEM_BG_COLOR: 'default',
+            THEM_BG_COLOR: 'black',
             BODY_BG_COLOR: '#181818',
             FOOTER_BG_COLOR: 'black',
         }
     };
+
+    loadOptions();
+
+    function saveOptions() {
+        //GM_setValue("options.fac", JSON.stringify(options.fac));
+        //GM_setValue("options.priv", JSON.stringify(options.priv));
+        GM_setValue("options", JSON.stringify(options));
+        loadOptions();
+    }
+
+    function loadOptions() {
+        let tmp = GM_getValue("options", null);
+        log("loading options: ", tmp);
+        if (!tmp) {
+            log("Using default options: ", options);
+            GM_setValue("options", JSON.stringify(options));
+        } else {
+            options = JSON.parse(tmp);
+            log("Using saved options: ", options);
+        }
+
+        /*
+        let tmp = GM_getValue("options.fac", null);
+        log("loading fac options: ", tmp);
+        if (!tmp)
+            GM_setValue("options.fac", JSON.stringify(options.fac));
+        else
+            options.fac = JSON.parse(tmp);
+        log("Loaded: ", options.fac);
+
+        tmp = GM_getValue("options.priv", null);
+        if (!tmp)
+            GM_setValue("options.priv", JSON.stringify(options.priv));
+        else
+            options.priv = JSON.parse(tmp);
+        */
+    }
 
     log("Options: ", Object.keys(options));
 
@@ -84,17 +126,22 @@
 
     // =======================================================
 
+    // Private chat list: #private-channel-list
+
     // Selectors
     const FAC_SEL = `#chatRoot [id^='faction-']`;
-    const PRIV_SEL = `#chatRoot [id^='private-']`;
+    const PRIV_SEL = `#chatRoot [id^='private-']:not(#private-channel-list) `;
     const BODY = `[class^='content_']`;
     const FOOTER = `[class^='content_'] > [class*='root_']:nth-child(2)`;
 
     const ALL_MSGS_SEL = `[class^='list_'] [class*='root_']:not([class*='divider'])`;
-    const MY_MSGS_SEL = `[class^='list_'] [class*='self_']`;
-    const THEM_MSGS_SEL = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
+    const MY_MSGS_SEL = `[class^='list_'] [class*='self_'] span`;
+    const MY_MSGS_BOX_SEL = `[class^='list_'] [class*='self_']`;
+    const THEM_AVATAR_ROOT = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
+    const THEM_MSGS_SEL = `[class^='list_'] > [class*='root_'] [class*='message_']:not([class*='self_']):not([class*='divider']) span`;
+    const THEM_MSGS_BOX_SEL = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
 
-    const SNDR_NAME = `${THEM_MSGS_SEL} [class*='senderContainer_'] > a[class*='sender_']`;
+    const SNDR_NAME = `${THEM_AVATAR_ROOT} [class*='senderContainer_'] [class*='sender_']`;
     const UNREAD_MSGS_SEL = ` > div[class*='content_'] > div[class*='root_'] > button[class*='subtitle_']`;
 
     // Styles
@@ -104,31 +151,31 @@
     const DISPLAY_STYLE = 'display: ${val} !important;';
 
     // Options for fac chat messages
-    const FAC_OPTS = {
+    var FAC_OPTS = {
         MY_TEXT_COLOR: {val: options.fac.MY_TEXT_COLOR, style: TEXT_CLR_STYLE, subSel: MY_MSGS_SEL},
         THEM_TEXT_COLOR: {val: options.fac.THEM_TEXT_COLOR, style: TEXT_CLR_STYLE, subSel: THEM_MSGS_SEL},
-        MY_BORDER: {val: options.fac.MY_BORDER, style: BORDER_STYLE, subSel: MY_MSGS_SEL},
-        THEM_BORDER: {val: options.fac.THEM_BORDER, style: BORDER_STYLE, subSel: THEM_MSGS_SEL},
-        MY_BG_COLOR: {val: 'black', style: BG_STYLE, subSel: MY_MSGS_SEL},
-        THEM_BG_COLOR: {val: 'transparent', style: BG_STYLE, subSel: THEM_MSGS_SEL},
-        BODY_BG_COLOR: {val: '#181818', style: BG_STYLE, subSel: BODY},
-        FOOTER_BG_COLOR: {val: 'black', style: BG_STYLE, subSel: FOOTER},
-        SNDR_AVATAR_COLOR: {val: '#666', style: TEXT_CLR_STYLE, subSel: SNDR_NAME, when: 'now'},
-        MSGS_UNREAD: {val: 'none', style: DISPLAY_STYLE, subSel: UNREAD_MSGS_SEL, when: 'load'}
+        MY_BORDER: {val: options.fac.MY_BORDER, style: BORDER_STYLE, subSel: MY_MSGS_BOX_SEL},
+        THEM_BORDER: {val: options.fac.THEM_BORDER, style: BORDER_STYLE, subSel: THEM_MSGS_BOX_SEL},
+        MY_BG_COLOR: {val: options.fac.MY_BG_COLOR, style: BG_STYLE, subSel: MY_MSGS_BOX_SEL},
+        THEM_BG_COLOR: {val: options.fac.THEM_BG_COLOR, style: BG_STYLE, subSel: THEM_MSGS_BOX_SEL},
+        BODY_BG_COLOR: {val: options.fac.BODY_BG_COLOR, style: BG_STYLE, subSel: BODY},
+        FOOTER_BG_COLOR: {val: options.fac.FOOTER_BG_COLOR, style: BG_STYLE, subSel: FOOTER},
+        SNDR_AVATAR_COLOR: {val: options.fac.SNDR_AVATAR_COLOR, style: TEXT_CLR_STYLE, subSel: SNDR_NAME, when: 'now'},
+        MSGS_UNREAD: {val: options.fac.MSGS_UNREAD, style: DISPLAY_STYLE, subSel: UNREAD_MSGS_SEL, when: 'load'}
     };
 
     log("FAC_OPTS: ", FAC_OPTS);
 
     // Options for private chat messages
-    const PRIV_OPTS = {
+    var PRIV_OPTS = {
         MY_TEXT_COLOR: {val: options.priv.MY_TEXT_COLOR, style: TEXT_CLR_STYLE, subSel: MY_MSGS_SEL},
         THEM_TEXT_COLOR: {val: options.priv.MY_TEXT_COLOR, style: TEXT_CLR_STYLE, subSel: THEM_MSGS_SEL},
-        MY_BORDER: {val: options.priv.MY_BORDER, style: BORDER_STYLE, subSel: MY_MSGS_SEL},
-        THEM_BORDER: {val: options.priv.THEM_BORDER, style: BORDER_STYLE, subSel: THEM_MSGS_SEL},
-        MY_BG_COLOR: {val: 'black', style: BG_STYLE, subSel: MY_MSGS_SEL},
-        THEM_BG_COLOR: {val: 'transparent', style: BG_STYLE, subSel: THEM_MSGS_SEL},
-        BODY_BG_COLOR: {val: 'black', style: BG_STYLE, subSel: BODY},
-        FOOTER_BG_COLOR: {val: 'black', style: BG_STYLE, subSel: FOOTER}
+        MY_BORDER: {val: options.priv.MY_BORDER, style: BORDER_STYLE, subSel: MY_MSGS_BOX_SEL},
+        THEM_BORDER: {val: options.priv.THEM_BORDER, style: BORDER_STYLE, subSel: THEM_MSGS_BOX_SEL},
+        MY_BG_COLOR: {val: options.priv.MY_BG_COLOR, style: BG_STYLE, subSel: MY_MSGS_BOX_SEL},
+        THEM_BG_COLOR: {val: options.priv.THEM_BG_COLOR, style: BG_STYLE, subSel: THEM_MSGS_BOX_SEL},
+        BODY_BG_COLOR: {val: options.priv.BODY_BG_COLOR, style: BG_STYLE, subSel: BODY},
+        FOOTER_BG_COLOR: {val: options.priv.FOOTER_BG_COLOR, style: BG_STYLE, subSel: FOOTER}
     };
 
     logStyle("PRIV_OPTS: ", PRIV_OPTS);
@@ -141,11 +188,6 @@
 
     logStyle("GEN_OPTS: ", GEN_OPTS);
 
-    const KEY_MAP = {
-        'fac': {opts: FAC_OPTS, sel: FAC_SEL, title: "Fac Chat Options", bg: 'gray'}, //'rgba(180, 0, 0, .4)'},
-        'priv': {opts: PRIV_OPTS, sel: PRIV_SEL, title: "Private Chats", bg: 'dodgerblue'} //'rgba(0, 0, 180, .4)'}
-    };
-
     const xedx_addStyle = function(styles) {
         (typeof GM_addStyle != "undefined") ?
             GM_addStyle(styles) :
@@ -155,6 +197,15 @@
                 styleElement.innerHTML = styles;
                 document.head.appendChild(styleElement);
             }
+    };
+
+    xedx_addStyle(`.bg-blue {background-color: #4275a7;}`);
+    xedx_addStyle(`.bg-gray {background-color: #333;}`);
+    xedx_addStyle(`.bg-green {background-color: #11653b;}`);
+
+    const KEY_MAP = {
+        'fac': {opts: FAC_OPTS, sel: FAC_SEL, title: "Fac Chat Options", bg: 'bg-green'}, //'rgba(180, 0, 0, .4)'},
+        'priv': {opts: PRIV_OPTS, sel: PRIV_SEL, title: "Private Chats", bg: 'bg-blue'} //'rgba(0, 0, 180, .4)'}
     };
 
     function classList(element) {if ($(element).attr("class")) return $(element).attr("class").split(/\s+/);}
@@ -219,6 +270,7 @@
         ${FAC_SEL} ${ALL_MSGS_SEL}, ${PRIV_SEL} ${ALL_MSGS_SEL} {
             font-family: ${GEN_OPTS.FONT_FAMILY} !important;
             font-size: ${GEN_OPTS.FONT_SIZE} !important;
+            line-height: 16px !important;
         }
     `);
 
@@ -257,14 +309,58 @@
 
     // ================ After page load =====================
 
-    function hookSettingsBtn() {
-        log("hookSettingsBtn: ", $("#notes_settings_button").length);
-        $("#notes_settings_button").on('click', function() {
-            log("settings btn clicked");
-            setTimeout(installOptsUI, 100);
+    // Make sure when pages change, but not reloaded, our UI remains
+    const bindEventListener = function (type) {
+        const historyEvent = history[type];
+        return function () {
+            const newEvent = historyEvent.apply(this, arguments);
+            const e = new Event(type);
+            e.arguments = arguments;
+            window.dispatchEvent(e);
+            return newEvent;
+        };
+    };
+
+    function installPushStateHandler(pushStateChangedHandler) {
+        history.pushState = bindEventListener("pushState");
+        window.addEventListener("pushState", function (e) {
+            pushStateChangedHandler(e);
         });
+    }
+
+    window.addEventListener('hashchange', function() {
+        log('The hash has changed! new hash: ' + location.hash);
+        hookSettingsBtn();}, false);
+
+    installPushStateHandler(hookSettingsBtn);
+
+    window.addEventListener('focus', hookSettingsBtn);
+
+    // ================== UI elements and handlers =========================
+
+    function hookSettingsBtn(retries=0) {
+        let stBtn = $("#notes_settings_button");
+        log("hookSettingsBtn: ", $(stBtn).length);
+
+        if (!$(stBtn).length) {
+            if (retries++ < 20) return setTimeout(hookSettingsBtn, 250, retries);
+            return log("Timed out finding settings button");
+        }
+
+        $(stBtn).off('click.xedx');
+        $(stBtn).css("border", "1px solid green");
+        log("Added border to ", $(stBtn));
+
+        $(stBtn).on('click.xedx', function() {
+            log("settings btn clicked");
+            setTimeout(installOptsBtn, 100);
+        });
+        log("Added handler to ", $(stBtn));
+
         let stSpan = $("[class*='panelSizeContainer_']").prev();
-        if ($(stSpan).length) installOptsUI();
+        log("stSpan: ", $(stSpan));
+
+        if ($(stSpan).length) installOptsBtn();
     }
 
     function handlePageLoad() {
@@ -280,21 +376,6 @@
 
     function addScrollOptStyles() {
         xedx_addStyle(`
-            #tcc-outer-opts {
-                position: fixed;
-                width: 400px;
-                height: 400px;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                display: flex;
-                flex-direction: column;
-                /*margin: 0px 10px 10px 10px;*/
-                z-index: 999999999;
-
-                border: 1px solid pink;
-
-            }
             #tcc-opts {
                 position: fixed;
                 width: 400px;
@@ -305,7 +386,6 @@
                 transform: translate(-50%, -50%);
                 display: flex;
                 flex-direction: column;
-                /*margin: 0px 10px 10px 10px;*/
                 background-color: black;
                 border-radius: 6px;
                 z-index: 9999999;
@@ -313,33 +393,23 @@
                 /*border: 1px solid limegreen;*/
             }
             #tcc-tbl-wrap {
-                /*position: relative;*/
                 cursor: pointer;
                 overflow-y: scroll;
                 border-radius: 0px 0px 4px 4px;
                 padding: 0px;
-                /*width: 100%;*/
-                /*height: 100%;*/
                 justify-content: center;
                 display: flex;
-
                 border-left: 3px solid var(--title-black-gradient);
                 border-right: 3px solid var(--title-black-gradient);
             }
             #tcc-tbl-wrap tbody {
-                /*overflow-y: scroll;*/
-                /*height: 400px;*/
                 max-height: 372px;
                 display: block;
-                /*width: 100%;*/
-                /*padding: 10px;*/
                 margin: 0px 5px 0px 5px;
 
                 /*border: 1px solid blue;*/
             }
             #tcc-tbl-wrap tr {
-                /*height: 30px;*/
-                /*margin: auto;*/
                 display: flex;
                 width: 100%;
                 height: 26px;
@@ -353,26 +423,22 @@
                 flex-flow: row wrap;
             }
             #tcc-tbl-wrap tr td input[type='checkbox'] {
-                /*width: 30px;*/
-                /*border: 1px solid yellow;*/
                 margin-left: 10px;
             }
             #tcc-tbl-wrap tr td input[type='text'] {
                 width: 40%;
                 margin: 4px;
-                /*border: 1px solid yellow;*/
                 padding-left: 10px;
                 border-radius: 4px;
             }
             #tcc-tbl-wrap tr td span {
-                /*width: 33%;*/
                 margin: auto;
                 justify-content: center;
                 display: flex;
                 flex-flow: row wrap;
                 color: white;
                 font-family: arial;
-                font-size: 12px;
+                font-size: 14px;
             }
             #tcc-opts-table {
                  table-layout: fixed;
@@ -380,12 +446,12 @@
                  margin: 0px 10px 0px 10px;
                  height: 372px;
                  max-height: 372px;
-                 /*opacity: 0;*/
                  border-collapse: collapse;
+
                  /*border: 1px solid blue;*/
              }
              #tcc-hdr, #tcc-ftr {
-                height: 28px;
+                height: 38px;
                 width: 100%;
                 display: flex;
                 align-content: center;
@@ -399,8 +465,158 @@
             }
             #tcc-hdr { cursor: pointer; border-top-left-radius: 6px; border-top-right-radius: 6px;}
             #tcc-hdr > span { color: white; font-family: arial; font-size: 14px;}
-            #tcc-ftr { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;}
+            #tcc-ftr {
+                border-bottom-left-radius: 6px;
+                border-bottom-right-radius: 6px;
+                color: white;
+                font-family: arial;
+                font-size: 14px;
+            }
+            #tcc-ftr > span {
+                color: inherit;
+                font-family: inherit;
+                font-size: 14px;
+                background-color: inherit;
+            }
+
+            .tbl-fnt-12 {color: white; font-size:12px;}
+            .tbl-fnt-14 {color: white; font-size:14px;}
+            .td-hdr {
+                filter: brightness(1.4) !important;
+                font-weight: bold !important;
+                border: 2px solid black !important;
+                border-radius: 4px;
+                background: linear-gradient(180deg, #555555 0%, #333333 100%);
+                cursor: none;
+            }
+            .td-hdr > span:not(.btn) {
+                color: black !important;
+            }
+            .tcc-hdr-first {
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+                width: 62%;
+                align-content: center;
+            }
+
+            .opt-sp:hover {filter: brightness(1.8); font-weight: bold;}
+            .tcc-xrt-btn {
+                margin-right: 10px;
+                float: right;
+                /*width: 72px;
+                height: 22px;*/
+
+            }
+            .tcc-force-r {
+                margin-left: auto;
+            }
+             .tcc-torn-btn:hover {
+                filter: brightness(2.00);
+             }
+             .tcc-torn-btn:active {
+                filter: brightness(0.80);
+             }
+
+            .tcc-torn-btn {
+                height: 20px;
+                width: 64px;
+                /*line-height: 22px;*/
+                font-family: "Fjalla One", Arial, serif;
+                font-size: 14px;
+                font-weight: normal;
+                text-align: center;
+                text-transform: uppercase;
+                border-radius: 5px;
+                /*padding: 0 10px;*/
+                cursor: pointer;
+                color: #555;
+                color: var(--btn-color);
+                text-shadow: 0 1px 0 #FFFFFF40;
+                text-shadow: var(--btn-text-shadow);
+                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
+                background: var(--btn-background);
+                border: 1px solid #aaa;
+                border: var(--btn-border);
+                display: inline-block;
+                vertical-align: middle;
+             }
         `);
+    }
+
+    function applySampleStyle(styleStr, val) {
+        let orgVal = val;
+        let style = styleStr.replace('${val}', val);
+        if (styleStr.indexOf("background-color") > -1)
+            style += ` background: ${val} !important;`;
+        log("applySampleStyle, style: ", style);
+        $("#tcc-ftr").attr("style", style);
+    }
+
+    function handleRowClick(e) {
+        let key = $(this).attr("data-map");
+        let opt = $(this).attr("data-opt");
+        log("handleRowClick, key: ", key, " opt: ", opt);
+        let entry = KEY_MAP[key].opts[opt];
+        log("handleRowClick, entry: ", entry);
+        let val = entry.val;
+        let styleStr = entry.style;
+        log("handleRowClick, val: ", val, " styleStr: ", styleStr);
+
+        let cells = $("#tcc-opts-table > tbody > tr > td");
+        log("cells: ", cells);
+        //cells.forEach((el) => {
+        for (let idx=0; idx<cells.length; idx++) {
+            let el = cells[idx];
+            $(el).attr("style", "");
+        };
+        log("Removed cell styles from: ", cells);
+
+        $(this).parent().css("filter", "brightness(1.4)");
+
+        if (styleStr && val != 'default') {
+            applySampleStyle(styleStr, val);
+        } else {
+            $("#tcc-ftr").attr("style", "");
+        }
+    }
+
+    function handleOptValChange(e) {
+        let prevSib = $(this).prev();
+
+        let key = $(prevSib).attr("data-map");
+        let opt = $(prevSib).attr("data-opt");
+        log("handleOptValChange, key: ", key, " opt: ", opt);
+        let entry = KEY_MAP[key].opts[opt];
+        log("handleOptValChange, entry: ", entry);
+
+        let styleStr = entry.style;
+        let oldVal = entry.val;
+        let newVal = $(this).val();
+        log("handleOptValChange, oldVal: ", oldVal, " new: ", newVal);
+
+
+        log(`Setting options[${key}][${opt}] = ${newVal};`);
+        log(`setting KEY_MAP[${key}].opts[${opt}].val `);
+        log("Original options: ", options);
+        log("FAC_OPTS, before: ", FAC_OPTS);
+        log("PRIV_OPTS, before: ", PRIV_OPTS);
+
+        options[key][opt] = newVal;
+        KEY_MAP[key].opts[opt].val = newVal;
+
+        log("New options: ", options);
+        saveOptions();
+
+        log("Options, after: ", options);
+        log("FAC_OPTS, after: ", FAC_OPTS);
+        log("PRIV_OPTS, after: ", PRIV_OPTS);
+
+        if (styleStr && newVal != 'default') {
+            applySampleStyle(styleStr, newVal);
+        } else {
+            $("#tcc-ftr").attr("style", "");
+        }
     }
 
     function addTableRows() {
@@ -412,8 +628,8 @@
             let title = KEY_MAP[key].title;
             let keys = Object.keys(opts);
 
-            let row = `<tr><td style="background: ${bg};">
-                         <span style="color: white; font-size:14px;">${title}</span>
+            let row = `<tr><td class="${bg} td-hdr">
+                         <span class="tbl-fnt-14">${title}</span>
                        </td></tr)`;
             $("#tcc-opts-table > tbody").append(row);
 
@@ -421,13 +637,26 @@
                 let opt = keys[idx];
                 let entry = opts[opt];
                 let val = entry.val;
+                let styleStr = entry.style;
 
-                let row = `<tr><td style="background: ${bg};">
+                //if (styleStr && val != 'default') {
+                //    val = styleStr.replace('${val}', val);
+                //}
+
+                let row = `<tr><td class="${bg}">
                              <input type="checkbox">
-                             <span style="color: white; font-size:12px;">${opt}</span>
+                             <span id="sopt-${keyIdx}-${idx}" class="tbl-fnt-12 opt-sp" data-map="${key}" data-opt="${opt}">${opt}</span>
                              <input type="text" value="${val}">
                            </td></tr)`;
+
                 $("#tcc-opts-table > tbody").append(row);
+                $(`#sopt-${keyIdx}-${idx}`).on('click.xedx', handleRowClick);
+                $(`#sopt-${keyIdx}-${idx}`).next().on('change.xedx', handleOptValChange);
+
+                //if (styleStr && val != 'default') {
+                //    log("Adding row style: ", val);
+                //    $(`#sopt-${keyIdx}-${idx}`).parent().attr("style", val);
+                //}
             }
         }
     }
@@ -436,7 +665,11 @@
         if ($("#tcc-opts").length) return;
         let div = `
                 <div id="tcc-opts">
-                <div id="tcc-hdr" ><span>Options (click here to close)</span></div>
+                <div id="tcc-hdr" >
+                    <span class="tcc-hdr-first">Options</span>
+                    <span class="tcc-xrt-btn tcc-force-r btn"><input id="tcc-close" class="tcc-torn-btn" value="Close"></span>
+                    <span class="tcc-xrt-btn btn"><input id="tcc-reload" class="tcc-torn-btn" value="Reload"></span>
+                </div>
                 <div style="height: 10px; width:100%;background-color: black"></div>
                     <div id="tcc-tbl-wrap">
                         <table id="tcc-opts-table">
@@ -445,54 +678,29 @@
                         </table>
                      </div>
                  <div style="height:10px; width:100%;background-color: black"></div>
-                 <div id="tcc-ftr"><span></span></div>
+                 <div id="tcc-ftr"><span>Select Row, Click to Test</span></div>
                  </div>
         `;
 
-        let div2 = `
-            <div id="tcc-outer-opts">
-                <div id="tcc-hdr" ><span>Options (click here to close)</span></div>
-                <div id="tcc-opts">
-                    <div id="tcc-tbl-wrap">
-                        <table id="tcc-opts-table">
-                            <tbody>
-                            </tbody>
-                        </table>
-                     </div>
-                 </div>
-                 <div style="height:10px; width:100%;background-color: black"></div>
-                 <div id="tcc-ftr"><span></span></div>
-             </div>
-        `;
         $('body').after(div);
 
         addTableRows();
-        /*
-        for (let idx=0; idx<30; idx++) {
-            let bg = (idx % 2 == 1) ? 'background: rgba(80, 80, 80, 0.8);' : 'background: rgba(160, 160, 160, 0.9);';
-            let row = `
-                <tr>
-                     <td>
-                         <input type="checkbox">
-                         <span style="${bg}">-- sample --</span>
-                         <input type="text">
-                     </td>
-                 </tr)
-            `;
-            $("#tcc-opts-table > tbody").append(row);
-        }
-        */
 
-        $("#tcc-hdr").on('click', function(e) { $("#tcc-opts").remove(); });
+        $("#tcc-close").on('click.xedx', function(e) { $("#tcc-opts").remove(); });
+        $("#tcc-reload").on('click.xedx', function() {location.reload();});
     }
 
-    function installOptsUI() {
+    function installOptsBtn() {
         let stSpan = $("[class*='panelSizeContainer_']").prev(); //$("#settings_panel").closest("[class*='subtitle_']");
-        log("installOptsUI: ", $(stSpan).length, $("#xedx-wrap").length);
-        if ($("#xedx-wrap").length) return;
+        log("installOptsBtn: ", $(stSpan).length, $("#xedx-wrap").length);
+        if ($("#xedx-wrap").length) {
+            return log("Opts wrap already installed");
+        }
+
         // #settings_panel > div > div:nth-child(3) > span
         let wrapper = `<div id="xedx-wrap" style="display: flex; flex-flow: row wrap; justify-content: space-between;"></div>`;
         let optSpan = `<span id="xopts">Extra Opts</span>`;
+
         log("wrapping ", $(stSpan));
         $(stSpan).wrap($(wrapper));
         $("#xedx-wrap").append(optSpan);
