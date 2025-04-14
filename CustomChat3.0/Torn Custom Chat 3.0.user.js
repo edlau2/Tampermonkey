@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Custom Chat 3.0
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      1.11
 // @description  This script does...
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -10,6 +10,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
@@ -60,21 +61,51 @@
         }
     };
 
+    // GM_xxx replacements
+    const xedx_addStyle = function(styles) {
+        (typeof GM_addStyle != "undefined") ?
+            GM_addStyle(styles) :
+            (styles) => {
+                const styleElement = document.createElement("style");
+                styleElement.setAttribute("type", "text/css");
+                styleElement.innerHTML = styles;
+                document.head.appendChild(styleElement);
+            }
+    };
+    const xedx_getValue = function(key, defValue) {
+        if (typeof GM_getValue != "undefined") {
+            return GM_getValue(key, defValue);
+        } else {
+            let tmp = localStorage.getItem(key);
+            return tmp ? tmp : defValue;
+        }
+    };
+    const xedx_setValue = function(key, value) {
+        (typeof GM_setValue != "undefined") ?
+            GM_setValue(key, value) :
+            localStorage.setItem(key, value);
+    };
+    const xedx_deleteValue = function(key) {
+        (typeof GM_deleteValue != "undefined") ?
+            GM_deleteValue(key) :
+            localStorage.removeItem(key);
+    };
+
     loadOptions();
 
     function saveOptions() {
         //GM_setValue("options.fac", JSON.stringify(options.fac));
         //GM_setValue("options.priv", JSON.stringify(options.priv));
-        GM_setValue("options", JSON.stringify(options));
+        xedx_setValue("options", JSON.stringify(options));
         loadOptions();
     }
 
     function loadOptions() {
-        let tmp = GM_getValue("options", null);
+        let tmp = xedx_getValue("options", null);
         log("loading options: ", tmp);
         if (!tmp) {
             log("Using default options: ", options);
-            GM_setValue("options", JSON.stringify(options));
+            xedx_setValue("options", JSON.stringify(options));
         } else {
             options = JSON.parse(tmp);
             log("Using saved options: ", options);
@@ -140,6 +171,7 @@
     const THEM_AVATAR_ROOT = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
     const THEM_MSGS_SEL = `[class^='list_'] > [class*='root_'] [class*='message_']:not([class*='self_']):not([class*='divider']) span`;
     const THEM_MSGS_BOX_SEL = `[class^='list_'] > [class*='root_']:not([class*='self_']):not([class*='divider'])`;
+    const NOT_ADMIN = `:not([class*='admin_'])`;
 
     const SNDR_NAME = `${THEM_AVATAR_ROOT} [class*='senderContainer_'] [class*='sender_']`;
     const UNREAD_MSGS_SEL = ` > div[class*='content_'] > div[class*='root_'] > button[class*='subtitle_']`;
@@ -160,7 +192,7 @@
         THEM_BG_COLOR: {val: options.fac.THEM_BG_COLOR, style: BG_STYLE, subSel: THEM_MSGS_BOX_SEL},
         BODY_BG_COLOR: {val: options.fac.BODY_BG_COLOR, style: BG_STYLE, subSel: BODY},
         FOOTER_BG_COLOR: {val: options.fac.FOOTER_BG_COLOR, style: BG_STYLE, subSel: FOOTER},
-        SNDR_AVATAR_COLOR: {val: options.fac.SNDR_AVATAR_COLOR, style: TEXT_CLR_STYLE, subSel: SNDR_NAME, when: 'now'},
+        SNDR_AVATAR_COLOR: {val: options.fac.SNDR_AVATAR_COLOR, style: TEXT_CLR_STYLE, subSel: (SNDR_NAME + NOT_ADMIN), when: 'now'},
         MSGS_UNREAD: {val: options.fac.MSGS_UNREAD, style: DISPLAY_STYLE, subSel: UNREAD_MSGS_SEL, when: 'load'}
     };
 
@@ -187,17 +219,6 @@
     };
 
     logStyle("GEN_OPTS: ", GEN_OPTS);
-
-    const xedx_addStyle = function(styles) {
-        (typeof GM_addStyle != "undefined") ?
-            GM_addStyle(styles) :
-            (styles) => {
-                const styleElement = document.createElement("style");
-                styleElement.setAttribute("type", "text/css");
-                styleElement.innerHTML = styles;
-                document.head.appendChild(styleElement);
-            }
-    };
 
     xedx_addStyle(`.bg-blue {background-color: #4275a7;}`);
     xedx_addStyle(`.bg-gray {background-color: #333;}`);
@@ -541,6 +562,22 @@
                 display: inline-block;
                 vertical-align: middle;
              }
+             .tcc-between {
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: space-between;
+                align-content: center;
+            }
+            .btn-between {
+                font-size: 12px;
+                margin: 2px 2px 2px 8px;
+                border-radius: 4px;
+                border: 1px solid white;
+                background-color: #666;
+            }
+            .btn-between:hover {
+                filter: brightness(1.6);
+            }
         `);
     }
 
@@ -619,6 +656,16 @@
         }
     }
 
+    function handleReset(e) {
+        xedx_setValue("options.saved", JSON.stringify(options));
+        xedx_deleteValue("options");
+        location.reload();
+    }
+
+    function handleSetDefault(e) {
+
+    }
+
     function addTableRows() {
         let optionKeys = Object.keys(options);
         for (let keyIdx=0; keyIdx<optionKeys.length; keyIdx++) {
@@ -628,9 +675,15 @@
             let title = KEY_MAP[key].title;
             let keys = Object.keys(opts);
 
-            let row = `<tr><td class="${bg} td-hdr">
+            let row = `<tr><td class="${bg} td-hdr tcc-between">
+                         <span class="btn-between btn-default">Default</span>
                          <span class="tbl-fnt-14">${title}</span>
+                         <span class="btn-between btn-reset">Reset</span>
                        </td></tr)`;
+            let resetRow = `<tr><td class="tcc-between">
+                                <span class="tcc-xrt-btn btn"><input class="tcc-torn-btn" value="Reset"></span>
+                                <span class="tcc-xrt-btn btn"><input class="tcc-torn-btn" value="Default"></span>
+                            </td></tr)`;
             $("#tcc-opts-table > tbody").append(row);
 
             for (let idx=0; idx<keys.length; idx++) {
@@ -658,6 +711,11 @@
                 //    $(`#sopt-${keyIdx}-${idx}`).parent().attr("style", val);
                 //}
             }
+
+            //$("#tcc-opts-table > tbody").append(resetRow);
+
+            $(".btn-default").on('click.xedx', handleSetDefault);
+            $(".btn-reset").on('click.xedx', handleReset);
         }
     }
 
