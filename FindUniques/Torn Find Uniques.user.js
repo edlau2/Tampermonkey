@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Find Uniques
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  This script notifies you if a crime has a unique available.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -26,9 +26,9 @@
 
     const autoRun = true;                  // Will start checking when the script runs. For testing only...leave set to true!
     const browserNotify = true;            // Enable browser notifications
-    const notifyMinSecsBetween = 45;       // Wait at least 30 secs before another notification
-    const notifyTimeoutSecs = 30;          // Time notification is displayed
-    const secsDelayEachCrime = 2;          // Check each crime, waiting this many secs between requests
+    const notifyMinSecsBetween = 120;      // Wait at least this many secs before another notification
+    const notifyTimeoutSecs = 30;          // Time (duration) notification is displayed if not clicked
+    const secsDelayEachCrime = .25;        // Check each crime, waiting this many secs between requests
     const secsDelayBetweenRuns = 15;       // Wait this many secs before checking each crime again.
 
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
@@ -88,7 +88,7 @@
     }
 
     function logAllCrimes() {
-        log("All allowed crimes:");
+        debug("All allowed crimes:");
         allCrimes.forEach((crime, idx) => {
             log("    ID: ", crime.ID, " index: ", idx, " Name: ", crime.name, " slug: ", crime.slug, " hasUniques: ", crime.hasUniques);
         });
@@ -107,14 +107,18 @@
     var notifyMsgText = "";
     var alertIds = [];
     var resetTimer = null;
-    var notifyInProgress = false;
-    function resetNtfy() {GM_setValue("notifyInProgress", false); resetTimer = null;} //notifyInProgress = false;}
 
     function doBrowserNotify() {
         if (browserNotify != true) return;
 
-        if (GM_getValue("notifyInProgress", false) == true) return;
-        GM_setValue("notifyInProgress", true);
+        let now = new Date().getTime();
+        let lastTime = GM_getValue("lastNotifyTime", 0);
+        let timeDiff = (now - lastTime) / 1000;
+
+        if (timeDiff < notifyMinSecsBetween) {
+            return log("Not notifying, too soon!");
+        }
+        GM_setValue("lastNotifyTime", now);
 
         //let crimeName = crimeNameById(crimeId);
         let opts = {
@@ -124,9 +128,9 @@
                 image: 'https://imgur.com/QgEtwu3.png',
                 timeout: notifyTimeoutSecs * 1000,
                 onclick: (context) => {
-                    if (!resetTimer) resetTimer = setTimeout(resetNtfy, notifyMinSecsBetween * 1000);
+                    //if (!resetTimer) resetTimer = setTimeout(resetNtfy, notifyMinSecsBetween * 1000);
                 }, ondone: () => {
-                    if (!resetTimer) resetTimer = setTimeout(resetNtfy, notifyMinSecsBetween * 1000);
+                    //if (!resetTimer) resetTimer = setTimeout(resetNtfy, notifyMinSecsBetween * 1000);
                 }
             };
 
@@ -138,6 +142,7 @@
         notifyMsgText = "";
 
         $("#nav-crimes [class^='linkName_']").addClass("blink-yellow");
+        debug("crime link: ", $("#nav-crimes [class^='linkName_']"));
 
         if (atCrimeHub() == true) {
             alertIds.forEach((crimeId) => {
@@ -189,18 +194,18 @@
                 logSecretsArray(secrets, crimeName, root);
 
             thisCrime.uniqueCount = 0;
-            testHasUnique = GM_getValue("testHasUnique", false);
+            //testHasUnique = GM_getValue("testHasUnique", false);
 
             let alreadyLogged;
             secrets.forEach((entry, idx) => {
 
                 // Testing: turn on/off a unique via storage
-                let doFake = false;
-                if ((crimeId == 4 || crimeId == 2) && testMode == true) {
-                    if (testHasUnique == true) doFake = true;
-                }
+                //let doFake = false;
+                //if ((crimeId == 4 || crimeId == 2) && testMode == true) {
+                //    if (testHasUnique == true) doFake = true;
+                //}
 
-                if (entry.value > 0 || doFake == true) {
+                if (entry.value > 0) { // || doFake == true) {
                     thisCrime.uniqueCount++;
                     totalUniques++;
                     if (!alreadyLogged) {
@@ -208,7 +213,7 @@
                         //alertsOn(crimeId);
                         alertIds.push(crimeId);
                         notifyMsgText = notifyMsgText.length ? (notifyMsgText + ", " + thisCrime.name) : thisCrime.name;
-                        log(`Unique found in ${crimeName}\nKey: ${root}${entry.path}`);
+                        debug(`Unique found in ${crimeName}\nKey: ${root}${entry.path}`);
                     }
                 }
             });
@@ -277,7 +282,7 @@
         let ctxLi = $("#uniques-rsvd");
         if (!$(ctxLi).length) {
             if (retries++ < 20) return setTimeout(findNerveContext, 250, retries);
-            log("Didn't find nerve bar ctx, will add ctx to crimes bar");
+            debug("Didn't find nerve bar ctx, will add ctx to crimes bar");
             $("#nav-crimes").on('contextmenu', loadCrimes);
         }
 
@@ -286,17 +291,9 @@
     }
 
     function handlePageLoad() {
-        window.onbeforeunload = function(){
-            resetNtfy();
-            alert("unloading...");
-        };
-
-        // Just in case stuck on by another page...
-        setTimeout(resetNtfy, 60000);
 
         // Custom test buttons to run manually
         if (testMode == true) findNerveContext();
-
         if (autoRun == true) doCrimeLoad(1);
     }
 
