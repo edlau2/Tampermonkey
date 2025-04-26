@@ -25,6 +25,8 @@
 
 // Sample URL: https://www.torn.com/war.php?step=chainreport&chainID=41832240
 // 41964765 <-- 100k
+// https://www.torn.com/war.php?step=chainreport&chainID=46099408
+// ^^ Carbon
 
 (function() {
     'use strict';
@@ -39,11 +41,11 @@
 
     function scrollTo(elem) {
         if (!myFacTarget) {
-            console.error("No target set!");
+            log("Error: No target set!");
             debugger;
             return;
         }
-        debug("scrollTo: ", $(elem));
+        log("scrollTo: ", $(elem));
         let scrollTo = $(elem);
         let pos = $(elem).offset().top - $(myFacTarget).offset().top + $(myFacTarget).scrollTop() - 150;
         displayHtmlToolTip($(elem), ("#" + ($(elem).index()+1)), "tooltip4");
@@ -52,6 +54,7 @@
 
     var classAdded = false;
     function findMyLi(root) {
+        log("[findMyLi]");
         let honors = $(root).find("[class^='honorWrap_'] > a");
         for (let idx=0; idx < $(honors).length; idx++) {
             let node = $(honors)[idx];
@@ -68,9 +71,10 @@
                     $(myLi).addClass("xedx-stb");
                 else
                     $(member).addClass("xedx-stb");
-                debug("Found my LI: ", $(myLi));
+                log("Found my LI: ", $(myLi));
                 return myLi;
             }
+            log("[findMyLi] didn't find!");
         }
     }
 
@@ -109,7 +113,8 @@
     // Look for chain report link to open in new tab
     function doFacPageLoad(retries=0) {
         let link = $(".report-link");
-        if (!$(link).length) {
+        debug("Loading, looking for rpt link: ", $(".report-link").length, $(".report-link"));
+        if ($(link).length == 0) {
             if (retries++ < 30) return setTimeout(doFacPageLoad, 200, retries);
             debug("[doFacPageLoad] too many retries");
             return;
@@ -119,6 +124,7 @@
         let uberDiv = "<div id='xwrap'></div>";
         $(link).wrap($(uberDiv));
         $("#xwrap").on('click', function() {
+            debug("Report btn clicked, opening in new tab");
             window.open(url, '_blank').focus();
             return false;
         });
@@ -151,7 +157,7 @@
             myFacTarget = $(selector)[0];
         }
 
-        if(!$(myFacTarget).length) {
+        if($(myFacTarget).length == 0) {
             if (retries++ < 40) return setTimeout(handlePageLoad, 250, retries);
             return log("[handlePageLoad] Too many attempts for '", selector, "'");
         }
@@ -162,21 +168,7 @@
                 $(".members-cont .c-pointer").css({"position": "sticky", "top": 0, "z-index": 9999999});
             else
                 $("ul.report-stats-titles").css({"position": "sticky", "top": 0, "z-index": 9999999});
-        /*
-        else {
-            $(myFacTarget).addClass("sticky-wrap");
-
-            if (warPage == true)
-                $(".members-cont .c-pointer").css({"position": "sticky", "top": 0, "z-index": 9999999});
-            else
-                $("ul.report-stats-titles").css({"position": "sticky", "top": 0, "z-index": 9999999});
-
-            if ($(enemyFacTarget).length) {
-                $(enemyFacTarget).addClass("sticky-wrap");
-            }
-        }
-        */
-
+        
         if (findMyLi(myFacTarget)) scrollTo(myLi);
         $(".c-pointer").on('click', function(e) {
             setTimeout(handleSortClick, 250);
