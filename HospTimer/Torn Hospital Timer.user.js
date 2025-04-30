@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.11
+// @version      1.13
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -34,7 +34,7 @@
     var hideWhenOK = GM_getValue("hideWhenOK", true);
     var blinkWhiteWhenOk = GM_getValue("blinkWhiteWhenOk", false);
     var transparentBackground = GM_getValue("transparentBackground", false);
-    var displayOnSidebar = GM_getValue("displayOnSidebar", true);
+    var displayOnSidebar = GM_getValue("displayOnSidebar", false);
 
     // ====== Leave the rest alone, manipulated dynamically ======
 
@@ -50,7 +50,7 @@
 
     const secsInDay = 60 * 60 * 24;
     const innerFlexHeight = 60;
-    var intTimer = 0;    
+    var intTimer = 0;
     var inHospital = false;
     var hidden = false;
     var minimized = false;
@@ -324,7 +324,7 @@
                 -webkit-transform: translate(-20%,-95%) !important;
                 transform: translate(-20%,-95%) !important;
                 background: transparent;
-                top: 40%;
+                top: 30%;
                 left: 84%;
             }
             .x-hosp-inner-flex {
