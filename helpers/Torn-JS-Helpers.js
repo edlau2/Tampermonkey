@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.08
+// @version     2.46.09
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.08";
+const thisLibVer = "2.46.09";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -97,12 +97,21 @@ function getApiKey() {
     return api_key;
 }
 
+// TEST THESE!
+// Need to parse?
+//
+// let user = JSON.parse($("#torn-user").val());  // ??
+//
 function getPlayerId() {
-    return $('script[secret]').attr("uid");
+    //return $('script[secret]').attr("uid");
+    let user = $("#torn-user").val();
+    return user.id;
 }
 
 function getPlayerName() {
-    return $('script[secret]').attr("name");
+    //return $('script[secret]').attr("name");
+    let user = $("#torn-user").val();
+    return user.playername;
 }
 
 function getPlayerFullName() {
@@ -188,6 +197,9 @@ function registerWithScriptDb() {
     const dbDiv = "<div id='xedx-loaded-scripts' style='display: none;opacity: 0;'><ul></ul></div>";
     const thisScriptLi = "<li data-name='" + GM_info.script.name +
           "' data-ver='" + GM_info.script.version + "'></li>";
+
+    // Fix with just JS, for now, don't crash
+    if (typeof $ != 'function') return;
     if (!$("#xedx-loaded-scripts").length) $("body").after(dbDiv);
     $("#xedx-loaded-scripts > ul").append(thisScriptLi);
 }
@@ -209,10 +221,10 @@ function logScriptDb() {
 ///////////////////////////////////////////////////////////////////////////////////
 
 // Just spit out the name of the script at startup
-const logScriptStart = function () {
+const logScriptStart = function (register=true) {
     console.log(GM_info.script.name + ' version ' +
         GM_info.script.version + ' script started, library version ' + thisLibVer);
-    registerWithScriptDb();
+    if (register == true) callOnContentLoaded(registerWithScriptDb);
 }
 
 // See if cloudflare is challenging - do I have to wait for page load?
@@ -660,7 +672,7 @@ function getUserId() {
 }
 
 // The URL expected is in the form "https://www.torn.com/profiles.php?XID=1162022#/"
-// More accurately, "XID=" must be present :-)
+// More accudomtely, "XID=" must be present :-)
 // We need the XID; the trailing '#' may not be present.
 function xidFromProfileURL(URL) {
     var n = URL.indexOf('XID='); // Find the 'XID=' token
