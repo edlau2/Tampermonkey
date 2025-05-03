@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Needle Roller
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Allow quick-equip for needles
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -25,7 +25,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = false;
+    debugLoggingEnabled = true;
 
     const rfcv = getRfcv();
     const URL = `https://www.torn.com/item.php?rfcv=${rfcv} #quickItems`;
@@ -53,7 +53,7 @@
     var inEquip = false;
     var equipURL = `https://www.torn.com/item.php?rfcv=${rfcv}`;
     function doEquip(e) {
-        log("doEquip: ", inEquip, $(this).parent());
+        debug("doEquip: ", inEquip, $(this).parent());
         if (inEquip == true) return;
 
         inEquip = true;
@@ -73,8 +73,6 @@
                         id: xid,
                         confirm: 1
                        };
-
-        log("postData: ", postData);
 
         $.post( equipURL, postData, function(response, status, xhr){
             processEquipResponse(response, status, xhr);
@@ -105,10 +103,9 @@
         $("#xedx-fake > ul > li").remove();
         $("#xedx-fake > ul").html(html);
         let list = $("#xedx-fake > ul > li");
-        log("List: ", $(list).length, $(list));
 
         if ($(list).length == 0)
-            debugger;
+            if (debugLoggingEnabled == true) debugger;
 
         if (updateWaiting == true) {
             updateNeedles("LoadResponse");
@@ -194,6 +191,7 @@
     // Need to catch collisions, if the interval timer pops
     // while requesting server data - otherwise we do not
     // have valid response data!
+    var updTimer;
     function updateNeedles(from) {
         debug("[updateNeedles] ", updateWaiting, from);
         if (updateWaiting == true && !from) {
@@ -202,6 +200,7 @@
         if (updateWaiting == false) {
             debug("Sending update req");
             updateWaiting = true;
+            updTimer = setTimeout(function(){updateWaiting = false;}, 5000);
             getItemCategory("Temporary");
             return;
         }
@@ -211,6 +210,8 @@
             return log("Error: called before response ready!");
         }
         updateWaiting = false;
+        if (updTimer) clearTimeout(updTimer);
+        updTimer = null;
         let dirty = false;
 
         let root = "xedx-fake";
@@ -244,7 +245,7 @@
 
                 // Safety net:
                 if (entryOwn.xid == "0" && beforeOwn != "0" && entryOwn.qty == 0 && beforeOwn.qty != 1) {
-                    debugger;
+                    if (debugLoggingEnabled == true) debugger;
                     debug("ERROR: Possible bad result?");
                 } else {
                     replaceNode(entryOwn);
@@ -258,7 +259,7 @@
 
                 // Safety net:
                 if (entryFac.xid == "0" && beforeFac != "0" && entryFac.qty == 0 && beforeFac.qty != 1) {
-                    debugger;
+                    if (debugLoggingEnabled == true) debugger;
                     debug("ERROR: Possible bad result?");
                 } else {
                     replaceNode(entryFac);
@@ -394,13 +395,11 @@
             #xndl {
                 display: flex;
                 flex-direction: column;
-                /*flex-flow: row wrap;*/
                 justify-content: space-between;
                 background: linear-gradient(180deg,#555,#333) no-repeat;
                 border-radius: 5px;
                 overflow: visible;
                 padding: 8px 10px 8px 10px;
-                /*margin-bottom: 10px;*/
             }
             .xndl-list-wrap {
                 display: flex;
@@ -446,8 +445,6 @@
                 padding-bottom: 6px;
             }
             .xndlhidden {
-                /*height: 0;*/
-                /*display: none;*/
                 z-order: -1;
                 opacity: .3;
             }
@@ -492,34 +489,6 @@
                 align-items: center;
                 display: flex;
                 flex-flow: row wrap;
-            }
-        `);
-
-        GM_addStyle(`
-            .custom-menu {
-                display: none;
-                z-index: 1000;
-                position: absolute;
-                overflow: hidden;
-                border: 1px solid green;
-                white-space: nowrap;
-                font-family: sans-serif;
-                background: #ddd;
-                color: #333;
-                border-radius: 5px;
-                padding: 0;
-            }
-
-            .custom-menu li {
-                padding: 8px 12px;
-                cursor: pointer;
-                list-style-type: none;
-                transition: all .3s ease;
-                user-select: none;
-            }
-
-            .custom-menu li:hover {
-                background-color: #DEF;
             }
         `);
     }
