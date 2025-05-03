@@ -25,7 +25,7 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled = true;
+    debugLoggingEnabled = false;
 
     const rfcv = getRfcv();
     const URL = `https://www.torn.com/item.php?rfcv=${rfcv} #quickItems`;
