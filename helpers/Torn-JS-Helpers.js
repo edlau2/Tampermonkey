@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.09
+// @version     2.46.11
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.09";
+const thisLibVer = "2.46.11";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -97,20 +97,15 @@ function getApiKey() {
     return api_key;
 }
 
-// TEST THESE!
-// Need to parse?
-//
-// let user = JSON.parse($("#torn-user").val());  // ??
-//
 function getPlayerId() {
     //return $('script[secret]').attr("uid");
-    let user = $("#torn-user").val();
+    let user = JSON.parse($("#torn-user").val());
     return user.id;
 }
 
 function getPlayerName() {
     //return $('script[secret]').attr("name");
-    let user = $("#torn-user").val();
+    let user = JSON.parse($("#torn-user").val());
     return user.playername;
 }
 
@@ -232,6 +227,8 @@ function checkCloudFlare(clickIt) {
     //if ($("#challenge-form").length > 0) {
     let active = false;
     if (document.querySelector("#challenge-form")) {
+        active = true;
+    } else if (location.href.indexOf('recaptcha') > -1) {
         active = true;
     } else if (document.querySelector(".iAmUnderAttack")) {
         active = true;
