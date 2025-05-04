@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.14
+// @version     1.15
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -48,7 +48,7 @@
         enemyProfile = (step == 'profile');
         if (enemyProfile) enemyID = params.get("ID");
         params = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
-        if (params) facTab = params2.get('tab');
+        if (params) facTab = params.get('tab');
 
         debug("[checkPageParams] step: ", step, " us: ", ourProfile, " them: ", enemyProfile, " ID: ", enemyID, " facTab: ", facTab);
     }
