@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.18
+// @version     1.19
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -75,7 +75,6 @@
     var atWar;
 
     xedx_TornUserQueryv2('', "profile", userProfileQueryCb); // get fac ID
-    //checkWarStatus(); // Need our fac ID!
 
     let   xedxDevMode = GM_getValue("xedxDevMode", false);
     const enableScrollLock = GM_getValue("enableScrollLock", true);
@@ -121,11 +120,6 @@
     let hospLoopCounter = 0;
     const hospNodes = [];
 
-
-
-    // Once the page has loaded (before complete), this is where we add a few other
-    // misc UI elements, such as a button to reset the API key, and optionally
-    // online/offline/idle etc user stat bar
     const resetApiKeyLink = `<a class="t-clear h c-pointer  m-icon line-h24 left">
                                  <span id="xedx-rst-link" class="xedx-api-rst">Update BS Key</span>
                              </a>`;
@@ -168,8 +162,6 @@
                     atWar = true;
                 }
             }
-            debug("Faction ", ID, " at war? ", atWar);
-            //GM_setValue("activeWar", atWar);
         }
         debug("War status: ", atWar);
     }
@@ -468,6 +460,37 @@
         return parts[1];
     }
 
+    function replaceHospTime(statusNode, time) {
+        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
+        let title = $(iconNode).attr("title");
+        if (!title) return 0;
+        let st = title.indexOf("data-time");
+        let newT = title.slice(st+11);
+        let parts = newT.split(/[><]+/);
+        let newTitle = title.replace(parts[1], time);
+        $(iconNode).attr("title", newTitle);
+    }
+
+    function getIdFromStatus(statusNode) {
+        let li = $(statusNode).parent().parent();
+        let wrap = $(li).find("[class^='honorWrap_'] > a");
+        if ($(wrap).length > 0) {
+            let href = $(wrap).attr("href");
+            let idx = href ? href.indexOf("XID=") : 0;
+            let id = idx ? href.slice(idx+4) : 0;
+            return id;
+        }
+    }
+
+    function getTsViaApi(statusNode) {
+        let id = $(statusNode).data("id");
+        if (!id || id == '0' || id == 0) {
+            log("No id!!!");
+            return
+        }
+        log("Should call API now for ID ", id);
+    }
+
     function updateHospTimers2() {
         let usersInHosp = $(".hospital.not-ok");
 
@@ -475,24 +498,60 @@
 
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
-            let time = getHospTime(statusNode);
-            if (time == 0) continue;
-            let parts = time.split(":");
-            let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
-            let span = `<span class="ellipsis xhosp" data-secs="${secs}">${time}</span>`;
-            $(statusNode).replaceWith(span);
+            let id = getIdFromStatus(statusNode);
+            let secs;
+            let time;
+            if (true || !$(statusNode).data("secs")) {
+                time = getHospTime(statusNode);
+                if (time == 0) continue;
+                let parts = time.split(":");
+                secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
+                $(statusNode).data("secs", secs);
+                if (secs < 120 && secs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
+                if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
+                if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
+                if (secs < 1 || secs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+            } else {
+                secs = parseInt($(statusNode).data("secs")) - 1;
+                if (secs < 120 && secs > 60) $(statusNode).addClass("blink2");
+                if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
+                if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
+                $(statusNode).data("secs", secs);
+            }
+            let newTime = setNodeTime(secs, statusNode);
+            log("Replacing time: ", time, newTime);
+            replaceHospTime(statusNode, newTime);
+            //let span = `<span class="ellipsis xhosp" data-id="${id}" data-secs="${secs}">${time}</span>`;
+            //$(statusNode).replaceWith(span);
         }
 
         usersInHosp = $(".xhosp");
         //log("updateHospTimers2, xhosp: ", $(usersInHosp).length);
-        for (let idx=0; idx < $(usersInHosp).length; idx++) {
+        if (false) for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
             let secs = parseInt($(statusNode).data("secs")) - 1;
-            $(statusNode).data("secs", secs)
+            if (secs < 120 && secs > 60) $(statusNode).addClass("blink2");
+            if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
+            if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
+            $(statusNode).data("secs", secs);
             if (secs == 0) {
                 let newSpan = `<span class="ellipsis okay ok">Okay</span>`;
-                $(statusNode).replaceWith(newSpan);
+                //$(statusNode).replaceWith(newSpan);
+                $(statusNode).remove();
                 continue;
+            }
+
+            // re-validate time periodically, every 10 secs?
+            let verify = $(statusNode).data("verify");
+            if (!verify) {
+                let when = parseInt(Date.now()/1000 + 10*idx);
+                $(statusNode).data("verify", when);
+            } else {
+                if (verify && verify > 0 && verify < (Date.now()/1000)) {
+                    let when = parseInt(Date.now()/1000 + 10*idx);
+                    $(statusNode).data("verify", when);
+                    getTsViaApi(statusNode);
+                }
             }
 
             setNodeTime(secs, statusNode);
@@ -514,6 +573,7 @@
         //log("Set time: ", $(node).text(), timeStr);
 
         $(node).text(timeStr);
+        return timeStr;
     }
 
     function updateHospTimers() {
@@ -1451,6 +1511,23 @@
     loadMiscStyles();
 
     GM_addStyle(`
+        .blink2 {
+           color:  yellow !important;
+           animation: blinker 1.5s linear infinite;
+       }
+        .blink1 {
+           color:  green !important;
+           animation: blinker 1.0s linear infinite;
+       }
+       .blink30 {
+           color:  limegreen !important;
+           animation: blinker 0.5s linear infinite;
+       }
+
+       @keyframes blinker {
+           0%, 100% {opacity: 1;}
+           50%, 70% {opacity: .3;}
+        }
         .counts-wrap {
             display: flex;
             flex-flow: row wrap;
