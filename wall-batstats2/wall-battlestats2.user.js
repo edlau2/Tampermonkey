@@ -458,18 +458,6 @@
         </div>`;
     }
 
-    // New:
-    // Get all hosp members
-    // If no hosp time, do api call.
-    // Flag node with own class to skip next time.
-    // After say 20 API calls, delay some (10 secs?)
-    // Every sec, dec time in each node by one sec and in hospTime entry
-    // At 0, remove our class name.
-    // Once all hosp times filled, set interval for every 5 secs, look for new hosps.
-    // -or-
-
-    //#icon15___650cde4e   parent().parent().find("[id^='icon15_']");
-
     function getHospTime(statusNode) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
@@ -496,7 +484,7 @@
         }
 
         usersInHosp = $(".xhosp");
-        log("updateHospTimers2, xhosp: ", $(usersInHosp).length);
+        //log("updateHospTimers2, xhosp: ", $(usersInHosp).length);
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
             let secs = parseInt($(statusNode).data("secs")) - 1;
@@ -528,13 +516,10 @@
     }
 
     function updateHospTimers() {
-        log("[updateHospTimers]", hospNodes.length, usersInHosp() );
       for (let i = 0, n = hospNodes.length; i < n; i++) {
-          log("hosp node: ", hospNodes[i]);
         const hospNode = hospNodes[i];
         const id = hospNode[0];
         const node = hospNode[1];
-          log("id: ", id, " node: ", $(node), " time: ", hospTime[id]);
         if (!node) continue;
         if (!hospTime[id]) continue;
 
@@ -562,7 +547,6 @@
     }
 
     function updateStatus(id, node) {
-        log("[updateStatus] ", id, $(node));
       if (!node) return;
       if (hospNodes.find((h) => h[0] == id)) return;
       hospNodes.push([id, node]);
