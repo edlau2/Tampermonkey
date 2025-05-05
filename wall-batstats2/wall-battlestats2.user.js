@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.15
+// @version     1.17
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -48,7 +48,7 @@
         enemyProfile = (step == 'profile');
         if (enemyProfile) enemyID = params.get("ID");
         params = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
-        if (params) facTab = params.get('tab');
+        if (params) facTab = params2.get('tab');
 
         debug("[checkPageParams] step: ", step, " us: ", ourProfile, " them: ", enemyProfile, " ID: ", enemyID, " facTab: ", facTab);
     }
@@ -69,11 +69,22 @@
         return;
     }
 
+    const thisUser = JSON.parse($("#torn-user").val());
+    const myUserId = thisUser.id;  // Use to get fac id, then war status
+    var myFacId;
+    var atWar;
+
+    xedx_TornUserQueryv2('', "profile", userProfileQueryCb); // get fac ID
+    //checkWarStatus(); // Need our fac ID!
+
     let   xedxDevMode = GM_getValue("xedxDevMode", false);
+    const enableScrollLock = GM_getValue("enableScrollLock", true);
     const trackOkUsers = GM_getValue("trackOkUsers", true);
     var updateUserCountsTimer;
     const updateIntervalSecs = GM_getValue("updateIntervalSecs", 3); // unused
     const statusIntervalSecs = GM_getValue("statusIntervalSecs", 5);
+
+    GM_setValue("enableScrollLock", enableScrollLock);
     GM_setValue("updateIntervalSecs", updateIntervalSecs);
     GM_setValue("statusIntervalSecs", statusIntervalSecs);
     GM_setValue("trackOkUsers", trackOkUsers);
@@ -83,8 +94,9 @@
     const usersFallen = function () {return $(".table-cell.status > span.fallen").length;}
     const usersAway = function () { return $(".table-cell.status > span.traveling").length +
                                            $(".table-cell.status > span.abroad").length;}
-    const usersInHosp = function () { return $(".table-cell.status > span.hospital").length +
-                                           $(".table-cell.status:not(:has(*))").length;}
+    //const usersInHosp = function () { return $(".table-cell.status > span.hospital").length +
+    //                                       $(".table-cell.status:not(:has(*))").length;}
+    const usersInHosp = function () { return $(".hospital.not-ok").length; }
 
     const bsSortKey = "data-total";
     const sortOrders = ['desc', 'asc'];
@@ -109,6 +121,8 @@
     let hospLoopCounter = 0;
     const hospNodes = [];
 
+
+
     // Once the page has loaded (before complete), this is where we add a few other
     // misc UI elements, such as a button to reset the API key, and optionally
     // online/offline/idle etc user stat bar
@@ -118,6 +132,16 @@
 
     callOnContentLoaded(installExtraUiElements);
     callOnContentComplete(replaceTravelIcons);
+
+    function userProfileQueryCb(responseText, ID, param) {
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) return;
+        if (jsonObj.faction) {
+            myFacId = jsonObj.faction.faction_id;
+            debug("facId: ", myFacId);
+            checkWarStatus(myFacId)
+        }
+    }
 
     function shortTimeStamp(date) {
         if (!date) date = new Date();
@@ -130,6 +154,28 @@
         });
 
         return timeOnly.format(date);
+    }
+
+    function rwReqCb(responseText, ID, options) {
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) {
+            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+        } else {
+            let warsArray = jsonObj.rankedwars;
+            let war0 = warsArray[0];
+            if (war0) {
+                if (war0.end == 0 || war0.winner == null) {
+                    atWar = true;
+                }
+            }
+            debug("Faction ", ID, " at war? ", atWar);
+            //GM_setValue("activeWar", atWar);
+        }
+        debug("War status: ", atWar);
+    }
+
+    function checkWarStatus(facId) {
+        xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
     }
 
     function installExtraUiElements() {
@@ -412,11 +458,83 @@
         </div>`;
     }
 
+    // New:
+    // Get all hosp members
+    // If no hosp time, do api call.
+    // Flag node with own class to skip next time.
+    // After say 20 API calls, delay some (10 secs?)
+    // Every sec, dec time in each node by one sec and in hospTime entry
+    // At 0, remove our class name.
+    // Once all hosp times filled, set interval for every 5 secs, look for new hosps.
+    // -or-
+
+    //#icon15___650cde4e   parent().parent().find("[id^='icon15_']");
+
+    function getHospTime(statusNode) {
+        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
+        let title = $(iconNode).attr("title");
+        if (!title) return 0;
+        let st = title.indexOf("data-time");
+        let newT = title.slice(st+11);
+        let parts = newT.split(/[><]+/);
+        return parts[1];
+    }
+
+    function updateHospTimers2() {
+        let usersInHosp = $(".hospital.not-ok");
+
+        //log("updateHospTimers2: ", $(usersInHosp).length);
+
+        for (let idx=0; idx < $(usersInHosp).length; idx++) {
+            let statusNode = $(usersInHosp)[idx];
+            let time = getHospTime(statusNode);
+            if (time == 0) continue;
+            let parts = time.split(":");
+            let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+            let span = `<span class="ellipsis xhosp" data-secs="${secs}">${time}</span>`;
+            $(statusNode).replaceWith(span);
+        }
+
+        usersInHosp = $(".xhosp");
+        log("updateHospTimers2, xhosp: ", $(usersInHosp).length);
+        for (let idx=0; idx < $(usersInHosp).length; idx++) {
+            let statusNode = $(usersInHosp)[idx];
+            let secs = parseInt($(statusNode).data("secs")) - 1;
+            $(statusNode).data("secs", secs)
+            if (secs == 0) {
+                $(statusNode).remove();
+                continue;
+            }
+
+            setNodeTime(secs, statusNode);
+        }
+
+        setTimeout(updateHospTimers2, 1000);
+    }
+
+    function setNodeTime(totalSeconds, node) {
+        let hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = Math.floor(totalSeconds % 60);
+
+        let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
+          .toString()
+          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
+
+        //log("Set time: ", $(node).text(), timeStr);
+
+        $(node).text(timeStr);
+    }
+
     function updateHospTimers() {
+        log("[updateHospTimers]", hospNodes.length, usersInHosp() );
       for (let i = 0, n = hospNodes.length; i < n; i++) {
+          log("hosp node: ", hospNodes[i]);
         const hospNode = hospNodes[i];
         const id = hospNode[0];
         const node = hospNode[1];
+          log("id: ", id, " node: ", $(node), " time: ", hospTime[id]);
         if (!node) continue;
         if (!hospTime[id]) continue;
 
@@ -444,6 +562,7 @@
     }
 
     function updateStatus(id, node) {
+        log("[updateStatus] ", id, $(node));
       if (!node) return;
       if (hospNodes.find((h) => h[0] == id)) return;
       hospNodes.push([id, node]);
@@ -730,7 +849,10 @@
         .forEach((e) => showStats(e));
     }
 
-    updateHospTimers();
+    // TEMP TEMP TESTING!!!
+    //updateHospTimers();
+    setTimeout(updateHospTimers2, 1000);
+
     memberList(document.querySelector(".members-list"));
     watchWalls(document.querySelector(".f-war-list"));
 
@@ -1041,8 +1163,10 @@
         $(".members-list > ul.table-header > li.table-cell").on("click", handleTableHeaderClick);
 
         // Make the body scrollable and header sticky
-        $("ul.table-header").css({"position": "sticky", "top": 0, "z-index": 9999999});
-        $("ul.table-body").addClass("sticky-wrap");
+        if (enableScrollLock == true) {
+            $("ul.table-header").css({"position": "sticky", "top": 0, "z-index": 9999999});
+            $("ul.table-body").addClass("sticky-wrap");
+        }
 
         if (!useCustSort) {
             $(bsTableHeader).click();
@@ -1188,7 +1312,8 @@
         getFacStatus(ID);
 
         clearInterval(statusTimer);
-        statusTimer = setInterval(getFacStatus, statusIntervalSecs*1000, ID);
+        statusTimer = setInterval(getUpdatedUserStatus,
+                                  (atWar ? statusIntervalSecs*1000 : updateIntervalSecs*1000), ID);
 
         //pushPredictionOn = true;
         $("#xedx-startp-btn").val("Stop");
@@ -1257,6 +1382,16 @@
         }
     }
 
+    // Two ways to get user status - 'updateUserCounts', which is from the page,
+    // or 'getFacStatus', which is a fetch. The second is more accurate, but
+    // uses network resources, so just used during war.
+    function getUpdatedUserStatus() {
+        if (atWar == true)
+            getFacStatus(enemyID);
+        else
+            updateUserCounts(999);
+    }
+
     function installUsersBar(facId, retries=0) {
         if ($(`#xonline-title-${facId}`).length != 0) return;
         //if (onOurMainFacPage()) return log("Not installing on our main page");
@@ -1267,8 +1402,9 @@
             return log("[installUsersBar] timeout.");
         }
 
+        // ======== TBD TBD ==========
         $(target).before(getTitleBarDiv(facId));                       // Right after title bar delimiter
-        $("#xedx-refresh-btn").on('click', updateUserCounts);
+        $("#xedx-refresh-btn").on('click', getUpdatedUserStatus);
 
         // Don't need this if we do periodic queries...
         updateUserCounts();
