@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.17
+// @version     1.18
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -490,7 +490,8 @@
             let secs = parseInt($(statusNode).data("secs")) - 1;
             $(statusNode).data("secs", secs)
             if (secs == 0) {
-                $(statusNode).remove();
+                let newSpan = `<span class="ellipsis okay ok">Okay</span>`;
+                $(statusNode).replaceWith(newSpan);
                 continue;
             }
 
