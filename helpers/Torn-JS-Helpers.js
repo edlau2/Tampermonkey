@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.11
+// @version     2.46.12
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.11";
+const thisLibVer = "2.46.12";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -74,7 +74,7 @@ GM_setValue("alertOnRetry", alertOnRetry);
 
 var api_key = GM_getValue('gm_api_key');
 
-async function validateApiKey(type = null) {
+async function validateApiKey(type = null, optText=null) {
     let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
         "Your key will be saved locally so you won't have to be asked again.\n" +
         "Your key is kept private and not shared with anyone.";
@@ -82,6 +82,10 @@ async function validateApiKey(type = null) {
         text += '\n\nA full access key is required!';
     else
         text += '\n\nOnly limited access is required';
+
+    if (optText) {
+        text += '\n\n' + optText;
+    }
 
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
         api_key = prompt(text, "");
