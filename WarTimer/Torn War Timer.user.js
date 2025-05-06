@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.10
+// @version      1.11
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -35,14 +35,21 @@
     const retryTime = 500;
     const maxRetries = 20;
 
+    var warStart;
+    var warId;
     var formattedDate; // = "War starts on ";
     var shortFormattedDate = '';
     var warList;
     var timer;
     var timeSpans;
 
+    if (location.href.indexOf('step=your') < 0) {
+        logScriptStart();
+        return log("Not on right fac page! (", location.href, ")");
+    }
+
     validateApiKey('ltd',
-       "Your key is only required to get your current war status. Will work most of the time without it.");  // Required to get war status
+       "Your key is only required to get your current war status.");  // Required to get war status
 
     var atWar;  // undefined until API call complete!
     var enlisted = false;
@@ -67,28 +74,14 @@
         if (!atWar || oldFacId != myFacId && myFacId) getWarStatus(myFacId);
     }
 
-    // #channel_panel_button\:faction-8151
-
-
     var clickState = GM_getValue("clickState", 0);
 
     // TBD: Get time from API2 instead!!! See attack better?
     // xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
 
     function addLocalTime(retries=0) {
-        warList = $("#faction_war_list_id");
-        if ($(warList).length == 0) {
-            if (retries++ < maxRetries) return setTimeout(addLocalTime, retryTime, retries);
-            return debug("Too many retries, war list not found.");
-        }
-
-        // When war ended, warList had a class, "war-new", not sure during or enlisted...check!
-        var classList = $('#faction_war_list_id').attr('class').split(/\s+/);
-        if ($(warList).hasClass("war-new")) {
-            debug("has 'war-new' class!");
-        }
-
-        timer = $(warList).find("[class*='timer_']");
+        let war = $("[class*='rankBox_']");
+        timer = $(war).find("[class*='timer_']");
         timeSpans = $(timer).find("span");
         debug("timer: ", $(timer), " spans: ", timeSpans);
         if ($(timer).length == 0 || $(timeSpans).length == 0)  {
@@ -96,18 +89,7 @@
             return debug("Too many retries, timer not found.");
         }
 
-        let startTime = new Date();
-        let day = timeSpans[0].innerText + timeSpans[1].innerText;
-        let hour = timeSpans[3].innerText + timeSpans[4].innerText;
-        let min = timeSpans[6].innerText + timeSpans[7].innerText;
-        let sec = timeSpans[9].innerText + timeSpans[10].innerText;
-
-        debug("day: ", day, " hr: ", hour, " min: ", min, " sec: ", sec);
-
-        startTime.setDate(startTime.getDate() + +day);
-        startTime.setHours(startTime.getHours() + +hour);
-        startTime.setMinutes(startTime.getMinutes() + +min);
-        startTime.setSeconds(startTime.getSeconds() + +sec);
+        let startTime = new Date(Number(warStart)*1000);
 
         formattedDate = "War starts on " +
             startTime.toLocaleString(undefined, {weekday: 'long'}) + ", at " +
@@ -173,6 +155,8 @@
         return false;
     }
 
+
+    var warStartStr;
     function rwReqCb(responseText, ID, options) {
         let jsonObj = JSON.parse(responseText);
         if (jsonObj.error) {
@@ -183,17 +167,20 @@
         let war0 = warsArray[0];
 
         if (war0) {
+            debug("War: ", war0);
             let now = parseInt(new Date().getTime() / 1000);
-            let start = war0.start;
+            warStart = war0.start;
+            warId = war0.id;
             if (war0.end == 0 || war0.winner == null) {
                 enlisted = true;
-                atWar = (start < now);
+                atWar = (warStart < now);
             } else {
                 atWar = false;
             }
         }
 
         debug("Faction ", ID, " at war? ", atWar, " enlisted? ", enlisted);
+        debug("War start: ", new Date(Number(warStart*1000)).toString());
         //GM_setValue("activeWar", atWar);
     }
 
@@ -229,6 +216,9 @@
 
     logScriptStart();
     versionCheck();
+
+     if (checkCloudFlare()) return log("Won't run while challenge active!");
+
 
     addStyles();
 
