@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.21
+// @version     1.22
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -549,7 +549,10 @@
         let statusNode = $(li).find(".hospital.not-ok");
 
         debug(jsonObj.name, ID, " facNode: ", $(facNode), " li: ", $(li), " node: ", $(statusNode));
-        if ($(statusNode).length == 0) debugger;
+        if ($(statusNode).length == 0) {
+            log("ERROR: didn't find status node for ", jsonObj.name, " [", ID,  "]");
+            return;
+        }
         newUpdateNodeTime(statusNode, secsLeft);
     }
 
@@ -564,6 +567,9 @@
                 $(statusNode).parent().parent().data("id", id);
                 debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
             }
+
+            if(!$(statusNode).parent().parent().hasClass("bs-xhosp"))
+                $(statusNode).parent().parent().addClass("bs-xhosp");
 
             if (newUpdateNodeTime(statusNode) == true)
                 debug("Updated time for ", id, " successfully");
@@ -580,7 +586,18 @@
             }
         }
 
+        doExpiredCleanup();
+
         setTimeout(updateHospTimers2, 1000);
+    }
+
+    function doExpiredCleanup() {
+        let list1 = $(".bs-xhosp:has('.hospital.not-ok')");
+        let list2 = $(".bs-xhosp:not(:has('.hospital.not-ok'))");
+
+        if ($(list2).length) {
+            log("Found expired nodes! ", $(list2));
+        }
     }
 
     function secsToTime(totalSeconds) {
