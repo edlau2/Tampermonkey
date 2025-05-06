@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.19
+// @version     1.21
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -25,6 +25,8 @@
 
 (function () {
   "use strict";
+
+    if (checkCloudFlare()) return log("Wall-BatStats Won't run while challenge active!");
 
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
 
@@ -63,7 +65,7 @@
     api_key = GM_getValue('gm_api_key');
     validateApiKey();
 
-    var apiKey = api_key; 
+    var apiKey = api_key;
     if (!apiKey) {
         alert("No apikey set!\nUse the 'Update BS key'\nlink at the top of\nthe page to fix.");
         return;
@@ -450,16 +452,53 @@
         </div>`;
     }
 
+    function newUpdateNodeTime(statusNode, secsOverride) {
+        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
+        let title = $(iconNode).attr("title");
+        if (!title) return 0;
+
+        if ($("#bsFakeDiv").length == 0)
+            $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000; left: -1000;'></div>`);
+        $("#bsFakeDiv").empty();
+        $("#bsFakeDiv").html(title);
+
+        let timer = $("#bsFakeDiv > span.timer");
+        let time = $(timer).text();
+
+        if (time) {
+            let id = $(statusNode).parent().parent().data("id");
+            let parts = time.split(":");
+            let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
+            if (secs <= 0) return false;
+            let useSecs = (secsOverride ? secsOverride : secs);
+            let newTime = secsToTime(useSecs);
+            debug(id, ": old time: ", time, " new time: ", newTime,
+                (secsOverride ? (" (Using override, time w/o: " + secsToTime(secs)) : ""));
+            $(timer).text(newTime);
+            $(iconNode).attr("title", $("#bsFakeDiv").html());
+            $(statusNode).text(newTime);
+
+            if (useSecs < 120 && useSecs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
+            if (useSecs < 60 && useSecs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
+            if (useSecs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
+            if (useSecs < 1 || useSecs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+        }
+    }
+
+    /*
+    // Unused
     function getHospTime(statusNode) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
         if (!title) return 0;
+
         let st = title.indexOf("data-time");
         let newT = title.slice(st+11);
         let parts = newT.split(/[><]+/);
         return parts[1];
     }
 
+    // Unused
     function replaceHospTime(statusNode, time) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
@@ -470,6 +509,7 @@
         let newTitle = title.replace(parts[1], time);
         $(iconNode).attr("title", newTitle);
     }
+    */
 
     function getIdFromStatus(statusNode) {
         let li = $(statusNode).parent().parent();
@@ -482,84 +522,81 @@
         }
     }
 
-    function getTsViaApi(statusNode) {
-        let id = $(statusNode).data("id");
-        if (!id || id == '0' || id == 0) {
-            log("No id!!!");
-            return
+    function getSecsUntilOut(outAt) {
+        let nowSecs = new Date().getTime() / 1000;
+        let diff = +outAt - nowSecs;
+        return diff;
+    }
+
+    function queryCb(responseText, ID, param) {
+        log("queryCB: ", ID);
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) return;
+        let status = jsonObj.status;
+        if (!status || status.state != "Hospital") {
+            debug(jsonObj.name, " [", ID,  "] is not in hosp!");
+            return;
         }
-        log("Should call API now for ID ", id);
+        let outAt = status.until;
+        let secsLeft = getSecsUntilOut(outAt);
+
+        debug("queryCB: ", secsLeft);
+
+        let facNode = $(`li[id^='icon9_'] > a[href*="${ID}"]`);
+        if ($(facNode).length == 0) facNode = $(`li[id^='icon81_'] > a[href*="${ID}"]`);
+        if ($(facNode).length == 0) facNode = $(`li[id^='icon74_'] > a[href*="${ID}"]`);
+        let li = $(facNode).closest("li.table-row");
+        let statusNode = $(li).find(".hospital.not-ok");
+
+        debug(jsonObj.name, ID, " facNode: ", $(facNode), " li: ", $(li), " node: ", $(statusNode));
+        if ($(statusNode).length == 0) debugger;
+        newUpdateNodeTime(statusNode, secsLeft);
     }
 
     function updateHospTimers2() {
         let usersInHosp = $(".hospital.not-ok");
-
-        //log("updateHospTimers2: ", $(usersInHosp).length);
-
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
-            let id = getIdFromStatus(statusNode);
-            let secs;
-            let time;
-            if (true || !$(statusNode).data("secs")) {
-                time = getHospTime(statusNode);
-                if (time == 0) continue;
-                let parts = time.split(":");
-                secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
-                $(statusNode).data("secs", secs);
-                if (secs < 120 && secs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
-                if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
-                if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
-                if (secs < 1 || secs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
-            } else {
-                secs = parseInt($(statusNode).data("secs")) - 1;
-                if (secs < 120 && secs > 60) $(statusNode).addClass("blink2");
-                if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
-                if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
-                $(statusNode).data("secs", secs);
+            let id = $(statusNode).parent().parent().data("id");
+            debug("Saved ID: ", id);
+            if (!id) {
+                id = getIdFromStatus(statusNode);
+                $(statusNode).parent().parent().data("id", id);
+                debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
             }
-            let newTime = setNodeTime(secs, statusNode);
-            log("Replacing time: ", time, newTime);
-            replaceHospTime(statusNode, newTime);
-            //let span = `<span class="ellipsis xhosp" data-id="${id}" data-secs="${secs}">${time}</span>`;
-            //$(statusNode).replaceWith(span);
-        }
 
-        usersInHosp = $(".xhosp");
-        //log("updateHospTimers2, xhosp: ", $(usersInHosp).length);
-        if (false) for (let idx=0; idx < $(usersInHosp).length; idx++) {
-            let statusNode = $(usersInHosp)[idx];
-            let secs = parseInt($(statusNode).data("secs")) - 1;
-            if (secs < 120 && secs > 60) $(statusNode).addClass("blink2");
-            if (secs < 60 && secs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
-            if (secs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
-            $(statusNode).data("secs", secs);
-            if (secs == 0) {
-                let newSpan = `<span class="ellipsis okay ok">Okay</span>`;
-                //$(statusNode).replaceWith(newSpan);
-                $(statusNode).remove();
-                continue;
-            }
+            if (newUpdateNodeTime(statusNode) == true)
+                debug("Updated time for ", id, " successfully");
 
             // re-validate time periodically, every 10 secs?
             let verify = $(statusNode).data("verify");
             if (!verify) {
-                let when = parseInt(Date.now()/1000 + 10*idx);
+                let when = parseInt(Date.now()/1000) + 10 + idx;  // Staggered by 1 sec intervals, 10 secs away
                 $(statusNode).data("verify", when);
-            } else {
-                if (verify && verify > 0 && verify < (Date.now()/1000)) {
-                    let when = parseInt(Date.now()/1000 + 10*idx);
-                    $(statusNode).data("verify", when);
-                    getTsViaApi(statusNode);
-                }
+            } else if (verify > 0 && verify < (Date.now()/1000)) {
+                let when = parseInt(Date.now()/1000) + 10 + idx;
+                $(statusNode).data("verify", when);
+                xedx_TornUserQueryv2(id, "basic", queryCb);
             }
-
-            setNodeTime(secs, statusNode);
         }
 
         setTimeout(updateHospTimers2, 1000);
     }
 
+    function secsToTime(totalSeconds) {
+        let hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = Math.floor(totalSeconds % 60);
+
+        let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
+          .toString()
+          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
+        return timeStr;
+    }
+
+    // Unused
+    /*
     function setNodeTime(totalSeconds, node) {
         let hours = Math.floor(totalSeconds / 3600);
         totalSeconds %= 3600;
@@ -576,6 +613,7 @@
         return timeStr;
     }
 
+    // Replacing this
     function updateHospTimers() {
       for (let i = 0, n = hospNodes.length; i < n; i++) {
         const hospNode = hospNodes[i];
@@ -606,6 +644,7 @@
       if (hospNodes.length > 0) hospLoopCounter++;
       setTimeout(updateHospTimers, 1000);
     }
+    */
 
     function updateStatus(id, node) {
       if (!node) return;
@@ -1088,7 +1127,7 @@
     function replaceTravelIcons(retries=0) {
         if (!travelTimer) travelTimer = setInterval(replaceTravelIcons, 5000);
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
-        
+
         for (let i=0; i < $(travelIcons).length; i++) {
             let iconLi = $(travelIcons)[i];
             let memberRow = $(iconLi).closest("li.table-row");
