@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      1.10
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -11,6 +11,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -40,7 +41,39 @@
     var timer;
     var timeSpans;
 
+    validateApiKey('ltd',
+       "Your key is only required to get your current war status. Will work most of the time without it.");  // Required to get war status
+
+    var atWar;  // undefined until API call complete!
+    var enlisted = false;
+    var myFacId = GM_getValue("myFacId", null);
+    if (myFacId) getWarStatus(myFacId);
+    getFacId(); // In case it's changed
+
+    function getFacId(retries=0) {
+        let oldFacId = myFacId;
+        let facChatBtn = $("[id^='channel_panel_button:faction']");
+        if ($(facChatBtn).length == 0) {
+            if (retries++ < 30) return setTimeout(getFacId, 250, retries);
+            return log("[getFacId] timed ot");
+        }
+        let id = $(facChatBtn).attr("id");
+        let parts;
+        if (id) {
+            parts = id.split('-');
+            myFacId = parts[1];
+            if (myFacId) GM_setValue("myFacId", myFacId)
+        }
+        if (!atWar || oldFacId != myFacId && myFacId) getWarStatus(myFacId);
+    }
+
+    // #channel_panel_button\:faction-8151
+
+
     var clickState = GM_getValue("clickState", 0);
+
+    // TBD: Get time from API2 instead!!! See attack better?
+    // xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
 
     function addLocalTime(retries=0) {
         warList = $("#faction_war_list_id");
@@ -140,16 +173,51 @@
         return false;
     }
 
+    function rwReqCb(responseText, ID, options) {
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) {
+            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
+            return;
+        }
+        let warsArray = jsonObj.rankedwars;
+        let war0 = warsArray[0];
+
+        if (war0) {
+            let now = parseInt(new Date().getTime() / 1000);
+            let start = war0.start;
+            if (war0.end == 0 || war0.winner == null) {
+                enlisted = true;
+                atWar = (start < now);
+            } else {
+                atWar = false;
+            }
+        }
+
+        debug("Faction ", ID, " at war? ", atWar, " enlisted? ", enlisted);
+        //GM_setValue("activeWar", atWar);
+    }
+
+    function getWarStatus(facId) {
+        if (getApiKey() && facId)
+            xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
+    }
+
     function handlePageLoad(retries=0) {
         let titleBarText = $("#react-root > div > div.f-msg > span").text();
         if (!titleBarText) {
             if (retries++ < maxRetries) return setTimeout(handlePageLoad, retryTime, retries);
             debug("handlePageLoad, too many retries. Adding anyways...");
+            retries = 0;
         }
 
-        if (titleBarText && titleBarText.indexOf("IS IN A WAR") > 0) {
-            debug("Already warring, ignoring...");
-            return;
+        if (atWar == undefined && myFacId && getApiKey()) {
+            getWarStatus(myFacId);
+            if (retries++ < maxRetries) return setTimeout(handlePageLoad, retryTime, retries);
+            debug("handlePageLoad, too many retries. Adding anyways...");
+        }
+
+        if (atWar == true) {
+            return log("Already warring, ignoring...");
         }
 
         addLocalTime();
@@ -164,8 +232,8 @@
 
     addStyles();
 
-    installHashChangeHandler(handlePageLoad);
-    installPushStateHandler(handlePageLoad);
+    //installHashChangeHandler(handlePageLoad);
+    //installPushStateHandler(handlePageLoad);
 
     callOnContentLoaded(handlePageLoad);
 
