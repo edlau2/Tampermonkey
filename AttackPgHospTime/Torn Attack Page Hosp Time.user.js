@@ -1,15 +1,17 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.11
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
 // @run-at       document-start
 // @connect      api.torn.com
+// @connect      www.tornstats.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_notification
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
@@ -22,16 +24,28 @@
 (function() {
     'use strict';
 
-    console.log(GM_info.script.name + ' version ' +
-        GM_info.script.version + ' script started');
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+
+    const notifyAlerts = GM_getValue("notifyAlerts", true);
+    const notifyAlertSecs = GM_getValue("notifyAlertSecs", 20);
+
+    GM_setValue("notifyAlerts", notifyAlerts);
+    GM_setValue("notifyAlertSecs", notifyAlertSecs);
+
+    logScriptStart();
 
     var wasInHosp = false;
     const XID = new URLSearchParams(location.search).get("user2ID");
+    var spy = {};
     const getHospTime = function() {xedx_TornUserQueryv2(XID, "basic", queryCb);}
 
     const noTtLa = true;    // The Torn Tools 'Last Action' div forces the other attackers
                             // view and damage you do off the bottom of the screen sometimes.
     const ttLastAction = "#tt-defender-last-action";
+
+    var minSecsForBs = 15;
+    var secsBefore = 1;
+    var autoLoad = false;
 
     validateApiKey();
     addTornButtonExStyles();
@@ -109,7 +123,7 @@
         let rldBtn = `
                 <span class="xrt-btn btn">
                    <input id="xrefresh" class="xedx-torn-btn" value="Reload">
-               </span>`;
+                </span>`;
 
         // In case this is running with 'Attack Better'/'Move Attack Btn', this appends
         // the clock, and the UI for Attack Better will either place *before* this, or
@@ -132,19 +146,184 @@
         return diff;
     }
 
+    var notified;
+    function checkAlerts(secs) {
+        if (secs < notifyAlertSecs && !notified && document.hidden) doBrowserNotify();
+        if (secs <= 10) $("#time-left").addClass("flash-grn");
+    }
+
+    function doBrowserNotify() {
+        log("[doBrowserNotify]");
+        notified = true;
+        let name = $($("[class^='player_']")[1]).find("[id^='playername']").text();
+        let msg = name + " out of hosp in " + notifyAlertSecs + " seconds!";
+        GM_notification ({
+            title: 'HospTimer',
+            text: msg,
+            //image: 'https://imgur.com/QgEtwu3.png',
+            timeout: notifyAlertSecs * 1000,
+            onclick: (context) => {
+                window.focus();
+            },
+            ondone: () => {
+
+            }
+        });
+    }
+
+    var noBatstatsYet = true;
     function updateHospClock() {
         let diff = getSecsUntilOut();
+
+        if (diff <= secsBefore && secsBefore > 0 && diff > 0 && autoLoad == true) {
+            location.reload();
+            return;
+        }
+
+        if (diff > minSecsForBs && noBatstatsYet == true) {
+            let tmp = GM_getValue('lastSpy', null);
+            if (!tmp) {
+                queryBatStats();
+            } else {
+                spy = JSON.parse(tmp);
+                if (spy.id == XID)
+                    updateSpyUI(spy);
+                else
+                    queryBatStats();
+            }
+        }
+
         if (diff <= 0) {
             clearInterval(clockTimer);
             clearInterval(apiTimer);
             $("#time-wrap").remove();
             return;
         }
-        if (diff <= 10) $("#time-left").addClass("flash-grn");
+        //if (diff <= 10) $("#time-left").addClass("flash-grn");
+        checkAlerts(diff);
         let date = new Date(null);
         date.setSeconds(diff);
         let timeStr = date.toISOString().slice(11, 19);
         $("#time-left").text(timeStr);
     }
+
+    function truncToOneDec(number) {
+        let res = Math.trunc(number / 100);
+        debug("truncate: ", number, " res: ", res);
+        return res;
+    }
+
+    function parseNumber(number) {
+        const scales = [
+            { name: "quintillion", aka: 'Q', power: 15 },
+            { name: "trillion", aka: 'T', power: 12 },
+            { name: "billion", aka: 'B', power: 9 },
+            { name: "million", aka: 'M', power: 6 },
+            { name: "thousand", aka: 'K', power: 3 }
+        ];
+
+        let result = "";
+        let num = Number(number);
+        let suffix;
+        let firstMatch = false;
+
+        for (const scale of scales) {
+            if (num >= Math.pow(10, scale.power)) {
+                if (!suffix) {
+                    suffix = scale.aka;
+                    debug("Suffix: ", suffix);
+                }
+                let value = Math.floor(num / Math.pow(10, scale.power));
+                if (firstMatch == true) value = truncToOneDec(value);
+                debug("Num: ", num, " value: ", value);
+                result += `${value}`;
+                debug("result: ", result);
+                num -= value * Math.pow(10, scale.power);
+                if (firstMatch == false) {
+                    result += '.';
+                    firstMatch = true;
+                } else {
+                    result += (' ' + suffix);
+                    break;
+                }
+            }
+            debug("result: ", result);
+        }
+
+        if (num > 0) {
+            debug("num: ", num);
+           // result += `${num}`
+        }
+
+        debug("result: ", result);
+        return result.trim();
+    }
+
+    GM_addStyle(`
+        .spyd {
+            width: 100%;
+            height: 14px;
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+            align-content: center;
+        }
+        .spys {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: space-between;
+            align-content: center;
+        }
+        .spys span {
+            padding-right: 10px;
+            padding-top: 10px;
+        }
+    `);
+
+    function updateSpyUI(spy) {
+        let statsDiv = `<div id="xspyd" class="spyd">
+                            <span class="spys">
+                               <span>Str: ${spy.str}</span>
+                               <span>Def: ${spy.def}</span>
+                               <span>Spd: ${spy.spd}</span>
+                               <span>Dex: ${spy.dex}</span>
+                               <span>Tot: ${spy.total}</span>
+                            </span>
+                        </div>`;
+
+        if ($("#xspyd").length == 0) {
+            let target = $("[class^='playersModelWrap_']");
+            $(target).after(statsDiv);
+        } else {
+            $("#xspyd").replaceWith($(statsDiv));
+        }
+    }
+
+    function getTornSpyCB(respText, ID) {
+        let data = null;
+        try {
+            data = JSON.parse(respText);
+        } catch (e) {
+            log('Error parsing JSON: ', e);
+        }
+        if (!data || !data.status) {
+            log('Error getting spy!', data);
+        } else if (data.spy.status) {
+            spy = { id: XID, spd: parseNumber(data.spy.speed), str: parseNumber(data.spy.strength),
+                   def: parseNumber(data.spy.defense), dex: parseNumber(data.spy.dexterity), total: parseNumber(data.spy.total) };
+
+            GM_setValue('lastSpy', JSON.stringify(spy));
+            debug('Spy result: ', spy);
+
+            updateSpyUI(spy);
+        }
+    }
+
+    function queryBatStats() {
+        noBatstatsYet = false;
+        xedx_TornStatsSpy(XID, getTornSpyCB);
+    }
+
+
 
 })();
