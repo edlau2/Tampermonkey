@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.23
+// @version     1.24
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -51,7 +51,7 @@
         enemyProfile = (step == 'profile');
         if (enemyProfile) enemyID = params.get("ID");
         params = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
-        if (params) facTab = params2.get('tab');
+        if (params) facTab = params.get('tab');
 
         debug("[checkPageParams] step: ", step, " us: ", ourProfile, " them: ", enemyProfile, " ID: ", enemyID, " facTab: ", facTab);
     }
@@ -455,13 +455,13 @@
 
     // ============================= Updating hosp times ===============================================
 
-    function newUpdateNodeTime(statusNode, secsOverride) {
+    function newUpdateNodeTime(statusNode, userId, secsOverride) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
         if (!title) return 0;
 
         if ($("#bsFakeDiv").length == 0)
-            $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000; left: -1000;'></div>`);
+            $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000px; left: -1000px;'></div>`);
         $("#bsFakeDiv").empty();
         $("#bsFakeDiv").html(title);
 
@@ -474,20 +474,20 @@
             let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
             if (secs <= 0) {
                 $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
-                return false;
+                //return false;
             }
             let useSecs = (secsOverride ? secsOverride : secs);
             let newTime = secsToTime(useSecs);
             if (newTime == 'err') {
-                log("Time error! Try to fix...");
+                log("*** Time error for ", userId, "! Try to fix...");
                 if (secsOverride)
                     newTime = secsToTime(secs);
                 else
                     newTime = '';
-                log("new time: ", newTime);
+                log("*** new time: ", newTime);
             }
-            if (secsOverride) debug(id, ": old time: ", time, " new time: ", newTime,
-                (secsOverride ? (" (Using override, time w/o: " + secsToTime(secs)) : ""));
+            //if (secsOverride) debug(id, ": old time: ", time, " new time: ", newTime,
+            //    (secsOverride ? (" (Using override, time w/o: " + secsToTime(secs)) : ""));
             $(timer).text(newTime);
             $(iconNode).attr("title", $("#bsFakeDiv").html());
             $(statusNode).text(newTime);
@@ -505,8 +505,10 @@
         let minutes = Math.floor(totalSeconds / 60);
         let seconds = Math.floor(totalSeconds % 60);
 
-        if (hours < 0 || minutes < 0 || seconds < 0)
+        if (hours < 0 || minutes < 0 || seconds < 0) {
+            log("*** ERROR bad time! ", hours, minutes, seconds, totalSeconds);
             return 'err';
+        }
 
         let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
           .toString()
@@ -557,17 +559,17 @@
             log("ERROR: didn't find status node for ", jsonObj.name, " [", ID,  "]");
             return;
         }
-        newUpdateNodeTime(statusNode, secsLeft);
+        newUpdateNodeTime(statusNode, ID, secsLeft);
     }
 
     var useArrHospTimes = false;
     function hospTimeRefresh() {
-        log("[hospTimeRefresh]");
+        //log("[hospTimeRefresh]");
         //xedx_TornFactionQueryv2(enemyID, 'members', callback, param=null);
         xedx_TornFactionQueryv2(enemyID, 'members', hospRefreshCb);
 
          function hospRefreshCb(responseText, ID, param) {
-            log("startRefreshCb: ", ID);
+            //log("startRefreshCb: ", ID);
             let jsonObj = JSON.parse(responseText);
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
@@ -593,7 +595,7 @@
         xedx_TornFactionQueryv2(enemyID, 'members', startRefreshCb);
 
         function startRefreshCb(responseText, ID, param) {
-            log("startRefreshCb: ", ID);
+            //log("startRefreshCb: ", ID);
             let jsonObj = JSON.parse(responseText);
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
@@ -628,10 +630,10 @@
             let secOverride;
             if (useArrHospTimes == true) {
                 secOverride = enemyMembers[id].secsUntil;
-                log("using sec override: ", id, secOverride);
+                //log("using sec override: ", id, secOverride);
             }
 
-            if (newUpdateNodeTime(statusNode, secOverride) == true)
+            if (newUpdateNodeTime(statusNode, id, secOverride) == true)
                 debug("Updated time for ", id, " successfully");
 
             /*
