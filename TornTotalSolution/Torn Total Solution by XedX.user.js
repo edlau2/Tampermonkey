@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.42
+// @version      4.43
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -9,7 +9,7 @@
 // @match        http://18.119.136.223:8080/TornTotalSolution/*
 // @connect      api.torn.com
 // @run-at       document-start
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.46.08.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-Hints-Helper.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
@@ -4656,11 +4656,12 @@
         var animatedIcons = true; // TRUE to flash the red icon
 
         const globeIcon = `<li class="icon71___NZ3NH"><a id="icon71-sidebar" href="#" tabindex="0" i-data="i_64_86_17_17"></a></li>`;
-        const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
-        const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/loader.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+        const raceIconGreen =  `<li class="icon17___eeF6s"><a href="/page.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
+        const raceIconRed  =`<li id="xedx-race-icon" class="icon18___wusPZ"><a href="/page.php?sid=racing" tabindex="0" i-data="i_37_86_17_17"></a></li>`;
 
         return new Promise((resolve, reject) => {
             if (abroad()) return resolve('[tornRacingAlert] not at home!');
+            setTimeout(addRaceIcon, 250);
             racingAlertTimer = setInterval(addRaceIcon, 10000); // Check every 10 secs
             resolve("[tornRacingAlert] complete!");
         }).catch((error) => {
@@ -4669,19 +4670,28 @@
         });
 
         function hasStockRaceIcons() {
-            let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
-            //debug('[hasStockRaceIcons] result: ', result);
-            //debug('Icon 17: ', document.getElementById("icon17-sidebar"));
-            //debug('Icon 18: ', document.getElementById("icon18-sidebar"));
+            //let result = document.getElementById("icon18-sidebar") || document.getElementById("icon17-sidebar");
+            let result = $("[class^='icon18_']").length > 0 || $("[class^='icon17_']").length > 0;
+
+            if ($("[class^='icon18_']").length > 0) {
+                let iconClassRed = $($("[class^='icon18_']")[0]).attr("class");
+                debug("Race icon class red: ", iconClassRed);
+                GM_setValue("iconClassRed", iconClassRed);
+            }
+            if ($("[class^='icon17_']").length > 0) {
+                let iconClassGreen = $($("[class^='icon17_']")[0]).attr("class");
+                debug("Race icon class green: ", iconClassGreen);
+                GM_setValue("iconClassGreen", iconClassGreen);
+            }
             return result;
         }
 
         function addRaceIcon() {
             let existingRaceIcon = document.getElementById("xedx-race-icon");
 
-            let redIcon = document.getElementById("icon18-sidebar");
-            if (redIcon && animatedIcons && !$(redIcon.parentNode).hasClass('highlight-active')) {
-                $(redIcon.parentNode).addClass('highlight-active');
+            let redIcon = $("[class^='icon18_']");
+            if ($(redIcon).length > 0 && animatedIcons && !$(redIcon).parent().hasClass('highlight-active')) {
+                $(redIcon).addClass('highlight-active');
             }
 
             if (abroad() || hasStockRaceIcons()) { // Remove if flying or stock icons there already
@@ -4696,22 +4706,12 @@
                 return;
             }
 
-            //let iconArea = document.querySelector("#sidebar > div:nth-child(1) > div > div.user-information___DUwZf > div > div > div > div:nth-child(1) > ul");
-            //let iconArea = document.getElementsByClassName('status-icons___NLliD')[0];
-            let root = document.querySelector("#sidebar");
-            let iconArea = root.querySelectorAll('[class^="status-icons"]')[0];
-
-            if (!iconArea /*&& devMode*/) {
-                log('[addRaceIcon] Can`t find icon area!');
-            }
-
-            // TBD: possibly add sidebar link.
-            // let sidebarContent = document.querySelector("#sidebar > div:nth-child(3) > div > div > div > div");
-
             // Add our icon
-            $(iconArea).append(raceIconRed);
-            existingRaceIcon = document.getElementById("xedx-race-icon");
-            if (animatedIcons) $(existingRaceIcon).addClass('highlight-active');
+            $('[class^="status-icons"]').append(raceIconRed);
+            //existingRaceIcon = document.getElementById("xedx-race-icon");
+            let iconClassRed = GM_getValue("iconClassRed", null);
+            if (iconClassRed) $("#xedx-race-icon").attr("class", iconClassRed);
+            if (animatedIcons) $("#xedx-race-icon").addClass('highlight-active');
         }
     } // End function tornRacingAlert() {
 
