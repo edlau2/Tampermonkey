@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.22
+// @version     1.23
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -40,6 +40,7 @@
         return log("Invalid page, going home: ", location.href);
     }
 
+    var enemyMembers = {};
     var enemyProfile = true;
     var ourProfile = false;
     var enemyID, step, facTab;
@@ -452,6 +453,8 @@
         </div>`;
     }
 
+    // ============================= Updating hosp times ===============================================
+
     function newUpdateNodeTime(statusNode, secsOverride) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
@@ -469,10 +472,21 @@
             let id = $(statusNode).parent().parent().data("id");
             let parts = time.split(":");
             let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
-            if (secs <= 0) return false;
+            if (secs <= 0) {
+                $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+                return false;
+            }
             let useSecs = (secsOverride ? secsOverride : secs);
             let newTime = secsToTime(useSecs);
-            debug(id, ": old time: ", time, " new time: ", newTime,
+            if (newTime == 'err') {
+                log("Time error! Try to fix...");
+                if (secsOverride)
+                    newTime = secsToTime(secs);
+                else
+                    newTime = '';
+                log("new time: ", newTime);
+            }
+            if (secsOverride) debug(id, ": old time: ", time, " new time: ", newTime,
                 (secsOverride ? (" (Using override, time w/o: " + secsToTime(secs)) : ""));
             $(timer).text(newTime);
             $(iconNode).attr("title", $("#bsFakeDiv").html());
@@ -481,35 +495,24 @@
             if (useSecs < 120 && useSecs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
             if (useSecs < 60 && useSecs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
             if (useSecs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
-            if (useSecs < 1 || useSecs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+            if (useSecs <= 1 || useSecs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
         }
     }
 
-    /*
-    // Unused
-    function getHospTime(statusNode) {
-        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
-        let title = $(iconNode).attr("title");
-        if (!title) return 0;
+    function secsToTime(totalSeconds) {
+        let hours = Math.floor(totalSeconds / 3600);
+        totalSeconds %= 3600;
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = Math.floor(totalSeconds % 60);
 
-        let st = title.indexOf("data-time");
-        let newT = title.slice(st+11);
-        let parts = newT.split(/[><]+/);
-        return parts[1];
-    }
+        if (hours < 0 || minutes < 0 || seconds < 0)
+            return 'err';
 
-    // Unused
-    function replaceHospTime(statusNode, time) {
-        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
-        let title = $(iconNode).attr("title");
-        if (!title) return 0;
-        let st = title.indexOf("data-time");
-        let newT = title.slice(st+11);
-        let parts = newT.split(/[><]+/);
-        let newTitle = title.replace(parts[1], time);
-        $(iconNode).attr("title", newTitle);
+        let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
+          .toString()
+          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
+        return timeStr;
     }
-    */
 
     function getIdFromStatus(statusNode) {
         let li = $(statusNode).parent().parent();
@@ -528,6 +531,7 @@
         return diff;
     }
 
+    // callback for 'basic' query (will be unused)
     function queryCb(responseText, ID, param) {
         log("queryCB: ", ID);
         let jsonObj = JSON.parse(responseText);
@@ -556,12 +560,62 @@
         newUpdateNodeTime(statusNode, secsLeft);
     }
 
+    var useArrHospTimes = false;
+    function hospTimeRefresh() {
+        log("[hospTimeRefresh]");
+        //xedx_TornFactionQueryv2(enemyID, 'members', callback, param=null);
+        xedx_TornFactionQueryv2(enemyID, 'members', hospRefreshCb);
+
+         function hospRefreshCb(responseText, ID, param) {
+            log("startRefreshCb: ", ID);
+            let jsonObj = JSON.parse(responseText);
+            if (jsonObj.error)
+                return log("ERROR: Bad result for startRefreshTimer: ", responseText);
+
+             let membersArray = jsonObj.members;
+            membersArray.forEach(member => {
+                let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
+                enemyMembers[member.id].status = member.last_action.status;
+                enemyMembers[member.id].state = member.status.state;
+                enemyMembers[member.id].until = member.status.until;
+                enemyMembers[member.id].revivable = member.is_revivable;
+                enemyMembers[member.id].ed = member.has_early_discharge;
+                enemyMembers[member.id].secsUntil = secsUntil;
+            });
+             useArrHospTimes = true;
+         }
+    }
+
+    // Build our own private members object, for easier lookups
+    var refreshTimer = 0;
+    var refreshTimerDelay = 5000;
+    function startRefreshTimer() {
+        xedx_TornFactionQueryv2(enemyID, 'members', startRefreshCb);
+
+        function startRefreshCb(responseText, ID, param) {
+            log("startRefreshCb: ", ID);
+            let jsonObj = JSON.parse(responseText);
+            if (jsonObj.error)
+                return log("ERROR: Bad result for startRefreshTimer: ", responseText);
+
+            let membersArray = jsonObj.members;
+            membersArray.forEach(member => {
+                let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
+                enemyMembers[member.id] =
+                    { status: member.last_action.status,  state: member.status.state, until: member.status.until,
+                     revivable: member.is_revivable, ed: member.has_early_discharge, secsUntil: secsUntil };
+            });
+
+            refreshTimer = setInterval(hospTimeRefresh, refreshTimerDelay);
+        }
+    }
+
+    var verifyCounter = 0;
     function updateHospTimers2() {
         let usersInHosp = $(".hospital.not-ok");
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
             let id = $(statusNode).parent().parent().data("id");
-            debug("Saved ID: ", id);
             if (!id) {
                 id = getIdFromStatus(statusNode);
                 $(statusNode).parent().parent().data("id", id);
@@ -571,10 +625,19 @@
             if(!$(statusNode).parent().parent().hasClass("bs-xhosp"))
                 $(statusNode).parent().parent().addClass("bs-xhosp");
 
-            if (newUpdateNodeTime(statusNode) == true)
+            let secOverride;
+            if (useArrHospTimes == true) {
+                secOverride = enemyMembers[id].secsUntil;
+                log("using sec override: ", id, secOverride);
+            }
+
+            if (newUpdateNodeTime(statusNode, secOverride) == true)
                 debug("Updated time for ", id, " successfully");
 
+            /*
             // re-validate time periodically, every 10 secs?
+            // JUST GET FULL MEMBER LIST! https://api.torn.com/v2/faction/49184/members
+            // iterate array, match ID
             let verify = $(statusNode).data("verify");
             if (!verify) {
                 let when = parseInt(Date.now()/1000) + 10 + idx;  // Staggered by 1 sec intervals, 10 secs away
@@ -584,84 +647,33 @@
                 $(statusNode).data("verify", when);
                 xedx_TornUserQueryv2(id, "basic", queryCb);
             }
+            */
         }
 
         doExpiredCleanup();
+        useArrHospTimes = false;
 
         setTimeout(updateHospTimers2, 1000);
     }
+
 
     function doExpiredCleanup() {
         let list1 = $(".bs-xhosp:has('.hospital.not-ok')");
         let list2 = $(".bs-xhosp:not(:has('.hospital.not-ok'))");
 
         if ($(list2).length) {
-            log("Found expired nodes! ", $(list2));
+            log("***** Found expired nodes! ", $(list2));
+            for (let idx=0; idx<$(list2).length; idx++) {
+                let li = $(list2)[idx];
+                let statusNode = $(li).find(".table.status > span");
+                log("Exp node: ", $(li), " span: ", $(statusNode));
+                $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+                log("***** Removed classes from: ", $(statusNode));
+            }
         }
     }
 
-    function secsToTime(totalSeconds) {
-        let hours = Math.floor(totalSeconds / 3600);
-        totalSeconds %= 3600;
-        let minutes = Math.floor(totalSeconds / 60);
-        let seconds = Math.floor(totalSeconds % 60);
-
-        let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
-          .toString()
-          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
-        return timeStr;
-    }
-
-    // Unused
-    /*
-    function setNodeTime(totalSeconds, node) {
-        let hours = Math.floor(totalSeconds / 3600);
-        totalSeconds %= 3600;
-        let minutes = Math.floor(totalSeconds / 60);
-        let seconds = Math.floor(totalSeconds % 60);
-
-        let timeStr = `${hours.toString().padLeft(2, "0")}:${minutes
-          .toString()
-          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
-
-        //log("Set time: ", $(node).text(), timeStr);
-
-        $(node).text(timeStr);
-        return timeStr;
-    }
-
-    // Replacing this
-    function updateHospTimers() {
-      for (let i = 0, n = hospNodes.length; i < n; i++) {
-        const hospNode = hospNodes[i];
-        const id = hospNode[0];
-        const node = hospNode[1];
-        if (!node) continue;
-        if (!hospTime[id]) continue;
-
-        let totalSeconds = hospTime[id] - new Date().getTime() / 1000;
-        if (!totalSeconds || totalSeconds <= 0) continue;
-        else if (totalSeconds >= 10 * 60 && hospLoopCounter % 10 != 0) continue;
-        else if (
-          totalSeconds < 10 * 60 &&
-          totalSeconds >= 5 * 60 &&
-          hospLoopCounter % 5 != 0
-        )
-          continue;
-
-        let hours = Math.floor(totalSeconds / 3600);
-        totalSeconds %= 3600;
-        let minutes = Math.floor(totalSeconds / 60);
-        let seconds = Math.floor(totalSeconds % 60);
-
-        node.textContent = `${hours.toString().padLeft(2, "0")}:${minutes
-          .toString()
-          .padLeft(2, "0")}:${seconds.toString().padLeft(2, "0")}`;
-      }
-      if (hospNodes.length > 0) hospLoopCounter++;
-      setTimeout(updateHospTimers, 1000);
-    }
-    */
+    // =====================================================================================================
 
     function updateStatus(id, node) {
       if (!node) return;
@@ -950,9 +962,14 @@
         .forEach((e) => showStats(e));
     }
 
+    // ======================== Updated methods =======================================
+
     // TEMP TEMP TESTING!!!
     //updateHospTimers();
     setTimeout(updateHospTimers2, 1000);
+    startRefreshTimer();
+
+    // ================================================================================
 
     memberList(document.querySelector(".members-list"));
     watchWalls(document.querySelector(".f-war-list"));
