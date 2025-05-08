@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Forum Resizer
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  This script resizes the "New Thread" post window
 // @author       xedx [2100735]
 // @match        https://www.torn.com/forums.php*
@@ -28,6 +28,7 @@
 
         .editor-content { min-height: ${contentHeight}; }
         .editor-content.bbcode-content { min-height: 120px !important; }
+        .editor-content.profile-sign, .profile-sign p { min-height: 180px !important; }
         [class*='editorContent'] { min-height: ${contentHeight} !important; }
 
     `);
