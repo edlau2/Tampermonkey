@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.43
+// @version      4.44
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -2039,15 +2039,20 @@
         // $(collapseSel).on('click', {from: collapseId}, { passive: false }, cs_handleClick);
 
         // Returns null on success, error otherwise.
-       function installCollapsibleCaret(nodeName) {
-            //debug("[custLinks - installCollapsibleCaret] nodeName: ", nodeName);
+       function installCollapsibleCaret(nodeName, retries=0) {
+            debug("[custLinks - installCollapsibleCaret] nodeName: ", nodeName);
 
             if (!nodeName) nodeName = "nav-city";
             let selName = "#" + nodeName;
             let nodeId = nodeName + "-collapse";
 
+           if ($(selName).length == 0) {
+               log(nodeName, " not found!");
+               if (retries++ < 20) return setTimeout(installCollapsibleCaret, 250, nodename, retries);
+           }
+
             if (document.querySelector("#" + nodeId)) {
-                //log("collapse node exists, not adding again!");
+                log("collapse node exists, not adding again!");
                 return;
             }
 
