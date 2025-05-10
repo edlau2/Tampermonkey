@@ -2048,7 +2048,7 @@
 
            if ($(selName).length == 0) {
                log(nodeName, " not found!");
-               if (retries++ < 20) return setTimeout(installCollapsibleCaret, 250, nodename, retries);
+               if (retries++ < 20) return setTimeout(installCollapsibleCaret, 250, nodeName, retries);
            }
 
             if (document.querySelector("#" + nodeId)) {
