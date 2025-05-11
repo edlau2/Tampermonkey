@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.11
+// @version      0.12
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -209,7 +209,6 @@
 
     function truncToOneDec(number) {
         let res = Math.trunc(number / 100);
-        debug("truncate: ", number, " res: ", res);
         return res;
     }
 
@@ -224,39 +223,41 @@
 
         let result = "";
         let num = Number(number);
-        let suffix;
+        let suffix = getSuffix(num);
         let firstMatch = false;
 
         for (const scale of scales) {
             if (num >= Math.pow(10, scale.power)) {
-                if (!suffix) {
-                    suffix = scale.aka;
-                    debug("Suffix: ", suffix);
-                }
                 let value = Math.floor(num / Math.pow(10, scale.power));
                 if (firstMatch == true) value = truncToOneDec(value);
-                debug("Num: ", num, " value: ", value);
                 result += `${value}`;
-                debug("result: ", result);
                 num -= value * Math.pow(10, scale.power);
                 if (firstMatch == false) {
                     result += '.';
                     firstMatch = true;
                 } else {
-                    result += (' ' + suffix);
+                    //result = result + ' ' + suffix;
                     break;
                 }
             }
-            debug("result: ", result);
         }
 
         if (num > 0) {
-            debug("num: ", num);
-           // result += `${num}`
+            result += `${num}`
         }
 
-        debug("result: ", result);
+        result = result + ' ' + suffix;
         return result.trim();
+
+        function getSuffix(num) {
+            for (let idx=0; idx < scales.length; idx++) {
+                let scale = scales[idx];
+                if (num >= Math.pow(10, scale.power)) {
+                    return scale.aka;
+                }
+            }
+            return '';
+        }
     }
 
     GM_addStyle(`
