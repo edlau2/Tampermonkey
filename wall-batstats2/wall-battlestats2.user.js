@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.24
+// @version     1.25
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -26,19 +26,20 @@
 (function () {
   "use strict";
 
-    if (checkCloudFlare()) return log("Wall-BatStats Won't run while challenge active!");
-
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
 
-    // TT last action
-    // Time in hosp counters
-    // filters, by BS range
-    //
     logScriptStart();
+    if (checkCloudFlare()) return log("Wall-BatStats Won't run while challenge active!");
 
-    if (validFacPage() == false) {
+    var lastHashTab = getPageTab();
+    callOnHashChange(hashChangeHandler);
+
+    if (validFacPage() == false || lastHashTab == 'controls') {
         return log("Invalid page, going home: ", location.href);
     }
+
+    api_key = GM_getValue('gm_api_key');
+    validateApiKey();
 
     var enemyMembers = {};
     var enemyProfile = true;
@@ -47,11 +48,11 @@
     function checkPageParams() {
         let params = new URLSearchParams(location.search);
         step = params.get('step');
-        ourProfile = (step == 'your');
         enemyProfile = (step == 'profile');
         if (enemyProfile) enemyID = params.get("ID");
         params = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
         if (params) facTab = params.get('tab');
+        ourProfile = (step == 'your' || facTab == 'info');
 
         debug("[checkPageParams] step: ", step, " us: ", ourProfile, " them: ", enemyProfile, " ID: ", enemyID, " facTab: ", facTab);
     }
@@ -63,8 +64,23 @@
             enemyID);
     }
 
-    api_key = GM_getValue('gm_api_key');
-    validateApiKey();
+    function getPageTab() {
+        let hash = location.hash ? location.hash.replace("#/", "?") : null;
+        let params = hash ? new URLSearchParams(hash) : null;
+        let tab = params ? params.get("tab") : null;
+        //log("[getPageTab]: ", hash, " tab: ", tab);
+        if (tab == 'info') ourProfile = true;
+        return tab;
+    }
+
+    function hashChangeHandler() {
+        // Going to or from the Controls page, reload so that
+        // either we aren't running, or we start running if that
+        // was the previous page.
+        let currTab = getPageTab();
+        if (lastHashTab == 'controls' || currTab == 'controls')
+            location.reload();
+    }
 
     var apiKey = api_key;
     if (!apiKey) {
@@ -83,7 +99,7 @@
     const enableScrollLock = GM_getValue("enableScrollLock", true);
     const trackOkUsers = GM_getValue("trackOkUsers", true);
     var updateUserCountsTimer;
-    const updateIntervalSecs = GM_getValue("updateIntervalSecs", 3); // unused
+    const updateIntervalSecs = GM_getValue("updateIntervalSecs", 3); // unused?
     const statusIntervalSecs = GM_getValue("statusIntervalSecs", 5);
 
     GM_setValue("enableScrollLock", enableScrollLock);
@@ -96,8 +112,6 @@
     const usersFallen = function () {return $(".table-cell.status > span.fallen").length;}
     const usersAway = function () { return $(".table-cell.status > span.traveling").length +
                                            $(".table-cell.status > span.abroad").length;}
-    //const usersInHosp = function () { return $(".table-cell.status > span.hospital").length +
-    //                                       $(".table-cell.status:not(:has(*))").length;}
     const usersInHosp = function () { return $(".hospital.not-ok").length; }
 
     const bsSortKey = "data-total";
@@ -129,6 +143,7 @@
 
     callOnContentLoaded(installExtraUiElements);
     callOnContentComplete(replaceTravelIcons);
+    callOnContentComplete(addDbgContextHandlers);
 
     function userProfileQueryCb(responseText, ID, param) {
         let jsonObj = JSON.parse(responseText);
@@ -153,6 +168,12 @@
         return timeOnly.format(date);
     }
 
+    var logApiCalls = GM_getValue("logApiCalls", false);;
+    function logApiCall(msg) {
+        if (logApiCalls == true)
+            debug(shortTimeStamp(), " API call: ", msg);
+    }
+
     function rwReqCb(responseText, ID, options) {
         let jsonObj = JSON.parse(responseText);
         if (jsonObj.error) {
@@ -170,6 +191,7 @@
     }
 
     function checkWarStatus(facId) {
+        logApiCall("Ranked wars");
         xedx_TornFactionQueryv2(facId, "rankedwars", rwReqCb);
     }
 
@@ -193,28 +215,17 @@
         validateApiKey();
     }
 
-    function validateApiKey(forced=false) {
-        let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
-                     "Your key will be saved locally so you won't have to be asked again.\n" +
-                     "Your key is kept private and not shared with anyone." +
-                     "\n\nOnly limited access is required.";
-
-        if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
-            api_key = prompt(text, "");
-            GM_setValue('gm_api_key', api_key);
-            apiKey = api_key;
-        }
-    }
-
-    function getApiKey() {
-        return api_key;
-    }
-
     function JSONparse(str) {
       try {
         return JSON.parse(str);
       } catch (e) {
           if (debugLoggingEnabled) log(e);
+          log("Error parsing '", str, "'");
+
+          if (xedxDevMode == true) {
+              //var newWindow = window.open("", "new window", "width=400, height=200");
+              //newWindow.document.write(str);
+          }
       }
       return null;
     }
@@ -254,20 +265,23 @@
       //if (apiRequests == 0)
       //    URL = `https://www.tornstats.com/api/v2/123badkey7890123/spy/faction/${id}`;
       //else
-      //    URL = `https://www.tornstats.com/api/v2/${apiKey}/spy/faction/${id}`;
+      //    URL = `https://www.tornstats.com/api/v2/${api_Key}/spy/faction/${id}`;
 
       let URL = `https://www.tornstats.com/api/v2/${apiKey}/spy/faction/${id}`;
-      debug("loadTSFactions - submitting");
+      debug("loadTSFactions - submitting: ", id);
       loadAttempts++;
       GM_xmlhttpRequest({
         method: "GET",
         url: URL,
         onload: (r) => {
-          let j = JSONparse(r.responseText);
+            debug("loadTSFactions - response: ", id);
+          let j = JSONparse(r.responseText, id);
 
             if (j && !j.status) {
                 debug("Spy resp text: (id=", id, ") ", r.responseText);
                 debug("Spy response: ", j);
+            } else {
+                log("Error getting spy for ", id);
             }
 
             if (j && !j.status) {
@@ -335,7 +349,7 @@
       });
     }
 
-    // What is this doing?
+    // What is this doing? oh, getting spies for each member, one at a time
     function loadFactions() {
       let factionIds = Array.from(
         document.querySelectorAll("[href^='/factions.php?step=profile&ID=']")
@@ -345,8 +359,6 @@
       factionIds.forEach((id) => loadTSFactions(id));
     }
 
-    // Experiment: try my tinysort instead of finally custom sort
-    // bat stat cells: $(".finally-bs-col")
     function expSort(from) {
         let sortList = $(".faction-info-wrap  ul.table-body > li");
         debug("expSort, from: ", from, " ready: ", tableReady, " len: ", $(sortList).length, +bsSortOrder, sortOrders[+bsSortOrder]);
@@ -364,7 +376,6 @@
 
         tinysort($(sortList), {attr: bsSortKey, order: sortOrders[+bsSortOrder]});
         bsSortOrder = bsSortOrder ? 0 : 1;
-        //log("orders after:", +bsSortOrder, sortOrders[+bsSortOrder]);
     }
 
     // Get rid of other sort, where is it???
@@ -453,9 +464,16 @@
         </div>`;
     }
 
-    // ============================= Updating hosp times ===============================================
+    // ============================= Updating hosp times/flight times ===============================================
 
-    function newUpdateNodeTime(statusNode, userId, secsOverride) {
+    // Save status on unload, really only need travel departure times
+    $(window).on('beforeunload', function() {
+        let key = "enemyMembers-" + enemyID;
+        GM_setValue(key, JSON.stringify(enemyMembers));
+        log("Saved enemyMembers as ", key);
+    });
+
+    function updateNodeTime(statusNode, userId, secsOverride) {
         let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
         let title = $(iconNode).attr("title");
         if (!title) return 0;
@@ -495,7 +513,10 @@
             if (useSecs < 120 && useSecs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
             if (useSecs < 60 && useSecs > 30) $(statusNode).addClass("blink1").removeClass("blink2");
             if (useSecs < 30) $(statusNode).addClass("blink30").removeClass("blink1");
-            if (useSecs <= 1 || useSecs > 120) $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+            if (useSecs <= 1 || useSecs > 120) {
+                $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
+                $(statusNode).parent().parent().removeClass("bs-xhosp");
+            }
         }
     }
 
@@ -519,11 +540,51 @@
     function getIdFromStatus(statusNode) {
         let li = $(statusNode).parent().parent();
         let wrap = $(li).find("[class^='honorWrap_'] > a");
+        log("[getIdFromStatus] node: ", $(statusNode), "\nli: ", $(li), "\nwrap: ", $(wrap));
         if ($(wrap).length > 0) {
             let href = $(wrap).attr("href");
             let idx = href ? href.indexOf("XID=") : 0;
             let id = idx ? href.slice(idx+4) : 0;
             return id;
+        }
+    }
+
+    function getLiFromId(id) {
+        return $(`li.table-row a[href='/profiles.php?XID=${id}']`).closest('li');
+    }
+
+    function getStatusFromId(id) {
+        let myLi = getLiFromId(id);
+        return $(myLi).find(".table-cell.status > span");
+    }
+
+    function getStatusTextFromId(id) {
+        let statNode = getStatusFromId(id);
+        return $(statNode).text();
+    }
+
+    function fixStatusText(id, text) {
+        let statNode = getStatusFromId(id);
+        let currText = $(statNode).text();
+        if (currText != text) $(statNode).text(text);
+
+    }
+
+    function setClassForStatSpan(statNode) {
+        let currText = $(statNode).text();
+        switch (currText) {
+            case 'Okay': {
+                $(statNode).attr('class', 'ellipsis okay ok');
+                break;
+            }
+            case 'Traveling': {
+                $(statNode).attr('class', 'ellipsis traveling');
+                break;
+            }
+            case 'Abroad': {
+                $(statNode).attr('class', 'ellipsis abroad');
+                break;
+            }
         }
     }
 
@@ -533,65 +594,146 @@
         return diff;
     }
 
-    // callback for 'basic' query (will be unused)
-    function queryCb(responseText, ID, param) {
-        log("queryCB: ", ID);
-        let jsonObj = JSON.parse(responseText);
-        if (jsonObj.error) return;
-        let status = jsonObj.status;
-        if (!status || status.state != "Hospital") {
-            debug(jsonObj.name, " [", ID,  "] is not in hosp!");
-            return;
-        }
-        let outAt = status.until;
-        let secsLeft = getSecsUntilOut(outAt);
-
-        debug("queryCB: ", secsLeft);
-
-        let facNode = $(`li[id^='icon9_'] > a[href*="${ID}"]`);
-        if ($(facNode).length == 0) facNode = $(`li[id^='icon81_'] > a[href*="${ID}"]`);
-        if ($(facNode).length == 0) facNode = $(`li[id^='icon74_'] > a[href*="${ID}"]`);
-        let li = $(facNode).closest("li.table-row");
-        let statusNode = $(li).find(".hospital.not-ok");
-
-        debug(jsonObj.name, ID, " facNode: ", $(facNode), " li: ", $(li), " node: ", $(statusNode));
-        if ($(statusNode).length == 0) {
-            log("ERROR: didn't find status node for ", jsonObj.name, " [", ID,  "]");
-            return;
-        }
-        newUpdateNodeTime(statusNode, ID, secsLeft);
-    }
-
     var useArrHospTimes = false;
-    function hospTimeRefresh() {
-        //log("[hospTimeRefresh]");
-        //xedx_TornFactionQueryv2(enemyID, 'members', callback, param=null);
-        xedx_TornFactionQueryv2(enemyID, 'members', hospRefreshCb);
+    function memberStatusRefresh() {
+        logApiCall("fac members: " + enemyID);
+        xedx_TornFactionQueryv2(enemyID, 'members', memberRefreshCb);
 
-         function hospRefreshCb(responseText, ID, param) {
-            //log("startRefreshCb: ", ID);
+        // ====================================================
+
+        function updateArrTime(id) {
+            let ctry = getCountryFromStatus(enemyMembers[id].desc);
+            let durationSecs = gettravelTimeSecsForCtry(ctry);
+            if (durationSecs <= 0) {
+                enemyMembers[id].dur = 0;
+                enemyMembers[id].estArr = 0;
+                return;
+            }
+            enemyMembers[id].dur = durationSecs;
+            enemyMembers[id].estArr = parseInt(enemyMembers[id].estDpt) + durationSecs * 1000;
+
+            let arrDate = new Date(enemyMembers[id].estArr);
+            log(id, " started flying to ", ctry, " at ", shortTimeStamp());
+            log("Est arrival: ", shortTimeStamp(arrDate), arrDate.toString());
+        }
+
+        function memberRefreshCb(responseText, ID, param) {
             let jsonObj = JSON.parse(responseText);
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
 
-             let membersArray = jsonObj.members;
+            let membersArray = jsonObj.members;
+            enemyMembers.lastUpdate = (new Date().getTime());
             membersArray.forEach(member => {
                 let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
+                let currState = member.status.state;
+                let prevState = enemyMembers[member.id].prevState;
+
+                enemyMembers[member.id].id = member.id;
+                enemyMembers[member.id].name = member.name;
                 enemyMembers[member.id].status = member.last_action.status;
                 enemyMembers[member.id].state = member.status.state;
+                enemyMembers[member.id].desc = member.status.description;
                 enemyMembers[member.id].until = member.status.until;
                 enemyMembers[member.id].revivable = member.is_revivable;
                 enemyMembers[member.id].ed = member.has_early_discharge;
                 enemyMembers[member.id].secsUntil = secsUntil;
+                enemyMembers[member.id].prevState = currState;
+
+                let logAfter = false;
+                let noLog = (!prevState || prevState == '') ? true : false;
+                if (currState != prevState) {
+                    if (noLog == false) log("***** State Change! From ", prevState, " to ", currState, " *****");
+                    if (noLog == false) log("Member: ", member, "\nEntry: ", enemyMembers[member.id]);
+                    logAfter = true;
+                    if (currState == 'Traveling') { //started flying since last check
+                        enemyMembers[member.id].estDpt = new Date().getTime();
+                        updateArrTime(member.id);
+                    } else if (prevState == 'traveling') { // landed
+                        //clear times, notify?
+                    }
+                }
+
+                if (currState != 'Traveling') {
+                    enemyMembers[member.id].estDpt = 0;
+                    enemyMembers[member.id].estArr = 0;
+                    enemyMembers[member.id].tFirstSeen = 0;
+                }
+
+                if (logAfter == true && noLog == false)
+                    log("New Entry: ", enemyMembers[member.id]);
+
+                // Sync status text with state if they disagree
+                if (currState == 'Traveling' ||
+                   currState == 'Abroad') fixStatusText(member.id, member.status.state);
+                if (getStatusTextFromId(member.id) == '') fixStatusText(member.id, member.status.state);
             });
-             useArrHospTimes = true;
+            useArrHospTimes = true;
          }
+    }
+
+    function getAbsPos(element) {
+        let rect = $(element)[0].getBoundingClientRect();
+        let absTop = rect.top + window.scrollY;
+        let absLeft = rect.left + window.scrollX;
+        return { top: absTop, left: absLeft };
+    }
+
+    function addDbgContextHandlers(retries=0) {
+        // For debugging: add handler to status cells in the table
+        if (!$("ul > li .table-cell.status").length) {
+            if (retries++ < 30) return setTimeout(addDbgContextHandlers, 500, retries);
+            return log("[addDbgContextHandlers] timed out.");
+        }
+
+        log("Adding dbg context clicks to: ", $("ul > li .table-cell.status"));
+        $("ul > li .table-cell.status").on('contextmenu', handleStatusContext);
+
+        function handleStatusContext(e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            let target = $(e.currentTarget);
+            let statusNode = $(target).find('span')[0];
+            let id = getIdFromStatus(statusNode);
+            let entry = enemyMembers[id];
+            //let pos = $(target).position();
+            let pos = getAbsPos(target);
+
+            log("target: ", $(target));
+            log("pos: ", pos);
+            log("entry: ", entry);
+
+            let txt1, txt2, txt3, txt4;
+            if (entry.state=='Traveling') {
+                txt1 = 'Estimated departure: ' + shortTimeStamp((new Date(entry.estDpt)));
+                txt2 = 'Estimated arrival: ' + shortTimeStamp((new Date(entry.estArr)));
+            }
+
+            let updated = shortTimeStamp(enemyMembers.lastUpdate);
+            let msg = `<span style="display: flex; flex-direction: column; justify-content: center;">
+                           <span class="msg-box-sp">${entry.name} [${entry.id}]</span>
+                           <span class="msg-box-sp">${entry.desc}</span>` +
+                           (txt1 ? `<span class="msg-box-sp">${txt1}</span>` : ``) +
+                           (txt2 ? `<span class="msg-box-sp">${txt2}</span>` : ``) +
+                           `<span class="msg-box-sp">Last updated: ${updated}</span>
+                       </span>`;
+
+            let usePos = {left: pos.left + 'px', top: pos.top + 'px'};
+            messageBox(msg, usePos);
+
+            return false;
+        }
     }
 
     // Build our own private members object, for easier lookups
     var refreshTimer = 0;
-    var refreshTimerDelay = 5000;
+    var refreshTimerDelay = 5000;    // 12 per minute
     function startRefreshTimer() {
+        if (ourProfile == true || !enemyID || getPageTab() == 'info')
+            return log("Not on enemy page, not starting timer:\n", location.href);
+
+        logApiCall("fac members: " + enemyID);
         xedx_TornFactionQueryv2(enemyID, 'members', startRefreshCb);
 
         function startRefreshCb(responseText, ID, param) {
@@ -600,20 +742,43 @@
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
 
+            let key = "enemyMembers-" + enemyID;
+            let savedArray = JSON.parse(GM_getValue(key, JSON.stringify({})));
+
             let membersArray = jsonObj.members;
+            enemyMembers.lastUpdate = (new Date().getTime());
             membersArray.forEach(member => {
                 let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
                 enemyMembers[member.id] =
-                    { status: member.last_action.status,  state: member.status.state, until: member.status.until,
-                     revivable: member.is_revivable, ed: member.has_early_discharge, secsUntil: secsUntil };
+                    { id: member.id, name: member.name, status: member.last_action.status,  state: member.status.state,
+                     desc: member.status.description, prevState: '', loadedAt: (new Date().getTime()),
+                     estDpt: 0, estArr: 0, dur: 0, tFirstSeen: (member.status.state == 'Traveling' ? enemyMembers.lastUpdate : 0),
+                     until: member.status.until, revivable: member.is_revivable, ed: member.has_early_discharge, secsUntil: secsUntil };
+
+                if (savedArray[member.id]) {
+                    let before = savedArray[member.id];
+                    if ((before.estArr && before.estArr > enemyMembers.lastUpdate)  || member.status.state == 'Traveling') {
+                        enemyMembers[member.id].dur = before.dur;
+                        if (!before.dur) {
+                            let ctry = getCountryFromStatus(member.status.description);
+                            enemyMembers[member.id].dur = gettravelTimeSecsForCtry(ctry);
+                        }
+                        enemyMembers[member.id].estDpt = before.estDpt;
+                        enemyMembers[member.id].estArr = before.estArr ? before.estArr :
+                                                         (before.estDpt && enemyMembers[member.id].dur) ?
+                                                         (parseInt(before.estDpt) + enemyMembers[member.id].dur * 1000) : 0;
+                        enemyMembers[member.id].tFirstSeen = before.tFirstSeen;
+                    }
+                }
             });
 
-            refreshTimer = setInterval(hospTimeRefresh, refreshTimerDelay);
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(memberStatusRefresh, refreshTimerDelay);
         }
     }
 
     var verifyCounter = 0;
-    function updateHospTimers2() {
+    function updateHospTimers() {
         let usersInHosp = $(".hospital.not-ok");
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
@@ -621,7 +786,8 @@
             if (!id) {
                 id = getIdFromStatus(statusNode);
                 $(statusNode).parent().parent().data("id", id);
-                debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
+                if (ourProfile == false)
+                    debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
             }
 
             if(!$(statusNode).parent().parent().hasClass("bs-xhosp"))
@@ -633,31 +799,18 @@
                 //log("using sec override: ", id, secOverride);
             }
 
-            if (newUpdateNodeTime(statusNode, id, secOverride) == true)
-                debug("Updated time for ", id, " successfully");
-
-            /*
-            // re-validate time periodically, every 10 secs?
-            // JUST GET FULL MEMBER LIST! https://api.torn.com/v2/faction/49184/members
-            // iterate array, match ID
-            let verify = $(statusNode).data("verify");
-            if (!verify) {
-                let when = parseInt(Date.now()/1000) + 10 + idx;  // Staggered by 1 sec intervals, 10 secs away
-                $(statusNode).data("verify", when);
-            } else if (verify > 0 && verify < (Date.now()/1000)) {
-                let when = parseInt(Date.now()/1000) + 10 + idx;
-                $(statusNode).data("verify", when);
-                xedx_TornUserQueryv2(id, "basic", queryCb);
+            if (updateNodeTime(statusNode, id, secOverride) == 0) {
+                //debug("Updated time for ", id, " successfully");
+                fixStatusText(id, enemyMembers[id].state);
+                setClassForStatSpan(getStatusFromId(id));
             }
-            */
         }
 
         doExpiredCleanup();
         useArrHospTimes = false;
 
-        setTimeout(updateHospTimers2, 1000);
+        setTimeout(updateHospTimers, 1000);
     }
-
 
     function doExpiredCleanup() {
         let list1 = $(".bs-xhosp:has('.hospital.not-ok')");
@@ -667,8 +820,9 @@
             log("***** Found expired nodes! ", $(list2));
             for (let idx=0; idx<$(list2).length; idx++) {
                 let li = $(list2)[idx];
-                let statusNode = $(li).find(".table.status > span");
-                log("Exp node: ", $(li), " span: ", $(statusNode));
+                let statusNode = $(li).find(".table-cell.status > span");
+                log("Exp node: ", $(li), "\nspan: ", $(statusNode),  "\ntext: ", $(statusNode).text());
+                $(li).removeClass("bs-xhosp");
                 $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
                 log("***** Removed classes from: ", $(statusNode));
             }
@@ -966,9 +1120,7 @@
 
     // ======================== Updated methods =======================================
 
-    // TEMP TEMP TESTING!!!
-    //updateHospTimers();
-    setTimeout(updateHospTimers2, 1000);
+    setTimeout(updateHospTimers, 1000);
     startRefreshTimer();
 
     // ================================================================================
@@ -1085,6 +1237,43 @@
                       "SA": { flag: "south_africa", ctry: "south_africa", title: "South Africa" }
                     };
 
+    // type: 'std', 'pi', 'wlt', 'bct'
+    function gettravelTimeSecsForCtry(ctry, type='pi') {
+        const travelTime = { "Mexico": {std: "26min", pi: "18min", wlt: "13min", bct: "8min"},
+                           "Caymans": {std: "35min", pi: "25min", wlt: "18min", bct: "11min"},
+                           "Canada": {std: "41min", pi: "29min", wlt: "20min", bct: "12min"},
+                           "Hawaii": {std: "2h 14min", pi: "1h 34min", wlt: "1h 7min", bct: "40min"},
+                           "UK": {std: "2h 39min", pi: "1h 51min", wlt: "1h 20min", bct: "48min"},
+                           "Argentina": {std: "2h 47min", pi: "1h 57min", wlt: "1h 23min", bct: "50min"},
+                           "Zurich": {std: "2h 55min", pi: "2h 3min", wlt: "1h 28min", bct: "53min"},
+                           "Japan": { std: "3h 45min", pi: "2h 38min", wlt: "1h 53min", bct: "1h 8min"},
+                           "China": {std: "4h 2min", pi: "2h 49min", wlt: "2h 1min", bct: "1h 12min"},
+                           "UAE": {std: "4h 31min", pi: "3h 10min", wlt: "2h 15min", bct: "1h 21min"},
+                           "SA": {std: "4h 57min", pi: "3h 28min", wlt: "2h 29min", bct: "1h 29min"},
+                         };
+
+        let entry = travelTime[ctry];
+        let timeStr = entry ? entry[type] : null;
+        let secs = timeStr ? travelTimeStrToSec(timeStr) : -1;
+
+        log("Travel time for ", ctry, " [", type, "] ", secs, timeStr, entry);
+        return secs;
+
+        function travelTimeStrToSec(timeStr) {
+            if (!timeStr) return 0;
+            let parts = timeStr.split(' ');
+            if (parts.length == 1) {
+                let min = parseInt(parts[0]);
+                return min * 60;
+            } else if (parts.length > 1) {
+                let hr = parseInt(parts[0]);
+                let min = parseInt(parts[1]);
+                return hr * 3600 + min * 60;
+            }
+            return 0;
+        }
+    }
+
 
     function getAbroadFlag(country) {
         let entry = ctryMap[country];
@@ -1142,26 +1331,26 @@
         */
     }
 
-    function userBasicQueryCallback(responseText, id, iconLi) {
-        let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {
-            log('Error: ' + JSON.stringify(jsonResp.error));
-            return handleError(responseText);
+    function replaceDestFlag(userId, iconLi) {
+        if (ourProfile == true || getPageTab() == 'info') return;
+        let entry = enemyMembers[userId];
+        if (!entry) {
+            return log("Error: no entry for user ID ", userId);
         }
-
-        let desc = jsonResp.status.description;
-        let country = getCountryFromStatus(desc);
+        let country = getCountryFromStatus(entry.desc);
         if (country) {
-            if (desc.indexOf('eturning') > -1)
+            if (entry.desc.indexOf('eturning') > -1)
                 $(iconLi).replaceWith($(getTornFlag()));
             else
                 $(iconLi).replaceWith($(getAbroadFlag(country)));
         }
     }
 
+    // Can get this from members array!
     var travelTimer;
     function replaceTravelIcons(retries=0) {
-        if (!travelTimer) travelTimer = setInterval(replaceTravelIcons, 5000);
+        if (ourProfile == true || getPageTab() == 'info') return;
+        if (!travelTimer) travelTimer = setInterval(replaceTravelIcons, 10000);
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
 
         for (let i=0; i < $(travelIcons).length; i++) {
@@ -1172,7 +1361,7 @@
             if (!fullId) {log("no fullId!"); continue;}
 
             let id = fullId.match(/\d+/)[0];
-            xedx_TornUserQuery(id, "basic", userBasicQueryCallback, iconLi);
+            replaceDestFlag(id, iconLi);
         }
     }
 
@@ -1410,6 +1599,7 @@
     }
 
     function facMemberCb(responseText, ID, options) {
+        log("[facMemberCb]");
         let jsonObj = JSON.parse(responseText);
         let membersArray = jsonObj.members;
 
@@ -1465,6 +1655,9 @@
     }
 
     function getFacMembers(facId) {
+        if (ourProfile == true || !facId || getPageTab() == 'info')
+            return log("Not on enemy page, don't need members:\n", location.href);
+        logApiCall(("fac members: " + facId));
         xedx_TornFactionQueryv2(facId, "members", facMemberCb);
     }
 
@@ -1514,9 +1707,12 @@
 
     function installUsersBar(facId, retries=0) {
         if ($(`#xonline-title-${facId}`).length != 0) return;
-        //if (onOurMainFacPage()) return log("Not installing on our main page");
 
-        let target = $($(".faction-info-wrap")[1]);
+        //if (onOurMainFacPage()) return log("Not installing on our main page");
+        if (ourProfile == true || getPageTab() == 'info')
+            return log("Not installing bar on our fac pages");
+
+        let target = $(".faction-info-wrap .f-war-list");
         if ($(target).length == 0) {
             if (retries++ < 20) return setTimeout(installUsersBar, 250, facId, retries);
             return log("[installUsersBar] timeout.");
@@ -1579,11 +1775,63 @@
         return titleBarDiv;
     }
 
-    //================================ Styles ===========================================
+    //================================ Styles, misc ui ===========================================
+
+    function messageBox(msgText, position={left: '50%', top: '50%'}, timeoutSecs=0) {
+        $("#xedx-msg-box").remove();
+        let msgBoxDiv = `
+            <div id="xedx-msg-box" class="msgBoxWrap" style="left: ${position.left}; top: ${position.top};>
+                <span class="xedx-msg-txt">${msgText}</span>
+                <span class="msg-box-sp"><input id="msg-box-btn" class="xedx-torn-btn" value="OK"></span>
+            </div>
+            `;
+
+        $(body).after(msgBoxDiv);
+        $("#msg-box-btn").on('click', function(e) {
+            $("#xedx-msg-box").remove();
+        });
+
+        $(document).on('click.xedx', function(event) {
+          if (!$(event.target).closest('#xedx-msg-box').length) {
+              $('#xedx-msg-box').remove();
+              $(document).off('click.xedx');
+          }
+        });
+    }
 
     addTornButtonExStyles();
     loadCommonMarginStyles();
     loadMiscStyles();
+
+    GM_addStyle(`
+        .msgBoxWrap {
+            position: absolute;
+            /* transform: translate(-50%, -50%); */
+            background-color:white;
+            /*width:200px;
+            height:150px;*/
+            border-radius: 15px;
+            box-shadow: 0 60px 80px rgba(0,0,0,0.60), 0 45px 26px rgba(0,0,0,0.14);
+            padding: 10px 20px 10px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+         }
+         .msgBoxWrap .centered {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+         }
+        .xedx-msg-txt, .msg-box-sp {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+            content-align: center;
+            color: black;
+            /*height: 36px;*/
+        }
+    `);
 
     GM_addStyle(`
         .blink2 {
