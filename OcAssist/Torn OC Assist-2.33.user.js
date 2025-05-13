@@ -1013,6 +1013,10 @@
 
     // Our table of member and their cpr for each crime type and role.
     // Organized as  id: {name, cpr[crimeNickname][role], id2: {}, ...
+    // cprSelectVal ->lc? Caps for UI?
+    // cprList - replace keys?
+    // myCompletedCrimeStats
+    // globalCrimeStats lc keys
     var cprList = {};
 
     function readCprList() {
@@ -2033,8 +2037,8 @@
             }
 
             let key = crime.name.toLowerCase();
-            let aka = crimeDefsTable[crime.difficulty][key] ?
-                       crimeDefsTable[crime.difficulty][key].aka :
+            let aka = crimeDefsTable[crime.difficulty][crime.name] ?
+                       crimeDefsTable[crime.difficulty][crime.name].aka :
                        (key in nicknames) ? nicknames[key] : null;
 
             if (!aka) debugger;
