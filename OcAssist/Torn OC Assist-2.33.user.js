@@ -1011,22 +1011,24 @@
                                           "ah": {"Impersonator": 0, "Muscle": 0, "Hacker": 0, "Driver": 0},
                                }};
 
-    // Our table of member and their cpr for each crime type and role.
-    // Organized as  id: {name, cpr[crimeNickname][role], id2: {}, ...
-    // cprSelectVal ->lc? Caps for UI?
-    // cprList - replace keys?
-    // myCompletedCrimeStats
-    // globalCrimeStats lc keys
     var cprList = {};
 
-    function readCprList() {
-        let cprUpdated = GM_getValue("cprUpdated", false);    // changed format, delete old stuff...or migrate?
-                                                              // also myCompletedCrimeStats
-        if (cprUpdated == false) {
-            cprList = {};
-            writeCprList();
-            GM_setValue("cprUpdated", true);
-        }
+    /* changed format, delete old stuff...or migrate?
+    function fixupCprStorage() {
+        cprList = {};
+        writeCprList();
+        let cprList = GM_getValue(cprListKey, JSON.stringify({}));
+        let cprKeys = Object.getKeys(cprList);
+        if (cprKeys && cprKeys.length) { // Migrate
+            migrateCprKeys(cprList);
+        } else {
+            cprList = GM_getValue("csrList", JSON.stringify({}));
+
+        GM_setValue("cprUpdated", true);
+    }
+    */
+
+    function readCprList() {  
         let tmp = GM_getValue(cprListKey, JSON.stringify({}));
         if (tmp) {
             cprList = JSON.parse(tmp);
@@ -1037,7 +1039,10 @@
         GM_setValue(cprListKey, JSON.stringify(cprList));
     }
 
-    if (trackMemberCpr) readCprList();
+    if (trackMemberCpr) {
+        //if (!GM_getValue("cprUpdated", null)) fixupCprStorage();
+        readCprList();
+    }
 
     // =========================== Little helper fns =================================
     const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
@@ -2051,7 +2056,13 @@
             for (let idx = 0; idx < slots.length; idx++) {
                 let slot = slots[idx];
                 debug("CPR CB, idx: ", idx, " slot: ", slot);
-                let id = slot.user_id; if (!id) {debug("CPR CB, no ID!"); continue;}
+                let id = slot.user_id;
+                if (!id) {
+                    if (crime.status == 'Recruiting')
+                        id = userId;
+                    else
+                        debug("CPR CB, no ID!"); continue;
+                }
                 let entry = cprList[id];
                 if (!entry) {
                     debug("CPR CB, no entry for id ", id, "!");
@@ -2081,9 +2092,9 @@
                 }
                 if (slot) {
                     let currChance = parseInt(cprList[id].crimeCpr[aka][slot.position]);
-                    let newChance = parseInt(slot.success_chance);
+                    let newChance = parseInt(slot.checkpoint_pass_rate);
                     if (newChance > currChance)
-                        cprList[id].crimeCpr[aka][slot.position] = slot.success_chance;
+                        cprList[id].crimeCpr[aka][slot.position] = slot.checkpoint_pass_rate;
                 }
             }
             if (missingCpr > 0) writeCprList();
@@ -2168,7 +2179,7 @@
     function getMemberCprValuesFrom(from) {
         if (logCprData) logt("CPR CB, getMemberCprValuesFrom from ", from, "|", from, new Date(Number(from)*1000).toString());
 
-        var options = {"from": from, "offset": "0", "sort": "ASC", param: from};
+        var options = {"from": from, "cat": "all", "offset": "0", "sort": "ASC", param: from};
         xedx_TornFactionQueryv2("", "crimes", cprCrimesCb, options);
     }
 
