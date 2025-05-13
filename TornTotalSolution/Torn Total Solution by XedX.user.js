@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.44
+// @version      4.45
 // @description  A compendium of all my individual scripts for the Home page
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -6080,14 +6080,15 @@
         }
         let rank_cache = {};
         let ttInstalled = false;
+        var storageCacheInt = null;
 
         return new Promise((resolve, reject) => {
             rank_cache = readCacheFromStorage();
 
             // Check for expired cache entries at intervals, half max cache age.
-            setInterval(function() {
-                debug('[userListExtender] **** Performing interval driven cache clearing ****');
-                clearStorageCache();}, (0.5*opts.cacheMaxMs));
+            debug('[userListExtender] **** Performing interval driven cache clearing ****');
+            if (!opts.cacheMaxMs) opts.cacheMaxMs = (6 * 3600 * 1000);
+            storageCacheInt = setInterval(clearStorageCache, (0.5*opts.cacheMaxMs));
 
             mainTargetNode = document.querySelector("#mainContainer > div.content-wrapper > div.userlist-wrapper");
             addDarkModeObserver(); // I've forgotten why I do this.
@@ -7120,8 +7121,8 @@
 
         return _tornOverseasRank();
 
+        var storageCacheInt = null;
         function _tornOverseasRank() {
-
             return new Promise((resolve, reject) => {
                 if (!abroad()) return resolve('[tornOverseasRank] at home!');
                 GM_addStyle(`.xedx-cached {float: right; margin-left: 10px; font-size: 12px; color:red;}
@@ -7130,14 +7131,14 @@
                              .xedx-btn {
                                   margin-top: 10px;
                                   margin-left: 20px;
-                                  margin-bottom: 10px;}
-                `);
+                                  margin-bottom: 10px;}`);
 
                 buildUI();
 
                 rank_cache = readCacheFromStorage();
                 installHashChangeHandler(updateUserLevels);
-                setInterval(function() {clearStorageCache();}, (0.5*opts.cacheMaxMs));
+                if (!storageCacheInt)
+                    storageCacheInt = setInterval(clearStorageCache, (0.5*opts.cacheMaxMs));
                 startObserver();
                 updateUserLevels('Ready State Complete!');
                 resolve("[tornOverseasRank] startup complete!");
@@ -7395,14 +7396,14 @@
         function getSavedOpts() {
             try {
                 let tmpOpts = JSON.parse(GM_getValue('overseasRankOpts', JSON.stringify(opts)));
-                opts.displayRank = (typeof tmpOpts.displayRank !== undefined) ? tmpOpts.displayRank : true;
-                opts.displayHealth = (typeof tmpOpts.displayHealth !== undefined) ? tmpOpts.displayHealth : true;
-                opts.displayLastAction = (typeof tmpOpts.displayLastAction !== undefined) ? tmpOpts.displayLastAction : true;
-                opts.autoRefreshSecs = (typeof tmpOpts.autoRefreshSecs !== undefined) ? tmpOpts.autoRefreshSecs : 45;
-                opts.autoRefresh = (typeof tmpOpts.autoRefresh !== undefined) ? tmpOpts.autoRefresh : false;
-                opts.cacheMaxHours = (typeof tmpOpts.cacheMaxHours !== undefined) ? tmpOpts.cacheMaxHours : 6;
-                opts.cacheMaxMs = (typeof tmpOpts.cacheMaxMs !== undefined) ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
-                opts.queueIntms = (typeof tmpOpts.queueIntms !== undefined) ? tmpOpts.queueIntms : 300;
+                opts.displayRank = tmpOpts.displayRank ? tmpOpts.displayRank : true;
+                opts.displayHealth = tmpOpts.displayHealth ? tmpOpts.displayHealth : true;
+                opts.displayLastAction = tmpOpts.displayLastAction  ? tmpOpts.displayLastAction : true;
+                opts.autoRefreshSecs = tmpOpts.autoRefreshSecs ? tmpOpts.autoRefreshSecs : 45;
+                opts.autoRefresh = tmpOpts.autoRefresh ? tmpOpts.autoRefresh : false;
+                opts.cacheMaxHours = tmpOpts.cacheMaxHours ? tmpOpts.cacheMaxHours : 6;
+                opts.cacheMaxMs = tmpOpts.cacheMaxMs ? tmpOpts.cacheMaxMs : (6 * 3600 * 1000);
+                opts.queueIntms = tmpOpts.queueIntms ? tmpOpts.queueIntms : 300;
             } catch (e) {
                 log('[tornOverseasRank] ERROR: ', e);
             }
