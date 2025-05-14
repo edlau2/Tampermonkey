@@ -3001,9 +3001,11 @@
         let roleArray = roles;
 
         log("crimeSelect: ", crimeSelect);
-        if (!crimeSelect)
+        if (!crimeSelect) {
             debugger;
-        let key = crimeSelect; //.toLowerCase();
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
+        let key = crimeSelect.toLowerCase();
         if (!(key in nicknames)) {
             console.error("Selected crime ", key, " nickname NOT found in ", nicknames);
             return emptyCprArr;
@@ -3034,10 +3036,12 @@
     function getDataRoleArr(cprArr, crimeSelect) {
         let arr = ["none", "none", "none", "none", "none", "none"];
         log("crimeSelect: ", crimeSelect);
-        if (!crimeSelect)
+        if (!crimeSelect) {
             debugger;
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
 
-        let key = crimeSelect; //.toLowerCase();
+        let key = crimeSelect.toLowerCase();
         let aka = nicknames[key];
         let roles = roleLookup[key]; // Object.keys(cprArr);
         if (!roles) {
@@ -3062,9 +3066,12 @@
             if (!member.name) return log("Member ID ", id, " not found, no l onger in fac?");
         }
         log("crimeSelect: ", crimeSelect);
-        if (!crimeSelect)
+        if (!crimeSelect) {
             debugger;
-        let key = crimeSelect; //.toLowerCase();
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
+
+        let key = crimeSelect.toLowerCase();
         let aka = nicknames[key];
         let name = member.name;
 
