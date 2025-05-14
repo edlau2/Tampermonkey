@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.30
+// @version      2.34
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -664,7 +664,7 @@
     var initCprDays    = GM_getValue(initCprDaysKey, 14);       // How many days back to check for crimes during init
 
     var lastCprCheckDate = GM_getValue(lastCprDateKey, 0);    // Most recent date looked at, only go to here during updates
-    var defCprSelectVal = GM_getValue("cprSelectVal", "Blast From The Past");
+    var defCprSelectVal = GM_getValue("cprSelectVal", "blast from the past");
 
     const cprSortOrders = ['desc', 'asc'];
     const cprDefSortOrder = 0;
@@ -931,62 +931,62 @@
 
     const crimeDefsTable = {
         1: {
-            "Mob Mentality": {enabled: false, level: 1, roles: ["?", "?", "?"], aka: "mm"},
-            "Pet Project": {level: 1, roles: ["Kidnapper", "Muscle", "Picklock"], aka: "pp"}
+            "mob mentality": {enabled: false, level: 1, roles: ["?", "?", "?"], aka: "mm"},
+            "pet project": {level: 1, roles: ["Kidnapper", "Muscle", "Picklock"], aka: "pp"}
         },
         2: {
-            //"Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief", "Thief"], aka: "cm"}
-            "Cash Me If You Can": {level: 2, roles: ["Lookout", "Thief"], aka: "cm"}
+            "cash me if you can": {level: 2, roles: ["Lookout", "Thief"], aka: "cm"}
         },
         3: {
-            "Market Forces": {level: 3, roles: ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"], aka: "mf"},
-            "Smoke and Wing Mirrors": {level: 3, roles: ["Car Thief", "Impersonator", "Hustler" /*, "Hustler"*/], aka: "sw"},
+            "market forces": {level: 3, roles: ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"], aka: "mf"},
+            "smoke and wing mirrors": {level: 3, roles: ["Car Thief", "Impersonator", "Hustler" /*, "Hustler"*/], aka: "sw"},
         },
         4: {
-            //"Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle", "Muscle", "Muscle"], aka: "sf"},
-            //"Snow Blind": {level: 4, roles: ["Hustler", "Impersonator", "Muscle", "Muscle"], aka: "sb"},
-            "Stage Fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle"], aka: "sf"},
-            "Snow Blind": {level: 4, roles: ["Hustler", "Impersonator", "Muscle"], aka: "sb"},
+            "stage fright": {level: 4, roles: ["Lookout", "Enforcer", "Sniper", "Muscle"], aka: "sf"},
+            "snow blind": {level: 4, roles: ["Hustler", "Impersonator", "Muscle"], aka: "sb"},
         },
         5: {
-            "Leave No Trace": {level: 5, roles: ["Techie", "Impersonator", "Negotiator"], aka: "lt"},
+            "leave no trace": {level: 5, roles: ["Techie", "Impersonator", "Negotiator"], aka: "lt"},
         },
         6: {
             //"Honey Trap": {level: 6, roles: ["Enforcer", "Muscle", "Muscle"], aka: "ht"},
-            "Honey Trap": {level: 6, roles: ["Enforcer", "Muscle"], aka: "ht"},
+            "honey trap": {level: 6, roles: ["Enforcer", "Muscle"], aka: "ht"},
         },
         7: {
             //"Blast From The Past": {level: 7, roles: ["Picklock", "Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
-            "Blast From The Past": {level: 7, roles: ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
+            "blast from the past": {level: 7, roles: ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"], aka: "bp"},
         },
         8: {
-            //"Break The Bank": {level: 8, roles: ["Thief", "Thief", "Muscle", "Muscle", "Muscle", "Robber"], aka: "bb"},
-            "Break The Bank": {level: 8, roles: ["Thief", "Muscle", "Robber"], aka: "bb"},
+            "break the bank": {level: 8, roles: ["Thief", "Muscle", "Robber"], aka: "bb"},
+            "stacking the deck": {level: 8, roles: ["Hacker", "Impersonator", "Cat Burglar", "Driver"], aka: "sd"},
         },
         9: {
-            "Gaslight The Way": {enabled: false, level: 9, roles: ["?", "?", "?", "?", "?", "?"], aka: "gw"},
+            "gaslight the way": {enabled: false, level: 9, roles: ["?", "?", "?", "?", "?", "?"], aka: "gw"},
+            "ace in the hole": {enabled: true, level: 9, roles: ["Impersonator", "Muscle", "Muscle", "Hacker", "Driver"], aka: "ah"},
         },
         10: {
-            "Bidding on Chaos": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "bc"},
+            "bidding on chaos": {enabled: false, level: 10, roles: ["?", "?", "?", "?", "?", "?"], aka: "bc"},
         }
     };
 
-    const nicknames = {"Mob Mentality": "mm", "Pet Project": "pp", "Cash Me If You Can": "cm", "Market Forces": "mf",
-                       "Stage Fright": "sf", "Leave No Trace": "lt", "Honey Trap": "ht", "Blast From The Past": "bp",
-                       "Break The Bank": "bb", "Gaslight The Way": "gw", "Smoke and Wing Mirrors": "sw",
-                       "Bidding on Chaos": "bc", "Snow Blind": "sb"};
+    const nicknames = {"mob mentality": "mm", "pet project": "pp", "cash me if you can": "cm", "market forces": "mf",
+                       "stage fright": "sf", "leave no trace": "lt", "honey trap": "ht", "blast from the past": "bp",
+                       "break the bank": "bb", "gaslight the way": "gw", "smoke and wing mirrors": "sw",
+                       "bidding on chaos": "bc", "snow blind": "sb", "stacking the deck": "sd", "ace in the hole": "ah"};
 
     const roleLookup = {
-        "Pet Project": ["Kidnapper", "Muscle", "Picklock"],
-        "Cash Me If You Can": ["Lookout", "Thief"],
-        "Market Forces": ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"],
-        "Snow Blind": ["Hustler", "Impersonator", "Muscle"],
-        "Stage Fright": ["Lookout", "Enforcer", "Sniper", "Muscle"],
-        "Leave No Trace": ["Techie", "Impersonator", "Negotiator"],
-        "Honey Trap": ["Enforcer", "Muscle"],
-        "Blast From The Past": ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"],
-        "Break The Bank": ["Thief", "Thief", "Muscle", "Robber"],
-        "Smoke and Wing Mirrors": ["Car Thief", "Impersonator", "Hustler"],
+        "pet project": ["Kidnapper", "Muscle", "Picklock"],
+        "cash me if you can": ["Lookout", "Thief"],
+        "market forces": ["Enforcer", "Negotiator", "Lookout", "Arsonist", "Muscle"],
+        "snow blind": ["Hustler", "Impersonator", "Muscle"],
+        "stage fright": ["Lookout", "Enforcer", "Sniper", "Muscle"],
+        "leave no trace": ["Techie", "Impersonator", "Negotiator"],
+        "honey trap": ["Enforcer", "Muscle"],
+        "blast from the past": ["Picklock", "Hacker", "Engineer", "Bomber", "Muscle"],
+        "break the bank": ["Thief", "Thief", "Muscle", "Robber"],
+        "smoke and wing mirrors": ["Car Thief", "Impersonator", "Hustler"],
+        "stacking the deck": ["Hacker", "Impersonator", "Cat Burglar", "Driver"],
+        "ace in the hole": ["Impersonator", "Muscle", "Hacker", "Driver"],
     };
 
     const cprEntryTemplate = {name: "",
@@ -1002,25 +1002,57 @@
                                           "bb": {"Thief": 0, "Muscle": 0, "Robber": 0},
                                           "gw": {},
                                           "sw": {"Car Thief": 0, "Impersonator": 0, "Hustler": 0},
-                                          "bc": {}
+                                          "bc": {},
+                                          "sd": {"Hacker": 0, "Impersonator": 0, "Cat Burglar": 0, "Driver": 0},
+                                          "ah": {"Impersonator": 0, "Muscle": 0, "Hacker": 0, "Driver": 0},
                                }};
 
-    // Our table of member and their cpr for each crime type and role.
-    // Organized as  id: {name, cpr[crimeNickname][role], id2: {}, ...
     var cprList = {};
 
-    function readCprList() {
-        let tmp = GM_getValue(cprListKey, null);
-        if (tmp) {
-            cprList = JSON.parse(tmp);
+    /* changed format, delete old stuff...or migrate?
+    function fixupCprStorage() {
+        cprList = {};
+        writeCprList();
+        let cprList = GM_getValue(cprListKey, JSON.stringify({}));
+        let cprKeys = Object.getKeys(cprList);
+        if (cprKeys && cprKeys.length) { // Migrate
+            migrateCprKeys(cprList);
+        } else {
+            cprList = GM_getValue("csrList", JSON.stringify({}));
+
+        GM_setValue("cprUpdated", true);
+    }
+    */
+
+    var cprListLen;
+
+    function checkCprList() {
+        let tmp = Object.keys(cprList).length;
+        if (tmp < cprListLen) {
+            log("ERROR: cpr list len change! ", tmp, cprListLen);
+            debugger;
+            //return;
         }
     }
 
+    function readCprList() {  
+        let tmp = GM_getValue(cprListKey, JSON.stringify({}));
+        if (tmp) {
+            cprList = JSON.parse(tmp);
+        }
+
+        cprListLen = Object.keys(cprList).length;
+    }
+
     function writeCprList() {
+        checkCprList();
         GM_setValue(cprListKey, JSON.stringify(cprList));
     }
 
-    if (trackMemberCpr) readCprList();
+    if (trackMemberCpr) {
+        //if (!GM_getValue("cprUpdated", null)) fixupCprStorage();
+        readCprList();
+    }
 
     // =========================== Little helper fns =================================
     const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
@@ -1717,11 +1749,17 @@
         // This won't add twice, but we can enter here for several reasons.
         addStyles();
 
+        // Need to remove or hide our UI...
         if (!isOcPage()) {
             if (trackMyOc == true) {
                 myOcTracker.addMenuToSidebar();
                 myOcTracker.getMyNextOcTime(true);
                 //myOcTracker.scheduleOcCheck(100);
+            }
+
+            if ($("#oc-assist-content-wrap").length > 0) {
+                // Detach, remove, or hide?
+                $("#oc-assist-content-wrap").css("display", "none");
             }
             return log("Not on crimes page, going home");
         }
@@ -1747,7 +1785,8 @@
 
         if (!$("#oc-assist-content-wrap").length) {
             installUI();
-        }
+        } else if ($("#oc-assist-content-wrap").css("display") == 'none')
+            $("#oc-assist-content-wrap").css("display", "flex");
 
         addPageBtnHandlers();
 
@@ -1811,6 +1850,10 @@
     var membersNameById = {};
     function facMemberCb(responseText, ID, options) {
         debug("facMembersCB");
+
+        memberLoadInProgress = false;
+        memberLoadComplete = true;
+
         let jsonObj = JSON.parse(responseText);
         membersArray = jsonObj.members;
 
@@ -1833,8 +1876,8 @@
             }
         }
 
-        memberLoadInProgress = false;
-        memberLoadComplete = true;
+        //memberLoadInProgress = false;
+        //memberLoadComplete = true;
 
         log("membersNameById: ", membersNameById);
 
@@ -1934,6 +1977,11 @@
             for (let j=0; j<crimeKeys.length; j++) {
                 let crimeAka = crimeKeys[j];
                 let crime = entry[crimeAka];
+                if (!crime) {
+                    log("ERROR no crime! entry: ", entry, " aka: ", crimeAka);
+                    debugger;
+                    continue;
+                }
                 let roleKeys = Object.keys(crime);
                 for (let k=0; k<roleKeys.length; k++) {
                     let role = roleKeys[k];
@@ -2003,9 +2051,10 @@
                 debugger;
             }
 
+            let key = crime.name.toLowerCase();
             let aka = crimeDefsTable[crime.difficulty][crime.name] ?
                        crimeDefsTable[crime.difficulty][crime.name].aka :
-                       (crime.name in nicknames) ? nicknames[crime.name] : null;
+                       (key in nicknames) ? nicknames[key] : null;
 
             if (!aka) debugger;
 
@@ -2017,7 +2066,15 @@
             for (let idx = 0; idx < slots.length; idx++) {
                 let slot = slots[idx];
                 debug("CPR CB, idx: ", idx, " slot: ", slot);
-                let id = slot.user_id; if (!id) {debug("CPR CB, no ID!"); continue;}
+                let id = slot.user_id;
+                if (!id) {
+                    if (crime.status == 'Recruiting')
+                        id = userId;
+                    else {
+                        debug("CPR CB, no ID!");
+                        continue;
+                    }
+                }
                 let entry = cprList[id];
                 if (!entry) {
                     debug("CPR CB, no entry for id ", id, "!");
@@ -2039,12 +2096,20 @@
                     //continue;
                 }
 
-                let currChance = parseInt(cprList[id].crimeCpr[aka][slot.position]);
-                let newChance = parseInt(slot.success_chance);
-                if (newChance > currChance)
-                    cprList[id].crimeCpr[aka][slot.position] = slot.success_chance;
+                if (!cprList[id].crimeCpr[aka])
+                    cprList[id].crimeCpr[aka] = JSON.parse(JSON.stringify(slot));
+
+                if (!slot || !cprList[id].crimeCpr[aka]) {
+                    debugger;
+                }
+                if (slot) {
+                    let currChance = parseInt(cprList[id].crimeCpr[aka][slot.position]);
+                    let newChance = parseInt(slot.checkpoint_pass_rate);
+                    if (newChance > currChance)
+                        cprList[id].crimeCpr[aka][slot.position] = slot.checkpoint_pass_rate;
+                }
             }
-            if (missingCpr > 0) writeCprList();
+            // if (missingCpr > 0) writeCprList();
         }
 
         if (logCprData) logt("CPR CB, after cb: ", cprList);
@@ -2058,7 +2123,7 @@
         }
 
         lastCprCheckDate = newestDate;
-        debug("CPR CB, newest date: ". newestDate);
+        debug("CPR CB, newest date: ", (new Date(newestDate*1000).toString()));
         handleCprListUpdateComplete(newestDate);
     }
 
@@ -2072,9 +2137,10 @@
         if (!entry) {
             return debug("CPR entry for user ", userId, " not found!");
         }
-        let aka = crimeDefsTable[difficulty][crimeName] ?
-                       crimeDefsTable[difficulty][crimeName].aka :
-                       (crimeName in nicknames) ? nicknames[crimeName] : null;
+        let key = crimeName.toLowerCase();
+        let aka = crimeDefsTable[difficulty][key] ?
+                       crimeDefsTable[difficulty][key].aka :
+                       (key in nicknames) ? nicknames[key] : null;
         debug("aka: ", aka);
 
         if (!aka) debugger;
@@ -2086,7 +2152,7 @@
         debug("cprs: ", userCprs);
 
         if (userCprs) {
-            userCprs[role] = cpr;
+            userCprs[role] = JSON.parse(JSON.stringify(cpr));
             writeCprList();
         }
     }
@@ -2125,7 +2191,7 @@
     function getMemberCprValuesFrom(from) {
         if (logCprData) logt("CPR CB, getMemberCprValuesFrom from ", from, "|", from, new Date(Number(from)*1000).toString());
 
-        var options = {"from": from, "offset": "0", "sort": "ASC", param: from};
+        var options = {"from": from, "cat": "all", "offset": "0", "sort": "ASC", param: from};
         xedx_TornFactionQueryv2("", "crimes", cprCrimesCb, options);
     }
 
@@ -2148,7 +2214,7 @@
         if (lastCprCheckDate == 0) {
             if (confirm("The Crime Success Rate table hasn't been initialized. " +
                         "Initialize now?")) {
-                debugger;
+                cprUpdating = false;
                 initializeMemberCprValues();
                 return;
             }
@@ -2180,7 +2246,7 @@
         }
         if (cprUpdating == true) {
             console.error("Error: can't initialize while updating!");
-            return;
+            //return;
         }
 
         displaySpinner($("#x-opts-click"), "oc-cpr-spinner");
@@ -2352,7 +2418,7 @@
                 break;
             }
             default: {
-                log("Internal error: unknown enty type '", entry.type, "'");
+                log("Internal error: unknown entry type '", entry.type, "'");
                 debugger;
                 break;
             }
@@ -2418,8 +2484,12 @@
             let keys2 = Object.keys(entry);
             for (let j=0; j<keys2.length; j++) {
                 //cellCount++;
-                let crimeName = keys2[j];
-                let crime = entry[keys2[j]];
+                let crimeName = keys2[j].toLowerCase();
+                log("crimeName: ", crimeName);
+                let crime = entry[keys2[j]]; //.toLowerCase();
+                log("Crime: ", crime);
+                if (!crime)
+                    debugger;
 
                 let myStats = myCompletedCrimeStats[crimeName];
                 let gblStats = globalCrimeStats[crimeName];
@@ -2942,25 +3012,34 @@
         let cprArray = [];
         let roleArray = roles;
 
-        if (!(crimeSelect in nicknames)) {
-            console.error("Selected crime ", crimeSelect, " nickname NOT found in ", nicknames);
+        log("crimeSelect: ", crimeSelect);
+        if (!crimeSelect) {
+            debugger;
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
+        let key = crimeSelect.toLowerCase();
+        if (!(key in nicknames)) {
+            console.error("Selected crime ", key, " nickname NOT found in ", nicknames);
             return emptyCprArr;
         }
-        let aka = nicknames[crimeSelect];
+        let aka = nicknames[key];
 
         if (!roles) {
-            if (!(crimeSelect in roleLookup)) {
+            if (!(key in roleLookup)) {
                 console.error("Selected crime array not found!");
                 return emptyCprArr;
             }
-            roleArray = roleLookup[crimeSelect];
+            roleArray = roleLookup[key];
         }
 
-        roleArray.forEach(function(role, idx) {
+        //roleArray.forEach(function(role, idx) {
+        for (let idx=0; idx<roleArray.length; idx++) {
+            let role = roleArray[idx];
             let cpr = getCprListEntry(id, aka, role);
             cprArray.push(cpr);
             lastIdx = idx;
-        });
+        }
+        //});
 
         for (let idx=lastIdx+1; idx < 6; idx++) cprArray.push(0);
 
@@ -2971,9 +3050,20 @@
     // For debugging - make data-role attr array for cells
     function getDataRoleArr(cprArr, crimeSelect) {
         let arr = ["none", "none", "none", "none", "none", "none"];
-        let aka = nicknames[crimeSelect];
-        let roles = roleLookup[crimeSelect]; // Object.keys(cprArr);
-        for (let idx=0; idx<roles.length; idx++) {
+        log("crimeSelect: ", crimeSelect);
+        if (!crimeSelect) {
+            debugger;
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
+
+        let key = crimeSelect.toLowerCase();
+        let aka = nicknames[key];
+        let roles = roleLookup[key]; // Object.keys(cprArr);
+        if (!roles) {
+            log("Error: missing roles! crime: ", key, " aka: ", aka);
+            debugger;
+        }
+        if (roles) for (let idx=0; idx<roles.length; idx++) {
             arr[idx] = aka + '-' + roles[idx];
         }
         return arr;
@@ -2990,15 +3080,22 @@
             member.name = membersNameById[id];
             if (!member.name) return log("Member ID ", id, " not found, no l onger in fac?");
         }
-        let aka = nicknames[crimeSelect];
+        log("crimeSelect: ", crimeSelect);
+        if (!crimeSelect) {
+            debugger;
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+        }
+
+        let key = crimeSelect.toLowerCase();
+        let aka = nicknames[key];
         let name = member.name;
 
         let cprEntry = member.crimeCpr[aka];
-        let cprArr = getMemberCprArray(id, crimeSelect);
+        let cprArr = getMemberCprArray(id, key);
         let defCpr = '?';
         let addlClass = (notInOc == true) ? 'no-oc' : '';
         if (userId == id) addlClass = addlClass + " my-id";
-        let drs = getDataRoleArr(cprArr, crimeSelect);  //  data-role="${drs[0]}"
+        let drs = getDataRoleArr(cprArr, key);  //  data-role="${drs[0]}"
         let newRow = `<tr id='${id}-tr' class='${addlClass}'>
                           <td class="cc1"><span class='cpr-name' data-id="${id}" data-sort="${name}">${name} [${id}]</span></td>
                           <td class="cc2" data-sort="${cprArr[0]}" data-role="${drs[0]}">${cprArr[0]}</td>
@@ -3022,7 +3119,8 @@
         for (let idx=0; idx < keys.length; idx++) {
             let id = keys[idx];
             let entry = cprList[id];
-            let row = getCprMemberRow(id, crimeSelect);
+            log("*** [updateCprTable] crimeSelect: ", crimeSelect);
+            let row = getCprMemberRow(id, crimeSelect); //.toLowerCase());
             if (!row) {
                 debug("ERROR: No cpr row for id ", id, "!");
                 continue;
@@ -3045,14 +3143,19 @@
 
         let roleList = $(".cpr-hdr-span2  [class*='cpr-role']");
         let key1 = $(sel).attr("data-idx");
-        let crimeName = $(sel).val();
+        let crimeName = $(sel).val(); //.toLowerCase();
+        log("Crime name: ", crimeName);
+        if (!crimeName)
+            debugger;
+        else
+            crimeName = crimeName.toLowerCase();
         let entry = crimeDefsTable[key1];
         if (!entry) {
             debugger;
             return;
         }
 
-        let crime = entry[crimeName];
+        let crime = entry[crimeName]; //.toLowerCase();
         currentCrimeRoles = crime.roles;
         let lastIdx = 0;
         currentCrimeRoles.forEach(function(val, idx) {
