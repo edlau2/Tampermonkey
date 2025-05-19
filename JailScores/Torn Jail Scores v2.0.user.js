@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.27
+// @version      2.30
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
-// @match        https://www.torn.com/*
+// @match        https://www.torn.com/jailview*
+// @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
 // @run-at       document-start
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
-// @xrequire      file://///Users/edlau/Documents/Documents - Ed’s MacBook Pro/Tampermonkey Scripts/Helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
@@ -32,11 +32,6 @@
 
 (async function() {
     'use strict';
-
-    if (onAttackPage()) {
-        log("On attack page, not running.");
-        return;
-    }
 
     const DEV_MODE = true;             // Without this, scores only, no % chance etc...
     const myUserId = getThisUserId();  // Used to enable debug stuff just for myself
@@ -543,7 +538,9 @@
 
     // Query the log for past busts
     var queryPastBustsStart;                    // Start time for profiling
+
     // ========= temp
+    /*
     function _xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) {
         const baseTornURL = "https://api.torn.com/";
         if (ID == null) ID = '';
@@ -580,19 +577,18 @@
     function _xedx_TornUserQuery(ID, selection, callback, param=null) {
         _xedx_TornGenericQueryDbg('user', ID, selection, callback, param);
     }
+    */
 
     function queryPastBusts(queryStats=true) {
         debug('[queryPastBusts]');
         queryPastBustsStart = _start();
         let queryStr = 'timestamp,log&log=5360';
-        log("Query busts: ", queryStr);
-        log("Api: ", api_key);
-        _xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
+        //_xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
+        xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
     }
 
     // Callback for above
     function queryPastBustsCB(responseText, ID, param) {
-        debug('[queryPastBustsCB] took ', elapsed(queryPastBustsStart), " secs");
         let jsonResp = JSON.parse(responseText);
         if (jsonResp.error) {
             debug('Response error! ', jsonResp.error);
@@ -606,7 +602,9 @@
 
         // Now get personal stats, perks, level. Could do as one call.
         // Logically easier to do in two, easier to debug also.
-        if (param) personalStatsQuery();
+        if (param) {
+            personalStatsQuery();
+        }
 
         if (!intervalId) startPastBustTimer();
     }
@@ -681,7 +679,7 @@
             //log('jobPerks: ', jobPerks);
 
         } else {  // get from cache!
-            debug("[personalStatsQueryCB], cached");
+            debug("[personalStatsQueryCB], using cached!!!");
             jobType = GM_getValue("jobType", jobType);
             userLvl = GM_getValue("userLvl", userLvl);
             perks.bustChanceIncrease = GM_getValue("bustChanceIncrease", perks.bustChanceIncrease);
@@ -713,14 +711,37 @@
         let keys = Object.keys(bustLog);
         totalPenalty = 0;
 
+        // get minutes since midnight
+        let now = new Date();
+        let h = now.getHours(), m = now.getMinutes();
+        let hu = now.getUTCHours(), mu = now.getUTCMinutes();
+        let minSoFar = h * 60 + m;
+        let minUtcSoFar = hu * 60 + mu;
+        let localBustsToday = 0;
+        let utcBustsToday = 0;
+
         for (let i=0; i<keys.length; i++) {
             let key = keys[i];
             let entry = bustLog[key];
             let ageMinutes = Math.ceil((timeNow - entry.timestamp) / 60); // Minutes
             if (ageMinutes > oldestTimeMinutes) break; // Older than 72 hours, doesn't matter.
+
+            //let utcTime = new Date(entry.timestamp);
+            //let utcMinAgo = utcTime.getUTCHours() * 60 + utcTime.getMinutes();
             if (debugPastBusts == true) {
                 debug('Entry: ', entry);
                 debug('Time: ', ageMinutes + ' minutes ago.');
+            }
+
+            debug("*** daily busts: age this: ", ageMinutes, " so far: ", minSoFar, " busts: ",localBustsToday);
+            debug("*** daily busts: age utc: ", ageMinutes, " so far: ", minUtcSoFar, " busts: ",utcBustsToday);
+            if (ageMinutes < minSoFar) {
+                localBustsToday++;
+                GM_setValue("currBustsAlt", localBustsToday);
+            }
+            if (ageMinutes < minUtcSoFar) {
+                utcBustsToday++;
+                GM_setValue("currBustsUtcAlt", utcBustsToday);
             }
 
             let indPenalty = getPenalty(getP0(), ageMinutes/60);
@@ -729,6 +750,7 @@
             pastBustsStats.push({'timestamp': entry.timestamp, 'ageHrs': round2(ageMinutes/60), 'penalty': round2(indPenalty)});
         } // end for loop
 
+        if (debugPastBusts == true)debug("*** calc past busts complete! Have penalty: ", totalPenalty, new Date().toString());
 
         if (recordStats) {
             let low = GM_getValue("p0low", -1);
@@ -757,7 +779,6 @@
     //////////////////////////////////////////////////////////////////////
 
     const observerCallback = function(mutationsList, observer) {
-            debug('Observer CB');
             observerOff();
             if ($("#xedx-save-btn").length == 0) installUI();
             for (let mutation of mutationsList) {
@@ -828,19 +849,31 @@
                                 fillJailStatsDiv();
 
                                 let currBustsToday = 0;
+                                let bustsTodayLocal = GM_getValue("currBustsAlt", -1);
+                                let bustsTodayUtc = GM_getValue("currBustsUtcAlt", -1);
+
+                                let compBusts = useLocal ? bustsTodayLocal : bustsTodayUtc;
                                 //if (dateOlderThanDay) {
                                 if (isToday() == false) {
                                     currBustsToday = 1;
                                 } else {
                                     currBustsToday = GM_getValue("currBusts", 0) + 1;
+                                    if (currBustsToday != (compBusts + 1)) {
+                                        log("*** daily busts: error? ", currBustsToday, (compBusts + 1),
+                                            bustsTodayLocal, bustsTodayUtc);
+                                        debugger;
+                                    }
                                 }
+
 
 
                                 GM_setValue("currBusts", currBustsToday);
                                 setTodaysBusts(currBustsToday);
                                 $("#daily-busts").text(/*"Today's busts: " +*/ GM_getValue("currBusts", 0));
 
-                                debug("Setting current busts: ", dateOlderThanDay, currBustsToday, GM_getValue("currBusts", 0));
+                                debug("*** Daily Busts: Setting current busts: ",
+                                      dateOlderThanDay, currBustsToday, GM_getValue("currBusts", 0),
+                                     " alt local: ", bustsTodayLocal, " alt utc: ", bustsTodayUtc);
 
                                 // Try to adjust add'l penalty on the fly....
                                 if (enablePreRelease && livePenaltyUpdate) {
@@ -1147,10 +1180,14 @@
         }
     }
 
-    function enableLimitAdjustUi() {
+    function enableLimitAdjustUi(retries=0) {
 
         if (!$("#xlimit-adj").length) {
             let msgBar = $(".msg-info-wrap > .info-msg-cont > .info-msg > div > .msg");
+            if (!$(msgBar).length) {
+                if (retries++ < 20) return setTimeout(enableLimitAdjustUi, 250, retries);
+                log("ERROR: enableLimitAdjustUi timed out!");
+            }
             $(msgBar).append(limitAdjust);
             $("#limit-txt").text((bustMin + "%"));
             $("#xlimit-adj > .adj-btn").on('click', handleLimitAdjust);
@@ -1526,6 +1563,9 @@
     var lastShowState = GM_getValue("lastShow", "show");
     if (lastShowState == "hide") setTimeout(doHide, 10);
 
+    const topBarTargetSel = "#mainContainer > div.content-wrapper > div.msg-info-wrap";
+    const targetSel = "#mainContainer > div.content-wrapper > div.msg-info-wrap > hr";
+    var installTarget;
     function installUI(forceShow=false, retries=0) {
         debug('[installUI]: ', uiless, " lastShowState: ", lastShowState,
             " forceShow: ", forceShow, " retries: ", retries);
@@ -1550,14 +1590,22 @@
             return;
         }
 
-        if ($("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").length == 0) {
-            if (retries++ < 20) return setTimeout(installUI, 500, forceShow, retries);
+        if (!installTarget || !$(installTarget).length)
+            installTarget = $(topBarTargetSel);
+        if ($(installTarget).length == 0) {
+            if (retries++ < 50) {
+                debug("**** Can't find target, retrying: ", retries);
+                return setTimeout(installUI, 200, forceShow, retries);
+            }
+            debug("**** target for install not found, will try again on complete!!! *****");
             callOnContentComplete(installUI);
             return;
         }
 
-        if (!$(MAIN_DIV_SEL).length)
-            $("#mainContainer > div.content-wrapper > div.msg-info-wrap > hr").before(saveBtnDiv3);
+        if (!$(MAIN_DIV_SEL).length) {
+            //$(installTarget).before(saveBtnDiv3);
+            $(installTarget).after(saveBtnDiv3);
+        }
 
         mainDivHeight = $(MAIN_DIV_SEL).outerHeight();
         if (!mainDivHeight) {
@@ -1632,7 +1680,7 @@
             }
         }
 
-        mainUiBtnsInstalled = true;
+        //mainUiBtnsInstalled = true;
 
         $("#xedx-save-btn").on('click', handleSaveButton);
         $("#xedx-reload-btn").on('click', reloadUserList);
@@ -1650,7 +1698,9 @@
         // Swap to stats div handler
         $("#xedx-stats-btn").on('click', swapStatsOptsView);
 
-        debug("Exit installUI");
+        debug("installUI complete");
+
+        mainUiBtnsInstalled = true;
     }
 
     function addOptsDiv() {
@@ -1950,7 +2000,8 @@
     }
 
     function setTodaysBusts(numBusts) {
-        debug("setTodaysBusts: ", numBusts);
+        debug("*** daily busts: setTodaysBusts: ",
+              numBusts, " alt local: ", GM_getValue("currBustsAlt", -1), " alt utc: ", GM_getValue("currBustsUtcAlt", -1));
 
         /*
         let msg = "(Today: " + numBusts +  ")";
@@ -1994,8 +2045,8 @@
                     $("#xhide-btn-span").addClass("xhide").removeClass("xshow");
 
                     // Add tool tip
-                    displayToolTip("#skip-to-content",
-                                   "Temp Tool Tip, this button is broken",
+                    displayHtmlToolTip("#skip-to-content",
+                                   "Click to show/hide the<br>Jail Scores menu bar",
                                    "tooltip4");
                 } else {
                     $("#xhide-btn").on("click", handleHideBtn);
@@ -2131,17 +2182,19 @@
     }
 
     function doLastPageJump() {
-        debug("doLastPageJump, totalPlayers: ", totalPlayers);
+        log("doLastPageJump, totalPlayers: ", totalPlayers);
 
         if (!DEV_MODE || !optTryLastPages) {
             debug("Jumping not allowed!");
             return false;
         }
 
-        if (+totalPlayers > 51) {                                        // Make sure there are more pages
+        //if (+totalPlayers > 51) {                                        // Make sure there are more pages
             //let lastPgBtn = $("a.page-number.page-show.last")[0];        // Find last button on paginator
             let lastPgBtn = $(lastPageSel);
-            let clickBtn = $(lastPgBtn).prev().prev();                   // And get clickable - may not be needed, test!
+            let lastPageNum = $(lastPgBtn).attr('page');
+            //let clickBtn = $(lastPgBtn).prev().prev();                   // And get clickable - may not be needed, test!
+            let clickBtn = $(`.pagination-wrap a[page='${lastPageNum}']`)[0];
             //let currPgBtn = $("a.page-show.active");                     // Get page we are on, may not have a hash
             let currPgBtn = $(activePageSel);
 
@@ -2151,32 +2204,32 @@
                 return false;
             }
 
-            let lastPageNum = $(lastPgBtn).attr("page");
+            //let lastPageNum = $(lastPgBtn).attr("page");
             let thisPageNum = $(currPgBtn).attr("page");
 
-            debug("Pages: ", thisPageNum, " | ", lastPageNum);
-            debug("currPgBtn: ", $(currPgBtn));
-            debug("clickBtn: ", $(clickBtn));
+            log("Pages: ", thisPageNum, " | ", lastPageNum);
+            log("currPgBtn: ", $(currPgBtn));
+            log("clickBtn: ", $(clickBtn));
 
             $(clickBtn).css("border", "1px solid green");
             $(clickBtn).css("color", "limegreen");
 
             if (lastPageNum == thisPageNum) {
-                debug("On last page already! Pages: ", thisPageNum, "|", lastPageNum);
+                log("On last page already! Pages: ", thisPageNum, "|", lastPageNum);
                 return false;
             }
 
             // Note: this doesn't do scores!!!!
             if (confirm("Jump to last page?")) {
                 $(clickBtn)[0].click();
-                debug("Clicked clickBtn: ", $(clickBtn));
+                log("Clicked clickBtn: ", $(clickBtn));
 
                 setActivePage(currPgBtn, lastPgBtn)
                 return true;
             }
 
             return false;
-        }
+        //}
     }
 
     function doAutoBust() {
@@ -2191,8 +2244,6 @@
     }
 
     function doReloadPageSort() {
-        debug("doReloadPageSort");
-
         savedSortId = GM_getValue('savedSortId', savedSortId);
         if (savedSortId) {
             lLvlOrder = GM_getValue('lLvlOrder', lLvlOrder);
@@ -2299,6 +2350,10 @@
             playerCount = players ? players.length : 0;
             totalPlayers = jsonObj.total;
 
+            let currPgBtn = $(activePageSel);
+            let thisPageNum = $(currPgBtn).attr("page");
+            if (thisPageNum > 1) totalPlayers += ((thisPageNum - 1) * 50);
+
             debug("*** Response: ", jsonObj);
 
             // Set counter on bar, not updated automatically
@@ -2331,17 +2386,16 @@
             }
 
             // Handle not on last page - which is where the easiest to bust are.
+            log("****  Trying Jump *****");
             let jumped = doLastPageJump();
 
             // May not be loaded yet here (playerCount == 0)! need setTimeout???
             if (playerCount == 0) debugger;
             insertPlayers(players);
 
-            // Now sort...
+            // Now sort...if moved pages, this won't work???
             doReloadPageSort();
-
             doAutoBust(targetUl);
-
             updateMsgLineText();
         }
         else {
@@ -3096,9 +3150,11 @@
     }
 
     function contentLoadHandler() {
+        installUI();;
         installHashChangeHandler(hashHandler);
         installObserver();
-        installUI();
+
+        //installUI();
     }
 
      // ==================================
@@ -3137,7 +3193,7 @@
         routedXID = params.get("XID");
         if (routedXID) {
             routedByChatBust = true;
-            log("Routed here by Torn Chat Bust!");
+            debug("Routed here by Torn Chat Bust!");
             //return log("Routed here by Torn Chat Bust...won't run!");
         }
     }
@@ -3149,6 +3205,7 @@
         versionCheck();
 
         // Start by kicking off a few API calls.
+        log("Start: query past busts: ", new Date().toString());
         queryPastBusts();
         addStyles();
 
