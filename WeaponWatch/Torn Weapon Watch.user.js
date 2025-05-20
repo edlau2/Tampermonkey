@@ -39,6 +39,8 @@
         "Toxin", "Warlord", "Weaken", "Wind-up", "Wither"
         ];
 
+    var weaponWatchRunning = false;
+
     const isBuy = function () {return location.hash.indexOf("market") > -1;}
     const isSell = function () {return location.hash.indexOf("addListing") > -1;}
     const isView = function () {return location.hash.indexOf("viewListing") > -1;}
@@ -53,7 +55,7 @@
         var inAjax = false;
 
         function processLookupResult(jsonObj, status, xhr) {
-            log("[processLookupResult] status: ", status);
+            debug("[processLookupResult] status: ", status);
             if (status != 'success') {
                 console.error("Failed ajax result: ", jsonObj, xhr);
                 return;
@@ -76,7 +78,7 @@
                 weapons.secondaries.length > 0 &&
                 weapons.melees.length > 0;
 
-            log("Weapons: ", weaponListsValid, weapons);
+            debug("Weapons: ", weaponListsValid, weapons);
         }
 
         function doWeaponListLookup() {
@@ -142,12 +144,12 @@
     var inAnimate = false;
     const resetAnimate = function () {inAnimate = false;}
 
-    function handleOptsClick(e) {
+    function handleMainBtnClick(e, forceResize) {
         let classy = $("#weapon-watch-wrap").hasClass('xwwhidden');
         if (inAnimate == true) return;
         inAnimate = true;
         let closing = true;
-        if (classy) {
+        if (classy || forceResize) {
             closing = false;
             $("#weapon-watch-wrap").removeClass('xwwhidden');
         } else {
@@ -156,15 +158,17 @@
 
         let height = $("#weapon-watch-wrap").height();
 
-        let countBuyOpts = 5;
+        let count = $("#xw-watches li").length;
+        let size = (count * 24 + 60);
 
-        let size = isSell() ? (8 * 24 + 10) : (countBuyOpts * 24 + 10);
         let newWrapHeight = (closing == false) ? (size + "px") : "0px";
         let newSpanHeight = (closing == false) ? "24px" : "0px";
         let newInputHeight = (closing == false) ? "14px" : "0px";
         let newHdrHeight = (closing == false) ? "34px" : "0px";
         let newHdrDivHeight = (closing == false) ? "100%" : "0px";
         let op = (closing == false) ? 1 : 0;
+
+        debug("[animate] changing height to ", newWrapHeight);
 
         debug("animate: ", newWrapHeight, " | ", newSpanHeight, " | ", op);
 
@@ -176,8 +180,9 @@
             inAnimate = false;
         });
 
-        $("#xoptshdr").animate({height: newHdrHeight, opacity: op}, 500);
-        $("#xoptshdr > div").animate({height: newHdrDivHeight, opacity: op}, 500);
+        // TBD: check all these!! no longer exist?
+        $("#xwwshdr").animate({height: newHdrHeight, opacity: op}, 500);
+        $("#xwwshdr > div").animate({height: newHdrDivHeight, opacity: op}, 500);
         $(".xww-opts-nh").animate({height: newSpanHeight}, 500);
         $(".numInput-nh").animate({height: newInputHeight}, 500);
         $("#xprices > li").animate({height: newSpanHeight}, 500);
@@ -185,8 +190,134 @@
         return false;
     }
 
+    // ============== Select lists ====================
+
+    function fillWeapsList(optSelect, optList) {
+        $(optSelect).empty();
+        optList.forEach(entry => {
+            let opt = `<option value="${entry.id}">${entry.name}</option>`;
+            $(optSelect).append(opt);
+        });
+    }
+
+    // TEMP implementation - only add bonuses supported by the weapon selected
+    // For now just add all bonuses
+    function fillBonusList(optSelect, weapId) {
+        $(optSelect).empty();
+        bonusList.forEach(bonus => {
+            let opt = `<option value="${weapId}">${bonus}</option>`;
+            $(optSelect).append(opt);
+        });
+    }
+
+    function handleCatChange(e) {
+        let selected = $(this).val();
+
+        let optList = weapons.primaries;
+        let optSelect = $(this).parent().find(".weap-name");
+
+        log("handleCatChange, this: ", $(this));
+        log("handleCatChange, next: ", $(this).next());
+        log("handleCatChange, sel: ", $(optSelect));
+        if (selected == 'Secondary') optList = weapons.secondaries;
+        if (selected == 'Melee') optList = weapons.melees;
+
+        fillWeapsList($(optSelect), optList);
+
+        $(optSelect).prop('disabled', false);
+    }
+    function handleNameChange(e) {
+        let itemId = $(this).val();
+        let li = $(this).closest("li");
+        $(li).attr("id", itemId);           // This needs to be changed from "temp-id" so we can add more...
+
+        let b1 = $(this).next();
+        let b2 = $(b1).next();
+        log("handleNameChange: ", $(this), $(this).next(), $(b1), $(b2));
+
+        fillBonusList($(this).parent().find(".weap-bonus1"), "temp-val");
+        fillBonusList($(this).parent().find(".weap-bonus2"), "temp-val");
+
+        $(this).parent().find(".weap-bonus1").prop('disabled', false);
+        $(this).parent().find(".weap-bonus2").prop('disabled', false);
+    }
+
+    function handleBonus1Change(e) {
+
+    }
+
+    function handleBonus2Change(e) {
+
+    }
+
+
     function addWeaponWatch(e) {
+        // If not from a click, but manually called, e will be null.
+        // So don't force a resize. Otherwise, do.
         log("[addWeaponWatch]");
+        const tempId = "temp-id";    // must be replaced later
+
+        if ($(`#${tempId}`).length > 0) return log("ERROR: [addWeaponWatch] last key not finalized");
+
+        let li = getAddWatchLi(tempId);
+
+        $("#xw-watches").append(li);
+
+        /*
+        let hNow = $("#weapon-watch-wrap").height();
+        let newH = parseInt(hNow) + parseInt($(`#${tempId}`).height()) + 'px';
+        log("[addWeaponWatch] changing height: ", hNow, newH);
+        $("#weapon-watch-wrap").css('height', newH);
+        */
+
+        $(".weap-cat").on('change', handleCatChange);
+        $(".weap-name").on('change', handleNameChange);
+        $(".weap-bonus1").on('change', handleBonus1Change);
+        $(".weap-bonus2").on('change', handleBonus2Change);
+
+        log("Try to trigger: ", $(`#${tempId} .weap-cat`));
+        $(`#${tempId} .weap-cat`).trigger('change');
+
+        if (e) { // handleMainBtnClick(e, forceResize)
+            handleMainBtnClick(null, true);
+        }
+
+        function getAddWatchLi(itemId) {
+            let li = `<li id="${itemId}">
+                          <span class="watch0" style="display: none; margin-right: 15px;">
+                              <span style="align-content: center; display: flex; flex-wrap: wrap;">Disable:</span>
+                              <input type="checkbox" class="xma-disable-cb xma-opts-nh" data-id="${itemId}" name="xma-disable">
+                          </span>
+
+                          <!-- div class="xwatch-item" style="display: none;">
+                              <img src="/images/items/${itemId}/small.png">
+                          </div -->
+
+                          <select name="weap-cat" class="weap-cat">
+                              <option value="Primary">Primary</option>
+                              <option value="Secondary">Secondary</option>
+                              <option value="Melee">Melee</option>
+                          </select>
+
+                          <select name="weap-name" class="weap-name" disabled>
+                              <option value="default">-- name --</option>
+                          </select>
+
+                          <select name="weap-bonus1" class="weap-bonus1" disabled>
+                              <option value="default">-- any --</option>
+                          </select>
+
+                          <select name="weap-bonus2" class="weap-bonus2" disabled>
+                              <option value="default">-- any --</option>
+                          </select>
+
+                          <div class="watch-parent watch4" style="position: absolute; left: 93%; display:none;">
+                              <span class="x-round-btn x-watch-remove" style="width: 20px;">X</span>
+                          </div>
+                      </li>`;
+
+            return li;
+        }
     }
 
     function buildOptsDiv() {
@@ -197,39 +328,44 @@
         else if (location.hash.indexOf("addListing") > -1) page = 'sell';
         else return log("not on buy or sell! ", location.hash);
 
-        if (!$("#xww-help-btn").length > 0) return;
+        if (!$("#x-weapon-watch-btn").length > 0) return;
         if ($("#weapon-watch-wrap").length > 0) $("#weapon-watch-wrap").remove();
 
         let outerWrap = "<div id='xww-outer-opts' class='xww-outer'></div>";
 
         let optsDiv = `<div id='weapon-watch-wrap' class='xwwhidden xww-locked' style='height: 0px; opacity: 0;'>
                           <div id="xweapon-watch-opts">
-                              <div class="xoptshdr2" style="flex-direction: row; height: 34px; opacity: 1;">
+                              <div class="xwwshdr2" style="flex-direction: row; height: 34px; opacity: 1;">
                                   <span class="w-disable-all" style="margin-left: 15px;">
                                       <!-- span style="align-content: center; display: flex; flex-wrap: wrap;">Disable:</span -->
                                       <input id='x-disable-all' type="checkbox" class="xww-disable-cb xww-opts-nh" name="xww-all-disable">
+                                      <span>Disable all</span>
                                   </span>
-                                  <div class="xoptstitle xopt-inner-hdr" style=''>Weapon Watch Items</div>
+                                  <div class="xwwstitle xww-inner-hdr" style=''>Weapon Watch Items</div>
                                   <span class="xrt-btn btn">
+                                      <span>Add New</span>
                                       <input id="xww-add-watch" type="submit" class="xedx-torn-btn-raw" style="padding: 0px 10px 0px 10px;" value="+">
                                   </span>
                               </div>
-                              <div id='xprice-watch' class='x-outer-scroll-wrap'><ul id='xwatches' class='xinner-list'></ul></div>
+                              <div id='xweapon-watch' class='x-outer-scroll-wrap'><ul id='xw-watches' class='xinner-list'></ul></div>
                           </div>
                       </div>`;
 
-        $("#xww-help-btn").css({"flex-direction": "column",
+        $("#x-weapon-watch-btn").css({"flex-direction": "column",
                                 "position": "relative",
                                 "padding": "0px",
                                 "background": "var(--btn-background"});
-        $("#xww-help-btn > span").css("padding",  "0px 10px 0px 10px");
+        $("#x-weapon-watch-btn > span").css("padding",  "0px 10px 0px 10px");
         $("#weapon-watch-wrap").css("padding-bottom", "10px");
 
         let target = $("[class^='marketWrapper_'] [class^='itemListWrapper_'] [class^='itemsHeader_']")[0];
         $(target).before(outerWrap);
         $("#xww-outer-opts").append($(optsDiv));
 
-        $("#xww-add-watch").oc('click', addWeaponWatch);
+        $("#xww-add-watch").on('click', addWeaponWatch);
+
+        // Only do this if there aren't any saved watches...
+        addWeaponWatch();
 
         //$("#x-disable-all").change(disableWatchList);
         //displayHtmlToolTip($("#x-disable-all"), "Check to disable all", "tooltip4");
@@ -237,7 +373,7 @@
         //restoreWatchList();
     }
 
-    const getHelpBtnElement = function () {return `<div id="xww-help-btn"><span>Weapon Watch</span></div>`;}
+    const getMainBtnDiv = function () {return `<div id="x-weapon-watch-btn"><span>Weapon Watch</span></div>`;}
 
     function installUi(retries = 0) {
         let page = 'unknown';
@@ -246,17 +382,23 @@
         else if (location.hash.indexOf("viewListing") > -1) page = 'view';
         else return log("not on a known page. ", location.hash);
 
-        debug("installUI: ", page, "|", $("#xww-help-btn").length);
+        debug("[installUI]: ", page, "|", $("#x-weapon-watch-btn").length);
 
-        if ($("#xww-help-btn").length == 0) {
+        if (page == "view") {
+            //doViewPageInstall();
+            //processViewPage();
+            return;
+        }
+
+        if ($("#x-weapon-watch-btn").length == 0) {
             if (page == 'buy') {
                 let wrapper = $("[class^='searchWrapper_']");
                 if (!$(wrapper).length) {
                     if (retries++ < 20) return setTimeout(installUi, 250, retries);
-                    return log("Too many retries!");
+                    return log("[installUi] Too many retries!");
                 }
 
-                $(wrapper).after(getHelpBtnElement());
+                $(wrapper).after(getMainBtnDiv());
             }
 
             if (page == 'sell') {
@@ -264,18 +406,18 @@
                 debug("On sell: ", $(target));
                 if ($(target).length = 0) return log("Couldn't find sell target");
                 $(target).css("flex-direction", "row");
-                $(target).append(getHelpBtnElement());
+                $(target).append(getMainBtnDiv());
             }
         }
 
-        if ($("#xww-help-btn").length > 0) {
+        if ($("#x-weapon-watch-btn").length > 0) {
             buildOptsDiv();
 
             $("#weapon-watch-wrap").next().css("margin-top", "-10px");
             $(".xww-opts-nh").css("height", "0px");
             $(".numInput-nh").css("height", "0px");
 
-            $("#xww-help-btn").on('click.xedx', handleOptsClick);
+            $("#x-weapon-watch-btn").on('click.xedx', handleMainBtnClick);
         }
 
     }
@@ -283,10 +425,10 @@
     // ========================== The watcher, does API calls ============================
 
     /*
-    function startMarketWatch() {
+    function startWeaponWatch() {
         if (checkCloudFlare()) return log("Won't run while challenge active!");
-        log("startMarketWatch, running: ", marketWatchRunning);
-        if (marketWatchRunning == true) return;
+        log("startWeaponWatch, running: ", weaponWatchRunning);
+        if (weaponWatchRunning == true) return;
 
         setInterval(resetPriceChecks, 60000);
 
@@ -295,7 +437,7 @@
         var doNotShowAgain = false;
         var canShowAfterMinutes = 10;
 
-        marketWatchRunning = true;
+        weaponWatchRunning = true;
         refreshWatchList();
 
         function refreshWatchList() {
@@ -487,9 +629,14 @@
     // Add any styles here
     function addStyles() {
 
-         // Options styles, 'xww' == xedx market assist
+        // Options styles, 'xww' == xedx weapon watch
         GM_addStyle(`
-            .xopt-inner-hdr {
+            .weap-cat { width: 90px; }
+            .weap-name { width: 195px; }
+            .weap-bonus1 { width: 110px; }
+            .weap-bonus2 { width: 110px; margin-right: 20px; }
+
+            .xww-inner-hdr {
                 justify-content: center;
                 display: flex;
 
@@ -497,7 +644,7 @@
                 align-content: center;
                 flex-wrap: wrap;
             }
-            #xoptshdr, .xoptshdr2 {
+            #xwwshdr, .xwwshdr2 {
                 align-items: center;
                 background: var(--default-panel-gradient);
                 border-bottom: var(--item-market-border-dark);
@@ -512,7 +659,7 @@
                 font-weight: 700;
                 min-height: 34px;
             }
-            .xoptstitle {
+            .xwwstitle {
                 flex: 1;
                 padding: 0 10px;
             }
@@ -529,7 +676,7 @@
             .xwatchsp > input {
                 width: 100%;
             }
-            #xwatches > li {
+            #xw-watches > li {
                 position: relative;
                 border-radius: 5px;
                 background: #222;
@@ -585,10 +732,10 @@
             }
             .xinner-list > li {
                 display: flex;
-                flex-direction: row;
+                flex-flow: row wrap;
                 padding-left: 10px;
                 align-content: center;
-                flex-wrap: wrap;
+                justify-content: space-around;
             }
             .xinner-list > li > span {
                 font-size: 10pt;
@@ -610,6 +757,7 @@
                 width: 100%;
                 display: flex;
                 flex-direction: row;
+                /*height: auto;*/
             }
             .xww-locked {
                max-height: 250px;
@@ -653,7 +801,7 @@
                 align-items: center;
                 font-size: 10pt;
             }
-            #xww-help-btn {
+            #x-weapon-watch-btn {
                 background: var(--default-panel-gradient);
                 border-top: var(--item-market-border-light);
                 border-radius: var(--item-market-border-radius);
@@ -677,12 +825,12 @@
                  background: var(--btn-background);
             }
 
-            #xww-help-btn .xsell-span {
+            #x-weapon-watch-btn .xsell-span {
                 padding: 0px 10px 0px 10px;
             }
             */
 
-            #xww-help-btn:hover {filter: brightness(140%);}
+            #x-weapon-watch-btn:hover {filter: brightness(140%);}
 
             /*
             #QbCb {
