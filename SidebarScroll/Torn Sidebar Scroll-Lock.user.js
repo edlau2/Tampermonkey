@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sidebar Scroll-Lock
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Let sidebar vert scroll independently
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -21,6 +21,8 @@
 
 (function() {
     'use strict';
+
+    if (isAttackPage()) return;
 
     const fixedHeader = true;
     var sidebarTop = fixedHeader ? "74px" : "0px";
@@ -86,13 +88,12 @@
         `);
     }
 
-    // #body > div.content.responsive-sidebar-container.logged-in
     function addHdrStyle() {
         GM_addStyle(`
             #topHeaderBanner {
                 position: fixed;
                 top: 0;
-                z-index: 99999999;
+                z-index: 999999;
                 width: 100%;
             }
             #body > div.content.responsive-sidebar-container {
