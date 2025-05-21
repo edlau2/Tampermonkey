@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn War Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.11
+// @version      1.13
 // @description  Add tooltip with local RW start time to war countdown timer
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php*
@@ -18,6 +18,7 @@
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
 /*eslint no-multi-spaces: 0*/
+/*eslint curly: 0*/
 
 // Maybe incorporate War Score Watcher into this?
 
@@ -42,14 +43,7 @@
     var warList;
     var timer;
     var timeSpans;
-
-    if (location.href.indexOf('step=your') < 0) {
-        logScriptStart();
-        return log("Not on right fac page! (", location.href, ")");
-    }
-
-    validateApiKey('ltd',
-       "Your key is only required to get your current war status.");  // Required to get war status
+    var hasInitialized = false;
 
     var atWar;  // undefined until API call complete!
     var enlisted = false;
@@ -83,10 +77,10 @@
         let war = $("[class*='rankBox_']");
         timer = $(war).find("[class*='timer_']");
         timeSpans = $(timer).find("span");
-        debug("timer: ", $(timer), " spans: ", timeSpans);
+        //debug("timer: ", $(timer), " spans: ", timeSpans);
         if ($(timer).length == 0 || $(timeSpans).length == 0)  {
             if (retries++ < maxRetries) return setTimeout(addLocalTime, retryTime, retries);
-            return debug("Too many retries, timer not found.");
+            return debug("[addLocalTime] Too many retries, timer not found.");
         }
 
         let startTime = new Date(Number(warStart)*1000);
@@ -103,7 +97,7 @@
         if (doToolTip) displayToolTip(timer, formattedDate, "tooltip4");
         if (doDisplayStart) addTimeDisplay();
 
-        if (clickState > 0) {
+        if (clickState > 0) { // && (hasInitialized == false)) {
             let tmp = clickState;
             clickState = 0;
             for (let idx=0; idx < tmp; idx++) {
@@ -127,6 +121,11 @@
     // 2nd: color.
     // 3rd: time back.
     // 4th: color back.
+    //
+    // xnone, <nothing>
+    // xflex, <nothing>
+    // xflex xedx-bgblack1,  xedx-bgblack
+    // xedx-bgblack1 xnone,  xedx-bgblack
     function handleTimeFormatChange(onInit=false) {
         debug("handleTimeFormatChange");
         if (clickState == 0 || clickState == 2) {
@@ -154,7 +153,6 @@
         GM_setValue("clickState", clickState);
         return false;
     }
-
 
     var warStartStr;
     function rwReqCb(responseText, ID, options) {
@@ -190,6 +188,11 @@
     }
 
     function handlePageLoad(retries=0) {
+        debug("[handlePageLoad] clickState: ", clickState);
+        if (location.href.indexOf('step=your') < 0 || location.hash.indexOf("tab=") > -1) {
+            return log("Not on right fac page! (", location.href, ")");
+        }
+
         let titleBarText = $("#react-root > div > div.f-msg > span").text();
         if (!titleBarText) {
             if (retries++ < maxRetries) return setTimeout(handlePageLoad, retryTime, retries);
@@ -208,6 +211,14 @@
         }
 
         addLocalTime();
+        hasInitialized = true;
+    }
+
+    function handleHashChange() {
+        debug("[handleHashChange] clickState: ", clickState,
+              " hasInitialized: ", hasInitialized, " xtime: ", $("#xtime").length);
+        //if (hasInitialized == false)
+            handlePageLoad();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -217,12 +228,14 @@
     logScriptStart();
     versionCheck();
 
-     if (checkCloudFlare()) return log("Won't run while challenge active!");
+    if (checkCloudFlare()) return log("Won't run while challenge active!");
 
+    validateApiKey('ltd',
+       "Your key is only required to get your current war status.");  // Required to get war status
 
     addStyles();
 
-    //installHashChangeHandler(handlePageLoad);
+    installHashChangeHandler(handleHashChange);
     //installPushStateHandler(handlePageLoad);
 
     callOnContentLoaded(handlePageLoad);
