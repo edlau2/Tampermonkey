@@ -28,6 +28,26 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 (function() {
     'use strict';
 
+    /*
+    tool-tips for dropdown box?
+    $(".propertyTypeSection___Hw3kk  button.toggler")   // Dropdown
+    $("[class*='propertyTypeSection_']  button.toggler")
+
+    parent div of that, has 'input' child, val() is ##
+    corresponds to targets under this ul:
+    $(".propertyTypeSection___Hw3kk.xskip ul.scrollarea")
+    Have IDs, they are li's, ex
+    option-Foundry-133
+    option-Old-Factory-127
+    option-Truckyard-125
+    option-Farm-Storage-Unit-119
+    option-Shipyard-115
+    option-Dockside-Warehouse-117
+
+    Maybe detect change of button? Set tooltip text based on that?
+
+    */
+
     const autoHideBanner = true;
     const alwaysHide = true;
     const hideCrackingBanner = true;
@@ -38,8 +58,8 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     const specialTargets = {
         'lake': "Net, Diesel",
-        'foundry': "Zip Ties, Magnesium Shavings",
-        'fertilizer': "Zip Ties, Hand Drill",
+        'foundry': "Zip Ties, Magnesium Shavings, Fire Extinguisher",
+        'fertilizer': "Zip Ties, Hand Drill, Fire Extinguisher",
         'cottage': "Lockpicks, Zip Ties",
         'beach': "Net",
         'mobile': "Dog Treats, Hand Drill, Blowtorch",
@@ -62,17 +82,33 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         'dock': "Kerosene",
   };
 
+    var intTimer;
+
+    function startTimer(fn, time) {
+        if (intTimer) clearInterval(intTimer);
+        intTimer = setInterval(fn, time);
+        log("Set timer for ", fn.name, " id: ", intTimer);
+    }
+
+    function stopTimer() {
+        log("Clearing timer: ", intTimer);
+        if (intTimer) clearInterval(intTimer);
+        intTimer = null;
+    }
+
     function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
     function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
     function isCrimeType(crime) {if (location.hash && location.hash.indexOf(crime) > -1) return true;}
 
     function hashChangeHandler() {
         log("hashChangeHandler");
+        stopTimer();
         handlePageLoad();
     }
 
     function pushStateChanged(e) {
         log("pushStateChanged");
+        stopTimer();
         handlePageLoad();
     }
 
@@ -203,7 +239,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
     function addAbandonHandlers() {
-        log("addAbandonHandlers");
+        //log("addAbandonHandlers");
         if (location.href.indexOf('burglary') < 0) return;
         let list = $(crimeSelector);
         for (let idx=0; idx < $(list).length; idx++) {
@@ -224,14 +260,12 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
                 let spSpan = `<span style="padding-left: 5px;">${newText}</span>`;
                 $(abWrap).before(spSpan);
                 $(element).addClass("xskip");
-                debug("Skipping this one");
                 continue;
             }
 
             if (!$(element).hasClass("xbc")) {
                 log("adding class xbc!");
                 $(element).addClass("xbc");
-                debug("Adding context handler");
                 $(element).on("contextmenu", function(e) {
                     let target = e.currentTarget;
                     e.preventDefault(); 
@@ -249,36 +283,13 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     }
 
-    var observer;
-    function installObserver(retries=0) {
-        log("[installObserver]");
-        let target = $(".crime-root.burglary-root [class*='currentCrime_'] [class*='virtualList_']");
-        if (!$(target).length) {
-            if (retries++ < 20) return setTimeout(installObserver, 250, retries);
-            return log("[installObserver] timed out");
-        }
-        log("target: ", $(target));
-
-        const config = { childList: true, subtree: true };
-        const handleAddedNodes = function(mutationsList, observer) {
-            log("[handleAddedNodes]");
-            let doAdd = false;
-            for (const mutation of mutationsList) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    doAdd = true;
-                    //addAbandonHandlers();
-                }
-            }
-
-            if (doAdd == true)
-                addAbandonHandlers();
-        };
-
-    observer = new MutationObserver(handleAddedNodes);
-    observer.observe($(target)[0], config);
-    }
+    $(window).on("unload", function() {
+        stopTimer();
+        $("div").removeClass("xbc");
+    });
 
     function handlePageLoad() {
+        stopTimer();
         $("div").removeClass("xbc");
 
         if ((isCrimeType('forgery') || isCracking()) && hideCrackingBanner == true) {
@@ -303,8 +314,37 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
         if (isBurglary()) {
             addAbandonHandlers();
-            installObserver();
+            startTimer(addAbandonHandlers, 500);
         }
+    }
+
+    function handlePageComplete(retries=0) {
+        let dropdown = $("[class*='propertyTypeSection_']  button.toggler");
+        if (!$(dropdown).length) {
+            if (retries++ < 30) return setTimeout(handlePageComplete, 250, retries);
+            return log("handlePageComplete timed out.");
+        }
+        log("[handlePageComplete] Dropdown: ", $(dropdown));
+        log("[handlePageComplete] Parent: ", $(dropdown).parent());
+
+        let ip = $(dropdown).parent().find('input');
+        log("[handlePageComplete] input: ", $(ip));
+        log("[handlePageComplete] value: ", $(dropdown).parent().find('input').val());
+
+        // may need observer, .change(...) didn't work
+        $(ip).on('change input', function() {
+             log("Input value changed to: " + $(this).val());
+         });
+
+        const observer = new MutationObserver(function(mutations) {
+            log("Mutation detected: ", mutations, $(ip).val());
+
+        });
+
+        observer.observe($(ip)[0], {attributes: true, childList: true, characterData: true, subtree:true});
+
+        addToolTipStyle();
+        displayToolTip(dropdown, "Sample ToolTip", "tooltip4");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -323,5 +363,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     installPushStateHandler(pushStateChanged);
 
     callOnContentLoaded(handlePageLoad);
+    callOnContentComplete(handlePageComplete);
 
 })();
