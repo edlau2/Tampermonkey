@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.4
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -28,18 +30,68 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 (function() {
     'use strict';
 
-    const autoHideBanner = true;
-    const alwaysHide = true;
-    const hideCrackingBanner = true;
+    /*
+    tool-tips for dropdown box?
+    $(".propertyTypeSection___Hw3kk  button.toggler")   // Dropdown
+    $("[class*='propertyTypeSection_']  button.toggler")
+
+    parent div of that, has 'input' child, val() is ##
+    corresponds to targets under this ul:
+    $(".propertyTypeSection___Hw3kk.xskip ul.scrollarea")
+    Have IDs, they are li's, ex
+    option-Foundry-133
+    option-Old-Factory-127
+    option-Truckyard-125
+    option-Farm-Storage-Unit-119
+    option-Shipyard-115
+    option-Dockside-Warehouse-117
+    135 - fertilizer
+
+    Maybe detect change of button? Set tooltip text based on that?
+
+    */
+    const idToPlace = { 133: "Foundry", 127: "Old Factory", 125: "Truckyard", 119: "Farm Storage", 115: "Shipyard", 117: "Dockside" };
+
+    const autoHideBanner = GM_getValue("autoHideBanner", false);
+    const alwaysHide = GM_getValue("alwaysHide", false);
+    const hideCrackingBanner = GM_getValue("hideCrackingBanner", false);
+
+    GM_setValue("autoHideBanner", autoHideBanner);
+    GM_setValue("alwaysHide", alwaysHide);
+    GM_setValue("hideCrackingBanner", hideCrackingBanner);
 
     const crimeSelector =
           `[class*='currentCrime_'] [class^='crimeOptionWrapper_']
-          div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc'):not('.xskip')`;
+           div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc'):not('.xskip'):not([class*='propertyTypeSection_'])`;
+
+    const focusedToolTips = {
+        87: "OC items: Net<br>Crime Materials: Diesel",  // lake house
+        133: "OC items: Zip Ties<br>Crime Materials: Magnesium Shavings, Fire Extinguisher",    // foundry
+        135: "OC items: Zip Ties, Hand Drill<br>Crime Materials: Fire Extinguisher",  // fertilizer plant
+        77: "OC items: Lockpicks, Zip Ties", // cottage
+        71: "OC items: Net",  // beach hut
+        73: "OC items: Dog Treats, Hand Drill, Blowtorch", // mobile home
+        81: "OC items: Dog Treats, Hand Drill",  // suburban
+        69: "OC items: Lockpicks, Hand Drill, Blowtorch",
+        83: "OC items: Lockpicks",  // cabin
+        101: "OC items: Lockpicks",
+        119: "OC items: Hand Drill, C4, Blowtorch<br>Crime Materials: Methane",  // farmyard
+        125: "OC items: Dog Treats<br>Crime Materials: Diesel",  // truckyard
+        97: "OC items: Scalpel",
+        107: "OC items: Scalpel, Hand Drill",
+        121: "OC items: Scalpel",
+        93: "OC items: Card Programmer, C4",
+        95: "OC items: Card Programmer",
+        99: "OC items: Card Programmer, Lockpicks, Bonded Latex",
+        115: "OC items: Hand Drill, C4<br>Crime Materials: Thermite",  // shipyard
+        127: "OC items: C4<br>Crime Materials: Hydrogen",  // factory
+        117: "Crime materials: Kerosene",  // docks
+    };
 
     const specialTargets = {
         'lake': "Net, Diesel",
-        'foundry': "Zip Ties, Magnesium Shavings",
-        'fertilizer': "Zip Ties, Hand Drill",
+        'foundry': "Zip Ties, Magnesium Shavings, Fire Extinguisher",
+        'fertilizer': "Zip Ties, Hand Drill, Fire Extinguisher",
         'cottage': "Lockpicks, Zip Ties",
         'beach': "Net",
         'mobile': "Dog Treats, Hand Drill, Blowtorch",
@@ -60,7 +112,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         'ship': "Hand Drill, C4, Thermite",
         'factory': "C4, Hydrogen",
         'dock': "Kerosene",
-  };
+    };
 
     function isBurglary() {if (location.hash && location.hash.indexOf("burglary") > -1) return true;}
     function isCracking() {return (location.hash && location.hash.indexOf("cracking") > -1) ? true : false;}
@@ -112,7 +164,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     var elInAnimation = false;
     function elementAnimate( element, size) {
-        log("elementAnimate");
+        debug("elementAnimate");
         elInAnimation = true;
         $(element).animate({
             height: size,
@@ -123,7 +175,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     }
 
     function handleBannerBtn(element, maxHeight) {
-        log("handleBannerBtn");
+        debug("handleBannerBtn");
         if (elInAnimation) return;
 
         if ($(element).hasClass("xshow")) {
@@ -140,14 +192,14 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     var bannerHidden = false;
     function hideBanner(forceHide) {
-        log("hideBanner");
+        debug("hideBanner");
         bannerArea = $("[class^='currentCrime'] > [class^='bannerArea']");
         if (!$(bannerArea).length) {
             setTimeout(hideBanner, 1000, forceHide);
             return false;
         }
 
-        if (alwaysHide) {
+        if (alwaysHide && isBurglary()) {
             $(bannerArea).css("display", "none");
             bannerHidden = true;
             return true;
@@ -182,10 +234,7 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     }
 
     function randomStr() {
-        let r = (Math.random() + 1).toString(36).substring(7);
-        debug("random: ", r);
-
-        return r;
+        return (Math.random() + 1).toString(36).substring(7);
     }
 
     function goFindYesBtn(node, retries = 0) {
@@ -203,7 +252,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
     function addAbandonHandlers() {
-        log("addAbandonHandlers");
         if (location.href.indexOf('burglary') < 0) return;
         let list = $(crimeSelector);
         for (let idx=0; idx < $(list).length; idx++) {
@@ -224,17 +272,14 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
                 let spSpan = `<span style="padding-left: 5px;">${newText}</span>`;
                 $(abWrap).before(spSpan);
                 $(element).addClass("xskip");
-                debug("Skipping this one");
                 continue;
             }
 
             if (!$(element).hasClass("xbc")) {
-                log("adding class xbc!");
                 $(element).addClass("xbc");
-                debug("Adding context handler");
                 $(element).on("contextmenu", function(e) {
                     let target = e.currentTarget;
-                    e.preventDefault(); 
+                    e.preventDefault();
                     let copt = $(target).closest(".crime-option");
                     let btn = $(copt).prev();
                     let abandonBtn = $(target).find("[class*='closeButton_']")[0];
@@ -243,30 +288,25 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
                     return false;
                 });
             }
-
             return false;
         };
-
     }
 
+    // Observer to detect new targets, to install abandon handlers
     var observer;
     function installObserver(retries=0) {
-        log("[installObserver]");
         let target = $(".crime-root.burglary-root [class*='currentCrime_'] [class*='virtualList_']");
         if (!$(target).length) {
             if (retries++ < 20) return setTimeout(installObserver, 250, retries);
             return log("[installObserver] timed out");
         }
-        log("target: ", $(target));
 
         const config = { childList: true, subtree: true };
         const handleAddedNodes = function(mutationsList, observer) {
-            log("[handleAddedNodes]");
             let doAdd = false;
             for (const mutation of mutationsList) {
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                     doAdd = true;
-                    //addAbandonHandlers();
                 }
             }
 
@@ -280,7 +320,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
 
     function handlePageLoad() {
         $("div").removeClass("xbc");
-
         if ((isCrimeType('forgery') || isCracking()) && hideCrackingBanner == true) {
             if (hideBanner() == true) {
                 $("[class^='bannerArea_']").css("display", "none");
@@ -289,22 +328,66 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
         }
 
         if (!isBurglary()) {
-            return log("Not on burglary or cracking, going home: ", location.hash);
+            return log("Not on burglary, going home: ", location.hash);
         }
 
         let list = $(crimeSelector);
-
         if (!$(list).length) {
             setTimeout(handlePageLoad, 2000);
             return;
         }
 
+        // Hiding done in separate script for now
         if (autoHideBanner == true && bannerHidden == false) hideBanner();
 
         if (isBurglary()) {
             addAbandonHandlers();
             installObserver();
         }
+    }
+
+    // Experimental: add tool-tips to focused scouting
+    function handlePageComplete(retries = 0) {
+        let dropdown = $("[class*='propertyTypeSection_']  button.toggler");
+        if (!$(dropdown).length) {
+            if (retries++ < 30) return setTimeout(handlePageComplete, 250, retries);
+            return log("handlePageComplete timed out.");
+        }
+        log("[handlePageComplete] Dropdown: ", $(dropdown));
+        log("[handlePageComplete] Parent: ", $(dropdown).parent());
+
+        let ip = $(dropdown).parent().find('input');
+        log("[handlePageComplete] input: ", $(ip));
+        log("[handlePageComplete] value: ", $(dropdown).parent().find('input').val());
+
+        // may need observer, .change(...) didn't work
+        $(ip).on('change input', function () {
+            log("Input value changed to: " + $(this).val());
+        });
+
+        const ttObserver = new MutationObserver(function (mutations) {
+            log("Mutation detected: ", mutations, $(ip).val());
+            for (const mutation of mutations) {
+                if (mutation.type === 'attributes') {
+                    log("is ip? ", ($(mutation.target) == $(ip)), $(mutation.target), $(ip));
+                    log("attr name: ", mutation.attributeName);
+                    log("was: ", mutation.oldValue, " ip: ", $(ip).val());
+
+                    //let newTip = "Tooltip for " + $(ip).val() + " " + idToPlace[$(ip).val()];
+                    let newTip = focusedToolTips[$(ip).val()] ? focusedToolTips[$(ip).val()] : '';
+                    log("new tooltip: ", newTip);
+                    $(dropdown).tooltip("option", "content", newTip);
+                }
+            }
+
+        });
+
+        ttObserver.observe($(ip)[0], { attributes: true, attributeOldValue: true, subtree: true, attributeFilter: ["value"] });
+
+        addToolTipStyle();
+        //let msg = "Tooltip for " + $(ip).val() + " " + idToPlace[$(ip).val()];
+        let msg = "Hover here for available finds,<br>once a location is selected.";
+        displayHtmlToolTip(dropdown, msg, "tooltip4");
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -323,5 +406,6 @@ https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/BurglaryHelper/Torn
     installPushStateHandler(pushStateChanged);
 
     callOnContentLoaded(handlePageLoad);
+    callOnContentComplete(handlePageComplete);
 
 })();
