@@ -216,10 +216,13 @@
     // ============== Select lists ====================
 
     function fillWeapsList(optSelect, optList) {
-        log("[fillWeapsList] ", $(optSelect), optList);
+        log("[fillWeapsList] ", $(optSelect));
+        log("[fillWeapsList] ", optList);
         $(optSelect).empty();
         $(optSelect).append(`<option value="none">-- Select --</option>`);
+        //log("Ready to add weapons: ", optList.length);
         optList.forEach(entry => {
+            //log("Adding weapon: ", entry);
             let opt = `<option value="${entry.id}">${entry.name}</option>`;
             $(optSelect).append(opt);
         });
@@ -243,9 +246,9 @@
         let optList = weapons.primaries;
         let optSelect = $(this).parent().find(".weap-name");
 
-        log("handleCatChange, this: ", $(this));
-        log("handleCatChange, next: ", $(this).next());
-        log("handleCatChange, sel: ", $(optSelect));
+        //log("handleCatChange, this: ", $(this));
+        //log("handleCatChange, next: ", $(this).next());
+        //log("handleCatChange, sel: ", $(optSelect));
         if (selected == 'Secondary') optList = weapons.secondaries;
         if (selected == 'Melee') optList = weapons.melees;
 
@@ -256,7 +259,8 @@
     function handleNameChange(e) {
         let itemId = $(this).val();
         let li = $(this).closest("li");
-        $(li).attr("id", itemId);           // This needs to be changed from "temp-id" so we can add more...
+        $(li).attr("id", ("ww-" + itemId));           // This needs to be changed from "temp-id" so we can add more...
+        $(li).attr("data-id", itemId);
 
         let b1 = $(this).next();
         let b2 = $(b1).next();
@@ -311,6 +315,14 @@
         return li;
     }
 
+    function handleRemoveWatch(e) {
+        log("[handleRemoveWatch]: ", $(this), $(this).closest("li"));
+        let root = $(this).closest("li");
+        log("Root: ", $(root));
+        $(root).remove();
+
+        // need to remove saved copy also...
+    }
 
     function addWeaponWatch(e) {
         // If not from a click, but manually called, e will be null.
@@ -337,9 +349,17 @@
         $(".weap-bonus1").on('change', handleBonus1Change);
         $(".weap-bonus2").on('change', handleBonus2Change);
 
-        log("Try to trigger: ", $(`#${tempId} .weap-cat`));
+        $(".option-delete").on('click', handleRemoveWatch);
+
+        log("Try to trigger cat: ", $(`#${tempId} .weap-cat`));
         $(`#${tempId} .weap-cat`).trigger('change');
+
+        log("*** Try to trigger name: ", $(`#${tempId} .weap-name`));
         $(`#${tempId} .weap-name`).trigger('change');
+
+        //let optSelect = $("#ww-none > select.weap-name");
+        //fillWeapsList($(optSelect), weapons.primary);
+        //$(optSelect).prop('disabled', false);
 
         if (e) { // handleMainBtnClick(e, forceResize)
             handleMainBtnClick(null, true);
@@ -404,12 +424,14 @@
                               <div class="xwwshdr2" style="flex-direction: row; height: 34px; opacity: 1;">
                                   <span class="w-disable-all">
                                       <input id='x-disable-all' type="checkbox" class="xww-disable-cb xww-opts-nh" name="xww-all-disable">
-                                      <span style="align-content: center;">Disable all</span>
+                                      <span class="w-disable-all">Disable all</span>
                                   </span>
-                                  <div class="xwwstitle xww-inner-hdr" style=''>Weapon Watch Items</div>
+                                  <div class="xwwstitle xww-inner-hdr">Weapon Watch Items</div>
                                   <span class="xrt-btn btn">
-                                      <span>Add New</span>
-                                      <input id="xww-add-watch" type="submit" class="xedx-torn-btn-raw xml10" style="padding: 0px 10px 0px 10px;" value="+">
+                                      <!-- span>Add</span -->
+                                      <input id="xww-add-watch" type="submit" class="xedx-torn-btn-raw" value="+">
+                                      <!-- span>Save</span -->
+                                      <input id="xww-save-watch" type="submit" class="xedx-torn-btn-raw" value="S">
                                   </span>
                               </div>
                               <div id='xweapon-watch' class='x-outer-scroll-wrap'><ul id='xw-watches' class='xinner-list'></ul></div>
@@ -428,7 +450,10 @@
         $("#xww-outer-opts").append($(optsDiv));
 
         $("#xww-add-watch").on('click', addWeaponWatch);
-        $("#xww-add-watch").on('contextmenu', saveWatches);
+        displayHtmlToolTip($("#xww-add-watch"), "Add a new weapon to watch", "tooltip4");
+
+        $("#xww-save-watch").on('click', saveWatches);
+        displayHtmlToolTip($("#xww-save-watch"), "Save this list", "tooltip4");
 
         loadSavedWatches();
         // Only do this if there aren't any saved watches...
@@ -436,7 +461,7 @@
             addWeaponWatch();
 
         //$("#x-disable-all").change(disableWatchList);
-        //displayHtmlToolTip($("#x-disable-all"), "Check to disable all", "tooltip4");
+        displayHtmlToolTip($("#x-disable-all"), "Check to disable all watches<br>(no API calls)", "tooltip4");
 
         //restoreWatchList();
     }
@@ -697,12 +722,19 @@
     // Add any styles here
     function addStyles() {
 
+        addToolTipStyle();
+
         // Options styles, 'xww' == xedx weapon watch
         GM_addStyle(`
             .weap-cat { width: 90px; }
             .weap-name { width: 195px; }
             .weap-bonus1 { width: 110px; }
             .weap-bonus2 { width: 110px; /*margin-right: 20px;*/ }
+
+            #xww-add-watch, #xww-save-watch {
+                padding: 0px 10px 0px 10px;
+                margin-left: 5px;
+            }
 
             .w-disable-all {
                 /*margin: 0px 10px 0px 15px;*/
@@ -728,6 +760,7 @@
                 background: var(--items-options-icons);
                 filter: var(--default-icon-filter);
                 margin-top: -10px;
+                cursor: pointer;
             }
 
             .xww-inner-hdr {
@@ -756,6 +789,7 @@
             .xwwstitle {
                 flex: 1;
                 padding: 0 10px;
+                font-size: 18px;
             }
             #xweapon-watch-opts {
                 display: flex;
