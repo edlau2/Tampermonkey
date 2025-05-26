@@ -10,6 +10,8 @@
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
+// @require      http://code.jquery.com/jquery-3.4.1.min.js
+// @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -323,8 +325,20 @@
 
     // If the watches change, flag as 'dirty'. Will need
     // to be re-read before checking for items...
+    // If in the process of changing, the entries can be 'locked'
+    // until complete.
     var watchesDirty = false;
-    function setWatchesDirty() {watchesDirty = true;}
+    var watchesLocked = false;
+    var watchLock = 0;
+
+    function lockWatchList() {
+        const unlockWatches = function () { watchLock = 0; watchesLocked = false; }
+        clearTimeout(watchLock);
+        watchesLocked = true;
+        watchLock = setTimeout(unlockWatches, 5000);
+    }
+
+    function setWatchesDirty(dirty=true) {watchesDirty = dirty;}
 
     function findObjectByKeyValuePair(array, key, value) {
         return array.find(obj => obj && obj.hasOwnProperty(key) && obj[key] === value);
@@ -402,6 +416,8 @@
         fillBonusList(b2, applicableBonusus);
     }
 
+    // When these fns are called, should stop updating until done...
+
     function handleCatChange(e) {
         log("[handleCatChange]: ", weaponListsValid);
 
@@ -446,6 +462,8 @@
     }
 
     // ====================== UI installation ==================================
+
+    // When these fns are called, should stop updating until done...
 
     function getAddWatchLi(itemId) {
         let li = `<li id="${itemId}">
@@ -614,21 +632,22 @@
         $(target).before(outerWrap);
         $("#xww-outer-opts").append($(optsDiv));
 
+        log("Adding header tooltips");
         $("#xww-add-watch").on('click', addWeaponWatch);
         displayHtmlToolTip($("#xww-add-watch"), "Add a new weapon to watch", "tooltip4");
 
         $("#xww-save-watch").on('click', saveWatches);
         displayHtmlToolTip($("#xww-save-watch"), "Save this list", "tooltip4");
 
+        //$("#x-disable-all").change(disableWatchList);
+        displayHtmlToolTip($("#x-disable-all"), "Check to disable all watches<br>(no API calls)", "tooltip4");
+
         loadSavedWatches();
+
         // Only do this if there aren't any saved watches...
         if (!$("#xw-watches > li").length)
             addWeaponWatch();
 
-        //$("#x-disable-all").change(disableWatchList);
-        displayHtmlToolTip($("#x-disable-all"), "Check to disable all watches<br>(no API calls)", "tooltip4");
-
-        //restoreWatchList();
     }
 
     const getMainBtnDiv = function () {return `<div id="x-weapon-watch-btn"><span>Weapon Watch</span></div>`;}
@@ -684,9 +703,13 @@
 
     var watchList = [];
     function refreshWatchLists() {
+        if (watchesLocked == true) {
+
+        }
+
         if (watchesDirty == true || !watchList.length) {
             watchList = JSON.parse(JSON.stringify(buildWatchList()));
-            watchesDirty = false;
+            setWatchesDirty(false);
         }
 
         if (!watchList.length) {
@@ -903,6 +926,7 @@
     function addStyles() {
 
         addToolTipStyle();
+        log("ToolTip styles added");
 
         // Options styles, 'xww' == xedx weapon watch
         GM_addStyle(`
