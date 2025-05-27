@@ -30,155 +30,20 @@
     debugLoggingEnabled =
         GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
 
+    const baseUrl = "https://www.torn.com/page.php?sid=ItemMarket";
+    const searchHash = "#/market/view=search";
     
-    const bonusList = [
-        "Bonus filter off", "Any bonuses", "Double bonuses", "Yellow bonuses", "Orange bonuses", "Red bonuses",
-        "Achilles", "Assassinate", "Backstab", "Berserk", "Bleed",
-        "Blindfire", "Blindside", "Bloodlust", "Burn", "Comeback", "Conserve", "Cripple", "Crusher", "Cupid",
-        "Deadeye", "Deadly", "Demoralize", "Disarm", "Double-edged", "Double Tap", "Emasculate", "Empower",
-        "Eviscerate", "Execute", "Expose", "Finale", "Focus", "Freeze", "Frenzy", "Fury", "Grace", "Hazardous",
-        "Home run", "Irradiate", "Lacerate", "Motivation", "Paralyze", "Parry", "Penetrate", "Plunder", "Poison",
-        "Powerful", "Proficience", "Puncture", "Quicken", "Rage", "Revitalize", "Roshambo", "Shock", "Sleep", "Slow",
-        "Smash", "Smurf", "Specialist", "Spray", "Storage", "Stricken", "Stun", "Suppress", "Sure Shot", "Throttle",
-        "Toxin", "Warlord", "Weaken", "Wind-up", "Wither"
-        ];
-
-
-    const bonusListSecondary = {
-        "Bonus filter off": "0",
-        "Any bonuses": "-2",
-        "Double bonuses": "-1",
-        "Yellow bonuses": "yellow",
-        "Orange bonuses": "orange",
-        "Red bonuses": "red",
-        "Achilles": "50",
-        "Assassinate": "72",
-        "Bleed": "57",
-        "Blindside": "51",
-        "Burn": "30",
-        "Comeback": "67",
-        "Conserve": "55",
-        "Cripple": "45",
-        "Cupid": "47",
-        "Deadeye": "63",
-        "Deadly": "62",
-        "Disarm": "86",
-        "Double-edged": "74",
-        "Double Tap": "105",
-        //"Emasculate"
-        "Eviscerate": "56",
-        "Execute": "75",
-        "Expose": "1",
-        "Finale": "82",
-        //"Hazardous"
-        "Motivation": "61",
-        "Paralyze": "59",
-        //"Poison"
-        "Powerful": "68",
-        "Proficience": "14",
-        "Quicken": "88",
-        "Revitalize": "41",
-        "Shock": "120",
-        //"Sleep": "
-        "Slow": "44",
-        "Specialist": "71",
-        "Stricken": "20",
-        "Stun": "58",
-        "Throttle": "48",
-        "Warlord": "81",
-        "Weaken": "46",
-        "Wind-up": "76",
-        "Wither": "42"
-    };
-
-   const bonusListPrimary = {
-        "Bonus filter off": "0",
-        "Any bonuses": "-2",
-        "Double bonuses": "-1",
-        "Yellow bonuses": "yellow",
-        "Orange bonuses": "orange",
-        "Red bonuses": "red",
-        "Achilles": "50",
-        "Assassinate": "72",
-        "Bleed": "57",
-        "Blindfire": "33",
-        "Blindside": "51",
-        "Comeback": "67",
-        "Conserve": "55",
-        "Cripple": "45",
-        "Cupid": "47",
-        "Deadeye": "63",
-        "Deadly": "62",
-        "Demoralize": "36",
-        "Disarm": "86",
-        "Eviscerate": "56",
-        "Expose": "1",
-        "Focus": "79",
-        "Freeze": "38",
-        "Motivation": "61",
-        "Penetrate": "101",
-        "Powerful": "68",
-        "Proficience": "14",
-        "Puncture": "66",
-        "Quicken": "88",
-        "Revitalize": "41",
-        "Slow": "44",
-        "Smurf": "73",
-        "Specialist": "71",
-        "Spray": "35",
-        "Stun": "58",
-        "Suppress": "60",
-        "Sure Shot": "78",
-        "Throttle": "48",
-        "Warlord": "81",
-        "Weaken": "46",
-        "Wither": "42"
-    };
-
-    const bonusListMelee =  {
-        "Bonus filter off": "0",
-        "Any bonuses": "-2",
-        "Double bonuses": "-1",
-        "Yellow bonuses": "yellow",
-        "Orange bonuses": "orange",
-        "Red bonuses": "red",
-        "Achilles": "50",
-        "Assassinate": "72",
-        "Backstab": "52",
-        "Berserk": "54",
-        "Bleed": "57",
-        "Bloodlust": "85",
-        "Crusher": "49",
-        "Cupid": "47",
-        "Deadeye": "63",
-        "Disarm": "86",
-        "Double edged": "74",
-        "Empower": "87",
-        "Eviscerate": "56",
-        "Expose": "1",
-        "Frenzy": "80",
-        "Fury": "64",
-        "Grace": "53",
-        "Home run": "83",
-        "Irradiate": "102",
-        "Lacerate": "89",
-        "Motivation": "61",
-        "Parry": "84",
-        "Penetrate": "101",
-        "Plunder": "21",
-        "Powerful": "68",
-        "Puncture": "66",
-        "Quicken": "88",
-        "Rage": "65",
-        "Roshambo": "43",
-        "Slow": "44",
-        "Smash": "104",
-        "Stun": "58",
-        "Throttle": "48",
-        "Toxin": "103",
-        "Weaken": "46",
-        "Wind up": "76",
-        "Wither": "42"
+    const bonusIds = {
+        "Bonus filter off": "0", "Any bonuses": "-2", "Double bonuses": "-1", "Yellow bonuses": "yellow", "Orange bonuses": "orange", "Red bonuses": "red",
+        "Achilles": "50", "Assassinate": "72", "Bleed": "57", "Blindfire": "33", "Blindside": "51", "Comeback": "67", "Conserve": "55",
+        "Cripple": "45", "Cupid": "47", "Deadeye": "63", "Deadly": "62", "Demoralize": "36", "Disarm": "86", "Eviscerate": "56", "Expose": "1",
+        "Focus": "79", "Freeze": "38", "Motivation": "61", "Penetrate": "101", "Powerful": "68", "Proficience": "14","Puncture": "66",
+        "Quicken": "88", "Revitalize": "41", "Slow": "44", "Smurf": "73", "Specialist": "71", "Spray": "35", "Stun": "58", "Suppress": "60",
+        "Sure Shot": "78", "Throttle": "48", "Warlord": "81", "Weaken": "46", "Wither": "42", "Burn": "30", "Double-edged": "74",
+        "Double Tap": "105", "Execute": "75", "Finale": "82", "Paralyze": "59", "Shock": "120", "Stricken": "20", "Wind-up": "76",
+        "Backstab": "52", "Berserk": "54", "Bloodlust": "85", "Crusher": "49", "Double edged": "74", "Empower": "87", "Frenzy": "80", "Fury": "64",
+        "Grace": "53", "Home run": "83", "Irradiate": "102", "Lacerate": "89", "Parry": "84", "Plunder": "21", "Rage": "65",
+        "Roshambo": "43", "Smash": "104", "Toxin": "103", "Wind up": "76"
     };
 
     const commonEntries = ["Bonus filter off", "Any bonuses", "Double bonuses", "Yellow bonuse", "Orange bonuse", "Red bonuse"];
@@ -203,8 +68,6 @@
     var weaponListsValid = false;
     var weapons = { primaries: [], secondaries: [], melees: [] };
     const weaponTypes = ["Primary", "Secondary", "Melee"];
-
-    //getWeaponLists();
 
     function translateType(weapon_type) {
         let type = weapon_type ? weapon_type.toLowerCase() : "ERROR";
@@ -477,20 +340,30 @@
         });
 
         log("Final ID list: ", allBonusIds);
-        log("bonus len: ", bonusList.length, " id list len: ", Object.keys(allBonusIds).length);
 
-        log("allBonusIds: ",  Object.keys(allBonusIds));
-        log("bonusList: ", bonusList);
+        GM_setValue("bonusListStr", JSON.stringify(allBonusIds));
+        GM_setValue("bonusListRaw", allBonusIds);
+
 
         let arr2 = findUniqueElements(bonusList, Object.keys(allBonusIds));
-
         log("Missing: ", arr2);
 
-        function findUniqueElements(arr1, arr2) {
-          return arr1.filter(element => !arr2.includes(element));
-        }
 
         return false;
+    }
+
+    // ================== Misc helpers =============================
+
+    function findUniqueElements(arr1, arr2) {
+      return arr1.filter(element => !arr2.includes(element));
+    }
+
+    function findObjectByKeyValuePair(array, key, value) {
+        return array.find(obj => obj && obj.hasOwnProperty(key) && obj[key] === value);
+    }
+
+    function findEntryById(array, itemId) {
+        return array.find(obj => obj && obj.hasOwnProperty('id') && obj.id === parseInt(itemId));
     }
 
     // ============== Fill Select Options lists ====================
@@ -531,14 +404,6 @@
         return optList;
     }
 
-    function findObjectByKeyValuePair(array, key, value) {
-        return array.find(obj => obj && obj.hasOwnProperty(key) && obj[key] === value);
-    }
-
-    function findEntryById(array, itemId) {
-        return array.find(obj => obj && obj.hasOwnProperty('id') && obj.id === parseInt(itemId));
-    }
-
     function fillWeapsList(optSelect, optList, retries=0) {
         if (!weaponListsValid || !optList.length) {
             if (retries++ < 30) return setTimeout(fillWeapsList, 250, optSelect, optList, retries);
@@ -565,11 +430,6 @@
     }
 
     function fillBonusLists(li) {
-        //let optList = weapons.primaries;
-        //let selected = $(li).find(".weap-cat").val();
-        //if (selected == 'Secondary') optList = weapons.secondaries;
-        //if (selected == 'Melee') optList = weapons.melees;
-
         let optList = getWeapArray(li);
         let itemId = $(li).attr("id");
         itemId = itemId.replace("ww-", "");
@@ -579,20 +439,6 @@
         log("Weapon entry: ", entry);
 
         if (!entry) {
-            /*
-            log("Array: ", optList);
-            for (let idx=0; idx < optList.length; idx++) {
-                let entry = optList[idx];
-                log("entry ", idx, entry);
-                log("entry[itemId]: ", entry[itemId], " entry.id: ", entry.id, " itemId: ", itemId);
-                log("entry[parseInt(itemId)]: ", entry[parseInt(itemId)], " entry.id: ", entry.id, " itemId: ", itemId);
-                log("Type of entry.id: ", typeof entry.id, " type of itemId: ", typeof parseInt(itemId));
-                log("id: ", entry.id, " entry[itemId] === itemId ? ", (entry[itemId] === parseInt(itemId)));
-                log("id: ", entry.id, " entry[parseInt(itemId)] === itemId ? ", (entry[parseInt(itemId)] === parseInt(itemId)));
-                log("id: ", entry.id, " entry.id === itemId ? ", (entry.id === parseInt(itemId)));
-                log("id: ", entry.id, " entry[itemId] == itemId ? ", (entry[itemId] == parseInt(itemId)));
-            }
-            */
             return log("Error: no entry found for ID ", itemId);
         }
 
@@ -756,13 +602,16 @@
         saveWatches();
     }
 
-    // https://www.torn.com/page.php?sid=ItemMarket#/market/view=search&itemID=233&itemName=BT%20MP9&itemType=Secondary&sortField=price&sortOrder=ASC&bonuses[0]=41
+    // https://www.torn.com/page.php?sid=ItemMarket
+    // #/market/view=search
+    // &itemID=233&itemName=BT%20MP9&itemType=Secondary&sortField=price&sortOrder=ASC&bonuses[0]=41
     function handleViewMatches(e) {
         log("[handleViewMatches]: ", $(this), $(this).closest("li"));
         let li = $(this).closest("li");
         log("li: ", $(li));
 
         let itemId = $(li).attr('id').replace("ww-", "");
+        let cat = catFromLi(li);
         let arr = getWeapArray(li);
 
         // This would be entry in weapon array!
@@ -773,8 +622,23 @@
             debugger;
             return;
         }
-        let name = entry.name.trim().replaceAll(' ', '%20');
-        log("Name: ", name);
+
+        let name = entry.name.trim();
+        let bonusId = bonusIds[name];
+        let htmlName = entry.name.trim().replaceAll(' ', '%20');
+        log("Name: ", name, " html: ", htmlName);
+
+        let searchStr = `&itemID=${itemId}
+                         &${htmlName}
+                         &itemType=${cat}
+                         &sortField=price
+                         &sortOrder=ASC
+                         &bonuses[0]=${bonusId}`;
+
+        log("Search: ", searchStr);
+
+        let URL = baseUrl + searchHash + searchStr;
+        openInNewTab(URL);
     }
 
     function addWeaponWatch(e) {
@@ -1561,6 +1425,163 @@
         GM_setValue("bonusListRaw", (bonusIdsObj));
     }
 
+    function oldStuf() {
+        const bonusList = [
+            "Bonus filter off", "Any bonuses", "Double bonuses", "Yellow bonuses", "Orange bonuses", "Red bonuses",
+            "Achilles", "Assassinate", "Backstab", "Berserk", "Bleed",
+            "Blindfire", "Blindside", "Bloodlust", "Burn", "Comeback", "Conserve", "Cripple", "Crusher", "Cupid",
+            "Deadeye", "Deadly", "Demoralize", "Disarm", "Double-edged", "Double Tap", /*"Emasculate", Pin Mac 10 */ "Empower",
+            "Eviscerate", "Execute", "Expose", "Finale", "Focus", /*"Freeze", Snow Cannon */ "Frenzy", "Fury", "Grace", /* "Hazardous", Nock Gun */
+            "Home run", "Irradiate", /*"Lacerate", Bread Knife*/ "Motivation", "Paralyze", "Parry", "Penetrate", "Plunder", /* "Poison", blowgun */
+            "Powerful", "Proficience", "Puncture", "Quicken", "Rage", "Revitalize", "Roshambo", "Shock", /* "Sleep", Unreleased, Tranq Gun */ "Slow",
+            /* "Smash", Sledgehammer */ "Smurf", "Specialist", "Spray", /*"Storage", Handbag */ "Stricken", "Stun", "Suppress", "Sure Shot", "Throttle",
+            /* "Toxin", Poison Umbrella */ "Warlord", "Weaken", "Wind-up", "Wither"
+            ];
+
+
+        const bonusListSecondary = {
+            "Bonus filter off": "0",
+            "Any bonuses": "-2",
+            "Double bonuses": "-1",
+            "Yellow bonuses": "yellow",
+            "Orange bonuses": "orange",
+            "Red bonuses": "red",
+            "Achilles": "50",
+            "Assassinate": "72",
+            "Bleed": "57",
+            "Blindside": "51",
+            "Burn": "30",
+            "Comeback": "67",
+            "Conserve": "55",
+            "Cripple": "45",
+            "Cupid": "47",
+            "Deadeye": "63",
+            "Deadly": "62",
+            //"Demoralize": "",    // GAK
+            "Disarm": "86",
+            "Double-edged": "74",
+            "Double Tap": "105",
+            //"Emasculate": "",    // Pink Mac 10
+            "Eviscerate": "56",
+            "Execute": "75",
+            "Expose": "1",
+            "Finale": "82",
+            //"Freeze": "",        // Snow Cannon
+            //"Hazardous": "",     // Nock Gun
+            //"Lacerate": "",      // Bread Knfe
+            "Motivation": "61",
+            "Paralyze": "59",
+            //"Poison": "",        // Blowgun
+            "Powerful": "68",
+            "Proficience": "14",
+            "Quicken": "88",
+            "Revitalize": "41",
+            "Shock": "120",
+            //"Sleep": "",          // Unreleased, Tranq Gun
+            "Slow": "44",
+            //"Smash": "",          // Sledgehammer
+            "Specialist": "71",
+            //"Storage": "",        // Hand Bag
+            "Stricken": "20",
+            "Stun": "58",
+            "Throttle": "48",
+            //"Toxin": "",          // Poison Umbrella
+            "Warlord": "81",
+            "Weaken": "46",
+            "Wind-up": "76",
+            "Wither": "42"
+        };
+
+       const bonusListPrimary = {
+            "Bonus filter off": "0",
+            "Any bonuses": "-2",
+            "Double bonuses": "-1",
+            "Yellow bonuses": "yellow",
+            "Orange bonuses": "orange",
+            "Red bonuses": "red",
+            "Achilles": "50",
+            "Assassinate": "72",
+            "Bleed": "57",
+            "Blindfire": "33",
+            "Blindside": "51",
+            "Comeback": "67",
+            "Conserve": "55",
+            "Cripple": "45",
+            "Cupid": "47",
+            "Deadeye": "63",
+            "Deadly": "62",
+            "Demoralize": "36",
+            "Disarm": "86",
+            "Eviscerate": "56",
+            "Expose": "1",
+            "Focus": "79",
+            "Freeze": "38",
+            "Motivation": "61",
+            "Penetrate": "101",
+            "Powerful": "68",
+            "Proficience": "14",
+            "Puncture": "66",
+            "Quicken": "88",
+            "Revitalize": "41",
+            "Slow": "44",
+            "Smurf": "73",
+            "Specialist": "71",
+            "Spray": "35",
+            "Stun": "58",
+            "Suppress": "60",
+            "Sure Shot": "78",
+            "Throttle": "48",
+            "Warlord": "81",
+            "Weaken": "46",
+            "Wither": "42"
+        };
+
+        const bonusListMelee =  {
+            "Bonus filter off": "0",
+            "Any bonuses": "-2",
+            "Double bonuses": "-1",
+            "Yellow bonuses": "yellow",
+            "Orange bonuses": "orange",
+            "Red bonuses": "red",
+            "Achilles": "50",
+            "Assassinate": "72",
+            "Backstab": "52",
+            "Berserk": "54",
+            "Bleed": "57",
+            "Bloodlust": "85",
+            "Crusher": "49",
+            "Cupid": "47",
+            "Deadeye": "63",
+            "Disarm": "86",
+            "Double edged": "74",
+            "Empower": "87",
+            "Eviscerate": "56",
+            "Expose": "1",
+            "Frenzy": "80",
+            "Fury": "64",
+            "Grace": "53",
+            "Home run": "83",
+            "Irradiate": "102",
+            "Lacerate": "89",
+            "Motivation": "61",
+            "Parry": "84",
+            "Penetrate": "101",
+            "Plunder": "21",
+            "Powerful": "68",
+            "Puncture": "66",
+            "Quicken": "88",
+            "Rage": "65",
+            "Roshambo": "43",
+            "Slow": "44",
+            "Smash": "104",
+            "Stun": "58",
+            "Throttle": "48",
+            "Toxin": "103",
+            "Weaken": "46",
+            "Wind up": "76",
+            "Wither": "42"
+        };
+    }
 
 
 
