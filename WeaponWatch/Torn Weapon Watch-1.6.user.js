@@ -625,20 +625,17 @@
 
         let name = entry.name.trim();
         let bonusId = bonusIds[name];
+        log("bonusIds: ", bonusIds);
+        log("name: ", name, " bonus ID: ", bonusId);
         let htmlName = entry.name.trim().replaceAll(' ', '%20');
         log("Name: ", name, " html: ", htmlName);
 
-        let searchStr = `&itemID=${itemId}
-                         &${htmlName}
-                         &itemType=${cat}
-                         &sortField=price
-                         &sortOrder=ASC
-                         &bonuses[0]=${bonusId}`;
-
+        let searchStr = `&itemID=${itemId}&${htmlName}&itemType=${cat}&sortField=price&sortOrder=ASC&bonuses[0]=${bonusId}`;
         log("Search: ", searchStr);
 
         let URL = baseUrl + searchHash + searchStr;
-        openInNewTab(URL);
+        log("URL: ", URL);
+        //openInNewTab(URL);
     }
 
     function addWeaponWatch(e) {
