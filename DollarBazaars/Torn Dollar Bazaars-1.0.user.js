@@ -58,9 +58,15 @@
         let firstBtn = $(root).find("button")[0];
         log("First btn: ", $(firstBtn));
         let clone = $(firstBtn).clone();
-        let path = $(clone).find("path")[0];
-        log("Path: ", $(path));
-        $(path).replaceWith($(dollarIcon));
+
+        //let path = $(clone).find("path")[0];
+        //log("Path: ", $(path));
+        //$(path).replaceWith($(dollarIcon));
+
+        let newSvg = `<span style='font-size: 14px;'>$1</span>`;
+        let svg = $(clone).find("svg")[0];
+        $(svg).replaceWith(newSvg);
+
         $(clone).attr("id", "x-bazaar-hdr-btn");
         $(clone).attr("style", "border: 1px solid blue");
 
