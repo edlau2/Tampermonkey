@@ -397,7 +397,7 @@
     }
 
     function tm_str(tm) {
-        let dt = tm ? new Date(tm) : new Date(0);
+        let dt = tm ? new Date(tm) : new Date();
         const mediumTime = new Intl.DateTimeFormat("en-GB", {
           timeStyle: "medium",
           hourCycle: "h24",
@@ -1140,7 +1140,7 @@
             log("[handleBroadcasts] Timer Popped! ");
             log("[handleBroadcasts]  notifyLock.remoteLocked: ", notifyLock.remoteLocked);
             log("[handleBroadcasts]  notifyLock: ", notifyLock);
-            if (notifyLock.remoteLocked == true || (notifyLock.locked) return;
+            if (notifyLock.remoteLocked == true || notifyLock.locked == true) return;
 
             let lockDelay = (notifyIntervalSecs + getRandomIntEx(5, 15)) * 1000;
             log("Notify lock interval: ", lockDelay/1000, " secs");
@@ -1168,6 +1168,8 @@
 
             let notfCount = GM_getValue("notfCount", 0);
             GM_setValue("notfCount", (+notfCount + 1));
+
+            log("**** broadcasts OK, realBrowserAlert notifying! ", tm_str(), " myId: ", myId);
 
             GM_notification ( opts );
         }
