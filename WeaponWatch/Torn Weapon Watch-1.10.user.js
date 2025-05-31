@@ -17,6 +17,8 @@
 // @grant        GM_notification
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -28,11 +30,23 @@
 (function() {
     'use strict';
 
-    debugLoggingEnabled =
-        GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
+    const secsInMin = 60, MinInHr = 60, SecsInHr = secsInMin * MinInHr;
+
+    const notifyIntervalSecs = GM_getValue("notifyIntervalSecs", (15 * secsInMin));
+    const notifyDurationSecs = GM_getValue("notifyDurationSecs", (30));
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
+
+    GM_setValue("notifyIntervalSecs", notifyIntervalSecs);
+    GM_setValue("notifyDurationSecs", notifyDurationSecs);
+
+    // Channel for cross-script comms
+    const channel = new BroadcastChannel('weapon-watch');
+    channel.onmessage = handleBroadcasts;;
 
     const baseUrl = "https://www.torn.com/page.php?sid=ItemMarket";
     const searchHash = "#/market/view=search";
+
+    const myId = getRandomInt(1000000);
     
     const bonusIds = {
         "Bonus filter off": "0", "Any bonuses": "-2", "Double bonuses": "-1", "Yellow bonuses": "yellow", "Orange bonuses": "orange", "Red bonuses": "red",
@@ -64,13 +78,26 @@
     var lastUpdate = GM_getValue("lastUpdate", 0);
     var weaponWatchRunning = false;
 
-    const isBuy = function () {return location.hash.indexOf("market") > -1;}
+    // Controls when we can send a browser notification
+    var notifyLock = {
+        type: "lock-query",               // When received as a broadcast, a 'query' or 'response'
+        locked: false,                    // Locked by this instance
+        remoteLocked: false,              // Locked by another
+        owner:  '',                       // Will be owner ID
+        myId: myId,
+        lockTime: new Date().getTime(),   // Time locked, epoch time
+        unlockTime: new Date().getTime() + notifyIntervalSecs * 1000,
+    };
+
+    const isBuy = function () {return location.hash.indexOf("market/view") > -1;}
     const isSell = function () {return location.hash.indexOf("addListing") > -1;}
     const isView = function () {return location.hash.indexOf("viewListing") > -1;}
 
     var weaponListsValid = false;
     var weapons = { primaries: [], secondaries: [], melees: [] };
     const weaponTypes = ["Primary", "Secondary", "Melee"];
+
+    const isTestPage = false; //(location.href.indexOf('mission') > -1);
 
     function translateType(weapon_type) {
         let type = weapon_type ? weapon_type.toLowerCase() : "ERROR";
@@ -168,7 +195,7 @@
         }
 
         function itemsQueryCB(responseText, ID) {
-            log("itemsQueryCB");
+            debug("itemsQueryCB");
             let jsonResp = JSON.parse(responseText);
             if (jsonResp.error) {
                 if (jsonResp.error.code == 6) return;
@@ -212,7 +239,7 @@
                 });
             }
 
-            log("Weapons: ", weaponListsValid, weapons);
+            debug("Weapons: ", weaponListsValid, weapons);
 
             GM_setValue("weapons.primaries", JSON.stringify(weapons.primaries));
             GM_setValue("weapons.secondaries", JSON.stringify(weapons.secondaries));
@@ -223,30 +250,30 @@
             xedx_TornTornQuery("", "items", itemsQueryCB);
         }
 
-        log("[getWeaponLists] looking for cached lists");
+        debug("[getWeaponLists] looking for cached lists");
         for (let idx=0; idx<weaponTypes.length; idx++) {
             let type = weaponTypes[idx];
             switch (type) {
                 case "Primary":
                     weapons.primaries = JSON.parse(GM_getValue("weapons.primaries", JSON.stringify([])));
-                    log("Primaries: ", weapons.primaries);
+                    debug("Primaries: ", weapons.primaries);
                     if (!weapons.primaries || !weapons.primaries.length)
                         return doWeaponListLookup();
                     break;
                 case "Secondary":
                     weapons.secondaries = JSON.parse(GM_getValue("weapons.secondaries", JSON.stringify([])));
-                    log("Secondaries: ", weapons.secondaries);
+                    debug("Secondaries: ", weapons.secondaries);
                     if (!weapons.secondaries || !weapons.secondaries.length)
                         return doWeaponListLookup();
                     break;
                 case "Melee":
                     weapons.melees = JSON.parse(GM_getValue("weapons.melees", JSON.stringify([])));
-                    log("Melees: ", weapons.melees);
+                    debug("Melees: ", weapons.melees);
                     if (!weapons.melees || !weapons.melees.length)
                         return doWeaponListLookup();
                     break;
                 default:
-                    log("Unknown type: ", type);
+                    debug("Unknown type: ", type);
                     return doWeaponListLookup();
             }
         }
@@ -370,7 +397,7 @@
     }
 
     function tm_str(tm) {
-        let dt = new Date(tm);
+        let dt = tm ? new Date(tm) : new Date(0);
         const mediumTime = new Intl.DateTimeFormat("en-GB", {
           timeStyle: "medium",
           hourCycle: "h24",
@@ -435,7 +462,7 @@
         if (selected == 'Secondary') optList = weapons.secondaries;
         if (selected == 'Melee') optList = weapons.melees;
 
-        log("[getWeapArray] ", $(li), optList);
+        debug("[getWeapArray] ", $(li), optList);
 
         return optList;
     }
@@ -498,7 +525,7 @@
     // When these fns are called, should stop updating until done...
 
     function handleCatChange(e) {
-        log("[handleCatChange]: ", weaponListsValid);
+        debug("[handleCatChange]: ", weaponListsValid);
 
         let selected = $(this).val();
         let optList = weapons.primaries;
@@ -506,7 +533,7 @@
         if (selected == 'Secondary') optList = weapons.secondaries;
         if (selected == 'Melee') optList = weapons.melees;
 
-        log("[handleCatChange] optList: ", optList);
+        debug("[handleCatChange] optList: ", optList);
         fillWeapsList($(optSelect), optList);
         $(optSelect).prop('disabled', false);
 
@@ -638,11 +665,22 @@
         saveWatches();
     }
 
+    // **** REMOVE SAVED LISTS!!!!!!!!!
     function handleRemoveWatch(e) {
         log("[handleRemoveWatch]: ", $(this), $(this).closest("li"));
         let li = $(this).closest("li");
-        log("li: ", $(li));
+        let uuid = $(li).attr("data-uuid");
+
+        log("li: ", $(li), " uuid: ", uuid);
         $(li).remove();
+
+        let list = makeListKeys(uuid);
+        let keys = Object.keys(list);
+        log("Key list: ", list);
+        for (let idx=0; idx<keys.length; idx++) {
+            log("list[keys[idx]]: ", list[keys[idx]]);
+            GM_deleteValue(list[keys[idx]]);
+        }
 
         setWatchesDirty();
         saveWatches();
@@ -656,7 +694,7 @@
         let cat = catFromLi(li);
         let arr = getWeapArray(li);
         let uuid = $(li).attr("data-uuid");
-        log("[handleViewMatches] uuid: ", uuid, " li: ", $(li));
+        debug("[handleViewMatches] uuid: ", uuid, " li: ", $(li));
 
         // This would be entry in weapon array!
         let entry = findWeapEntryById(arr, itemId);
@@ -671,8 +709,17 @@
         let bonusId = bonusIds[bonus1];
         let htmlName = entry.name.trim().replaceAll(' ', '%20');
 
+        //let useBonus = entry.bonus1.trim(); //.replaceAll(' ', '%20');
+        let useBonus = bonus1.trim();
+        if (commonEntries.includes(bonus1)) {
+            let parts = bonus1.split(' ');
+            useBonus = parts[0];
+        }
+
+        log("[handleViewMatches] bonusId: ", bonusId, " useBonus: ", useBonus);
+
         let searchStr = `&itemID=${itemId}&${htmlName}&itemType=${cat}&sortField=price&sortOrder=ASC&bonuses[0]=${bonusId}&from=tww&uuid=${uuid}`;
-        debug("Search: ", searchStr);
+        log("Search: ", searchStr);
 
         let URL = baseUrl + searchHash + searchStr;
         openInNewTab(URL);
@@ -682,7 +729,6 @@
         let uuid = $(li).attr("data-uuid");
         if (!uuid) uuid = (entry && entry.uuid) ? entry.uuid : (new Date().getTime());
         if (entry && !entry.uuid) entry['uuid'] = uuid;
-        log("Setting uuid to ", uuid);
         $(li).attr('data-uuid', uuid);
         $("#xw-watches").append(li);
 
@@ -699,7 +745,6 @@
         li = putWatchOnList(li);
 
         $(li).find(".weap-cat").on('change', handleCatChange);
-        log("[addWeaponWatch] ", $(li), $(li).find(".weap-cat"));
         $(li).find(".weap-name").on('change', handleNameChange);
         $(".weap-bonus1").on('change', handleBonus1Change);
         //$(".weap-bonus2").on('change', handleBonus2Change);
@@ -726,20 +771,8 @@
             let li = $(watches)[idx];
             let itemId = $(li).attr('data-id');
             let uuid = $(li).attr('data-uuid');
-
-            /*
-            let itemUuid = $(li).attr('data-uuid');
-            if (!itemUuid) {
-                itemUuid = new Date().getTime() + getRandomInt(10000);
-                $(li).attr('data-uuid', itemUuid);
-                log("Setting uuid to ", itemUuid);
-            }
-            */
-
             let enabled = isEnabled(li);
-            //let name = $(li).find('.weap-name option:selected').text();
             let name = $(li).find('.weap-name').val();
-
             let cat = $(li).find('.weap-cat').val();
             let arr = getWeapArray(li);
 
@@ -757,14 +790,43 @@
                          bonus1: $(li).find('.weap-bonus1').val()};
                          //bonus2: $(li).find('.weap-bonus2').val()};
 
-            log("[buildWatchList] *** entry: ", entry);
+            debug("[buildWatchList] *** entry: ", entry);
             watchList.push(entry);
         }
 
         return watchList;
     }
 
+    // remove uuid-base-list, -new-list, etc for items no longer in the list!
+    function pruneSavedWatchKeys() {
+        let tmp = GM_listValues();
+        let valList = tmp.filter( entry => {
+            return entry.indexOf('-list') > -1;
+        });
+
+        let uuidList = [];
+        watchList.forEach(entry => { uuidList.push(entry.uuid); });
+
+        // Both are arrays
+        log("[pruneSavedWatchKeys] keys: ", valList);
+        log("[pruneSavedWatchKeys] uuids: ", uuidList);
+
+        let orphans = valList.filter( entry => {
+            let uuid = entry.split('-')[0];
+            return !uuidList.includes(uuid);
+        });
+
+        log("[pruneSavedWatchKeys] orphans: ", orphans);
+
+        orphans.forEach(key => {GM_deleteValue(key);});
+
+        tmp = GM_listValues();
+        log("[pruneSavedWatchKeys] after: ", tmp);
+
+    }
+
     function loadSavedWatches() {
+        log("[loadSavedWatches]");
         let allOff = $("#x-disable-all").prop('checked');
         let savedWatches = JSON.parse(GM_getValue("savedWatches", JSON.stringify([])));
         if (!savedWatches.length) return log("No saved watches");
@@ -809,13 +871,17 @@
     }
 
     function saveWatches() {
-        let savedWatches = JSON.parse(JSON.stringify(buildWatchList()));
-        debug("[saveWatches]: ", savedWatches);
-        GM_setValue("savedWatches", JSON.stringify(savedWatches));
+        log("[saveWatches]");
+        if (document.visibilityState === 'visible' && document.hasFocus() && isBuy()) {
+            let savedWatches = JSON.parse(JSON.stringify(buildWatchList()));
+            log("[saveWatches], saving: ", savedWatches);
+            GM_setValue("savedWatches", JSON.stringify(savedWatches));
+        }
     }
 
     function handleSaveWatches(e) {
         saveWatches();
+        channel.postMessage({type: "watches-updated"});
         refreshWatchLists();
     }
 
@@ -894,7 +960,7 @@
             return log("not on a known page. ", location.hash);
         }
 
-        debug("[installUI]: ", page, "|", $("#x-weapon-watch-btn").length);
+        log("[installUI]: ", page, "|", $("#x-weapon-watch-btn").length);
 
         if (page == "view") {
             //doViewPageInstall();
@@ -914,6 +980,7 @@
             }
 
             if (page == 'sell') {
+                log("Error: fix this! Install on sell page!");
                 let target = $("[class^='addListingWrapper_'] [class^='itemsHeader_']");
                 debug("On sell: ", $(target));
                 if ($(target).length = 0) return log("Couldn't find sell target");
@@ -934,6 +1001,7 @@
             // Temp way to trigger debug function
             $("#x-weapon-watch-btn").on('contextmenu', handleMainBtnContext);
 
+            // Not sure I should do this...
             $(document).on("visibilitychange", function() {
                 if (document.visibilityState === "hidden") {
                     saveWatches();
@@ -943,7 +1011,7 @@
 
     }
 
-    // ========================== The watcher, does API calls ============================
+    // ======================== The watcher, does API calls =========================
 
     // Array of entries:
     // { id: <itemId>, cat: <primary/secondary/melee>, name: <name>, bonus1: <bonus1>, bonus2: <bonus2> }
@@ -952,13 +1020,6 @@
     // Hook called when UI initialization is complete, used for dev/debugging
     function processWatchListComplete() {
         refreshWatchLists();
-
-        // Need to ensure only 1 is active! So, start two timers - one writes curr
-        // time while active, other instances check and if set and incrementing, don't
-        // start
-        //if (!refreshTimer) {
-        //    checkStartTimer();
-        //}
     }
 
     var hearbeatTimer = null;
@@ -985,10 +1046,62 @@
 
         refreshTimer = setInterval(refreshWatchLists, 5 * 60 * 1000);
 
+        refreshWatchLists();
+
         function doHeartbeat() {
             GM_setValue('heartbeat', (new Date().getTime()));
         }
     }
+
+
+    // ==================== Broadcast channel msg handler ============================
+
+    var doAlertTimer;
+
+    function handleBroadcasts(e) {
+        log("[handleBroadcasts] switch on: ", e.data.type);
+        log("[handleBroadcasts] typeof: ", (typeof e.data));
+
+        switch (e.data.type) {
+            case "lock-query": {
+                log("[handleBroadcasts] lock-query, my ID: ", myId);
+                log("[handleBroadcasts] my lock: ", notifyLock);
+                notifyLock.type = 'lock-response';
+                channel.postMessage(notifyLock);
+                    log("[handleBroadcasts] my lock after: ", notifyLock);
+                break;
+            }
+            case "lock-response": {
+                log("[handleBroadcasts] lock-response, my ID: ", myId);
+                log("[handleBroadcasts] my lock: ", notifyLock);
+                log("[handleBroadcasts] lock for ", e.data.myId, ": ", e.data);
+
+                if (e.data.locked == true) {
+                    notifyLock.locked = false;
+                    notifyLock.remoteLocked = true;
+                    notifyLock.owner = e.data.owner;
+                    notifyLock.unlockTime = e.data.unlockTime;
+                    clearTimeout(doAlertTimer);
+                    doAlertTimer = null;
+                    log("[handleBroadcasts] locked by ", e.data.owner, " until ", (new Date(e.data.unlockTime).toString()));
+                    log("[handleBroadcasts] my lock after: ", notifyLock);
+                }
+                break;
+            }
+            case "watches-updated": {
+                log("[handleBroadcasts]: watches-updated");
+                //loadSavedWatches();
+                break;
+            }
+            default: {
+                log("[handleBroadcasts] ignored: ", e.data);
+                break;
+            }
+        }
+
+    }
+
+    // ========================== Browser Notifications ==============================
 
     function handleNotifyClick(context, entry) {
         log("Notification clicked: ");
@@ -997,22 +1110,72 @@
     }
 
     function doBrowserAlert(msg, entry) {
-        log("**** doBrowserAlert ****\n", msg, "\n", entry);
-         let opts = {
-            title: 'Weapon Watch Alert',
-            text: msg,
-            tag: entry.uuid,      // Prevent multiple msgs if it sneaks by my checks.
-            image: 'https://imgur.com/QgEtwu3.png',
-            timeout: 30000,
-            onclick: (context, entry) => {
-                handleNotifyClick(context, entry);
-            }, ondone: () => {
-                //setTimeout(notifyReset, mwItemCheckInterval*1000);
-            }
-        };
+        log("[doBrowserAlert] lock: ", notifyLock, " timer: ", doAlertTimer, " test: ", isTestPage);
+        debug("[doBrowserAlert]\n", msg, "\n", entry);
 
-        GM_notification ( opts );
+        if (isTestPage == true) return;
+
+        // If anyone has sent a notification, cannot send until unlocked
+        // This checks if I hold the lock or am waiting to send...
+        if (notifyLock.locked == true || doAlertTimer) {
+            log("Locked, ignoring: ", notifyLock.locked, " timer: ", doAlertTimer);
+            return;
+        }
+
+        // Ask if any other instances locked as well. Wait for say 5 secs for an answer.
+        // If no 'locked' responses, go ahead.
+        notifyLock.type = 'lock-query';
+        notifyLock.locked = false;
+        notifyLock.remoteLocked = false;   // Set on positive response
+        log("[handleBroadcasts] post broadcast: ", notifyLock);
+        channel.postMessage(notifyLock);
+
+        // Will do notification when this pops, if not cancelled
+        // or our notifyLock is changed
+        log("[handleBroadcasts] setting doAlertTimer");
+        doAlertTimer = setTimeout(realBrowserAlert, 10000, msg, entry);
+        return;
+
+        function realBrowserAlert(msg, entry) {
+            log("[handleBroadcasts] Timer Popped! ");
+            log("[handleBroadcasts]  notifyLock.remoteLocked: ", notifyLock.remoteLocked);
+            log("[handleBroadcasts]  notifyLock: ", notifyLock);
+            if (notifyLock.remoteLocked == true || (notifyLock.locked) return;
+
+            let lockDelay = (notifyIntervalSecs + getRandomIntEx(5, 15)) * 1000;
+            log("Notify lock interval: ", lockDelay/1000, " secs");
+            notifyLock.locked = true;
+            notifyLock.lockTime = new Date().getTime();
+            notifyLock.unlockTime = new Date().getTime() + lockDelay;
+            notifyLock.owner = myId;
+            doAlertTimer = null;
+            setTimeout(resetLock, lockDelay);
+
+            msg = msg + " (" + myId + ")";
+
+            let opts = {
+                title: ("Weapon Watch Alert (" + myId + ")"),
+                text: msg,
+                tag: entry.uuid,      // Prevent multiple msgs if it sneaks by my checks.
+                image: 'https://imgur.com/QgEtwu3.png',
+                timeout: notifyDurationSecs * 1000,
+                onclick: (context, entry) => {
+                    handleNotifyClick(context, entry);
+                }, ondone: () => {
+                    //setTimeout(notifyReset, mwItemCheckInterval*1000);
+                }
+            };
+
+            let notfCount = GM_getValue("notfCount", 0);
+            GM_setValue("notfCount", (+notfCount + 1));
+
+            GM_notification ( opts );
+        }
+
+        function resetLock() { notifyLock.locked = false; }
     }
+
+    // ============================= API calls =======================================
 
     function makeListKeys(uuid) {
         return { base: `${uuid}-base-list`, curr: `${uuid}-curr-list`, new: `${uuid}-new-list` };
@@ -1039,7 +1202,7 @@
         if (numNewListings > 0) {
             GM_setValue(newListKey, JSON.stringify(newListings));
             let msg = "There " + (parseInt(numNewListings) == 1 ? "is " : "are ") + numNewListings + " new " +
-                entry.itemName + "\nwith the " + entry.bonus1 + " bonus in the Item Market!\nClick here to view...";
+                entry.itemName + "\nwith the " + entry.bonus1 + " bonus in the Item Market! (" + tm_str() + ")\nClick here to view...";
             //alert(msg);
             doBrowserAlert(msg, entry);
         } else {
@@ -1048,16 +1211,22 @@
     }
 
     function refreshWatchLists() {
-        log("**** refreshWatchLists ****");
+        log("[refreshWatchLists]");
 
         if (watchesLocked == true) {
             log("[refreshWatchLists] locked!");
         }
 
-        if (watchesDirty == true || !watchList.length) {
+        if (watchesDirty == true || !watchList.length && $("#xw-watches").length) {
             log("[refreshWatchLists] dirty: ", watchesDirty, " len: ", watchList.length);
             watchList = JSON.parse(JSON.stringify(buildWatchList()));
-            setWatchesDirty(false);
+            log("[refreshWatchLists] watchList: ", watchList);
+        }
+
+
+        if (!watchList.length) {
+            log("Loading saved version");
+            watchList = JSON.parse(GM_getValue('savedWatches', JSON.stringify([])));
         }
 
         log("[refreshWatchLists] watchList: ", watchList);
@@ -1067,11 +1236,15 @@
             return;
         }
 
+        setWatchesDirty(false);
+
         // Call the market API to get list of matching items on the market.
         // https://api.torn.com/v2/market/399/itemmarket?bonus=Red&offset=0'
         watchList.forEach(entry => {
             doEntryLookup(entry);
         });
+
+        pruneSavedWatchKeys();
 
         lastUpdate = new Date().getTime();
         GM_setValue("lastUpdate", lastUpdate);
@@ -1093,13 +1266,17 @@
                 let id = item.id;
 
                 let uuid = entry.uuid;
+
+                /*
                 log("Entry uuid: ", uuid);
                 log("item: ", item.name, item.id, " count: ", listings.length);
                 log("Span: ", $(`#${uuid} #item-cnt`));
                 log("Sel: ", (`#${uuid} #item-cnt`));
+                */
+
                 //let node = $(`li[data-uuid*='${entry.uuid}'] #item-cnt`);
                 let node = $(`#${uuid} #item-cnt`);
-                log("node by uuid: ", $(node));
+                //log("node by uuid: ", $(node));
                 $(node).text(listings.length);
 
                 let count = 0;
@@ -1130,13 +1307,12 @@
             let li = $(`#${entry.id}`);
             let bonus =  $(li).find('.weap-bonus1 option:selected').text();
             let bonusId = bonusIds[bonus];
+            let nameEscaped = entry.itemName.replaceAll(' ', '%20');
 
-            let searchStr = `&itemID=${itemId}&name=${entry.htmlName}&itemType=${entry.cat}&sortField=price&sortOrder=ASC&bonuses[0]=${bonusId}`;
+            // Not used here!
+            //let searchStr = `&itemID=${itemId}&name=${nameEscaped}&itemType=${entry.cat}&sortField=price&sortOrder=ASC&bonuses[0]=${useBonus}&comment=WeaponWatch`;
             log("entry: ", entry);
-            log("Search: ", searchStr);
-
-            //let url = baseUrl + searchHash + searchStr;
-
+            //log("Search: ", searchStr);
 
             let useBonus = entry.bonus1.trim(); //.replaceAll(' ', '%20');
             if (commonEntries.includes(entry.bonus1)) {
@@ -1147,9 +1323,9 @@
 
             log("useBonus: ", useBonus);
             if (entry.bonus1 == 'Bonus filter off')
-                url = `https://api.torn.com/v2/market/${itemId}/itemmarket?key=${api_key}`;
+                url = `https://api.torn.com/v2/market/${itemId}/itemmarket?key=${api_key}&comment=WeaponWatch`;
             else
-               url = `https://api.torn.com/v2/market/${itemId}/itemmarket?bonus=${useBonus}&key=${api_key}`;
+               url = `https://api.torn.com/v2/market/${itemId}/itemmarket?bonus=${useBonus}&key=${api_key}&comment=WeaponWatch`;
 
 
             log("[doEntryLookup]: ", url);
@@ -1167,6 +1343,7 @@
         }
     }
 
+    // TBD - highlight new items
     function processCustomSearch(params) {
         let uuid = params.get('uuid');
         log("[processCustomSearch] uuid: ", uuid);
@@ -1196,7 +1373,6 @@
                 processCustomSearch(params);
             }
         }
-
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -1204,6 +1380,7 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    log("My ID: ", myId);
 
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
