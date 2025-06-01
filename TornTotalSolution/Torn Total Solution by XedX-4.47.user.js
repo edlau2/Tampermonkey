@@ -1111,7 +1111,7 @@
                                     <div class="move-wrap"><i class="accordion-header-move right"></i></div>
                                 Drug and Rehab Stats</div>
                                 <div class="bottom-round">
-                                    <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto">
+                                    <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto;">
                                             <ul class="info-cont-wrap">
                                             <li title="original"><span id="xedx-div-span-cantaken" class="divider"><span>Cannabis Used</span></span>
                                             <span id="xedx-val-span-cantaken" class="desc xdrugd">0</span></li>
@@ -8983,6 +8983,7 @@
         // Everything that returns "not at home" if abroad ... put in here
         if (!awayFromHome()) {
             if (isIndexPage()) {
+                GM_addStyle( ".d .sortable-list .info-cont-wrap .desc { width: 40% !important; }");
                 if (opts_enabledScripts.latestAttacks.enabled) {tornLatestAttacksExtender().then(a => _a(a), b => _b(b));}
 
                 if (opts_enabledScripts.statTracker.enabled) {tornStatTracker().then(a => _a(a), b => _b(b));}
