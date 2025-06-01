@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.12
+// @version     2.46.13
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.12";
+const thisLibVer = "2.46.13";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -90,10 +90,44 @@ async function validateApiKey(type = null, optText=null) {
     if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
         api_key = prompt(text, "");
         GM_setValue('gm_api_key', api_key);
+    } else {
+        getTimeToValidateKey();
     }
 
     if (type == 'FULL') {
 
+    }
+
+    function getTimeToValidateKey() {
+        log("[getTimeToValidateKey]");
+        let url = `https://api.torn.com/v2/torn/timestamp?key=${api_key}`;
+        $.ajax({
+            url: url,
+            type: 'GET',
+            success: function (response, status, xhr) {
+                let critErrs = [1,2,8,13,18];
+                if (response.error && critErrs.includes(+response.error.code)) {
+                    console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
+                    api_key = '';
+                    let msg = GM_info.script.name + `: API key validation failed!\n\nThe server returned: ` +
+                               `code ${response.error.code}, error ${response.error.error}.\n\n` +
+                               `Please enter a valid API key.\n\n` +
+                               `Your key will be saved locally so you won't have to be asked again.\n` +
+                               `Your key is kept private and not shared with anyone.`;
+                    api_key = prompt(msg, "");
+                    GM_setValue('gm_api_key', api_key);
+                    return;
+                } else if (response.error) {
+                    console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
+                } else {
+                    debug("[getTimeToValidateKey] Got server time successfully: ", response);
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                console.error("[getTimeToValidateKey] Error in ajax lookup: ", textStatus);
+                console.error("[getTimeToValidateKey] Error thrown: ", errorThrown);
+            }
+        });
     }
 }
 
@@ -1547,8 +1581,8 @@ function addTopBarButton(callback, id, title) {
     if ($(btnSel).length > 0) return;
 
     let name = $("#skip-to-content");
-    let myButton = `<span><input id="` + id + `" type="submit"
-                    style="margin-left: 15px; margin-top: 2px;" class="xedx-torn-btn" value="` + title + `"></span>`;
+    let myButton = `<span><input id="${id}" type="submit"
+                    style="margin-left: 15px; margin-top: 2px;" class="xedx-torn-btn" value="${title}"></span>`;
     $(name).after(myButton);
     $(btnSel).on('click', { handler: callback }, custClickHandler );
 }
