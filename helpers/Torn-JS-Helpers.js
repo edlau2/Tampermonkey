@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.46.13
+// @version     2.46.16
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.46.13";
+const thisLibVer = "2.46.16";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -73,6 +73,9 @@ GM_setValue("alertOnRetry", alertOnRetry);
 ///////////////////////////////////////////////////////////////////////////////////
 
 var api_key = GM_getValue('gm_api_key');
+var lastValidated = GM_getValue("lastValidated", 0);
+const validGoodForMin = 60;
+const critErrs = [1,2,8,13,18];
 
 async function validateApiKey(type = null, optText=null) {
     let text = GM_info.script.name + "Says:\n\nPlease enter your API key.\n" +
@@ -91,44 +94,46 @@ async function validateApiKey(type = null, optText=null) {
         api_key = prompt(text, "");
         GM_setValue('gm_api_key', api_key);
     } else {
-        getTimeToValidateKey();
+        //let now = new Date().getTime();
+        //if (now - lastValidated > validGoodForMin * 60 * 1000)
+        //    getTimeToValidateKey();
     }
 
     if (type == 'FULL') {
 
     }
+}
 
-    function getTimeToValidateKey() {
-        log("[getTimeToValidateKey]");
-        let url = `https://api.torn.com/v2/torn/timestamp?key=${api_key}`;
-        $.ajax({
-            url: url,
-            type: 'GET',
-            success: function (response, status, xhr) {
-                let critErrs = [1,2,8,13,18];
-                if (response.error && critErrs.includes(+response.error.code)) {
-                    console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
-                    api_key = '';
-                    let msg = GM_info.script.name + `: API key validation failed!\n\nThe server returned: ` +
-                               `code ${response.error.code}, error ${response.error.error}.\n\n` +
-                               `Please enter a valid API key.\n\n` +
-                               `Your key will be saved locally so you won't have to be asked again.\n` +
-                               `Your key is kept private and not shared with anyone.`;
-                    api_key = prompt(msg, "");
-                    GM_setValue('gm_api_key', api_key);
-                    return;
-                } else if (response.error) {
-                    console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
-                } else {
-                    debug("[getTimeToValidateKey] Got server time successfully: ", response);
-                }
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                console.error("[getTimeToValidateKey] Error in ajax lookup: ", textStatus);
-                console.error("[getTimeToValidateKey] Error thrown: ", errorThrown);
+function getTimeToValidateKey() {
+    let url = `https://api.torn.com/v2/torn/timestamp?key=${api_key}`;
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function (response, status, xhr) {
+            if (response.error && critErrs.includes(+response.error.code)) {
+                console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
+                api_key = '';
+                let msg = GM_info.script.name + `: API key validation failed!\n\nThe server returned: ` +
+                           `code ${response.error.code}, error ${response.error.error}.\n\n` +
+                           `Please enter a valid API key.\n\n` +
+                           `Your key will be saved locally so you won't have to be asked again.\n` +
+                           `Your key is kept private and not shared with anyone.`;
+                api_key = prompt(msg, "");
+                GM_setValue('gm_api_key', api_key);
+                return;
+            } else if (response.error) {
+                console.error("[getTimeToValidateKey] Error in ajax lookup: ", response.error.code, response.error.error);
+            } else {
+                debug("[getTimeToValidateKey] Got server time successfully: ", response);
             }
-        });
-    }
+            //lastValidated = new Date().getTime();
+            //GM_setValue("lastValidated", lastValidated);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error("[getTimeToValidateKey] Error in ajax lookup: ", textStatus);
+            console.error("[getTimeToValidateKey] Error thrown: ", errorThrown);
+        }
+    });
 }
 
 function getApiKey() {
@@ -841,6 +846,8 @@ function xedx_TornGenericQuery(section, ID, selection, callback, param=null) {
             'Accept': 'application/json'
         },
         onload: function(response) {
+            if (response.error && critErrs.includes(+response.error.code))
+                getTimeToValidateKey();
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
@@ -867,7 +874,7 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, options) {
     let addlArgs = "";
     if (options)
         addlArgs = buildArgStr(options);
-    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key + addlArgs;
+    let url = baseTornURLv2 + section + "/" + (ID ? ID + "/" : "") + selection + "?key=" + api_key + "&comment=" + comment + addlArgs;
     let details = GM_xmlhttpRequest({
         method:"POST",
         url:url,
@@ -876,6 +883,8 @@ function xedx_TornGenericQueryv2(section, ID, selection, callback, options) {
             'Accept': 'application/json'
         },
         onload: function(response) {
+            if (response.error && critErrs.includes(+response.error.code))
+                getTimeToValidateKey();
             let param = null;
             if (options && options.param) param = options.param;
             callback(response.responseText, ID, param);
@@ -919,6 +928,8 @@ function xedx_TornGenericQueryDbg(section, ID, selection, callback, param=null) 
             'Accept': 'application/json'
         },
         onload: function(response) {
+            if (response.error && critErrs.includes(+response.error.code))
+                getTimeToValidateKey();
             callback(response.responseText, ID, param);
         },
         onerror: function(response) {
@@ -2963,7 +2974,6 @@ function addDraggableStyles() {
         }
     `);
 }
-
 
 
 
