@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn OC Assist
 // @namespace    http://tampermonkey.net/
-// @version      2.36
+// @version      2.37
 // @description  Sort crimes, show missing members, etc
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -63,12 +63,10 @@
     var myOcTracker;
     var ocTrackerStylesInstalled = false;
 
-    const disableCrimeTimeCache = false;  // Broken. Do not modify!
-
-    var myCrimeId = disableCrimeTimeCache == true ? 0 : GM_getValue("myCrimeId", null);
-    var myCrimeStartTime = disableCrimeTimeCache == true ? 0 : GM_getValue("myCrimeStartTime", 0);
+    var myCrimeId; // = GM_getValue("myCrimeId", null);
+    var myCrimeStartTime; // = GM_getValue("myCrimeStartTime", 0);
     var myCrimeStartTimeModifier;
-    var myCrimeStatus = disableCrimeTimeCache == true ? "" : GM_getValue("myCrimeStatus", "");
+    var myCrimeStatus = ""; // = GM_getValue("myCrimeStatus", "");
 
     const NO_OC_TIME = "No OC found.";
     const secsInDay = 24 * 60 * 60;
@@ -137,6 +135,7 @@
         missingReqItemName = null;
 
         setTrackerTime(time) {
+            debug("[setTrackerTime]:", time);
             $("#oc-tracker-time").removeClass("blink182");
             $("#oc-tracker-time").text(time);
             if (time == NO_OC_TIME) return;
@@ -165,7 +164,7 @@
         }
 
         getDisplayTimeUntilOc() {
-            if (!myCrimeStartTime || !this.validateSavedCrime()) {
+            if (!myCrimeStartTime) {// || !this.validateSavedCrime()) {
                 this.scheduleOcCheck(5000);
                 return NO_OC_TIME;
             }
@@ -179,6 +178,10 @@
             remains = remains - (hrs * secsInHr);
             let mins = Math.floor(remains/60);
             let timeStr = "OC in: " + days + "d " + nn(hrs) + "h " + nn(mins) + "m";
+
+            debug("[getDisplayTimeUntilOc]: ", now.toString());
+            debug("[getDisplayTimeUntilOc]: ", dt.toString());
+            debug("ready at: ", new Date(myCrimeStartTime * 1000).toString());
 
             return timeStr;
         }
@@ -199,10 +202,12 @@
         // See if the cached crime has expired/completed.
         // Return false if invalid/expired/not set, true otherwise.
         validateSavedCrime(crimes) {
-            if (disableCrimeTimeCache == true || !myCrimeStartTime || !myCrimeId) return false;
+            if (!myCrimeStartTime || !myCrimeId) return false;
 
             let now = new Date();
             let crimeTime = new Date(myCrimeStartTime * 1000);
+
+            debug("[validateSavedCrime]: ", new Date(myCrimeStartTime * 1000).toString());
 
             // If now is after the start time, expired...
             if (now.getTime() > myCrimeStartTime * 1000) {
@@ -290,6 +295,7 @@
             if (myCrime && readyAt) {
                 myCrimeId = myCrime.id;
                 myCrimeStartTime = readyAt;
+                debug("Set myCrimeStartTime to: ", new Date(myCrimeStartTime * 1000).toString());
                 myCrimeStatus = myCrime.status;
                 myOcTracker.saveMyCrimeData();
                 myOcTracker.stopAllAlerts();
@@ -306,14 +312,8 @@
             this.missingReqItem = false;
             for (let idx=0; idx<slots.length; idx++) {
                 let slot = slots[idx];
-
-                // Empty slots add 24 hours to time...but only if on recruit page?
-                // This isn't working now? Check status, not page!!!
-                log("***** Time Adjust? ", slot.user_id, myCrime.status);
-                if (!slot.user_id && myCrime.status != 'Planning') {
-                    myCrimeStartTime += secsInDay;
-                }
-
+                // Empty slots add 24 hours to time...
+                if (!slot.user_id && myCrime.status != 'Planning') myCrimeStartTime += secsInDay;
                 if (slot.user_id == userId) {
                     if (slot.item_requirement != null) {
                         if (slot.item_requirement.is_available == false) {
@@ -333,7 +333,7 @@
                     }
                     // Might as well see if cpr needs updating
                     if (trackMemberCpr == true) {
-                        log("My Slot, name: ", myCrime.name, " SR: ",slot.success_chance, " role: ", slot.position);
+                        debug("My Slot, name: ", myCrime.name, " SR: ",slot.success_chance, " role: ", slot.position);
                     }
                     // break;
                 }
@@ -516,15 +516,9 @@
 
         // Save cached crime data
         saveMyCrimeData() {
-            if (disableCrimeTimeCache == true) {
-                //GM_deleteValue("myCrimeId");
-                //GM_deleteValue("myCrimeStartTime");
-                //GM_deleteValue("myCrimeStatus");
-            } else {
-                GM_setValue("myCrimeId", myCrimeId);
-                GM_setValue("myCrimeStartTime", myCrimeStartTime);
-                GM_setValue("myCrimeStatus", myCrimeStatus);
-            }
+            GM_setValue("myCrimeId", myCrimeId);
+            GM_setValue("myCrimeStartTime", myCrimeStartTime);
+            GM_setValue("myCrimeStatus", myCrimeStatus);
         }
 
         parseOcTime(time) {
@@ -534,6 +528,8 @@
             let d = parseInt(parts[2]);
             let h = parseInt(parts[3]);
             let m = parseInt(parts[4]);
+
+            debug("[parseOcTime]:", parts, time, d, h, m);
 
             return {d: d, h: h, m: m};
         }
@@ -1040,16 +1036,21 @@
     var cprList = {};
     var cprListLen;
 
-    function checkCprList() {
+    function checkCprList(reason) {
         let tmp = Object.keys(cprList).length;
         if (tmp < cprListLen) {
-            log("ERROR: cpr list len change! ", tmp, cprListLen);
-            debugger;
+            if (reason) {
+                log("Warning: cpr list len change! ", tmp, cprListLen);
+                log("Reason: ", reason);
+            } else {
+                log("ERROR: cpr list len change! ", tmp, cprListLen);
+                debugger;
+            }
             //return;
         }
     }
 
-    function readCprList() {  
+    function readCprList() {
         let tmp = GM_getValue(cprListKey, JSON.stringify({}));
         if (tmp) {
             cprList = JSON.parse(tmp);
@@ -1058,8 +1059,8 @@
         cprListLen = Object.keys(cprList).length;
     }
 
-    function writeCprList() {
-        checkCprList();
+    function writeCprList(reason) {
+        checkCprList(reason);
         GM_setValue(cprListKey, JSON.stringify(cprList));
     }
 
@@ -1767,7 +1768,7 @@
                 myOcTracker.scheduleOcCheck(100);
             } //getDisplayTimeUntilOc(); }
     }
-   
+
     //============================== API calls ===================================
     //
     var membersNotInOc = {};
@@ -1806,11 +1807,6 @@
                 }
             }
         }
-
-        //memberLoadInProgress = false;
-        //memberLoadComplete = true;
-
-        log("membersNameById: ", membersNameById);
 
         updateMembersTableData();
 
@@ -2100,7 +2096,7 @@
         let crimes = $("[class*='recruiting_']");
         for (let idx=0; idx<crimes.length; idx++) {
             let crime = $(crimes[idx]).closest("[class^='contentLayer_']");
-            log("Crime ", idx, ": ", $(crime));
+            debug("Crime ", idx, ": ", $(crime));
             let name = $(crime).find("[class^='panelTitle_']").text();
             let lvl = $(crime).find("[class^='levelValue_']").text();
 
@@ -2414,11 +2410,8 @@
             let entry = crimeDefsTable[level];
             let keys2 = Object.keys(entry);
             for (let j=0; j<keys2.length; j++) {
-                //cellCount++;
                 let crimeName = keys2[j].toLowerCase();
-                log("crimeName: ", crimeName);
-                let crime = entry[keys2[j]]; //.toLowerCase();
-                log("Crime: ", crime);
+                let crime = entry[keys2[j]];
                 if (!crime)
                     debugger;
 
@@ -2943,7 +2936,7 @@
         let cprArray = [];
         let roleArray = roles;
 
-        log("crimeSelect: ", crimeSelect);
+        debug("[getMemberCprArray] crimeSelect: ", crimeSelect);
         if (!crimeSelect) {
             debugger;
             return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
@@ -2981,7 +2974,7 @@
     // For debugging - make data-role attr array for cells
     function getDataRoleArr(cprArr, crimeSelect) {
         let arr = ["none", "none", "none", "none", "none", "none"];
-        log("crimeSelect: ", crimeSelect);
+        debug("[getDataRoleArr] crimeSelect: ", crimeSelect);
         if (!crimeSelect) {
             debugger;
             return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
@@ -2991,7 +2984,7 @@
         let aka = nicknames[key];
         let roles = roleLookup[key]; // Object.keys(cprArr);
         if (!roles) {
-            log("Error: missing roles! crime: ", key, " aka: ", aka);
+            debug("Error: missing roles! crime: ", key, " aka: ", aka);
             debugger;
         }
         if (roles) for (let idx=0; idx<roles.length; idx++) {
@@ -3005,16 +2998,24 @@
         let notInOc = (membersNotInOc[id] != undefined);
 
         if (!member || !member.name) {
-            log("ERROR, no member or name? ", member);
+            debug("ERROR, no member or name? ", member);
             //debugger;
             if (!member) return;
             member.name = membersNameById[id];
-            if (!member.name) return log("Member ID ", id, " not found, no l onger in fac?");
+            if (!member.name) {
+                // remove from cprList..
+                debug("Member ID ", id, " not found, no longer in fac?");
+                if (memberLoadComplete == true) {
+                    delete cprList[id];
+                    writeCprList("[getCprMemberRow] member not found");
+                }
+                return;
+            }
         }
-        log("crimeSelect: ", crimeSelect);
+        debug("crimeSelect: ", crimeSelect);
         if (!crimeSelect) {
             debugger;
-            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect, roles);
+            return log("ERROR: Invalid crimeSelect: ", id, crimeSelect);
         }
 
         let key = crimeSelect.toLowerCase();
@@ -3050,7 +3051,6 @@
         for (let idx=0; idx < keys.length; idx++) {
             let id = keys[idx];
             let entry = cprList[id];
-            log("*** [updateCprTable] crimeSelect: ", crimeSelect);
             let row = getCprMemberRow(id, crimeSelect); //.toLowerCase());
             if (!row) {
                 debug("ERROR: No cpr row for id ", id, "!");
@@ -3070,12 +3070,23 @@
 
     function handleCrimeSelect(e) {
         let sel = $("#sel-crime select").find("option:selected");
+        if (!$(sel).length) {
+            if (defCprSelectVal) {
+                sel = $("#sel-crime select").find(`[value="${defCprSelectVal}"]`);
+                $(sel).prop('selected', true);
+            }
+        }
+        if (!$(sel).length) {
+            log("[handleCrimeSelect] unable to find def crime: ", defCprSelectVal);
+            debugger;
+            return;
+        }
         GM_setValue("cprSelectVal", $(sel).val());
 
         let roleList = $(".cpr-hdr-span2  [class*='cpr-role']");
         let key1 = $(sel).attr("data-idx");
         let crimeName = $(sel).val(); //.toLowerCase();
-        log("Crime name: ", crimeName);
+        debug("Crime name: ", crimeName);
         if (!crimeName)
             debugger;
         else
@@ -3177,6 +3188,7 @@
 
         $(cprTable).append(getCprHdr());
         $(cprTable).append(cprBody);
+        if (!defCprSelectVal) defCprSelectVal = 'blast from the past';
         updateCprTable($(cprTable), defCprSelectVal);
     }
 
@@ -3186,8 +3198,6 @@
             if (logCprData) log("eraseCprMembersList: ", membersArray.length, cprList.length);
 
             for (let idx=0; idx<membersArray.length; idx++) {
-
-                log("**** ERASING list! 1");
                 let member = membersArray[idx];
                 let id = member.id;
                 let name = member.name;
@@ -3374,7 +3384,7 @@
                     <div class="ocbox refresh"><span id='x-oc-click'>Available Members</span></div>
                     <div class="ocbox"><span id='x-opts-click'>Options</span></div>
                     <div class="ocbox"><span id='x-stats-click'>Stats</span></div>
-                    <div class="ocbox"><span id='x-rates-click'>Success Rates</span></div>
+                    <div class="ocbox"><span id='x-rates-click'>Member CPR's</span></div>
                 </div>
                 <div id='x-oc-tbl-wrap' class="x-oc-wrap cont-gray bottom-round">
 
@@ -3800,7 +3810,7 @@
                 flex-direction: row;
                 flex-wrap: wrap;
             }
-            
+
             #x-oc-can-click {
                 height: 38px;
                 width: 100%;

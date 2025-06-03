@@ -15,6 +15,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -71,6 +72,28 @@
     const secsInDay = 24 * 60 * 60;
     const secsInHr = 60 * 60;
     const showExperimental = false;
+
+
+    // =========================== Little helper fns =================================
+    const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
+    const getRecruitingTab = function () { return $(getBtnSel(recruitingIdx));}
+    const getPlanningTab = function () { return $(getBtnSel(planningIdx));}
+    const getCompletedTab = function () { return $(getBtnSel(completedIdx));}
+    //const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
+    const hashChangeHandler = function () {handlePageLoad();}
+    const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
+    const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
+    const isSortablePage = function () {return (btnIndex() == recruitingIdx || btnIndex() == planningIdx);}
+    const sortPage = function (c=sortByTime) {tagAndSortScenarios(c);}
+
+    //const getAvailableCrimes = function () { doFacOcQuery('available'); }
+    //const getPlannedCrimes = function () { doFacOcQuery('planning'); }
+    //const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
+
+    const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
+    const onPlanningPage = function () {return (btnIndex() == planningIdx);}
+    const onCompletedPage = function () {return (btnIndex() == completedIdx);}
+    //const setAlertsPaused = function() {blinkingPaused = true;}
 
     function myOcTrackingCb(responseText, ID, param) {
         debug("myOcTrackingCb: ", myOcTracker);
@@ -1027,7 +1050,7 @@
         }
     }
 
-    function readCprList() {  
+    function readCprList() {
         let tmp = GM_getValue(cprListKey, JSON.stringify({}));
         if (tmp) {
             cprList = JSON.parse(tmp);
@@ -1046,26 +1069,7 @@
         readCprList();
     }
 
-    // =========================== Little helper fns =================================
-    const getBtnSel = function (btnIdx){ return `#faction-crimes [class^='buttonsContainer_'] button:nth-child(${(btnIdx+1)})`;}
-    const getRecruitingTab = function () { return $(getBtnSel(recruitingIdx));}
-    const getPlanningTab = function () { return $(getBtnSel(planningIdx));}
-    const getCompletedTab = function () { return $(getBtnSel(completedIdx));}
-    //const isOcPage = function () {return location.hash ? (location.hash.indexOf("tab=crimes") > -1) : false;}
-    const hashChangeHandler = function () {handlePageLoad();}
-    const btnIndex = function () {return $("#faction-crimes [class^='buttonsContainer_'] > [class*='active_']").index();}
-    const pageBtnsList = function () {return $("#faction-crimes [class^='buttonsContainer_'] button");}
-    const isSortablePage = function () {return (btnIndex() == recruitingIdx || btnIndex() == planningIdx);}
-    const sortPage = function (c=sortByTime) {tagAndSortScenarios(c);}
-
-    //const getAvailableCrimes = function () { doFacOcQuery('available'); }
-    //const getPlannedCrimes = function () { doFacOcQuery('planning'); }
-    //const getRecruitingCrimes = function () { doFacOcQuery('recruiting'); }
-
-    const onRecruitingPage = function () {return (btnIndex() == recruitingIdx);}
-    const onPlanningPage = function () {return (btnIndex() == planningIdx);}
-    const onCompletedPage = function () {return (btnIndex() == completedIdx);}
-    //const setAlertsPaused = function() {blinkingPaused = true;}
+       // =================== More little helper fns =================================
 
     function timeDiff(checkTime) {
         let now = new Date().getTime();
@@ -1764,7 +1768,7 @@
                 myOcTracker.scheduleOcCheck(100);
             } //getDisplayTimeUntilOc(); }
     }
-   
+
     //============================== API calls ===================================
     //
     var membersNotInOc = {};
@@ -3806,7 +3810,7 @@
                 flex-direction: row;
                 flex-wrap: wrap;
             }
-            
+
             #x-oc-can-click {
                 height: 38px;
                 width: 100%;
