@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.30
+// @version      2.31
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview*
@@ -582,9 +582,12 @@
     function queryPastBusts(queryStats=true) {
         debug('[queryPastBusts]');
         queryPastBustsStart = _start();
-        let queryStr = 'timestamp,log&log=5360';
+        //let queryStr = 'timestamp,log&log=5360';
+        let queryStr = 'log&log=5360';
         //_xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
         xedx_TornUserQuery(null, queryStr, queryPastBustsCB, queryStats);
+
+        // "https://api.torn.com/user/?comment=XedX Jail Scores v2.0&selections=timestamp,log&log=5360&key=WknheQsVu2QPFm0J"
     }
 
     // Callback for above
@@ -706,9 +709,16 @@
     function processPastBusts(obj) {
         pastBustsStats.length = 0;
         if (debugPastBusts == true) debug('[processPastBusts]');
-        let timeNow = obj.timestamp; // In seconds since epoch
+        let timeNow = new Date().getTime() / 1000; //obj.timestamp; // In seconds since epoch
         let bustLog = obj.log;
-        let keys = Object.keys(bustLog);
+        let keys = {};
+        try {
+            keys = Object.keys(bustLog);
+        } catch (err) {
+            log("ERROR: ", error);
+            log("obj: ", obj);
+            //debugger;
+        }
         totalPenalty = 0;
 
         // get minutes since midnight
@@ -861,7 +871,9 @@
                                     if (currBustsToday != (compBusts + 1)) {
                                         log("*** daily busts: error? ", currBustsToday, (compBusts + 1),
                                             bustsTodayLocal, bustsTodayUtc);
-                                        debugger;
+
+                                        currBustsToday = compBusts;
+                                        //debugger;
                                     }
                                 }
 
