@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn YATA Bat Stats
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.2
 // @description  This script populates the YATA RW page with TS spies
 // @author       xedx [2100735]
 // @match        https://yata.yt/faction/war/*
@@ -20,6 +20,8 @@
 /*eslint no-undef: 0*/
 /*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
+
+// https://github.com/edlau2/Tampermonkey/raw/refs/heads/master/YATABatStats/Torn%20YATA%20Bat%20Stats.user.js
 
 (function() {
     'use strict';
@@ -43,6 +45,7 @@
     var spiesWaiting = new Queue();
 
     function putSpyInRow(id) {
+        debug("[putSpyInRow] id: ", id);
         let spy = facSpies[id];
         if (!spy) return log("Error: no spy for ", id);
 
@@ -69,6 +72,7 @@
     }
 
      function getTornSpyCB(respText, ID) {
+         debug("[getTornSpyCB] id: ", ID);
         let data = null;
         try {
             data = JSON.parse(respText);
@@ -95,6 +99,7 @@
     }
 
     function doOneSpy() {
+        debug("[doOneSpy]");
         if (spiesWaiting.isEmpty()) return debug("[doOneSpy] Queue is empty...");
         let id = spiesWaiting.dequeue();
         xedx_TornStatsSpy(id, getTornSpyCB);
@@ -104,7 +109,7 @@
     var queueTimer;
     function getFacSpies(retries=0) {
         let members = $("#faction-targets > tbody > tr");
-        log("Found ", $(members).length, " members for ", facName);
+        debug("Found ", $(members).length, " members for ", facName);
         if (!$(members).length) {
             if (retries++ < 20) return setTimeout(getFacSpies, 250, retries);
             return log("getFacSpies: timeout");
@@ -124,7 +129,7 @@
 
             spiesWaiting.enqueue(id);
             if (!queueTimer) {
-                queueTimer = setInterval(doOneSpy, 5000);
+                queueTimer = setInterval(doOneSpy, 1000);
                 doOneSpy();
             }
         // xedx_TornStatsSpy(ID, getTornSpyCB);
@@ -133,6 +138,7 @@
 
 
     function handlePageLoad(retries=0) {
+        debug("[handlePageLoad]");
         // $("#faction-targets > tbody")
         let facNameNode = $("#war-status > div > table > tbody > tr > td:nth-child(1) > a");
         if (!$(facNameNode).length) {
