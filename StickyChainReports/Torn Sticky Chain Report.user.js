@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Sticky Chain Report
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.9
 // @description  Make header sticky on war/chain report
 // @author       xedx [2100735]
 // @match        https://www.torn.com/war.php*
@@ -32,12 +32,15 @@
     'use strict';
 
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
-    const userId = getPlayerId();
+    const userId = getThisUserId();
+    var userSelector = `ul.members-names-rows > li > div > div[class^='honorWrap_'] > a[href="/profiles.php?XID=${userId}"]`;
     var warPage = false;
     var myLi;
+    var myFacSelector;
     var myFacTarget;
+    var enemyFacTarget;
 
-    function handleSortClick(e) {if (findMyLi(myFacTarget)) {scrollTo(myLi);}}
+    function handleSortClick(e) { scrollToMyLi();}
 
     function scrollTo(elem) {
         if (!myFacTarget) {
@@ -53,28 +56,50 @@
     }
 
     var classAdded = false;
-    function findMyLi(root) {
-        log("[findMyLi]");
+    function scrollToMyLi(retries=0) {
+        //if (!root) root = myFacTarget;
+
+        let myHonor = $(userSelector);
+        log("Selector: ", userSelector);
+        log("[scrollToMyLi] myHonor: ", $(myHonor).length, $(myHonor));
+
+        if ($(myHonor).length == 0) {
+            if (retries++ < 20) return setTimeout(scrollToMyLi, 200, retries);
+            return log("Timeout: scrollToMyLi");
+        }
+        retries = 0;
+
+
+        myLi = $(myHonor).closest("li");
+        log("[scrollToMyLi] myLi: ", $(myLi).length, $(myLi));
+
+        /*
         let honors = $(root).find("[class^='honorWrap_'] > a");
         for (let idx=0; idx < $(honors).length; idx++) {
             let node = $(honors)[idx];
             let href = $(node).attr("href");
+            log("found hef: ", href);
             if (href.indexOf(userId) > -1) {
+                log("found my ID");
                 myLi = $(node).parent().parent().parent();
                 if (warPage == true) myLi = $(myLi).closest("li");
-                let infoBox = $(myLi).find("[class*='userInfoBox_']");
-                if (warPage == false) $(infoBox).addClass("xedx-stb");
-                let memRows = $(".members-stats-rows > li.members-stats-row");
-                let idx = $(myLi).index();
-                let member = $(memRows)[idx];
-                if (warPage == true)
-                    $(myLi).addClass("xedx-stb");
-                else
-                    $(member).addClass("xedx-stb");
-                log("Found my LI: ", $(myLi));
-                return myLi;
-            }
-            log("[findMyLi] didn't find!");
+                */
+        if ($(myLi).length) {
+            let infoBox = $(myLi).find("[class*='userInfoBox_']");
+            if (warPage == false) $(infoBox).addClass("xedx-stb");
+            let memRows = $(".members-stats-rows > li.members-stats-row");
+            let idx = $(myLi).index();
+            let member = $(memRows)[idx];
+            if (warPage == true)
+                $(myLi).addClass("xedx-stb");
+            else
+                $(member).addClass("xedx-stb");
+
+            log("Found my LI: ", $(myLi));
+            scrollTo(myLi);
+            return;
+        } else {
+            log("[scrollToMyLi] didn't find myLi!");
         }
     }
 
@@ -130,6 +155,40 @@
         });
     }
 
+    function addTargetHandlers() {
+        $(myFacTarget).addClass("sticky-wrap");
+        $(enemyFacTarget).addClass("sticky-wrap");
+        if (warPage == true)
+                $(".members-cont .c-pointer").css({"position": "sticky", "top": 0, "z-index": 9999999});
+            else
+                $("ul.report-stats-titles").css({"position": "sticky", "top": 0, "z-index": 9999999});
+
+        scrollToMyLi();
+
+        $(".c-pointer").on('click', function(e) {
+            setTimeout(handleSortClick, 250);
+        });
+    }
+
+    function getTargetNodes(addHandlers=false, retries=0) {
+        myFacSelector = ".report-members-stats-content";
+        if (warPage == true) {
+            myFacSelector = ".your-faction .members-cont";
+            myFacTarget = $(myFacSelector)[0];
+            enemyFacTarget = $(".enemy-faction .members-cont")[0];
+        } else {
+            myFacTarget = $(myFacSelector)[0];
+        }
+
+        if($(myFacTarget).length == 0) {
+            if (retries++ < 40) return setTimeout(getTargetNodes, 250, addHandlers, retries);
+            return log("[getTargetNodes] Too many attempts for '", myFacSelector, "'");
+        }
+
+        if (addHandlers == true)
+            addTargetHandlers();
+    }
+
     // Main entry once page loads
     function handlePageLoad(retries=0) {
         debug("handlePageLoad");
@@ -147,32 +206,7 @@
             doWarPageLoad();
         }
 
-        let enemyFacTarget;
-        let selector = ".report-members-stats-content";
-        if (warPage == true) {
-            selector = ".your-faction .members-cont";
-            myFacTarget = $(selector)[0];
-            enemyFacTarget = $(".enemy-faction .members-cont")[0];
-        } else {
-            myFacTarget = $(selector)[0];
-        }
-
-        if($(myFacTarget).length == 0) {
-            if (retries++ < 40) return setTimeout(handlePageLoad, 250, retries);
-            return log("[handlePageLoad] Too many attempts for '", selector, "'");
-        }
-
-        $(myFacTarget).addClass("sticky-wrap");
-        $(enemyFacTarget).addClass("sticky-wrap");
-        if (warPage == true)
-                $(".members-cont .c-pointer").css({"position": "sticky", "top": 0, "z-index": 9999999});
-            else
-                $("ul.report-stats-titles").css({"position": "sticky", "top": 0, "z-index": 9999999});
-        
-        if (findMyLi(myFacTarget)) scrollTo(myLi);
-        $(".c-pointer").on('click', function(e) {
-            setTimeout(handleSortClick, 250);
-        });
+        getTargetNodes(true);
     }
 
     logScriptStart();
@@ -187,9 +221,17 @@
 
         .sticky-wrap {
             max-height: 90vh;
-            overflow-y: auto;
+            overflow-y: scroll;
             top: 0px;
             position: sticky;
+            padding-right: 17px;
+            box-sizing: content-box;
+            width: 100%;
+        }
+        .report-members-stats {
+           overflow: hidden;
+           width: 100%;
+           height: 100%;
         }
     `);
 
