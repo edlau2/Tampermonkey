@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.6
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
-// @match        https://www.torn.com/loader.php*
+// @match        https://www.torn.com/page.php?sid=racing*
 // @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
+// @run-at       document-body
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
@@ -29,45 +30,89 @@
     const getCustRaceWrap = function () {return $(".custom-events-wrap");}
     const hasCustRaceWrap = function () {return $(".custom-events-wrap").length > 0;}
 
-    var currentCat;
+    var hidePwdProtect = GM_getValue("hidePwdProtect", false);
+
+
+
+    //if (hidePwdProtect == true) updatePwdProtected();
+    var pwdInterval; // = (hidePwdProtect == true) ? setInterval(updatePwdProtected, 200): null;
 
     debugLoggingEnabled =
         GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
 
     function hashChangeHandler() {
         debug("[hashChangeHandler]: ", location.href);
-        callOnContentLoaded(handlePageLoad);
+        setTimeout(handlePageLoad, 250);
     }
 
     function pushStateChanged(e) {
         debug("[pushStateChanged]: ", location.href);
-        callOnContentLoaded(handlePageLoad);
+        setTimeout(handlePageLoad, 250);
+    }
+
+    // =======================================================================
+
+    function updatePwdProtected() {
+        if (hidePwdProtect == true) {
+            $(".events-list > .protected").attr("style", "display: none;");
+        } else {
+            $(".events-list > .protected").attr("style", "display: list-item;");
+        }
     }
 
     var prevOrder = 0;
-    function doSort() {
+    function doSort(what) {
         let matches = $(".events-list > li");
-        let attr = 'data-startTime';
+        let attr = what; //'data-startTime';
         let order = (prevOrder == 0) ? 'asc' : 'desc';
         prevOrder = (prevOrder == 0) ? 1 : 0;
-
-        debug("doSort: ", $(matches));
         tinysort(matches, {attr: attr, order: order});
     }
 
     var inClick = false;
     function resetClickFlag() {inClick = false;}
-    function handleStartTimeClick(e) {
-        debug("handleStartTimeClick");
+    function handleBtnClick(e) {
+        let target= $(e.currentTarget);
+        debug("handleBtnClick: ", $(target));
         if (inClick == true) return false;
         inClick = true;
-        doSort();
+        let attr;
+        if ($(target).hasClass('track')) attr = "data-track";
+        if ($(target).hasClass('startTime')) attr = "data-startTime";
+        if (!attr) {
+            debug("ERROR: invalid click!");
+            debugger;
+            return;
+        }
+        doSort(attr);
+        setTimeout(resetClickFlag, 500);
+        return false;
+    }
+
+    function handleStartTimeClick(e) {
+        let target= $(e.currentTarget);
+        debug("handleStartTimeClick: ", $(target));
+        if (inClick == true) return false;
+        inClick = true;
+        doSort('data-startTime');
+        setTimeout(resetClickFlag, 500);
+        return false;
+    }
+
+    function handleTrackClick(e) {
+        debug("handleTrackClick");
+        if (inClick == true) return false;
+        inClick = true;
+        doSort('data-track');
         setTimeout(resetClickFlag, 500);
         return false;
     }
 
     function handleCatClick(e) {
-        debug("handleCatClick");
+        let target = e ? $(e.currentTarget) : null;
+        let page = $(target).find("a").attr("tab-value");
+        debug("handleCatClick: ", page, $(target));
+
         setTimeout(handlePageLoad, 250);
     }
 
@@ -102,35 +147,76 @@
                 debug("NaN!!! '", timeText, "' ", $(li), $(startTimeNode));
                 debugger;
             }
+
+            let tnode = $(li).find(".track");
+            let track = $(tnode).text();
+
             $(li).attr("data-startTime", timeSecs);
+            $(li).attr("data-track", track);
         }
     }
 
-    function handlePageLoad(retries=0) {
-        if (retries == 0) debug("[handlePageLoad]");
-        if (location.href.indexOf('racing') < 0) return;
-
-        $("ul.categories > li").on('click', handleCatClick);
-
-        // Find active button/category
-        let active = $("ul.categories > li.active");
-        if (!$(active).length) { // on main page?
-            if (retries++ < 20) return setTimeout(handlePageLoad, 250, retries);
-            return debug("Didn't find active button?");
+    function addFilterOpts(retries=0) {
+        if ($("#xraceWrap").length > 0) return;
+        let root = $($(`#racingAdditionalContainer .cont-black.bottom-round`)[0]);
+        if ($(root).length == 0) {
+            if (retries++ < 20) return setTimeout(addFilterOpts, 250, retries);
+            return log("addFilterOpts timeout");
         }
 
-        currentCat = $($(active).find('a')[0]).attr('tab-value');
-        if (currentCat) {
-            if (currentCat != 'customrace') return log("Only sorting on the custom race page now.");
-        }
+        let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
+        let myWrap = `<div id="xraceWrap" class="xflexr" style="width: 100%;"></div>`;
+        $(btnWrap).wrap(myWrap);
+        let optsDiv = `
+            <div class="xr-opts xflexr">
+                <label class="xmr10">Hide pwd protected
+                <input type="checkbox" class="xracecb xmr10 xml5" value="hidePwdProtect">
+                </label>
+            </div>
+            `;
+        $("#xraceWrap").append(optsDiv);
+        $(".xracecb").prop('checked', hidePwdProtect);
+        if (hidePwdProtect == true) $(".events-list > .protected").attr("style", "display: none;");
+        $(".xracecb").on('change.xedx', function (e) {
+            hidePwdProtect = $(this).prop('checked');
+            GM_setValue("hidePwdProtect", hidePwdProtect);
+            updatePwdProtected();
+        });
+
+    }
+
+    function addSortSupport(retries=0) {
 
         // Get the start time col header
         let startTimeBtn = $("li.startTime.title-divider");
+        let trackBtn = $("li.track.title-divider");
+        if ($(startTimeBtn).length == 0 && $(trackBtn).length == 0) {
+            if (retries++ < 20) return setTimeout(addSortSupport, 250, retries);
+            return debug("[handlePageLoad] timeout: ", $(startTimeBtn).length, $(trackBtn).length);
+        }
+
+        $(trackBtn).addClass("xsrtbtn");
         $(startTimeBtn).addClass("xsrtbtn");
-        $(startTimeBtn).on('click', handleStartTimeClick);
+
+        $(".xsrtbtn").on('click.xedx', handleBtnClick);
 
         addSortAttrs();
+    }
 
+    function handlePageLoad(retries=0) {
+
+        if (location.href.indexOf('racing') < 0) {
+            clearInterval(pwdInterval);
+            return;
+        }
+
+        addFilterOpts();
+        addSortSupport();
+
+        $("ul.categories > li").off('click.xedx');
+        $("ul.categories > li").on('click.xedx', handleCatClick);
+
+        clearInterval(pwdInterval);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -141,7 +227,9 @@
 
     if (checkCloudFlare()) return log("Won't run while challenge active!");
 
-    //validateApiKey();
+    if (hidePwdProtect == true) updatePwdProtected();
+    pwdInterval = (hidePwdProtect == true) ? setInterval(updatePwdProtected, 200): null;
+
     versionCheck();
 
     addStyles();
@@ -151,15 +239,25 @@
 
     callOnContentLoaded(handlePageLoad);
 
-
-    // Add any styles here
     function addStyles() {
+        addFlexStyles();
+        loadCommonMarginStyles();
+
         GM_addStyle(`
             .xsrtbtn {
                 cursor: pointer;
             }
             .xsrtbtn:hover {
                 background: linear-gradient(180deg,#333,#000);
+            }
+            .xr-opts {
+                margin-left: auto;
+                float: right;
+                align-content: center;
+            }
+            .xr-opts label {
+                font-family: arial;
+                font-size: 14px;
             }
         `);
 
