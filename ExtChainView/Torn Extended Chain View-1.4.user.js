@@ -66,7 +66,7 @@
         if (optColor)
             $(li).css("border", `1px solid ${optColor}`);
         else {
-            let id = $(tn).attr("data-tid");
+            let id = $(tm).attr("data-tid");
             clearInterval(id);
             $(li).remove();
         }
