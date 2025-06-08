@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Weapon Watch
 // @namespace    http://tampermonkey.net/
-// @version      1.15
+// @version      1.16
 // @description  Lets you know when a weapon with particular bonus is for sale.
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -722,10 +722,16 @@
 
         log("[handleViewMatches] bonusId: ", bonusId, " useBonus: ", useBonus, " mod: ", bonusMod);
 
-        let searchStr = `&itemID=${itemId}&itemName=${htmlName}&itemType=${cat}&sortField=price&sortOrder=ASC&${bonusMod}&from=tww&uuid=${uuid}`;
+        let fromPage = pageTitle().replaceAll(' ', '%20');
+        let searchStr =
+            `&itemID=${itemId}&itemName=${htmlName}&itemType=${cat}` +
+            `&sortField=price&sortOrder=ASC&${bonusMod}&from=tww&uuid=${uuid}&pageid=${myId}&pageTitle=${fromPage}`;
         log("Search: ", searchStr);
 
         let URL = baseUrl + searchHash + searchStr;
+        if (confirm("Weapon Watch: Opening new tab.\nmyId: " + myId + " page: " + pageTitle() + "\n\nBreak in debugger?")) {
+            debugger;
+        }
         openInNewTab(URL);
     }
 
