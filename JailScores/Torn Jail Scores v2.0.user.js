@@ -2221,6 +2221,7 @@
             log("Pages: ", thisPageNum, " | ", lastPageNum);
             log("currPgBtn: ", $(currPgBtn));
             log("clickBtn: ", $(clickBtn));
+            log("This page num: ", thisPageNum);
 
             $(clickBtn).css("border", "1px solid green");
             $(clickBtn).css("color", "limegreen");
@@ -2395,6 +2396,24 @@
             if (!totalPlayers) {
                 debug("json: ", jsonObj);
                 debugger;
+            }
+
+            // Handle was on last page - but no longer exists
+            let tmpDiv = $(jsonObj.data.pagination);
+            log("tmpDiv: ", $(tmpDiv), " children: ", $(tmpDiv).children().length);
+
+            let last = $(tmpDiv).find(".page-number.last");
+            let lastPgNum = $(last).attr("page");
+            log("last: ", $(last));
+            log("last pg num: ", lastPgNum, " this page: ", thisPageNum);
+
+            if (!$(tmpDiv).length || parseInt(thisPageNum) > parseInt(lastPgNum)) {
+                log("Reload first page!!");
+                totalPlayers = jsonObj.total;
+                $("#mainContainer > div.content-wrapper > .pagination-wrap").remove();
+                forceReloadPageNum = 1;
+                reloadUserList();
+                return;
             }
 
             // Handle not on last page - which is where the easiest to bust are.
