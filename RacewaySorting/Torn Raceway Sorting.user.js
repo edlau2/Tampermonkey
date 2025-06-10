@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.8
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
+// @match        https://www.torn.com/loader.php?sid=racing*
 // @match        https://www.torn.com/page.php?sid=racing*
 // @exclude      https://www.torn.com/loader.php*sid=attack&user2ID*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
-// @run-at       document-body
 // @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/tinysort.js
