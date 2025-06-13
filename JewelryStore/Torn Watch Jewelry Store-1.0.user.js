@@ -66,12 +66,12 @@
         let keys = Object.keys(targets);
         for (let idx=0; idx<keys.length; idx++) {
             let crime = targets[keys[idx]];
-            let msg1 = keys[idx] + ": " + crime[0].title + (crime[0].disabled == true) ? ": disabled! " : ": enabled, ";
+            let msg1 = keys[idx] + ">> " + crime[0].title + ((crime[0].disabled == true) ? ": disabled! " : ": enabled. ");
             let msg2 = "";
             if (crime[1]) {
-                crime[1].title + (crime[1].disabled == true) ? ": disabled! " : ": enabled, ";
+                msg2 = crime[1].title + ((crime[1].disabled == true) ? ": disabled! " : ": enabled.");
             }
-            debug(msg1, msg2);
+            debug(`${msg1}${msg2}`);
         }
     }
 
