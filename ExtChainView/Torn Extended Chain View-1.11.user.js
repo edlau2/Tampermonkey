@@ -61,6 +61,22 @@
         callOnContentLoaded(handlePageLoad);
     }
 
+    function debugCheckNodes() {
+        let list = $('#ext-chain-view > li.ext-li');
+        for (let idx=0; idx<$(list).length; idx++) {
+            let liNode = $(list)[idx];
+            let uuid = $(liNode).attr("data-uuid");
+            let others = $(`li[data-uuid='${uuid}']`);
+            if ($(others).length > 1) {
+                log("Error: duplicate nodes detected! ", $(others));
+                console.error("List corruption! ", $('#ext-chain-view'));
+                debugger;
+
+                return;
+            }
+        }
+    }
+
     // 'optColor' used for development/debugging
     var oldestTime;
     function removeListElement(li, optColor) {
@@ -139,6 +155,9 @@
             logLiNode(liNode, 'ADDING, start time. ');
             //log("ADDING, start time ", $(liNode), $(liNode).attr("data-uuid"), $(liNode).attr("data-inst"), $(liNode).attr("data-st-tm"));
         }
+
+        debugCheckNodes();
+
     }
 
     const nodeText = (liNode) => { return $(liNode).find('.time').text(); }
@@ -199,6 +218,8 @@
             $(timeNode).text(textOut);
             log(timeTic(), " Set new time: ", textOut);
         }
+
+        debugCheckNodes();
     }
 
     function installObserver(targetNode) {
@@ -220,6 +241,11 @@
         }
 
         function copyNewNode(node) {
+            if ($(node).hasClass("ext-li")) {
+                log("ERROR: cloning a clone! ", $(node));
+                debugger;
+                return;
+            }
             let newNode = $(node).clone(true, true);
             $(newNode).addClass("ext-li");
             $(newNode).attr("data-inst", nodeCount++);
@@ -228,6 +254,8 @@
             let retNode = $($('#ext-chain-view > li')[0]);
             log("Add new node, len: ", $('#ext-chain-view > li').length, " max: ", maxExtLength);
             log("Node: ", $(retNode));
+
+            debugCheckNodes();
         }
 
         // This observer watches for changes in the list items
@@ -248,6 +276,7 @@
                     }
                 }
             }
+            debugCheckNodes();
             reconnectLiNodes();
         });
 
@@ -286,6 +315,7 @@
                       }
                   }
               });
+              debugCheckNodes();
 
               mutation.addedNodes.forEach(node => {
                   log("[mutation] Node added! ", $(node));
@@ -299,6 +329,7 @@
                       log("[mutation] Added node attrs: ", $(node).attr("data-se"), $(node).attr("data-sn"));
                   }
               });
+                debugCheckNodes();
             }
           }
         });
