@@ -30,13 +30,14 @@
     const getCustRaceWrap = function () {return $(".custom-events-wrap");}
     const hasCustRaceWrap = function () {return $(".custom-events-wrap").length > 0;}
 
+    // moving to filtering table
     var hidePwdProtect = GM_getValue("hidePwdProtect", false);
-
-    //if (hidePwdProtect == true) updatePwdProtected();
     var pwdInterval; // = (hidePwdProtect == true) ? setInterval(updatePwdProtected, 200): null;
 
     debugLoggingEnabled =
         GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
+
+    const doCarSuggest = false;
 
     function hashChangeHandler() {
         debug("[hashChangeHandler]: ", location.href);
@@ -72,12 +73,24 @@
     var carSuggested = false;
     function setBestCarSelection(retries=0) {
         if (carSuggested == true) {
+            log("[setBestCarSelection] Already suggested!!!");
             return;
         }
         if (retries == 0) {
             debug("[setBestCarSelection] container: ", $("#racingAdditionalContainer"));
         }
-        let hdr = $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap .enlisted-btn-wrap"); //[0];
+        log("[setBestCarSelection] ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div:nth-child(2) > div"));
+        log("[setBestCarSelection] ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap .enlisted-btn-wrap").length);
+        log("[setBestCarSelection] ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > .enlisted-btn-wrap").length);
+        log("[setBestCarSelection] ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > .enlisted-btn-wrap").length);
+        log("[setBestCarSelection] ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap").length);
+        log("[setBestCarSelection] ", $("div.enlist-wrap.enlisted-wrap > .enlisted-btn-wrap").length);
+        log("[setBestCarSelection] ", $("div.enlist-wrap.enlisted-wrap .enlisted-btn-wrap").length);
+        log("[setBestCarSelection] ", $("div.enlist-wrap.enlisted-wrap").length);
+        log("[setBestCarSelection] ", $(".enlisted-btn-wrap").length);
+
+        let hdr = $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > .enlisted-btn-wrap"); //[0];
+        if (!$(hdr).length) hdr = $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap > div:nth-child(2) > div");
         if (!$(hdr).length) {
             if (retries++ < 30) return setTimeout(setBestCarSelection, 250, retries);
             log("timed out, btn-wrap: ", $(".enlisted-btn-wrap"));
@@ -91,22 +104,18 @@
         let track = parts ? parts[0].trim().toLowerCase() : null;
         let suggested = track_cars[track];
 
-        debug("Text: ", text, " parts: ", parts, " Track: ", track, " suggested: ", suggested);
+        log("Text: ", text, " parts: ", parts, " Track: ", track, " suggested: ", suggested);
 
         if (text && suggested) {
-            suggested = true;
+            carSuggested = true;
             $(hdr).text(text + " > " + suggested);
         }
     }
-
-    // ======================== Button handling ========================================
 
     function hookButtons() {
         let raceBtn = $("#racingMainContainer > div > div.header-wrap.border-round > ul > li > a[tab-value='race']");
         $(raceBtn).on('click', handleOffRaceBtn);
         log("[hookButtons] race: ", $(raceBtn));
-
-
 
         function handleOffRaceBtn(e, retries=0) {
             let btn = $("#xraceWrap > div.btn-wrap > a[tab-value='race']");
@@ -120,15 +129,7 @@
 
     }
 
-    // ==================== Sorting/Filtering support ==================================
-
-    function updatePwdProtected() {
-        if (hidePwdProtect == true) {
-            $(".events-list > .protected").attr("style", "display: none;");
-        } else {
-            $(".events-list > .protected").attr("style", "display: list-item;");
-        }
-    }
+    // ==================== Sorting support ==================================
 
     var prevOrder = 0;
     function doSort(what) {
@@ -226,37 +227,7 @@
         }
     }
 
-    function addFilterOpts(retries=0) {
-        if ($("#xraceWrap").length > 0) return;
-        let root = $($(`#racingAdditionalContainer .cont-black.bottom-round`)[0]);
-        if ($(root).length == 0) {
-            if (retries++ < 20) return setTimeout(addFilterOpts, 250, retries);
-            return log("addFilterOpts timeout");
-        }
-
-        let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
-        let myWrap = `<div id="xraceWrap" class="xflexr" style="width: 100%;"></div>`;
-        $(btnWrap).wrap(myWrap);
-        let optsDiv = `
-            <div class="xr-opts xflexr">
-                <label class="xmr10">Hide pwd protected
-                <input type="checkbox" class="xracecb xmr10 xml5" value="hidePwdProtect">
-                </label>
-            </div>
-            `;
-        $("#xraceWrap").append(optsDiv);
-        $(".xracecb").prop('checked', hidePwdProtect);
-        if (hidePwdProtect == true) $(".events-list > .protected").attr("style", "display: none;");
-        $(".xracecb").on('change.xedx', function (e) {
-            hidePwdProtect = $(this).prop('checked');
-            GM_setValue("hidePwdProtect", hidePwdProtect);
-            updatePwdProtected();
-        });
-
-    }
-
     function addSortSupport(retries=0) {
-
         // Get the start time col header
         let startTimeBtn = $("li.startTime.title-divider");
         let trackBtn = $("li.track.title-divider");
@@ -275,6 +246,306 @@
 
     // =================== End Sort Support ==============================
 
+    // ==================== Filtering support ==================================
+
+    // Move to filter table...
+    function updatePwdProtected() {
+        if (hidePwdProtect == true) {
+            $(".events-list > .protected").attr("style", "display: none;");
+        } else {
+            $(".events-list > .protected").attr("style", "display: list-item;");
+        }
+    }
+
+    const defFilterTable = {
+        tracks: {
+            "Uptown": {}, //{enabled: true, aka: 'ptown'},
+            "Commerce": {}, //{enabled: true, aka: 'ommer'},
+            "Withdrawal": {}, //{enabled: true, aka: 'ithdraw'},
+            "Underdog": {}, //{enabled: true, aka: 'nderd'},
+            "Parkland": {}, //{enabled: true, aka: 'arkla'},
+            "Docks": {}, //{enabled: true, aka: 'ocks'},
+            "Two Islands": {}, //{enabled: true, aka: 'slands'},
+            "Industrial": {}, //{enabled: true, aka: 'ndustr'},
+            "Vector": {}, //{enabled: true, aka: 'ecto'},
+            "Mudpit": {}, //{enabled: true, aka: 'udp'},
+            "Hammerhead": {}, //{enabled: true, aka: 'ammer'},
+            "Sewage": {}, //{enabled: true, aka: 'ewag'},
+            "Meltdown": {}, //{enabled: true, aka: 'eltd'},
+            "Speedway": {}, //{enabled: true, aka: 'peedw'},
+            "Stone Park": {}, //{enabled: true, aka: 'tone'},
+            "Convict": {}, //{enabled: true, aka: 'onvi'},
+        },
+        misc: {
+            "allowProtected": { enabled: true, display: "Allow Password" },
+            "allowFee": { enabled: true, display: "Allow Fees" },
+            "longRaces": { enabled: true, display: "Allow Long Races" },
+        }
+    };
+
+    // 'Live' filtering definitions
+    var filterTable = {};
+
+    function saveFilterTable() {
+        GM_setValue("filterTable", JSON.stringify(filterTable));
+    }
+
+
+    const trackList = () => {return filterTable.tracks;}
+    function getAllowedTracks() {
+        let res = [], keys = Object.keys(trackList());
+        for (let idx=0; idx<keys.length; idx++) {
+            if (trackList()[keys[idx]].enabled == true)
+                res.push(trackList()[keys[idx]]);
+        }
+        return res;
+    }
+
+    function applyFilters() {
+        let root = $("ul.events-list");
+        let fullList = $("ul.events-list > li");
+
+        let trackSel = "";
+        let tracks = [];
+        for (let key in filterTable.tracks) {
+            let entry = filterTable.tracks[key];
+            if (entry.enabled == true) tracks.push(`li[data-track*='${entry.aka}']`);
+        }
+        if (tracks.length) tracks.forEach(entry => {trackSel = trackSel + ', ' + entry;});
+
+        // Maybe just filter the UL/list here then process each one as we go through our table?
+
+
+        // 100 lap races, password protected
+        $("ul.events-list > li:not(.long-time):not(.protected)")
+
+        // Docks track
+        $("ul.events-list > li[data-track*='ocks']")
+
+        // OR'ed (for and, omit comma and space)
+        $("ul.events-list > li[data-track*='ocks'], li[data-track*='ithdraw']")
+
+        // Fee
+        //  li > div.acc-body > div > div.event-wrap.left > ul > li.fee
+        // password: li.protected
+
+        // any car or any class
+        // li > div.event-header.left > ul > li.car  .t-hide is 'any car', 'any class', any C class', etc
+
+        // # drivers (x / y)
+        // li > div.acc-body > div > div.event-wrap.left > ul > li.drivers > span
+    }
+
+    function addFilterSupport(retries=0) {
+        if ($("#filter-opts").length > 0) return;
+        let root = $("#racingAdditionalContainer > div.start-race");
+        if ($(root).length == 0) {
+            if (retries++ < 20) return setTimeout(addFilterSupport, 250, retries);
+            return log("[addFilterSupport] timeout: ", retries);
+        }
+
+        openFilterTable();
+        installOptTable();
+
+
+        function openFilterTable() {
+            log("[openFilterTable]");
+            filterTable = JSON.parse(GM_getValue("filterTable", JSON.stringify({})));
+            log("table: ", filterTable);
+            if (!filterTable || !Object.keys(filterTable).length) { // Never savd, use default
+                filterTable = JSON.parse(JSON.stringify(defFilterTable));
+                let keys = Object.keys(filterTable.tracks);
+                log("Track keys: ", keys);
+                for (let idx=0; idx<keys.length; idx++) {
+                    let entry = filterTable.tracks[keys[idx]];
+                    entry.enabled = true;
+
+                    let parts = keys[idx].split(' '); //[0].substring[1];
+                    let name = parts[0];
+                    let aka = name.substring(1);
+                    log("key: ", keys[idx], " parts: ", parts, " name: ", name, " aka: ", aka);
+                    entry.aka = aka; //keys[idx].split(' ')[0].substring[1];
+                }
+                log("filterTable: ", filterTable);
+                saveFilterTable();
+                filterTable = JSON.parse(GM_getValue("filterTable", JSON.stringify(filterTable)));
+            }
+        }
+    }
+
+    // =================== Build the filter UI table ========================
+
+    // Option change handlers - these seem the same...merge
+    function handleTrackSelect(e) {
+        let key = $(this).attr('name');
+        let checked = $(this).prop('checked');
+        log("[handleTrackSelect]: ", key, checked);
+
+        filterTable.tracks[key].enabled = checked;
+
+        log("on: ", filterTable.tracks[key].enabled);
+        saveFilterTable();
+
+        let aka = $(this).attr('data-aka');
+        if (checked)
+            $(`ul.events-list > li[data-track*='${aka}']`).removeClass("fhide");
+        else
+            $(`ul.events-list > li[data-track*='${aka}']`).addClass("fhide");
+    }
+
+    function handleMiscOptChange(e) {
+        let key = $(this).attr('name');
+        let checked = $(this).prop('checked');
+        let entry = filterTable.misc[key];
+        log("entry: ", entry);
+        entry.enabled = checked;
+        saveFilterTable();
+    }
+
+    function installOptTable() {
+        log("[installOptTable]");
+        let optTable = getFilterOptsDiv();
+
+        log("optTable: ", $(optTable));
+        log("race wrap: ", $("#xraceWrap"));
+
+        let root = $("#racingAdditionalContainer > div.start-race");
+        log("root: ", $(root));
+
+        $(root).append(optTable);
+
+        $(".xtrack").each(function (idx, el) {
+            log("this: ", $(this));
+            log("name: ", filterTable.tracks[$(this).attr('name')]);
+            log("on: ", filterTable.tracks[$(this).attr('name')].enabled);
+
+            let checked = filterTable.tracks[$(this).attr('name')].enabled;
+            let aka = $(this).attr('data-aka');
+            $(this).prop('checked', checked);
+            if (checked)
+                $(`ul.events-list > li[data-track*='${aka}']`).removeClass("fhide");
+            else
+                $(`ul.events-list > li[data-track*='${aka}']`).addClass("fhide");
+        })
+
+        log("filter-opts: ", $("#filter-opts"));
+
+        $(".xtrack").on('change', handleTrackSelect);
+        $(".xmisc").on('change', handleMiscOptChange);
+    }
+
+    function getFilterOptsDiv() {
+        let filterOptDiv = $(`<div id="filter-opts" class='cont-black'><table><tbody></tbody></table></div>`);
+
+        addFilterStyles();
+        addTrackRows(filterOptDiv);
+        addMiscOptionRows(filterOptDiv);
+
+        return filterOptDiv;
+
+        function addTrackRows(tableDiv) {
+            let keys = Object.keys(trackList());
+            for (let idx=0; idx<keys.length; idx += 4) {
+                let row = `<tr>`;
+                for (let j=0;j<4;j++) {
+                    let newIdx = idx + j;
+                    let entry = trackList()[keys[newIdx]];
+                    row = row + `<td><label><input class='xtrack' type='checkbox' name='${keys[newIdx]}' data-aka='${entry.aka}'>${keys[newIdx]}</label></td>`;
+                }
+                row = row + `</tr>`;
+                $(tableDiv).find('tbody').append(row);
+            }
+        }
+
+        function addMiscOptionRows(tableDiv) {
+            // go item by item, add a TD, end row if %4 = 0, if over add %4 empty td's
+            let keys = Object.keys(filterTable.misc);
+            let row = `<tr>`, idx = 0;
+            for (idx=0; idx<keys.length; idx++) {
+                let entry = filterTable.misc[keys[idx]];
+                row = row + `<td><label><input class='xmisc' type='checkbox' name='${keys[idx]}'>${entry.display}</label></td>`;
+                if ((idx > 0) && (idx % 3 == 0) && (idx != keys.length - 1)) row = row + `</tr><tr>`;
+            }
+            for (let i=0; i<(4 - (keys.length % 4)); i++) row = row + `<td></td>`;
+            row = row + `</tr>`;
+
+            $(tableDiv).find('tbody').append(row);
+        }
+
+        var stylesAdded = false;
+        function addFilterStyles() {
+            if (stylesAdded == true) return;
+            stylesAdded = true;
+
+            // table styles
+            GM_addStyle(`
+                #filter-opts {
+                    padding: 10px;
+                    /* background-color: #666; */
+                }
+
+                #filter-opts > table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                    border-radius: 4px;
+                }
+
+                #filter-opts tbody {
+                    background-color: black;
+                }
+
+                #filter-opts label {
+                    display: flex;
+                    fles-flow: row wrap;
+                    align-content: center;
+                    justify-content: left;
+                }
+
+                #filter-opts tr {
+                    display: flex;
+                    /*flex-flow: row wrap;
+                    justify-content: space-between;*/
+                }
+
+                #filter-opts td {
+                    display: flex;
+                    flex-flow: row wrap;
+                    justify-content: left;
+                    align-content: center;
+                    vertical-align: middle;
+                    padding: 2px 0px 2px 10px;
+                    width: 25%;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    color: white;
+                    border: 1px solid white;
+                    padding: 10px 0px 10px 10px;
+                }
+
+                #filter-opts tr:hover {
+                    /*background-color: #ddd;*/
+                    filter: brightness(1.2);
+                }
+
+                #filter-opts td:hover {
+                    /*background-color: coral;*/
+                    filter: brightness(1.6);
+                }
+
+                #filter-opts input[type=checkbox] {
+                    margin-right: 10px;
+                }
+
+                .fhide { display: none; }
+            `);
+        }
+    }
+
+
+    // =================== Called at page load ==============================
+
     function handlePageLoad(retries=0) {
 
         debug("[handlePageLoad]", retries);
@@ -284,15 +555,21 @@
             return log("Wrong page: ", location.href);
         }
 
-        log("Find wrap: ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap"));
-        if ($("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap").length) {
-            setBestCarSelection();
-        } else {
-            setTimeout(setBestCarSelection, 500);
+        // Experimental: car recomendations, official races
+        if (doCarSuggest == true) {
+            log("Find wrap: ", $("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap"));
+            if ($("#racingAdditionalContainer > div.enlist-wrap.enlisted-wrap").length) {
+                setBestCarSelection();
+            } else {
+                setTimeout(setBestCarSelection, 500);
+            }
         }
 
-        addFilterOpts();
+        //addFilterOpts();
+
         addSortSupport();
+
+        addFilterSupport();
 
         $("ul.categories > li").off('click.xedx');
         $("ul.categories > li").on('click.xedx', handleCatClick);
@@ -343,5 +620,34 @@
             }
         `);
     }
+
+
+    // =============================== archive  ===============================
+
+
+        function oldPasswordFilter() {
+            // --- tbd, remove and have in table ---
+            let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
+            let myWrap = `<div id="xraceWrap" class="xflexr" style="width: 100%;"></div>`;
+            $(btnWrap).wrap(myWrap);
+            let optsDiv = `
+                <div class="xr-opts xflexr">
+                    <label class="xmr10">Hide pwd protected
+                    <input type="checkbox" class="xracecb xmr10 xml5" value="hidePwdProtect">
+                    </label>
+                </div>
+                `;
+            $("#xraceWrap").append(optsDiv);
+            $(".xracecb").prop('checked', hidePwdProtect);
+            if (hidePwdProtect == true) $(".events-list > .protected").attr("style", "display: none;");
+            $(".xracecb").on('change.xedx', function (e) {
+                hidePwdProtect = $(this).prop('checked');
+                GM_setValue("hidePwdProtect", hidePwdProtect);
+                updatePwdProtected();
+            });
+        }
+
+
+
 
 })();
