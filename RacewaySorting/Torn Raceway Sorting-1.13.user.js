@@ -14,6 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -30,14 +31,16 @@
     const getCustRaceWrap = function () {return $(".custom-events-wrap");}
     const hasCustRaceWrap = function () {return $(".custom-events-wrap").length > 0;}
 
-    // moving to filtering table
-    var hidePwdProtect = GM_getValue("hidePwdProtect", false);
-    var pwdInterval; // = (hidePwdProtect == true) ? setInterval(updatePwdProtected, 200): null;
-
     debugLoggingEnabled =
         GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
 
     const doCarSuggest = false;
+
+    let val = GM_getValue("curr_ver", 0);
+    if (parseFloat(val) < 1.13) GM_deleteValue("filterTable");
+
+    // temp
+    //GM_deleteValue("filterTable");
 
     function hashChangeHandler() {
         debug("[hashChangeHandler]: ", location.href);
@@ -240,38 +243,17 @@
 
     // ==================== Filtering support ==================================
 
-    // Move to filter table...
-    function updatePwdProtected() {
-        //if (hidePwdProtect == true) {
-        //    $(".events-list > .protected").attr("style", "display: none;");
-        //} else {
-        //    $(".events-list > .protected").attr("style", "display: list-item;");
-        //}
-    }
-
     const defFilterTable = {
         tracks: {
-            "Uptown": {}, //{enabled: true, aka: 'ptown'},
-            "Commerce": {}, //{enabled: true, aka: 'ommer'},
-            "Withdrawal": {}, //{enabled: true, aka: 'ithdraw'},
-            "Underdog": {}, //{enabled: true, aka: 'nderd'},
-            "Parkland": {}, //{enabled: true, aka: 'arkla'},
-            "Docks": {}, //{enabled: true, aka: 'ocks'},
-            "Two Islands": {}, //{enabled: true, aka: 'slands'},
-            "Industrial": {}, //{enabled: true, aka: 'ndustr'},
-            "Vector": {}, //{enabled: true, aka: 'ecto'},
-            "Mudpit": {}, //{enabled: true, aka: 'udp'},
-            "Hammerhead": {}, //{enabled: true, aka: 'ammer'},
-            "Sewage": {}, //{enabled: true, aka: 'ewag'},
-            "Meltdown": {}, //{enabled: true, aka: 'eltd'},
-            "Speedway": {}, //{enabled: true, aka: 'peedw'},
-            "Stone Park": {}, //{enabled: true, aka: 'tone'},
-            "Convict": {}, //{enabled: true, aka: 'onvi'},
+            "Uptown": {}, "Commerce": {}, "Withdrawal": {}, "Underdog": {},
+            "Parkland": {}, "Docks": {}, "Two Islands": {}, "Industrial": {},
+            "Vector": {}, "Mudpit": {}, "Hammerhead": {}, "Sewage": {}, 
+            "Meltdown": {}, "Speedway": {}, "Stone Park": {}, "Convict": {}
         },
         misc: {
-            "allowProtected": { enabled: true, display: "Allow Password" },
-            "allowFee": { enabled: true, display: "Allow Fees" },
-            "longRaces": { enabled: true, display: "Allow Long Races" },
+            "Allow Password": { enabled: true, sel: `protected`, class: 'pwdhide' },
+            "Allow Fees": { enabled: true, filter: 'feeFilter', class: 'feehide' },
+            "Allow Long Races": { enabled: true, filter: "longFilter", class: 'longhide' },
         }
     };
 
@@ -292,40 +274,11 @@
         return res;
     }
 
-    function applyFilters() {
-        let root = $("ul.events-list");
-        let fullList = $("ul.events-list > li");
+    // any car or any class
+    // li > div.event-header.left > ul > li.car  .t-hide is 'any car', 'any class', any C class', etc
 
-        let trackSel = "";
-        let tracks = [];
-        for (let key in filterTable.tracks) {
-            let entry = filterTable.tracks[key];
-            if (entry.enabled == true) tracks.push(`li[data-track*='${entry.aka}']`);
-        }
-        if (tracks.length) tracks.forEach(entry => {trackSel = trackSel + ', ' + entry;});
-
-        // Maybe just filter the UL/list here then process each one as we go through our table?
-
-
-        // 100 lap races, password protected
-        $("ul.events-list > li:not(.long-time):not(.protected)")
-
-        // Docks track
-        $("ul.events-list > li[data-track*='ocks']")
-
-        // OR'ed (for and, omit comma and space)
-        $("ul.events-list > li[data-track*='ocks'], li[data-track*='ithdraw']")
-
-        // Fee
-        //  li > div.acc-body > div > div.event-wrap.left > ul > li.fee
-        // password: li.protected
-
-        // any car or any class
-        // li > div.event-header.left > ul > li.car  .t-hide is 'any car', 'any class', any C class', etc
-
-        // # drivers (x / y)
-        // li > div.acc-body > div > div.event-wrap.left > ul > li.drivers > span
-    }
+    // # drivers (x / y)
+    // li > div.acc-body > div > div.event-wrap.left > ul > li.drivers >
 
     function addFilterSupport(retries=0) {
         if ($("#filter-opts").length > 0) return;
@@ -336,7 +289,7 @@
         }
 
         openFilterTable();
-        installOptTable();
+        addFilterBtn();
 
         function openFilterTable() {
             log("[openFilterTable]");
@@ -366,14 +319,37 @@
     // =================== Build the filter UI table ========================
 
     // Option change handlers - these seem the same...merge
+    function getList(entry) {
+        let list;
+        if (entry.sel) {
+            list = $(`.events-list > .${entry.sel}`);
+            return $(list);
+        }
+        if (entry.filter) {
+            switch (entry.filter) {
+                case "feeFilter": {
+                    list = $("ul.event-info > li.fee").not(":contains('$0')").closest('[data-track]');
+                    return $(list);
+                }
+                case "longFilter": {
+                    list = $(`.events-list > .long-time`).closest('[data-track]');
+                    return $(list);
+                }
+                default: {
+                    debugger;
+                }
+            }
+            return {};
+        }
+        debugger;
+        return {};
+    }
+
     function handleTrackSelect(e) {
         let key = $(this).attr('name');
         let checked = $(this).prop('checked');
-        log("[handleTrackSelect]: ", key, checked);
 
         filterTable.tracks[key].enabled = checked;
-
-        log("on: ", filterTable.tracks[key].enabled);
         saveFilterTable();
 
         let aka = $(this).attr('data-aka');
@@ -387,16 +363,14 @@
         let key = $(this).attr('name');
         let checked = $(this).prop('checked');
         let entry = filterTable.misc[key];
-        log("entry: ", entry);
         entry.enabled = checked;
         saveFilterTable();
 
-        // Make this better, have selector/class as a data-attr
-        if (key == 'allowProtected') {
-            if (checked == true)
-                $(".events-list > .protected").removeClass('pwdhide');
-            else
-                $(".events-list > .protected").addClass('pwdhide');
+        let list = getList(entry);
+        if (checked == true) {
+            $(list).removeClass(entry.class);
+        } else {
+            $(list).addClass(entry.class);
         }
     }
 
@@ -424,29 +398,34 @@
                 $(`ul.events-list > li[data-track*='${aka}']`).removeClass("trackhide");
             else
                 $(`ul.events-list > li[data-track*='${aka}']`).addClass("trackhide");
-        })
+        });
 
-        let checked = filterTable.misc.allowProtected.enabled;
-        log("PWD enabled: ", checked);
-        $(`td[name='allowProtected']`).prop('checked', checked);
-        if (checked == true)
-            $(".events-list > .protected").removeClass('pwdhide');
-        else
-            $(".events-list > .protected").addClass('pwdhide');
+        $(".xmisc").each(function (idx, el) {
+            let key = $(this).attr('name');
+            let entry = filterTable.misc[key];
 
-        log("Protected: ", $(".events-list > .protected"));
+            let checked = entry.enabled;
+            $(this).prop('checked', checked);
 
-        //log("filter-opts: ", $("#filter-opts"));
+            let list = getList(entry);
+            if (checked == true) {
+                $(list).removeClass(entry.class);
+            } else {
+                $(list).addClass(entry.class);
+            }
+        });
 
         $(".xtrack").on('change', handleTrackSelect);
         $(".xmisc").on('change', handleMiscOptChange);
-
-        addFilterBtn();
-        $("#xfilt-btn").click();
     }
 
-    function addFilterBtn() {
+    function addFilterBtn(retries=0) {
+        if ($("#xfilt-btn").length > 0) return;
         let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
+        if (!$(btnWrap).length) {
+            if (retries++ < 50) return setTimeout(addFilterBtn, 250, retries);
+            return log("[addFilterBtn] timed out!");
+        }
         let myWrap = `<div id="xraceWrap" class="xflexr" style="width: 100%;  justify-content: space-between;"></div>`;
         $(btnWrap).wrap(myWrap);
 
@@ -459,6 +438,11 @@
 
         var detachedTable;
         function doFilterOpen(e) {
+            if (!detachedTable && !$("#filter-opts").length) {
+                installOptTable();
+                return;
+            }
+
             let root = $("#racingAdditionalContainer > div.start-race");
             let newHeight = "175px";
             let closing = false;
@@ -516,8 +500,9 @@
             let keys = Object.keys(filterTable.misc);
             let row = `<tr>`, idx = 0;
             for (idx=0; idx<keys.length; idx++) {
-                let entry = filterTable.misc[keys[idx]];
-                row = row + `<td><label><input class='xmisc' type='checkbox' name='${keys[idx]}'>${entry.display}</label></td>`;
+                let key = keys[idx];
+                let entry = filterTable.misc[key];
+                row = row + `<td><label><input class='xmisc' type='checkbox' name='${key}'>${key}</label></td>`;
                 if ((idx > 0) && (idx % 3 == 0) && (idx != keys.length - 1)) row = row + `</tr><tr>`;
             }
             for (let i=0; i<(4 - (keys.length % 4)); i++) row = row + `<td></td>`;
@@ -605,7 +590,6 @@
         debug("[handlePageLoad]", retries);
 
         if (location.href.indexOf('racing') < 0) {
-            clearInterval(pwdInterval);
             return log("Wrong page: ", location.href);
         }
 
@@ -627,8 +611,6 @@
 
         $("ul.categories > li").off('click.xedx');
         $("ul.categories > li").on('click.xedx', handleCatClick);
-
-        clearInterval(pwdInterval);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -638,9 +620,6 @@
     logScriptStart();
 
     if (checkCloudFlare()) return log("Won't run while challenge active!");
-
-    if (hidePwdProtect == true) updatePwdProtected();
-    pwdInterval = (hidePwdProtect == true) ? setInterval(updatePwdProtected, 200): null;
 
     versionCheck();
 
