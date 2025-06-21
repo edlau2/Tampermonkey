@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.16
+// @version      1.17
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=racing*
@@ -131,26 +131,33 @@
 
     var prevOrder = 0;
     function doSort(what) {
+        debug("Sorting on ", what);
         let matches = $(".events-list > li");
         let attr = what; //'data-startTime';
         let order = (prevOrder == 0) ? 'asc' : 'desc';
         prevOrder = (prevOrder == 0) ? 1 : 0;
+        debug("Order: ", order, " sort list: ", $(matches));
         tinysort(matches, {attr: attr, order: order});
     }
 
     var inClick = false;
     function resetClickFlag() {inClick = false;}
     function handleBtnClick(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
         let target= $(e.currentTarget);
-        debug("handleBtnClick: ", $(target));
+        debug("[sort] handleBtnClick: ", $(target));
         if (inClick == true) return false;
         inClick = true;
         let attr;
         if ($(target).hasClass('track')) attr = "data-track";
         if ($(target).hasClass('startTime')) attr = "data-startTime";
+        debug("[sort] attr: ", attr);
         if (!attr) {
+            setTimeout(resetClickFlag, 500);
             debug("ERROR: invalid click!");
-            debugger;
+            //debugger;
             return;
         }
         doSort(attr);
