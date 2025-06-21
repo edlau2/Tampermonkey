@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.19
+// @version      1.20
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=racing*
