@@ -263,8 +263,6 @@
         //addSortAttrs();
     }
 
-    // =================== End Sort Support ==============================
-
     // ==================== Filtering support ============================
 
     var filterEnabled = GM_getValue("filterEnabled", true);
@@ -301,12 +299,11 @@
 
     var activeDirty = false;
     function saveFilterTable(tableName = activeTable) {
-        log("saveFilterTable: ", tableName, activeIsPreset);
         if (activeIsPreset == true) {
             activeDirty = true;
             return;
         }
-        log("[saveFilterTable] Saving table as ", tableName);
+        debug("[saveFilterTable] Saving table as ", tableName);
         GM_setValue(tableName, JSON.stringify(filterTable));
         activeTable = tableName;
         GM_setValue("activeTable", tableName);
@@ -315,10 +312,14 @@
 
     const trackList = () => {return filterTable.tracks;}
     function getAllowedTracks() {
-        let res = [], keys = Object.keys(trackList());
-        for (let idx=0; idx<keys.length; idx++) {
-            if (trackList()[keys[idx]].enabled == true)
-                res.push(trackList()[keys[idx]]);
+        let res = []; //, keys = Object.keys(trackList());
+        //for (let idx=0; idx<keys.length; idx++) {
+        for (let [key, entry] of Object.entries(trackList())) {
+            debug("[getAllowedTracks] ", key, entry);
+            //if (trackList()[keys[idx]].enabled == true)
+            //    res.push(trackList()[keys[idx]]);
+            if (entry.enabled == true)
+                res.push(entry);
         }
         return res;
     }
@@ -328,15 +329,11 @@
         filterTable = JSON.parse(GM_getValue(tableName, JSON.stringify({})));
         if (!filterTable || !Object.keys(filterTable).length) { // Never savd, use default
             filterTable = JSON.parse(JSON.stringify(defFilterTable));
-            let keys = trackKeys; //Object.keys(filterTable.tracks);
-            for (let idx=0; idx<keys.length; idx++) {
-                let entry = filterTable.tracks[keys[idx]];
+            for (let [key, entry] of Object.entries(trackList())) {
                 entry.enabled = true;
-
-                let parts = keys[idx].split(' '); //[0].substring[1];
-                let name = parts[0];
+                let name = key.split(' ')[0];
                 let aka = name.substring(1);
-                entry.aka = aka; //keys[idx].split(' ')[0].substring[1];
+                entry.aka = aka;
             }
             debug("filterTable: ", filterTable);
             saveFilterTable();
@@ -424,7 +421,7 @@
             if (entry.id == ckId) break;
             entry = null;
         }
-        if (entry) { // && checked == true) {
+        if (entry) {
             entry.enabled = false;
             $(`#${entry.id}`).prop('checked', false);
             $("ul.events-list > li").removeClass(entry.class);
@@ -464,14 +461,7 @@
         else
             $(".xtrack").closest('[data-track]').addClass("trackhide");
 
-        /*
-        let keys = trackKeys; //Object.keys(filterTable.tracks);
-        for (let idx=0; idx<keys.length; idx++) {
-            filterTable.tracks[keys[idx]].enabled = checked;
-        }
-        */
-
-        for (let entry of Object.entries(filterTable.tracks)) {
+        for (let [key, entry] of Object.entries(trackList())) {
             entry.enabled = checked;
         }
 
@@ -497,8 +487,8 @@
     }
 
     function applyAllFilters(forced = false, init) {
-        log("Applying filter table. forced? ", forced, " enabled? ", filterEnabled, " init? ", init, " table: ", activeTable);
-        log("List len: ", $(`ul.events-list > li`).length);
+        debug("Applying filter table. forced? ", forced, " enabled? ", filterEnabled, " init? ", init, " table: ", activeTable);
+        debug("List len: ", $(`ul.events-list > li`).length);
         if (filterEnabled == false && forced == false) return;
 
         if (init == true) {
@@ -674,7 +664,6 @@
         $(btnWrap).wrap(myWrap);
 
         let sep = `<div class="sep"></div>`;
-        // btn-action-tab
         let btnState = filterEnabled ? "on" : "off";
         let initClass = filterEnabled ? "btnOn" : "btnOff";
         let btn =
@@ -695,17 +684,12 @@
             let root = $("#racingAdditionalContainer > div.start-race");
             let newHeight = `${tblHeight}px`;
             let closing = false;
-            log("[doFilterOpen]: ", $("#filter-opts").length, $("#filter-opts").css("height"), $("#filter-opts").hasClass('xf-open'));
-            log("[doFilterOpen]: ", $("#filter-opts"));
             if ($("#filter-opts").hasClass('xf-open')) {
                 newHeight = "0px";
                 closing = true;
             } else {
                 $(root).append(detachedTable);
             }
-
-            log("[doFilterOpen] closing: ", closing, " newH: ", newHeight);
-            log("[doFilterOpen]: ", $("#filter-opts"));
 
             $("#filter-opts").animate({
                 height: newHeight
@@ -746,7 +730,7 @@
         }
 
         function addMiscOptionRows(tableDiv) {
-            let keys = miscKeys; //Object.keys(filterTable.misc);
+            let keys = miscKeys;
             let row = `<tr>`, idx = 0;
             for (idx=0; idx<keys.length; idx++) {
                 let key = keys[idx];
@@ -761,8 +745,35 @@
 
             $(tableDiv).find('tbody').append(row);
             let lastRow = $(tableDiv).find('tbody tr:last-child');
-            //$(lastRow).css('border-top', '3px solid blue');
             $(lastRow).addClass("tr-misc");
+        }
+
+        function getAltFtr() {
+            let row =
+                `<tr><td colspan='4' class='tbl-ftr'>
+                    <span>
+                        <input name='xselect' type="submit" class="x-select btn-dark-bg torn-btn" value="Select All">
+                        <input name='xdeselect' type="submit" class="x-select btn-dark-bg torn-btn" value="Clear All">
+                        <input name='xsavepreset' type="submit" class="x-preset btn-dark-bg torn-btn" value="Save">
+                        <!-- span class='preset-wrap'><label>Presets:
+                            <select name="presets" id="presets">
+                                <option value="filterTable">Default</option>
+                            </select>
+                        </label></span -->
+                    </span>
+                    <span>
+                        <label><input type='checkbox' name='enable-filter'>Enable Filtering</label>
+                    </span>
+                </td</tr>
+                <tr><td>
+                    <span class='preset-wrap'><label>Presets:
+                        <select name="presets" id="presets">
+                            <option value="filterTable">Default</option>
+                        </select>
+                    </label></span>
+                </td</tr>`;
+
+            return row;
         }
 
         function addFooterRow(tableDiv) {
@@ -785,10 +796,9 @@
 
             $(tableDiv).find('tbody').append(row);
 
-            log("[addFooterRow] tablePresets: ", tablePresets);
+            debug("[addFooterRow] tablePresets: ", tablePresets);
             if (tablePresets.length) {
                 tablePresets.forEach(entry => {
-                    log("entry: ", entry);
                     let opt = `<option value="${entry.val}">${entry.name}</option>`;
                     $(tableDiv).find('#presets').append(opt);
                 });
@@ -876,9 +886,7 @@
                     margin: 1px 10px 1px 5px;
                 }
                 .tr-misc {
-                    border-top: 1px solid white;
-                    border-bottom: 3px solid white;
-                    border-collapse: separate;
+
                 }
                 #presets {
                     margin: -4px 0px 0px 10px;
