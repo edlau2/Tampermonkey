@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.17
+// @version      1.18
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=racing*
@@ -632,7 +632,8 @@
 
     function addFilterBtn(retries=0) {
         if ($("#xfilt-btn").length > 0) return;
-        let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
+        let btnWrap = $(".messages-race-wrap.start-race > div.bottom-round > .btn-wrap");
+        //let btnWrap = $($("#racingAdditionalContainer  .cont-black.bottom-round")[0]).find(".btn-wrap");
         if (!$(btnWrap).length) {
             if (retries++ < 50) return setTimeout(addFilterBtn, 250, retries);
             return log("[addFilterBtn] timed out!");
