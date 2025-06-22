@@ -296,7 +296,7 @@
             "Allow Fees":
                 { enabled: true, filterFn: 'feeFilter', class: 'feehide' },
             "No Long Races (25+ laps)":
-                { enabled: false, sel: "long-time", inverted: true, class: 'longhide', id: "xnolong", ckId: "x100only" },
+                { enabled: false, filterFn: "longFilter", class: 'longhide', id: "xnolong", ckId: "x100only" },
             "100 Laps Only":
                 { enabled: false, filterFn: "shortFilter", class: 'shorthide', id: "x100only", ckId: "xnolong" },
         }
@@ -394,7 +394,14 @@
                     list = $("ul.event-info > li.fee").not(":contains('$0')").closest('[data-track]');
                     return $(list);
                 }
-                case "shortFilter": {
+                case "longFilter": { // Hide any over 20 laps
+                    list = $(".events-list > li").filter(function() {
+                        var laps = parseInt($(this).attr('data-laps'));
+                        return laps >= 25;
+                     });
+                    return $(list);
+                }
+                case "shortFilter": { // Hide any without 100 laps
                     list = $(".events-list > li").not("[data-laps='100']");
                     return $(list);
                 }
@@ -431,6 +438,7 @@
 
     function toggleOtherEntry(thatEntry, ckId, checked) {
         // Let ckId be an aray? So can be a group of mutuallt exclusive choices?
+        log("Handled entry ", thatEntry, " looking for ", ckId);
         let entry;
         for (let idx=0; idx<miscKeys.length; idx++) {
             entry = filterTable.misc[miscKeys[idx]];
@@ -438,9 +446,13 @@
             entry = null;
         }
         if (entry) {
+            log("Found entry for ", ckId, ": ", entry);
             entry.enabled = false;
             $(`#${entry.id}`).prop('checked', false);
-            $("ul.events-list > li").removeClass(entry.class);
+            log("Removing class: ", entry.class);
+            $(`.${entry.class}`).removeClass(entry.class);
+            //$("ul.events-list > li").removeClass(entry.class);
+
         }
     }
 
@@ -454,17 +466,21 @@
         let entry = filterTable.misc[key];
         entry.enabled = checked;
 
-        saveFilterTable();
-
         let list = getList(entry);
         if (checked == true) {
-            entry.inverted ? $(list).addClass(entry.class) : $(list).removeClass(entry.class);
+            log("Adding class ", entry.class);
+            $(list).addClass(entry.class);
         } else {
-            entry.inverted ? $(list).removeClass(entry.class) : $(list).addClass(entry.class);
+            log("Removing class ", entry.class);
+            $(list).removeClass(entry.class);
         }
 
-        if (entry.ckId && checked == true)
+        if (entry.ckId && checked == true) {
+            log("Looking for ckId ", entry.ckId, " to uncheck");
             toggleOtherEntry(entry, entry.ckId, checked);
+        }
+
+        saveFilterTable();
     }
 
     function handleSelects(e) {
