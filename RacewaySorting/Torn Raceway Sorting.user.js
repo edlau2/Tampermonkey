@@ -296,9 +296,9 @@
             "Allow Fees":
                 { enabled: true, filterFn: 'feeFilter', class: 'feehide' },
             "No Long Races (25+ laps)":
-                { enabled: false, filterFn: "longFilter", class: 'longhide', id: "xnolong", ckId: "x100only" },
+                { enabled: true, filterFn: "longFilter", invert: true, class: 'longhide', id: "xnolong", ckId: "x100only" },
             "100 Laps Only":
-                { enabled: false, filterFn: "shortFilter", class: 'shorthide', id: "x100only", ckId: "xnolong" },
+                { enabled: false, filterFn: "shortFilter", invert: true, class: 'shorthide', id: "x100only", ckId: "xnolong" },
         }
     };
 
@@ -388,7 +388,7 @@
             log("[getList] selector: ", entry.sel, " list: ", $(list), " class: ", entry.class);
             return $(list);
         }
-        log("[getList] filter: ", entry.filterFn, " add class: ", entry.class);
+        log("[getList] filter: ", entry.filterFn, " class: ", entry.class);
         if (entry.filterFn) {
             switch (entry.filterFn) {
                 case "feeFilter": {
@@ -472,14 +472,24 @@
 
         let list = getList(entry);
         if (checked == true) {
-            log("Adding class ", entry.class);
-            $(list).addClass(entry.class);
+            if (entry.inverted == true) {
+                log("Adding class ", entry.class);
+                $(list).addClass(entry.class);
+            } else {
+                log("Remove class ", entry.class);
+                $(list).removeClass(entry.class);
+            }
         } else {
-            log("Removing class ", entry.class);
-            $(list).removeClass(entry.class);
+            if (entry.inverted == true) {
+                log("Remove class ", entry.class);
+                $(list).removeClass(entry.class);
+            } else {
+                log("Adding class ", entry.class);
+                $(list).addClass(entry.class);
+            }
         }
 
-        if (entry.ckId && checked == true) {
+        if (0 && entry.ckId && checked == true) {
             log("Looking for ckId ", entry.ckId, " to uncheck");
             toggleOtherEntry(entry, entry.ckId, checked);
         }
@@ -554,11 +564,21 @@
 
             let list = getList(entry);
             if (checked == true) {
-                log("Adding class ", entry.class);
-                $(list).addClass(entry.class);
+                if (entry.inverted == true) {
+                    log("Adding class ", entry.class);
+                    $(list).addClass(entry.class);
+                } else {
+                    log("Remove class ", entry.class);
+                    $(list).removeClass(entry.class);
+                }
             } else {
-                log("Removing class ", entry.class);
-                $(list).removeClass(entry.class);
+                if (entry.inverted == true) {
+                    log("Remove class ", entry.class);
+                    $(list).removeClass(entry.class);
+                } else {
+                    log("Adding class ", entry.class);
+                    $(list).addClass(entry.class);
+                }
             }
         });
 
