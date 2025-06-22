@@ -388,10 +388,12 @@
             log("[getList] selector: ", entry.sel, " list: ", $(list), " class: ", entry.class);
             return $(list);
         }
+        log("[getList] filter: ", entry.filterFn, " add class: ", entry.class);
         if (entry.filterFn) {
             switch (entry.filterFn) {
                 case "feeFilter": {
                     list = $("ul.event-info > li.fee").not(":contains('$0')").closest('[data-track]');
+                    log("list: ", $(list));
                     return $(list);
                 }
                 case "longFilter": { // Hide any over 20 laps
@@ -399,10 +401,12 @@
                         var laps = parseInt($(this).attr('data-laps'));
                         return laps >= 25;
                      });
+                    log("list: ", $(list));
                     return $(list);
                 }
                 case "shortFilter": { // Hide any without 100 laps
                     list = $(".events-list > li").not("[data-laps='100']");
+                    log("list: ", $(list));
                     return $(list);
                 }
                 case "laps": {
@@ -550,9 +554,11 @@
 
             let list = getList(entry);
             if (checked == true) {
-                $(list).removeClass(entry.class);
-            } else {
+                log("Adding class ", entry.class);
                 $(list).addClass(entry.class);
+            } else {
+                log("Removing class ", entry.class);
+                $(list).removeClass(entry.class);
             }
         });
 
