@@ -139,10 +139,10 @@
 
             $(hdr).parent().css("display", "flex");
             let hdrClone = $(hdr).clone();
-            $(hdrClone).text("Recomended car: " + suggested);
+            $(hdrClone).text("Recommended car: " + suggested);
             $(hdrClone).addClass("suggest-car");
             $(hdr).after(hdrClone);
-            //$(hdr).text(text + " | Recomended: " + suggested);
+            //$(hdr).text(text + " | Recommended: " + suggested);
 
             let enlistedCars = $(`img[title*='${carName}']`).closest("li");
             //$(`img[title*='${carName}']`).closest("li").addClass("picked");
