@@ -297,6 +297,7 @@
             attr = ((trackSortOrder == 'laps') ? "data-laps" : "data-track");
         }
         if ($(target).hasClass('startTime')) {
+            updateStartTimeAttr();
             attr = "data-startTime";
         }
         if ($(target).hasClass('drivers')) {
