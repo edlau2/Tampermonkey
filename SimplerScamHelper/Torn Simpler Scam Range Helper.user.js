@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Torn Simpler Scam Range Helper
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      2.12
 // @description  Misc scamming add-ons
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
 // @match        https://torn.com/loader.php?sid=crimes*
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
-// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers-2.45.7.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
 // @grant        GM_addStyle
@@ -22,13 +22,19 @@
 /*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
 
+// Note: demoralization is here:
+// $("[class^='levelBar_'] > [class*='progressBar_'] > div > div")
+// This: $("[class^='levelBar_'] > [class*='progressBar_'] > div > div").attr("aria-label")
+// gives this: 'Crime skill: 91 (45%), No demoralization'
+// or this: $("[class*='progressBar_'] > div > div").attr("aria-label")
+
 (function() {
     'use strict';
 
     if (isAttackPage()) return log("Won't run on attack page!");
 
     loggingEnabled = true;          // Enables regular logging
-    debugLoggingEnabled = false;    // Enables extra debug logging
+    debugLoggingEnabled = true;     // Enables extra debug logging
 
     const centerx = window.innerWidth / 2;
     const centery = window.innerHeight / 2;
@@ -43,41 +49,79 @@
     var supportBannerBarHide = GM_getValue("supportBannerBarHide", true);      // Add hide banner button
     var autoHideBanner = GM_getValue("autoHideBanner", false);                 // Start with banner hidden
     var closeResultAfterDelay = GM_getValue("closeResultAfterDelay", true);    // After capitalize, auto close result window
-    var closeResultDelayMs = GM_getValue("closeResultDelayMs", 500);          // Delay in ms (3 seconds default)
+    var closeResultDelayMs = GM_getValue("closeResultDelayMs", 500);           // Delay in ms (3 seconds default)
     var enableScrollLock = GM_getValue("enableScrollLock", false);             // Scroll avail crimes separate from headers/banner area
     var hideScrollbars = GM_getValue("hideScrollbars", false);
+    var autoHideOnPayout = GM_getValue("autoHideOnPayout", true);
+    var autoAbandonOnDblClick = GM_getValue("autoAbandonOnDblClick", false);   // Double-click avatar auto abandons.
 
     // Experimental....
     var redTideCheck = GM_getValue("redTideCheck", false);                      // If predicted range has red - warn on commit click.
     var funkyBubbles = GM_getValue("funkyBubbles", false);
-
-    const doExtendedOpts = false;
-    var animateRingsOff = GM_getValue("animateRingsOff", false);
-    var animateRingsLimited = GM_getValue("animateRingsLimited", false);
-    var loaderAnimateOff = GM_getValue("loaderAnimateOff", false);
-    var responseLevel = GM_getValue("responseLevel", 'minimal');            // 'none', 'minimal' (no story). Anything else, normal
-
-    //var responsesOff = GM_getValue("responsesOff", false);
-
-    if (animateRingsOff == true) stopRingAnimation();
-    if (animateRingsLimited == true) limitRingAnimation();
-    if (loaderAnimateOff == true) stopLoaderAnimation();
+    const doExtendedOpts = GM_getValue("doExtendedOpts", true);                 // Enable extended/experimental opts page
+    var responseLevel = GM_getValue("responseLevel", 'minimal');                // 'none', 'minimal' (no story). Anything else, normal
     setRespLevel(responseLevel);
+    var showResultMultiplier = GM_getValue("showResultMultiplier", true);       // Display $$ multiplier on avatar
+
+    //var lockHeaders = true;
 
     // Prob do not ant to change this. It is toggled to false after first run. It loads
     // the default tables, which are updated during execution to 'auto-correct' errors,
     // or bad predictions. Auto-correct only works if you have the psych edu.
-    var loadDefaultTables = GM_getValue("loadDefaultTables", true);
-
+    var loadDefaultTables = GM_getValue("loadDefaultTables", true);            // Will set to false after first run
     var rangeColor = GM_getValue("rangeColor", "#ff00ff");                     // Color of range where you will land
                                                                                // Setting to 'transparent' will only show accel range
     var accelColor = GM_getValue("accelColor", "#00ccff");                     // Color for accelerated range
 
+    // ====== Funky Bubbles options (display skill gain/loss on commit) ======
+    var bubbleFuncs = [blowBubble1, blowBubble2, blowBubble3];
+    var defaultBubbleStyle = 2;
+    var selectedBubbleStyle = GM_getValue("selectedBubbleStyle", defaultBubbleStyle);
+    var bubbleTimeVisibleSecs = GM_getValue("bubbleTimeVisibleSecs", 2);    // Delay before 'pop'
+    var bubbleSpeedSecs = GM_getValue("bubbleSpeedSecs", 2);   // Time to fade in
+    var bubbleFunc = bubbleFuncs[rangeCheck(selectedBubbleStyle)];
+
     // ======================== Things below here prob shouldn't change =====================================
     const DevMode = true;                         // Flag for enabling certain things during delopment/testing
     const isXedx = GM_getValue("isXedx", false);  // Same...usually experimental crap or excessive logging.
+    var allowTableUpdates = GM_getValue("allowTableUpdates", undefined);
+    if (allowTableUpdates == undefined) {
+        allowTableUpdates = true;
+        GM_setValue("allowTableUpdates", allowTableUpdates);
+    }
 
-    if (!optsCommited) {
+    function v1_newer_than_v2(v1, v2) {
+        let parts = v1.split(".");
+        let v1maj = parts[0], v1min = parts[1];
+        parts = v2.split(".");
+        let v2maj = parts[0], v2min = parts[1];
+        if (Number(v1maj) > Number(v2maj)) return true;
+        if (Number(v1maj) == Number(v2maj) &&
+            Number(v1min) > Number(v2min)) return true;
+        return false;
+    }
+
+    // If version change has added options, re-commit
+    var needCommit = !optsCommited;
+    let optsVer = GM_getValue('updatedOptsVer', 0);
+    if (v1_newer_than_v2(GM_info.script.version, optsVer) || optsVer == 0) {
+        log("Updated, re-commiting saved options");
+        GM_setValue('updatedOptsVer', GM_info.script.version);
+        needCommit = true;
+    }
+    if (needCommit) saveOptions();
+
+    // Same for table change, re-read defaults if the version
+    // has changed. Means I need to keep on top of updates!
+    let curr_ver = GM_getValue('curr_ver', GM_info.script.version);
+    var versionChanged = v1_newer_than_v2(GM_info.script.version, curr_ver);
+    if (versionChanged == true) log("Version changed to ", GM_info.script.version);
+    if (versionChanged && allowTableUpdates == true) {
+        log("Will update table data");
+        loadDefaultTables = true;
+    }
+
+    function saveOptions() {
         GM_setValue("optsCommited", true);
         GM_setValue("writeMissedPredictions", writeMissedPredictions);
         GM_setValue("autoCorrectPredictions", autoCorrectPredictions);
@@ -91,15 +135,22 @@
         GM_setValue("closeResultAfterDelay", closeResultAfterDelay);
         GM_setValue("closeResultDelayMs", closeResultDelayMs);
         GM_setValue("funkyBubbles", funkyBubbles);
+        GM_setValue("selectedBubbleStyle", selectedBubbleStyle);
+        GM_setValue("bubbleTimeVisibleSecs", bubbleTimeVisibleSecs);
+        GM_setValue("bubbleSpeedSecs", bubbleSpeedSecs);
         GM_setValue("redTideCheck", redTideCheck);
         GM_setValue("enableScrollLock", enableScrollLock);
         GM_setValue("hideScrollbars", hideScrollbars);
-        GM_setValue("animateRingsOff", animateRingsOff);
-        GM_setValue("animateRingsLimited", animateRingsLimited);
-        GM_setValue("loaderAnimateOff", loaderAnimateOff);
         GM_setValue("responseLevel", responseLevel);
+        GM_setValue("autoHideOnPayout", autoHideOnPayout);
+        GM_setValue("doExtendedOpts", doExtendedOpts);
+        GM_setValue("showResultMultiplier", showResultMultiplier);
+        GM_setValue("allowTableUpdates", allowTableUpdates);
+        GM_setValue("autoAbandonOnDblClick", autoAbandonOnDblClick);
     }
 
+    // Do I ever call this? If so, it's out-dated? Or do others update
+    // dynamically, this is just for dev update storage on the fly?
     function reloadOptions() {
         writeMissedPredictions = GM_getValue("writeMissedPredictions", false);
         autoCorrectPredictions = GM_getValue("autoCorrectPredictions", true);
@@ -114,10 +165,56 @@
         closeResultDelayMs = GM_getValue("closeResultDelayMs", 3000);
         enableScrollLock = GM_getValue("enableScrollLock", false);
         hideScrollbars = GM_getValue("hideScrollbars", false);
-        animateRingsOff = GM_getValue("animateRingsOff", false);
-        animateRingsLimited = GM_getValue("animateRingsLimited", false);
-        loaderAnimateOff = GM_getValue("loaderAnimateOff", false);
+        //animateRingsOff = GM_getValue("animateRingsOff", false);
+        //animateRingsLimited = GM_getValue("animateRingsLimited", false);
+        //loaderAnimateOff = GM_getValue("loaderAnimateOff", false);
         responseLevel = GM_getValue("responseLevel", 'minimal');
+    }
+    // =============== Experimental: lock headers - didn't work :-( =============
+    // 48 top w/banner closed
+    // Maybe wrap in new div, make absolute? Div wrap maybe under a diff parent?
+    var lockHeaders = false;
+
+    function addHdrStyle() {
+        GM_addStyle(
+            //[class*='currentCrime_'] [class*='titleBar_'], [class*='currentCrime_'] [class*='bannerArea_']  {
+            `#scam-hdr-lock {
+                position: absolute !important;
+                top: 6%;
+                left: 4%;
+                z-index: 99999999;
+                width: 100%;
+                border: 1px solid limegreen;
+            }
+            [class*='currentCrime_'] [class*='titleBar_'] {
+                position: fixed !important;
+                top: 0;
+                width: 100%;
+            }
+            [class*='currentCrime_'] [class^='virtualList_'] {
+                position: relative;
+                top: 48px;
+                border: 1px solid red;
+            }
+        `);
+    }
+
+    // put this under very root level? Adjust top & left...
+    const hdrLockDiv = "<div id='scam-hdr-lock'></div>";
+    function doLockHeaders(retries=0) {
+        if (!$("[class*='currentCrime_'] [class*='titleBar_']").length) {
+            if (retries++ < 30) return setTimeout(doLockHeaders, 100, retries);
+            return log("too many retries");
+        }
+        //$("[class*='currentCrime_'] [class*='titleBar_']").wrap($("#scam-hdr-lock"));
+        $("#scam-hdr-lock").append($("[class*='currentCrime_'] [class*='titleBar_']"));
+    }
+
+    if (lockHeaders == true) {
+        addHdrStyle();
+        $('body').after($(hdrLockDiv));
+        $("#scam-hdr-lock").parent().css("position", "relative");
+        doLockHeaders();
     }
 
     // ======================================== Globals to maintain 'state' ===================================
@@ -209,22 +306,22 @@
     const lvl60arr = ["advance-fee", "job", "advance", "fee"];
     const lvl80arr = ["romance", "investment"];
 
-    // Initial default arrays (updated 10/11/2024, through CS 60)
+    // Initial default arrays (updated 11/18/2024, through CS 80)
     const defMoveArray =
           { name: "idxMoveArray", 0: [[10,19], [3,7],[-2,-4]], 1: [[15,29], [5,11], [-3,-6]], 2: [[18,35], [6,13], [-4,-7]],
             3: [[21,39], [6,14], [-4,-8]], 4: [[22,42], [7,15], [-5,-9]], 5: [ [23,44],  [7,16],  [-5,-10]]};
     const defMoveArray20 =
-          { name: "idxMoveArray20", 0: [[8,15], [3,8],[-2,-4]], 1: [[12,24], [5,12], [-3,-6]], 2: [[15,28], [6,14], [-4,-7]],
-            3: [[16,31], [6,15], [-4,-8]], 4: [[18,33], [7,15], [-4,-9]], 5: [ [18,35], [7,16], [-5,-9]]};
+          { name: "idxMoveArray20", 0: [[8, 16], [3, 8], [-4, -1]], 1: [[12, 24], [5, 12], [-6, -2]], 2: [[15, 29], [6, 14], [-7, -3]],
+            3: [[16, 32], [6, 15], [-4, -8]], 4: [[18, 34], [7, 16], [-4, -9]], 5: [[18, 36], [7, 17], [-4, -1]]};
     const defMoveArray40 =
-          { name: "idxMoveArray40", 0: [[7, 14], [3, 7], [-4, -1]], 1: [[12, 24], [5, 12], [-3, -6]], 2: [[13, 25], [6, 12], [-4, -7]],
-            3: [[14, 28], [6, 13], [-4, -8]], 4: [[15, 30], [7, 14], [-4, -9]], 5: [[16, 31], [7, 15], [-5, -9]]}
+          { name: "idxMoveArray40", 0: [[7, 14], [3, 7], [-4, -1]], 1: [[11, 21], [5, 10], [-6, -2]], 2: [[13, 25], [6, 12], [-4, -7]],
+            3: [[14, 28], [6, 13], [-4, -8]], 4: [[15, 30], [7, 14], [-4, -9]], 5: [[16, 31], [7, 15], [-5, -9]]};
     const defMoveArray60 =
-          { name: "idxMoveArray60", 0: [[6, 12], [2, 5], [-2, -1]], 1: [[9, 18], [3, 7], [-6, -2]], 2: [[11, 21], [4, 8], [-4, -7]],
-            3: [[12, 24], [4, 9], [-4, -8]], 4: [[13, 25], [4, 10], [-4, -9]], 5: [[14, 21], [7, 10], [-5, -9]]};
+          { name: "idxMoveArray60", 0: [[6, 12], [2, 5], [-4, -1]], 1: [[9, 18], [3, 7], [-6, -2]], 2: [[11, 21], [4, 8], [-7, -3]],
+            3: [[12, 24], [4, 9], [-4, -8]], 4: [[13, 25], [4, 10], [-4, -9]], 5: [[14, 26], [5, 10], [-5, -9]]};
     const defMoveArray80 =
-          { name: "idxMoveArray80", 0: [[6,12], [2,5],[-2,-4]], 1: [[8,15], [3,6], [-4,-6]], 2: [[9,18], [4,7], [-3,-6]],
-            3: [[10,20], [5,8], [-4,-8]], 4: [[11,21], [6,9], [-4,-9]], 5: [ [12,22],  [7,10],  [-5,-9]]};
+          { name: "idxMoveArray80", 0: [[5, 10], [2, 4], [-3, -1]], 1: [[8, 15], [3, 6], [-5, -2]], 2: [[9, 18], [4, 7], [-6, -3]],
+            3: [[10, 20], [4, 7], [-4, -8]], 4: [[11, 21], [4, 8], [-4, -9]], 5: [[12, 22], [7, 10], [-5, -9]]};
 
     // Arrays used for predictions.
     var idxMoveArray = loadArrayCs1();
@@ -237,10 +334,12 @@
     function loadArray(key, defArray) {
         if (loadDefaultTables == true) {
             GM_setValue(key, JSON.stringify(defArray));
-            loadDefaultTables = false;
-            GM_setValue("loadDefaultTables", loadDefaultTables);
+            //loadDefaultTables = false;
+            //GM_setValue("loadDefaultTables", loadDefaultTables);
+            log((versionChanged ? "Updated" : "Default") + " tables loaded");
             return defArray;
         }
+        log("Cached tables loaded");
         return JSON.parse(GM_getValue(key, JSON.stringify(defArray)));
     }
 
@@ -313,6 +412,10 @@
         $("#x-acc-div").remove();
     }
 
+    // #react-root > div > div.crime-root.scamming-root > div > div.currentCrime___MN0T1 >
+    // div.levelBar___DsHMN > div.progressBar___H8oWm > div > div
+    // $("[class^='progressBar_'] > div > div")
+
     // Track how many are available to do, display on top bar.
     // Three extra for headers and footer.
     var availableScams = 0;
@@ -321,8 +424,15 @@
         availableScams = $("[class^='virtualList__'] > [class^='virtualItem__']").length;
         if (availableScams >= 3) availableScams = availableScams - 3;
         if (availableScams < 0) availableScams = 0;
-        $("#xavail").text("Avail: " + availableScams);
-        if (availableScams) addAvatarPcts();
+
+        let demo;
+        let skillText = $("[class^='progressBar_'] > div > div").attr('aria-label');
+        if (skillText) {
+            demo = skillText.split(",")[1];
+        }
+
+        $("#xavail").text("Avail: " + availableScams + (demo ? (", " + demo) : ''));
+        if (availableScams && showResultMultiplier) addAvatarPcts();
         setTimeout(updateAvailable, 3000);
     }
 
@@ -539,7 +649,8 @@
         let target = $(e.currentTarget);              
         let arrayIdx = $(target).index();
 
-        // Clear Red Tide flags
+        // Clear Red Tide flags - not now! Only before next check!
+        debug("Clearing lock flag!");
         redTideDetected = false;
         commitLocked = false;
 
@@ -616,6 +727,11 @@
 
     // =========== Handle a right-click on accel - select # to apply =============================
     //
+    function closeAccelIfOpen() {
+        if (!$("#acc-test").length) return;
+        $("#xedx-cancel-btn").click();
+    }
+
     function doAccelRightClick(e) {
         debug("[doAccelRightClick] e: ", e);
         if ($("#acc-test").length > 0) return;
@@ -636,7 +752,8 @@
         $(root).before(accelPromptDiv);
 
         //$("#acc-quantity").val(desiredAccel);
-        $("#acc-quantity").val(currentAccel);
+        debug("Setting accel qty (2): ", currentAccel);
+        $("#acc-quantity").val(currentAccel > 0 ? currentAccel : 1);
 
         $("#acc-quantity").change(handleAccelChange);
 
@@ -719,22 +836,32 @@
     const payoutHdr = "<h4 id='xscam-payout'></h4>";
 
     function checkReward(retries=0) {
-        log("checkReward: ", retries);
         let rewardSpan = $("[class*='rewards_'] > span")[0];
-        log("rewardSpan: ", $(rewardSpan));
 
         if (!$(rewardSpan).length) {
             if (retries++ < 20)
                 return setTimeout(checkReward, 200, retries);
             return log("Can't find rewardSpan, too many retries: ", retries);
         }
-        log("Found reward! ", $(rewardSpan).text());
 
         let reward = $(rewardSpan).text();
         $(".crimes-app-header").css("width", "100%");
         if (!$("#xscam-payout").length)
             $(".crimes-app-header > h4").append(payoutHdr);
         $("#xscam-payout").text("Payout: " + reward);
+
+        /*
+        if (autoHideOnPayout == true) {
+            log("Payout complete, currVirtItemDiv: ", $(currVirtItemDiv));
+            $(currVirtItemDiv).css("border", "1px solid red");
+            let classy = $(currVirtItemDiv).hasClass("virtual-item");
+            if (confirm("Is classy, try to close?")) {
+                $(currVirtItemDiv).animate({height: "0px"}, 500, function() {
+                    $(currVirtItemDiv).remove();
+                });
+            }
+        }
+        */
     }
 
     function handleCapitalize(retries=0) {
@@ -781,10 +908,11 @@
             log("currResponseTableIndex: ", currResponseTableIndex);
             log("currAcel: ", currentAccel);
             log("capitalizeActive: ", capitalizeActive);
+            log("commitLocked: ", commitLocked, " redTideDetected: ", redTideDetected);
         }
 
         // Don't do for read, capitalize active - only on 'move' events
-        let dontWarn = (lastIdx > 2 || title != "Resolve" || capitalizeActive);
+        let dontWarn = (/*lastIdx > 2 ||*/ title != "Resolve" || capitalizeActive);
         if ((commitLocked == true || redTideDetected == true) && dontWarn == false) {
             debug("RedTide gonna warn, lastIdx: ", lastIdx, " cap: ", capitalizeActive, " label: ", label, " title: ", title);
             if (!confirm("You may land in a Red Zone!\nAre you sure?\n\nClick Cancel to change your mind...")) {
@@ -794,12 +922,26 @@
                 event.stopPropagation();
                 return false;
             }
+        } else if (commitLocked == true || redTideDetected == true) {
+            /*
+            debugger;
+            if (!confirm("Lock is on but noy detected!!!\n\nClick Cancel to change your mind...")) {
+                setTimeout(resetCommitFlag, 250);
+                redTideDetected = false;
+                e.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+            */
         }
         setTimeout(resetCommitFlag, 250);
+
+        debug("Clearing lock flag!");
         commitLocked = false;
         redTideDetected = false;
 
         if ((label && label.indexOf("Read") > -1) || (title && title.indexOf("Read") > -1)) {
+            addAvatarPcts();
             $("#acc-test").remove();
         }
 
@@ -810,8 +952,10 @@
         lastCommit.valid = true;
         lastCommit.target = $(e.currentTarget);
 
-        if ($("#acc-quantity").length)
-            $("#acc-quantity").val(parseInt(currentAccel));
+        if ($("#acc-quantity").length && accelActive == true) {
+            debug("Setting accel qty (1): ", currentAccel, " | ", (parseInt(currentAccel) + 1));
+            $("#acc-quantity").val(parseInt(currentAccel) + 1);
+        }
 
         if (accelActive == false) {
             currentAccel = 0;
@@ -825,6 +969,7 @@
 
         if (capitalizeActive == true) {
             handleCapitalize();
+            closeAccelIfOpen();
             capitalizeActive = false;
             accelActive = false;
             currentAccel = 0;
@@ -849,10 +994,137 @@
         }
     }
 
-    function handleAbandon() {
+    function doTheClick(yesBtn) {
+        debug("doTheClick: ", $(yesBtn));
+
+        debug("Faking it!!!");
+        $(yesBtn).trigger("click");
+        if ($(yesBtn)[0]) $(yesBtn)[0].click();
+    }
+
+    function clickYesBtn(target, retries=0) {
+        debug("clickYesBtn: ",  $(target));
+        let yesBtn = $(".abandon-confirmation > [class*='buttons_'] > button:nth-child(1)");
+
+        if (!$(yesBtn).length) {
+            if (retries++ < 50) return setTimeout(clickYesBtn, 100, target, retries);
+            return debug("Too many retries...");
+        }
+
+        $(yesBtn).css("border", "1px solid green");
+        debug("Clicking 'yes': ", $(yesBtn), " | ", $(yesBtn)[0]);
+        setTimeout(doTheClick, 250, $(yesBtn));
+
+        //$(yesBtn).click();
+        //$(yesBtn).trigger("click");
+        //simulateMouseClick($(yesBtn)[0]);
+    }
+
+    function realSingleClickHandler(target) {
+        debug("realSingleClickHandler: ", $(target));
+        abandonClickTimer = undefined;
+
+        // Close accel window
+        //$("#xedx-cancel-btn").click();
+    }
+
+    var abandonClickTimer = undefined;
+    const dblClickWaitTime = 1000;
+    var inDblClick = false;
+    var inSingleClick = false;
+    function clearSingleClick() {inSingleClick = false;}
+
+    function handleAbandon(e) {
+        let target = $(e.currentTarget);
+        debug("handleAbandon, auto: ", autoAbandonOnDblClick, " in dbl: ", inDblClick, " in single: ", inSingleClick, " timer ", abandonClickTimer, " target: ", $(target));
+
+        // Make this much simpler. Set a timer to click the Yes button, if abandon is clicked again, cancel.
+
+        // See if we've clicked and set timer already, this will cancel.
+        if (inSingleClick == true && abandonClickTimer) {
+            clearTimeout(abandonClickTimer);
+            abandonClickTimer = null;
+            inSingleClick = false;
+            $(target).css("border", "");
+            return;
+        }
+
+        // Start the timer to click 'yes' and set our flag.
+        inSingleClick = true;
+        abandonClickTimer = setTimeout(clickYesBtn, 3000, $(target));
+        return;
+
+
+
+        /**/
+        if (inSingleClick == true) return;
+
+        // If dbl click already detected don't do again
+        if (inDblClick == true) return;
+
+        // Always close accel window
         $("#xedx-cancel-btn").click();
-        //$("#acc-test").remove();
-        //handleOkCancelClick(e);
+
+        // Only need dbl-click to handle auto-abandon
+        if (autoAbandonOnDblClick == false)
+            return realSingleClickHandler($(target));
+        /**/
+
+        return handleAbandon2(e);
+
+        // See if timer set - if so, been here recently, may be dbl click
+        if (abandonClickTimer) {
+            logt("Timer set, dbl click?");
+            clearTimeout(abandonClickTimer);
+            abandonClickTimer = undefined;
+
+            return handleAbandon2(e);
+        }
+
+        // Set timer - either it pops and single-click real handler
+        // executes, or called again here (or in dbl-click handler)
+        // and that runs...
+        debug("handleAbandon setting timer for ", dblClickWaitTime);
+        abandonClickTimer = setTimeout(realSingleClickHandler, dblClickWaitTime, $(target));
+
+        inSingleClick = true;
+        setTimeout(clearSingleClick, 100); // Prob can't click again this fast...
+
+    }
+
+    function handleAbandon2(e) {
+        let target = $(e.currentTarget);
+        debug("handleAbandon2,  inDblClick> ", inDblClick, " target: ",  $(target));
+
+        // Don't process more than once
+        if (inDblClick == true) {
+            debug("already being handled..");
+            return false;
+        }
+
+        inDblClick = true;
+
+        // If timer set, clear to prevent single-click event
+        if (abandonClickTimer) {
+            debug("Timer set, must be dbl-click!");
+            clearTimeout(abandonClickTimer);
+            abandonClickTimer = undefined;
+        } else {
+            debug("Timer NOT set, called by single-click handler?");
+        }
+
+        // close accel...
+        //$("#xedx-cancel-btn").click();
+
+        // Do dbl-click stuff
+        debug("Doing dbl click!");
+        clickYesBtn(target);
+
+        // Clear the inDblClick in a little bit...
+        function clearDblClickFlag() {logt("clearing flag"); inDblClick = false;}
+        setTimeout(clearDblClickFlag, 1000);
+
+        return false;     // prevent propogation
     }
 
     // =============================== verify prediction is correct ==============================
@@ -958,15 +1230,17 @@
 
             eraseRangeEstimates();
 
-            if (currResponseTableIndex == 2) {    // Special case to go backwards.
-                begin = Math.round(+pipStart + +start);
-                end = Math.round(+pipStart + +stop);
-                //logt("[[drawPredictedRangeBars]] begin: ", begin, " end: ", end);
+            // Special case to go backwards. Shouldn't be, since in table as neg,
+            // same as adding positive...but make sure....
+            if (currResponseTableIndex == 2) {
+                start = (Math.max(Math.abs(entry[0]), Math.abs(entry[1]))) * -1;
+                stop = (Math.min(Math.abs(entry[0]), Math.abs(entry[1]))) * -1;
+                begin = Math.round(parseInt(pipStart) + parseInt(start));
+                end = Math.round(parseInt(pipStart) + parseInt(stop));
                 drawDivSurround(begin, end, currResponseTableIndex);
             } else {
-                begin = Math.round(+pipStart + +start);
-                end = Math.round(+pipStart + (+stop > 0 ? +stop : 50));
-                //logt("[[drawPredictedRangeBars]] pipStart: ", pipStart, " begin: ", begin, " end: ", end);
+                begin = Math.round(parseInt(pipStart) + parseInt(start));
+                end = Math.round(parseInt(pipStart) + (parseInt(stop) > 0 ? parseInt(stop) : 50));
                 drawDivSurround(begin, end, currResponseTableIndex);
             }
 
@@ -987,9 +1261,13 @@
         // If the Torn prediction bar is there, see if it spans any red.
         // If so, 'lock' (with warning) Commit (optionally)
         // If returns retry, maybe pass in our range????
+        // Clear Red Tide flags
         $("#x-range-div").attr("data-b", begin);
         $("#x-range-div").attr("data-e", end);
         if (redTideCheck == true) {
+            redTideDetected = false;
+            debug("Clearing lock flag!");
+            commitLocked = false;
             let range = {start: begin, end: end, size: (end-begin+1)};
             debug("RedTide check red tide range: ", range);
             let res = checkRedTide(range);
@@ -1103,7 +1381,7 @@
                 $(crimeSection).addClass("disable-scrollbars");
 
             // Could just add these as styles to the 'crimeSection' element....
-            $(crimeSection).css("max-height", "90vh"); // bottom margin for TTS footer.
+            $(crimeSection).css("max-height", "80vh"); // bottom margin for TTS footer.
             $(crimeSection).css("overflow-y", "auto");
             $(crimeSection).css("top", "0px");
             $(crimeSection).css("position", "sticky");
@@ -1113,6 +1391,25 @@
     }
 
     // ======================== Help/Options panel =============================
+
+    GM_addStyle(".hiddenCell {display: none;}");      // Not visible and not sized, so cells after will shift
+    GM_addStyle(".emptyCell {opacity: 0;}");          // Uses up space but not visible
+    const emptyCell = function () {
+        return `
+             <td class="xxntcl">
+                 <span class="xfmt-span emptyCell">
+                     <input class="scam-cb" type="checkbox" name="key" value="TBD1">
+                     Unused Option
+                 </span>
+             </td>
+        `;
+    }
+
+    const empty3CellRow = function () {
+        return `<tr style-"display: none;">` +
+            emptyCell() + emptyCell() + emptyCell() +
+         `</tr>`;
+    }
 
     function getOptsDiv() {  // Made as a function for code collapse..
         const optsDiv = `
@@ -1141,10 +1438,10 @@
                      </tr>
 
                      <tr>
-                         <td class="xxntcl">
+                         <td class="xxntcr">
                              <span class="xfmt-span">
-                                 <input class="scam-cb" type="checkbox" name="key" value="funkyBubbles">
-                                 Show the Funky Bubbles
+                                 <input class="scam-cb" type="checkbox" name="key" value="enableScrollLock">
+                                 Enable Scroll Lock
                              </span>
                          </td>
                          <td class="xxntcr">
@@ -1174,10 +1471,10 @@
                                  Start With Banner Hidden
                              </span>
                          </td>
-                         <td class="xxntcr">
+                         <td class="xxntcl">
                              <span class="xfmt-span">
-                                 <input class="scam-cb" type="checkbox" name="key" value="enableScrollLock">
-                                 Enable Scroll Lock
+                                 <input class="scam-cb" type="checkbox" name="key" value="autoAbandonOnDblClick">
+                                 Auto Abandon on Double-Click
                              </span>
                          </td>
                      </tr>
@@ -1203,8 +1500,8 @@
                          </td>
                      </tr>
 
+
                  </table>
-                 </div>
 
              </div>
                 `;
@@ -1217,36 +1514,109 @@
              <div id="xopts-pg-2" class="xscamopts xflexr-center xdoan">
              <table class="xscam-table xmt5 xml14 ">
              <tr>
-                 <td class="xxntcl">
+                 <td id="pg2-funky" class="xxntcr">
                      <span class="xfmt-span">
-                         <input class="scam-cb" type="checkbox" name="key" value="animateRingsOff">
-                         Suppress Ring Animation
+                         <input class="scam-cb" type="checkbox" name="key" value="funkyBubbles">
+                         Show the Funky Bubbles
                      </span>
+                 </td>
+                 <td class="xxntcr" style="display: flex;">
+                     <select id="selectedBubbleStyle" class="">
+                          <option value="$">--Style--</option>
+                          <option value="0">Style #1</option>
+                          <option value="1">Style #2</option>
+                          <option value="2">#3 (default)</option>
+                    </select>
+                    <span id="xopt-test">Test</span>
+                 </td>
+                 <td class="xxntcl">
+                     <div>
+                         <label for="quantity"><span>Bubble Speed:</span></label>
+                         <input class="xinput" type="number" step="0.2" min="0" max="10" id="bubbleSpeedSecs" name="bubbleSpeedSecs">
+                         <span class="xml10">seconds</span>
+                     </div>
+                 </td>
+             </tr>
+             <tr>
+                 <td class="xxntcl">
+                     <div>
+                         <label for="quantity"><span>Inflation Duration:</span></label>
+                         <input class="xinput" type="number" step="0.2" min="0" max="10" id="bubbleTimeVisibleSecs" name="bubbleTimeVisibleSecs">
+                         <span class="xml10">seconds</span>
+                     </div>
                  </td>
                  <td class="xxntcr">
                      <span class="xfmt-span">
-                         <input class="scam-cb" type="checkbox" name="key" value="loaderAnimateOff">
-                         Suppress Button Loader Anim.
+                         <input class="scam-cb" type="checkbox" name="key" value="showResultMultiplier">
+                         Display Avatar Multiplier
                      </span>
-                 </td>
-                 <td class="xxntcl">
-                     <span class="xfmt-span">
-                         <input class="scam-cb" type="checkbox" name="key" value="responsesOff">
-                         No Result Display
-                     </span>
-                 </td>
-             </tr>
-             </table>
+                 </td>` +
+                 emptyCell() +
+             `</tr>` +
+
+             empty3CellRow() +
+
+             empty3CellRow() +
+
+             `</table>
+             </div>
          </div>
         `;
 
         return extendedOpts;
     }
 
+    function installOptionsToolTips() {
+        return;
+
+        const optsHelpTable = [
+            {sel: "#pg2-funky", text: "Will indicate the skill gain (or loss) when the Commit button is pressed"},
+        ];
+
+        GM_addStyle(".lh15 {line-height: 1.5;}");
+        let tt4 = "tooltip4 lh15";
+
+        for (let idx=0; idx<optsHelpTable.length; idx++) {
+            let entry = optsHelpTable[idx];
+            displayHtmlToolTip($(entry.sel), entry.text, tt4);
+        }
+    }
+
+    // Also initializes....
+    function installExtOptsHandlers() {
+        // Checkboxes already handled.
+        $("#selectedBubbleStyle").val(selectedBubbleStyle);
+        $("#selectedBubbleStyle").on('change', function() {
+            selectedBubbleStyle = $(this).val();
+            GM_setValue("selectedBubbleStyle", selectedBubbleStyle);
+            log("Changed selectedBubbleStyle to ", selectedBubbleStyle);
+            bubbleFunc = bubbleFuncs[rangeCheck(selectedBubbleStyle)];
+        });
+
+        $("#bubbleTimeVisibleSecs").val(bubbleTimeVisibleSecs);
+        $("#bubbleTimeVisibleSecs").on('change', function() {
+            bubbleTimeVisibleSecs = $(this).val();
+            GM_setValue("bubbleTimeVisibleSecs", bubbleTimeVisibleSecs);
+            log("Changed bubbleTimeVisibleSecs to ", bubbleTimeVisibleSecs);
+        });
+
+        $("#bubbleSpeedSecs").val(bubbleSpeedSecs);
+        $("#bubbleSpeedSecs").on('change', function() {
+            bubbleSpeedSecs = $(this).val();
+            GM_setValue("bubbleSpeedSecs", bubbleSpeedSecs);
+            log("Changed bubbleSpeedSecs to ", bubbleSpeedSecs);
+        });
+
+        $("#xopt-test").on('click', function(){blowBubble("0.0")});
+
+    }
+
     function addExtendedOpts() {
-        const moreBtn = `<span id="xopt-next" class="xscamopt-btn">More...</span>`;
-        $("#xopts-pg-1").after(getExtendedOpts());
+        const moreBtn = `<span id="xopt-next" class="xscamopt-btn opts-more">More...</span>`;
+        $("#xopts-pg-1").after(getExtendedOptsDiv());
         $("#xscam-opts").after(moreBtn);
+
+        installExtOptsHandlers();
     }
 
     function testOutsideClick(e) {
@@ -1290,6 +1660,7 @@
     }
 
     function addOptionsScreen(retries=0) {
+        const closeBtn = '<span id="xopt-close" class="xscamopt-btn opts-close">Close</span>';
         if ($(bannerWrapper).length == 0) {
             if (retries++ < 10) return setTimeout(addOptionsScreen, 250, retries);
             return;
@@ -1306,6 +1677,9 @@
             $("#xopt-next").on('click', animateOptsPages);
             animateOptsPages();
         }
+
+        $("#xscam-opts").prepend(closeBtn);
+        $("#xopt-close").on('click', displayOptsWin);
 
         $(".scam-cb").each(function(index, element) {
             $(element).on("change", handleScamOptsCbChange);
@@ -1325,6 +1699,8 @@
             GM_setValue("responseLevel", responseLevel);
             setRespLevel(responseLevel);
         });
+
+        installOptionsToolTips();
     }
 
     function handleScamOptsCbChange(e) {
@@ -1345,8 +1721,53 @@
         addFlexStyles();
         addFloatingOptionsStyles();
         loadCommonMarginStyles();
+        const btnRadius = 24;
 
         GM_addStyle(`
+            .xscamopt-btn {
+                position: absolute;
+                display: flex;
+                flex-wrap: wrap;
+                align-content: center;
+                justify-content: center;
+                width: 32px;
+                height: 20px;
+                padding: 2px 12px 2px 12px;
+                border-radius: 12px;
+                cursor: pointer;
+                border: 1px solid gray;
+                background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+                left: 92%;
+            }
+            .opts-more {top: 75%;}
+            .opts-close {top: 4%;}
+            .xscam-close {
+                position: absolute;
+                display: flex;
+                flex-wrap: wrap;
+                align-content: center;
+                justify-content: center;
+                width: 62px;
+                height: 24px;
+                padding: 2px 12px 2px 12px;
+                border-radius: 12px;
+                cursor: pointer;
+                border: 1px solid gray;
+                background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
+                top: 5%;
+                left: 92%;
+            }
+            #selectedBubbleStyle {
+                margin-left: 10px;
+                border-radius: 10px;
+                align-items: center;
+                display: flex;
+            }
+            .xinput {
+                width: 30px;
+                border-radius: 10px;
+                padding-left: 10px;
+            }
             #xscam-opts {
                 display: flex;
                 maxHeight: 150px;
@@ -1357,27 +1778,31 @@
                 transition: all 1s;
                 transform: translate(0px, -600px);
             }
-            .xscamopt-btn {
-                position: absolute;
+            #xopt-test {
+                position: relative;
                 display: flex;
                 flex-wrap: wrap;
                 align-content: center;
                 justify-content: center;
-                align-self: flex-end;
+                margin-left: 20px;
                 width: fit-content;
-                height: 24px;
-                padding: 2px 12px 2px 12px;
-                border-radius: 8px;
+                padding: 2px 20px 2px 20px;
+                border-radius: 12px;
                 cursor: pointer;
-                border: 1px solid green;
+                border: 1px solid gray;
                 background-image: radial-gradient(rgba(170, 170, 170, 0.6) 0%, rgba(6, 6, 6, 0.8) 100%);
-                top: 72%;
-                left: 92%;
+                top: 1px;
             }
+            .xscamopt-btn:hover, #xopt-test:hover {filter: brightness(.6)}
             .xscam-table {
                 width: 90%;
                 height: 90%;
                 margin-top: 20px;
+            }
+            .xscam-table label {
+                padding-top: 2px;
+                margin-right: 5px;
+                color: var(--default-full-text-color);
             }
             .xscamopts {
                 display: flex;
@@ -1411,12 +1836,11 @@
     function displayOptsWin(e) {
         e.preventDefault();
 
-        let statsOpen = $(toggleBtn).attr("aria-expanded");
-        log("stats open: ", statsOpen);
+        log("displayOptsWin: ", e);
 
+        let statsOpen = $(toggleBtn).attr("aria-expanded");
         let closeBtn = $("#crime-stats-panel").find("[class^='closeButton_']")[0];
         if (statsOpen == true || statsOpen == 'true') {
-            log("clicking ", $(closeBtn));
             $(closeBtn)[0].click();
         }
 
@@ -1507,7 +1931,7 @@
         function addHideBannerBtn(retries=0) {
             if ($("#halo-div").length == 0) {
                 let haloDiv = `<div id="halo-div" class="center ctr44"></div>`;
-                let haloDiv2 = `<div id="halo-div2" class="center halo ctr24"></div>`;
+                let haloDiv2 = `<div id="halo-div2" class="center halo ctr24 scam-halo"></div>`;
                 let ctrBtn = $("[class^='currentCrime']").find("[class^='centerSlot']");
                 if ($(ctrBtn).length == 0) {
                     if (retries++ < 10) return setTimeout(addHideBannerBtn, 500, retries);
@@ -1562,7 +1986,6 @@
         }
 
         function handleHideBannerClick(e) {
-            debug("click! e: ", e);
             e.preventDefault();
             hideBanner();
         }
@@ -1630,13 +2053,21 @@
                 $(btn).on('click.xedx', handleCommit);
 
                 // TEMPORARY
-                $(btn).on('contextmenu', blowBubble2);
+                $(btn).on('contextmenu', blowBubble);
                 $(btn).addClass('xedx-commit');
             }
         }
 
         // Abandon buttons: close accel window
+        // Handle dbl-click myself, can't really have both, the single
+        // click fires twice first...also, remove my handlers first,
+        // if already set
+        //logt("Clear/set handleAbandon");
+        //$("[class*='avatarButton_']").off('click.xedx');
         $("[class*='avatarButton_']").on('click.xedx', handleAbandon);
+
+        //$("[class*='avatarButton_']").off('dblclick.xedx');
+        $("[class*='avatarButton_']").on('dblclick.xedx', handleAbandon2);
 
         function doBlowBubble(e) {
             log("doBlowBubble");
@@ -1657,19 +2088,26 @@
 
     GM_addStyle(".xav-span {position: fixed; left: 50%; margin-left: -50%;top:50%;color:white;}");
     function addAvatarPcts() {
-        let list = $("[class*='avatarButton_']");
-        debug("Avatar list: ", list);
+        let list = $("[class*='avatarButton_']:not(.x-has-pct)");
+        //debug("Avatar list: ", list);
         if (!$(list).length) return;
         for (let idx=0; idx < $(list).length; idx++) {
             let btn = $(list)[idx];
-            if ($(btn).hasClass("x-has-pct")) return;
+            //log("Avatar found: ", $(btn));
+            if ($(btn).hasClass("x-has-pct")) return log("Already has class!");
             let label = $(btn).attr("aria-label");
-            if (!label) return;
+            if (!label) return log("No label!");
             let pct = getAvatarPct(label);
-            if (!pct) return;
+            if (!pct) return log("No pct found!");
             let span = "<span class='xav-span'>" + pct + "</span>";
             $(btn).append(span);
             $(btn).addClass("x-has-pct");
+
+            //logt("Clear/set handleAbandon");
+            //$(btn).off('click.xedx');
+            //$(btn).off('dblclick.xedx');
+            $(btn).on('click.xedx', handleAbandon);
+            $(btn).on('dblclick.xedx', handleAbandon2);
         }
     }
 
@@ -1743,20 +2181,52 @@
         }
     }
 
-    function popBubble() {
-        //return;
+    var displayedSkill = 0;
+    var lastBubbleAt = 0;
+    var hasCommited = false;
+    function updateSkillDisplay2() {
+        if (!$("#xskill").length) return;
 
-        log("Animate pop bubble");
-        $("#bubble").animate(
-            {
-                height: "0px",
-                width: "0px",
-                opacity: 0
-            }, 3000, function (){
-                $("#bubble").remove();
-            }
-        );
+        let disp = parseFloat(displayedSkill) ? parseFloat(displayedSkill).toFixed(2) : 0;
+        let curr = parseFloat(getStat("Skill")).toFixed(2);
+        let diff = curr - disp;
+        if (diff == curr) diff = 0;
+        diff = diff.toFixed(2);
+
+        // Experimental!
+        //log("Will do bubble? ", funkyBubbles, " | ", lastCommit, " | ", lastBubbleAt, " | ", curr);
+        if (lastCommit.valid == true) hasCommited = true;
+        if (funkyBubbles == true && hasCommited == true&& (diff != 0) &&
+            (lastCommit.valid == true || (lastBubbleAt != curr && lastBubbleAt > 0))) {
+            blowBubble(diff);
+            lastBubbleAt = curr;
+        }
+
+        if (disp == curr) return;
+
+        $("#xskill2").text(curr + '%');
+        displayedSkill = curr;
+        $("#xskmark").text(diff);
+
+        if ((Number(diff) > 0) == true) {
+            $("#xskmark").addClass("xskill-green").removeClass("xskill-red").removeClass("xskill-white");
+        } else if ((Number(diff) < 0) == true) {
+            $("#xskmark").addClass("xskill-red").removeClass("xskill-green").removeClass("xskill-white");
+        }
     }
+
+    // ========================== Experimental funky bubble ===============================
+    // Display skill earned from last commit
+
+    function rangeCheck(index){
+        if (index < 0 || index > (bubbleFuncs.length - 1))
+            selectedBubbleStyle = defaultBubbleStyle;
+        return selectedBubbleStyle;
+    }
+
+    const popOpts = {height: "0px", width: "0px",opacity: 0};
+    const popBubble = function() {$("#bubble").animate(popOpts, Number(bubbleSpeedSecs)*1000, function (){$("#bubble").remove();});}
+    const timeoutBubble = function() {setTimeout(popBubble, (Number(bubbleTimeVisibleSecs)*1000));}
 
     var bubbleStyleLoaded = false;
     function loadBubbleStyleOnce() {
@@ -1833,16 +2303,28 @@
             }
 
             .bubble2 {
-                left: 65%;
+                left: 75%;
                 width: 50px;
                 height: 50px;
-                top: 40%;
+                top: 35%;
             }
         `);
         bubbleStyleLoaded = true;
     }
 
     function blowBubble(diff=0, e) {
+        log("blowBubble func: ", bubbleFunc.name, " exists? ", ($("#bubble").length > 0));
+        if ($("#bubble").length > 0) log("Bubble: ", $("#bubble"));
+        if ($("#bubble").length > 0) {
+            log("Bubble already exists, will try to recover...");
+            $("#bubble").remove();
+            //return;
+        }
+        bubbleFunc(diff, e);
+    }
+
+    function blowBubble1(diff=0, e) {
+        log("blowBubble1");
         loadBubbleStyleOnce();
         lastCommit.valid = false;
         let bubble = $(`<div class="bubble bubble-an2" id="bubble"><span>+` + diff + `</span></div>`);
@@ -1854,6 +2336,7 @@
     }
 
     function blowBubble2(diff=0, e) {
+        log("blowBubble2");
         loadBubbleStyleOnce();
         lastCommit.valid = false;
         let bubble = $(`<div class="bubble bubble2" id="bubble"><span>+` + diff + `</span></div>`);
@@ -1864,48 +2347,41 @@
 
         $("#bubble").animate({
             opacity: .4,
-        }, 2000, function() {
+        }, Number(bubbleSpeedSecs)*1000, function() {
             $("#bubble").animate({
                 opacity: 1.0,
-            }, 500, function() {
-                setTimeout(popBubble, 4000);
-            });
+            }, 500, timeoutBubble);
         });
 
 
         return setTimeout(popBubble, 4000);
     }
 
-    var displayedSkill = 0;
-    function updateSkillDisplay2() {
-        if (!$("#xskill").length) return;
+    function blowBubble3(diff=0, e) {
+        log("blowBubble3");
+        loadBubbleStyleOnce();
+        lastCommit.valid = false;
+        let bubble = $(`<div class="bubble bubble2" id="bubble"><span>+` + diff + `</span></div>`);
 
-        let disp = parseFloat(displayedSkill) ? parseFloat(displayedSkill).toFixed(2) : 0;
-        let curr = parseFloat(getStat("Skill")).toFixed(2);
-        let diff = curr - disp;
-        if (diff == curr) diff = 0;
-        diff = diff.toFixed(2);
-        if (disp == curr) return;
+        $(bubble).css("opacity", 0);
+        $("body").append(bubble);
+        log("Appended bubble: ", $(bubble));
 
-        // Experimental!
-        if (funkyBubbles == true && lastCommit.valid == true) {
-            log("Blowing bubble");
-            blowBubble(diff);
-            log("new bubble: ", $("#bubble"));
-        setTimeout(function(){log("new bubble: ", $("#bubble"));}, 2000);
-        }
-
-
-        $("#xskill2").text(curr + '%');
-        displayedSkill = curr;
-        $("#xskmark").text(diff);
-
-        if ((Number(diff) > 0) == true) {
-            $("#xskmark").addClass("xskill-green").removeClass("xskill-red").removeClass("xskill-white");
-        } else if ((Number(diff) < 0) == true) {
-            $("#xskmark").addClass("xskill-red").removeClass("xskill-green").removeClass("xskill-white");
-        }
+        $("#bubble").animate({
+            opacity: 1.0,
+        }, Number(bubbleSpeedSecs)*1000, timeoutBubble);
     }
+
+    /*
+    var bubbleFuncs = [blowBubble1, blowBubble2, blowBubble3];
+    var defaultBubbleStyle = 2;
+    var selectedBubbleStyle = GM_getValue("selectedBubbleStyle", defaultBubbleStyle);
+    function rangeCheck(index){
+        if (index < 0 || index > (bubbleFuncs.length - 1))
+            selectedBubbleStyle = defaultBubbleStyle;
+        return selectedBubbleStyle;
+    }
+    */
 
     // ========================= handle saved missed predictions, clear storage=============
 
@@ -2019,6 +2495,8 @@
                 row = "";
             }
             result += "}";
+
+            log("yyz row: ", result);
 
             return result;
         }
@@ -2174,6 +2652,7 @@
 
     // ============================ styles =========================================
 
+    /*
     function stopRingAnimation() {
          GM_addStyle(`
             [class*='circleBackdrop__'] [class*='linesAnimation_'] {
@@ -2195,6 +2674,7 @@
             }
         `);
     }
+    */
 
     function setRespLevel(level='minimal') {
 
@@ -2222,6 +2702,7 @@
         }
     }
 
+    /*
     function stopLoaderAnimation() {
         GM_addStyle(`
             [class*='loader__'] [class*='loaderPoint_'] {
@@ -2232,6 +2713,7 @@
             }
         `);
     }
+    */
 
     function addScammingStyles() {
 
@@ -2341,6 +2823,7 @@
                   border-radius: 10px;
                   border: 0px solid green;
              }
+             .scam-halo:active {background-color: rgba(34,170,235,.7);}
              .halo {
                  box-shadow: 0 0 50px 8px #48abe0;
              }
