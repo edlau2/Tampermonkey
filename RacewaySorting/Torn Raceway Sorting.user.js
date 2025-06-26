@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.25
+// @version      1.27
 // @description  Allows sorting of custom races by start time
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=racing*
@@ -29,7 +29,7 @@
 (function() {
     'use strict';
 
-    const resetTableVal = 1.21;
+    const resetTableVal = 1.27;
 
     if (location.href.indexOf('racing') < 0) return log("Not at the raceway! (", location.href, ")");
 
@@ -314,7 +314,7 @@
     }
 
     function ifThisIsntUsed() {
-        function handleStartTimeClick(e) {
+        function xxx_handleStartTimeClick(e) {
             let target= $(e.currentTarget);
             debug("handleStartTimeClick: ", $(target));
             if (inClick == true) return false;
@@ -323,7 +323,7 @@
             setTimeout(resetClickFlag, 500);
             return false;
         }
-        function handleTrackClick(e) {
+        function xxx_handleTrackClick(e) {
             debug("handleTrackClick");
             if (inClick == true) return false;
             inClick = true;
@@ -546,7 +546,20 @@
             //    { enabled: true, filterFn: "longFilter", class: 'longhide', id: "xnolong", ckId: "x100only" },
             "100 Laps Only":
                 { enabled: false, filterFn: "shortFilter", invert: true, class: 'shorthide', id: "x100only"},// ckId: "xnolong" },
+            "Start Time":
+                { enabled: true, type: "select", filterFn: "startFilter", class: 'starttimehide', id: "st-select", selected: "any"},
         }
+    };
+
+    // Options for the start time select
+    const stSelect = {
+        "any": {name: "<span>-- any time --</span>"},
+        "waiting": {name: "ASAP", time: 0, op: "le"},
+        "under30min": {name: "Under 30 min", time: 1800, op: "le"},
+        "under1hr": {name: "Under 1 hr", time: 3600, op: "le"},
+        "under2hr": {name: "Under 2 hrs", time: 7200, op: "le"},
+        "over2hr": {name: "Over 2 hrs", time: 7200, op: "ge"},
+        "under4hr": {name: "Over 4 hrs", time: 14400, op: "ge"},
     };
 
     // 'Live' filtering definitions
@@ -628,7 +641,7 @@
         "x-preset": {sel: "input.x-preset", text: "Save the current set of filters\nas a prest favorite." },
     }
 
-    const filterClasses = "trackhide pwdhide feehide longhide shorthide";
+    const filterClasses = "trackhide pwdhide feehide longhide shorthide starttimehide";
 
     function getList(entry) {
         let list = {};
@@ -658,6 +671,35 @@
                 case "laps": {
                     //list = $("ul.event-info li.track > .laps")
                     //ul > li:nth-child(16) > div.event-header.left > ul > li.track > span
+                    break;
+                }
+                case "startFilter": {
+                    log("*** Applying start time filter!");
+                    let val = $(`#${entry.id}`).val();
+                    $(".starttimehide").removeClass("starttimehide");
+                    log("**** start time filter value: ", val);
+                    if (val == 'any') return;
+                    let opt = stSelect[val];
+                    log("opt: ", opt);
+                    log("list len: ", $(".event-info > li.startTime").length);
+
+                    let tmplist = $(".event-info > li.startTime").closest(".acc-body").parent();
+                    log("tmplist: ", tmplist);
+                    list = $(tmplist).filter(function() {
+                    //list = $(".event-info > li.startTime").filter(function() {
+                        log("el: ", $(this));
+                        let li = $(this); //.closest(".acc-body").parent();
+                        log("LI: ", $(li));
+                        let startSecs = parseInt($(li).attr("data-starttime"));
+                        log("start time: ", startSecs, " time: ", opt.time,  "eq: ", (Number(startSecs) == 0 && Number(opt.time) == 0));
+                        if (Number(startSecs) == 0 && Number(opt.time) == 0) return false;
+                        if (opt.op == "le")
+                            return startSecs > parseInt(opt.time);
+                        else
+                            return startSecs < parseInt(opt.time);
+                     });
+
+                    log("start time filter list: ", list);
                     break;
                 }
                 default: {
@@ -744,6 +786,26 @@
         saveFilterTable();
     }
 
+    function handleMiscOptSelects(e) {
+        log("[handleMiscOptSelects] this: ", $(this), $(this).attr("name"), $(this).val());
+
+        let selected = $(this).find("option:selected");
+        let val = $(this).find("option:selected").val();
+        let idx = $(this).find("option:selected").index();
+        log("selected: ", $(selected), " val: ", val, " idx: ", idx);
+        if (Number(idx) == 0) {
+            $(".starttimehide").removeClass("starttimehide");
+
+            // Need key, entry, to save and enable
+            //activeTable.misc.
+        }
+
+
+        // save table, apply? ...
+        // filterTable.misc[Start Time].enabled = key...
+        applyAllFilters(true);
+    }
+
     function handleSelects(e) { // Select all/clear all tracks
         if (filterEnabled == false) return;
         let checked = $(this).attr("name") == "xselect" ? true : false;
@@ -806,25 +868,37 @@
         $(".xmisc").each(function (idx, el) {
             let key = $(this).attr('name');
             let entry = filterTable.misc[key];
+            log("key: ", key, " entry: ", entry, " idx: ", idx, " el: ", $(el));
             let checked = entry.enabled;
             $(this).prop('checked', checked);
 
             let list = getList(entry);
-            if (checked == true) {
-                if (entry.invert == true) {
-                    debug("Adding class ", entry.class);
-                    $(list).addClass(entry.class);
-                } else {
-                    debug("Remove class ", entry.class);
-                    $(list).removeClass(entry.class);
-                }
+
+            log("**** Apply filters, entry: ", entry);
+            log("list: ", list);
+
+            if (entry.type == 'select') {
+                log("Apply 'select' filter, entry: ", entry);
+                log("List: ", list);
+                $(`.${entry.class}`).removeClass(entry.class);
+                $(list).addClass(entry.class);
             } else {
-                if (entry.invert == true) {
-                    debug("Remove class ", entry.class);
-                    $(list).removeClass(entry.class);
+                if (checked == true) {
+                    if (entry.invert == true) {
+                        debug("Adding class ", entry.class);
+                        $(list).addClass(entry.class);
+                    } else {
+                        debug("Remove class ", entry.class);
+                        $(list).removeClass(entry.class);
+                    }
                 } else {
-                    debug("Adding class ", entry.class);
-                    $(list).addClass(entry.class);
+                    if (entry.invert == true) {
+                        debug("Remove class ", entry.class);
+                        $(list).removeClass(entry.class);
+                    } else {
+                        debug("Adding class ", entry.class);
+                        $(list).addClass(entry.class);
+                    }
                 }
             }
         });
@@ -927,6 +1001,7 @@
 
         $(".xtrack").on('change', handleTrackSelect);
         $(".xmisc").on('change', handleMiscOptChange);
+        $(".xmselect").on('change', handleMiscOptSelects);
 
         $(".tbl-ftr input.x-select").on('click', handleSelects);
         $(".tbl-ftr input.x-preset").on('click', savePreset);
@@ -1033,11 +1108,35 @@
                 for (let j=0;j<4;j++) {
                     let newIdx = idx + j;
                     let entry = trackList()[keys[newIdx]];
-                    row = row + `<td><label><input class='xtrack' type='checkbox' name='${keys[newIdx]}' data-aka='${entry.aka}'>${keys[newIdx]}</label></td>`;
+                        row = row + `<td><label><input class='xtrack' type='checkbox' name='${keys[newIdx]}' data-aka='${entry.aka}'>${keys[newIdx]}</label></td>`;
                 }
                 row = row + `</tr>`;
                 $(tableDiv).find('tbody').append(row);
             }
+        }
+
+        function getSelectCell(mainKey, entry) {
+            let row;
+
+            switch (entry.id) {
+                case "st-select": {
+                    row = `<td><label>Start Time<select class='xmselect' id='${entry.id}'s>`;
+                    for (let [key, value] of Object.entries(stSelect)){
+                        row = row + `<option class='xmisc' name='${mainKey}' value="${key}">${value.name}</option>`;
+                    }
+                    row = row + `</select></label></td>`;
+
+                    break;
+                }
+                default: {
+                    row = `
+                        <td><select class='' name='error'><option value="">Error</option></select></td>
+                        `;
+                    break;
+                }
+            }
+
+            return row;
         }
 
         function addMiscOptionRows(tableDiv) {
@@ -1046,8 +1145,15 @@
             for (idx=0; idx<keys.length; idx++) {
                 let key = keys[idx];
                 let entry = filterTable.misc[key];
-                let optId = entry.id ? `id="${entry.id}"`: '';
-                row = row + `<td><label><input ${optId} class='xmisc' type='checkbox' name='${key}'>${key}</label></td>`;
+                log("entry: ", entry);
+                let optId = entry.id ? `id="${entry.id}"` : '';
+
+                if (entry.type == 'select') {
+                    row = row + getSelectCell(key, entry);
+                } else {
+                    row = row + `<td><label><input ${optId} class='xmisc' type='checkbox' name='${key}'>${key}</label></td>`;
+                }
+
                 if ((idx > 0) && (idx % 3 == 0) && (idx != keys.length - 1)) row = row + `</tr><tr>`;
             }
             if (keys.length % 4 != 0)
@@ -1219,6 +1325,10 @@
                 }
                 .tr-misc {
 
+                }
+                #st-select {
+                    margin: -4px 0px 0px 10px;
+                    border-radius: 4px;
                 }
                 #presets {
                     margin: -4px 0px 0px 10px;
