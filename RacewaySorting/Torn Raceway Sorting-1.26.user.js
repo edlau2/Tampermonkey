@@ -547,7 +547,7 @@
             "100 Laps Only":
                 { enabled: false, filterFn: "shortFilter", invert: true, class: 'shorthide', id: "x100only"},// ckId: "xnolong" },
             "Start Time":
-                { enabled: false, type: "select", filterFn: "startFilter", class: 'starttimehide', id: "st-select", selected: "any"},
+                { enabled: true, type: "select", filterFn: "startFilter", class: 'starttimehide', id: "st-select", selected: "any"},
         }
     };
 
@@ -674,14 +674,23 @@
                     break;
                 }
                 case "startFilter": {
-                    log("*** Applying star time filter!");
+                    log("*** Applying start time filter!");
                     let val = $(`#${entry.id}`).val();
                     $(".starttimehide").removeClass("starttimehide");
-                    log("star time filter: ", val);
-                    let opt = stTimes[val];
+                    log("**** start time filter value: ", val);
+                    if (val == 'any') return;
+                    let opt = stSelect[val];
                     log("opt: ", opt);
-                    list = $(".events-info > li").filter(function() {
-                        let startSecs = parseInt($(this).attr("data-starttime"));
+                    log("list len: ", $(".event-info > li.startTime").length);
+
+                    let tmplist = $(".event-info > li.startTime").closest(".acc-body").parent();
+                    log("tmplist: ", tmplist);
+                    list = $(tmplist).filter(function() {
+                    //list = $(".event-info > li.startTime").filter(function() {
+                        log("el: ", $(this));
+                        let li = $(this); //.closest(".acc-body").parent();
+                        log("LI: ", $(li));
+                        let startSecs = parseInt($(li).attr("data-starttime"));
                         log("start time: ", startSecs, " time: ", opt.time);
                         if (startSecs == 0 && parseInt(opt.time) == 0) return true;
                         if (opt.op == "le")
@@ -689,6 +698,7 @@
                         else
                             return startSecs < parseInt(opt.time);
                      });
+
                     log("start time filter list: ", list);
                     break;
                 }
@@ -783,8 +793,11 @@
         let val = $(this).find("option:selected").val();
         let idx = $(this).find("option:selected").index();
         log("selected: ", $(selected), " val: ", val, " idx: ", idx);
-        if (val == 0) {
+        if (Number(idx) == 0) {
             $(".starttimehide").removeClass("starttimehide");
+
+            // Need key, entry, to save and enable
+            //activeTable.misc.
         }
 
 
@@ -855,10 +868,14 @@
         $(".xmisc").each(function (idx, el) {
             let key = $(this).attr('name');
             let entry = filterTable.misc[key];
+            log("key: ", key, " entry: ", entry, " idx: ", idx, " el: ", $(el));
             let checked = entry.enabled;
             $(this).prop('checked', checked);
 
             let list = getList(entry);
+
+            log("**** Apply filters, entry: ", entry);
+            log("list: ", list);
 
             if (entry.type == 'select') {
                 log("Apply 'select' filter, entry: ", entry);
@@ -1098,14 +1115,14 @@
             }
         }
 
-        function getSelectCell(key, entry) {
+        function getSelectCell(mainKey, entry) {
             let row;
 
             switch (entry.id) {
                 case "st-select": {
-                    row = `<td><label>Start Time<select class='xmselect' id='${entry.id}' name='${key}'>`;
+                    row = `<td><label>Start Time<select class='xmselect' id='${entry.id}'s>`;
                     for (let [key, value] of Object.entries(stSelect)){
-                        row = row + `<option value="${key}">${value.name}</option>`;
+                        row = row + `<option class='xmisc' name='${mainKey}' value="${key}">${value.name}</option>`;
                     }
                     row = row + `</select></label></td>`;
 
@@ -1113,7 +1130,7 @@
                 }
                 default: {
                     row = `
-                        <td><select class='xmselect' name='error'><option value="">Error</option></select></td>
+                        <td><select class='' name='error'><option value="">Error</option></select></td>
                         `;
                     break;
                 }
