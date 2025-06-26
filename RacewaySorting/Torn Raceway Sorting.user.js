@@ -2,7 +2,7 @@
 // @name         Torn Raceway Sorting
 // @namespace    http://tampermonkey.net/
 // @version      1.27
-// @description  Allows sorting of custom races by start time
+// @description  Allows sorting/filtering of custom races
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=racing*
 // @match        https://www.torn.com/page.php?sid=racing*
@@ -313,26 +313,6 @@
         return false;
     }
 
-    function ifThisIsntUsed() {
-        function xxx_handleStartTimeClick(e) {
-            let target= $(e.currentTarget);
-            debug("handleStartTimeClick: ", $(target));
-            if (inClick == true) return false;
-            inClick = true;
-            doSort('data-startTime');
-            setTimeout(resetClickFlag, 500);
-            return false;
-        }
-        function xxx_handleTrackClick(e) {
-            debug("handleTrackClick");
-            if (inClick == true) return false;
-            inClick = true;
-            doSort('data-track');
-            setTimeout(resetClickFlag, 500);
-            return false;
-        }
-    }
-
     function addContextStyles() {
         GM_addStyle(`
             .custom-menu {
@@ -464,14 +444,15 @@
         setTimeout(handlePageLoad, 250);
     }
 
-    function addSortFilterAttrs(retries=0, callback) {
+    function addSortFilterAttrs(sfRetries=0, callback) {
         let rootLis = $(".events-list > li");
 
-        //log("[addSortFilterAttrs] ", retries, $(rootLis).length);
+        if (sfRetries % 10 == 0)
+            log("[addSortFilterAttrs] ", sfRetries, $(rootLis).length);
 
         if ($(rootLis).length == 0) {
-            if (retries++ < 100) return setTimeout(addSortFilterAttrs, 250, retries, callback);
-            return log("[addSortFilterAttrs] timed out! ", retries, $(".events-list > li"));
+            if (sfRetries++ < 100) return setTimeout(addSortFilterAttrs, 250, sfRetries, callback);
+            return log("[addSortFilterAttrs] timed out! ", sfRetries, $(".events-list > li"));
         }
 
         updateStartTimeAttr(rootLis);
@@ -674,22 +655,14 @@
                     break;
                 }
                 case "startFilter": {
-                    log("*** Applying start time filter!");
-                    let val = $(`#${entry.id}`).val();
+                    let val = $(`#${entry.id}`).attr("data-selected");
                     $(".starttimehide").removeClass("starttimehide");
-                    log("**** start time filter value: ", val);
                     if (val == 'any') return;
                     let opt = stSelect[val];
-                    log("opt: ", opt);
-                    log("list len: ", $(".event-info > li.startTime").length);
 
                     let tmplist = $(".event-info > li.startTime").closest(".acc-body").parent();
-                    log("tmplist: ", tmplist);
                     list = $(tmplist).filter(function() {
-                    //list = $(".event-info > li.startTime").filter(function() {
-                        log("el: ", $(this));
                         let li = $(this); //.closest(".acc-body").parent();
-                        log("LI: ", $(li));
                         let startSecs = parseInt($(li).attr("data-starttime"));
                         log("start time: ", startSecs, " time: ", opt.time,  "eq: ", (Number(startSecs) == 0 && Number(opt.time) == 0));
                         if (Number(startSecs) == 0 && Number(opt.time) == 0) return false;
@@ -698,8 +671,6 @@
                         else
                             return startSecs < parseInt(opt.time);
                      });
-
-                    log("start time filter list: ", list);
                     break;
                 }
                 default: {
@@ -787,22 +758,22 @@
     }
 
     function handleMiscOptSelects(e) {
-        log("[handleMiscOptSelects] this: ", $(this), $(this).attr("name"), $(this).val());
-
         let selected = $(this).find("option:selected");
         let val = $(this).find("option:selected").val();
+        let name = $(this).find("option:selected").attr('name');
         let idx = $(this).find("option:selected").index();
-        log("selected: ", $(selected), " val: ", val, " idx: ", idx);
-        if (Number(idx) == 0) {
-            $(".starttimehide").removeClass("starttimehide");
-
-            // Need key, entry, to save and enable
-            //activeTable.misc.
+        let entry = filterTable.misc[name];
+        if (entry) {
+            entry.enabled = true;
+            entry.selected = val;
+            $(this).attr("data-selected", val);
         }
 
+        if (Number(idx) == 0) {
+            $(".starttimehide").removeClass("starttimehide");
+        }
 
-        // save table, apply? ...
-        // filterTable.misc[Start Time].enabled = key...
+        saveFilterTable();
         applyAllFilters(true);
     }
 
@@ -821,7 +792,6 @@
         }
 
         saveFilterTable();
-
         applyAllFilters(true);
     }
 
@@ -842,8 +812,8 @@
     }
 
     function applyAllFilters(forced = false, init) {
-        debug("Applying filter table. forced? ", forced, " enabled? ", filterEnabled, " init? ", init, " table: ", activeTable);
-        debug("List len: ", $(`ul.events-list > li`).length);
+        //debug("Applying filter table. forced? ", forced, " enabled? ", filterEnabled, " init? ", init, " table: ", activeTable);
+        //debug("List len: ", $(`ul.events-list > li`).length);
         if (filterEnabled == false && forced == false) return;
 
         if (init == true) {
@@ -868,18 +838,12 @@
         $(".xmisc").each(function (idx, el) {
             let key = $(this).attr('name');
             let entry = filterTable.misc[key];
-            log("key: ", key, " entry: ", entry, " idx: ", idx, " el: ", $(el));
             let checked = entry.enabled;
             $(this).prop('checked', checked);
 
             let list = getList(entry);
 
-            log("**** Apply filters, entry: ", entry);
-            log("list: ", list);
-
             if (entry.type == 'select') {
-                log("Apply 'select' filter, entry: ", entry);
-                log("List: ", list);
                 $(`.${entry.class}`).removeClass(entry.class);
                 $(list).addClass(entry.class);
             } else {
@@ -998,6 +962,9 @@
             $(".xmisc").attr("disabled", "true");
             $(`.events-list > li`).removeClass(`${filterClasses}`);
         }
+
+        let val = $("#st-select").attr("data-selected");
+        $("#st-select").val(val);
 
         $(".xtrack").on('change', handleTrackSelect);
         $(".xmisc").on('change', handleMiscOptChange);
@@ -1120,22 +1087,17 @@
 
             switch (entry.id) {
                 case "st-select": {
-                    row = `<td><label>Start Time<select class='xmselect' id='${entry.id}'s>`;
-                    for (let [key, value] of Object.entries(stSelect)){
+                    row = `<td><label>Start Time<select class='xmselect' id='${entry.id}' data-selected='${entry.selected}'>`;
+                    for (let [key, value] of Object.entries(stSelect))
                         row = row + `<option class='xmisc' name='${mainKey}' value="${key}">${value.name}</option>`;
-                    }
                     row = row + `</select></label></td>`;
-
                     break;
                 }
                 default: {
-                    row = `
-                        <td><select class='' name='error'><option value="">Error</option></select></td>
-                        `;
+                    row = `<td><select class='' name='error'><option value="">Error</option></select></td>`;
                     break;
                 }
             }
-
             return row;
         }
 
@@ -1372,18 +1334,25 @@
         addSortSupport();
         addFilterSupport();
 
+        //hookCatBtns();
+    }
+
+    function hookCatBtns(retries=0) {
+        if (!$("ul.categories > li").length) {
+            if (retries++ < 100) return setTimeout(hookCatBtns, 250, retries);
+            return log("[hookCatBtns] timed out...");
+        }
         $("ul.categories > li").off('click.xedx');
         $("ul.categories > li").on('click.xedx', handleCatClick);
-
     }
 
     function handlePageLoad(retries=0) {
-
-        log("[handlePageLoad]", retries);
-
+        debug("[handlePageLoad]", retries);
         if (location.href.indexOf('racing') < 0) {
             return log("Wrong page: ", location.href);
         }
+
+        hookCatBtns();
 
         // Experimental: car recomendations, official races
         if (doCarSuggest == true) {
