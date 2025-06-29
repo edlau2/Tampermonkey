@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Awards Tracker
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.3
 // @description  This script does...
 // @author       xedx [2100735]
 // @match        https://www.torn.com/page.php?sid=awards*
@@ -45,6 +45,8 @@
     const honorsTab = function () { return $("#honors"); }
     const medalsTab = function () { return $("#medals"); }
     const meritsTab = function () { return $("#merits"); }
+
+    const oldHonors = [ 2, 6, 24, 25, 152, 153, 154, 155, 157, 158, 159, 160, 161 ];
 
     function queryAwardsCB(responseText, ID, param) {
         let jsonResp = JSON.parse(responseText);
@@ -98,8 +100,52 @@
         return hText;
     }
 
+    let medalTypeMap = { "CRM": {name: "crime", class: "crimes___gPSVM" },
+                                // 9 types
+                         "OTR": {name: "general", class: "general___DTna6" },
+                         "NTW": {name: "networth", class: "networth___n9fhW" },      // net-worth1-networth 1-14
+                         "RNK": {name: "rank", class: "rank___XEQdd" },              // rank1-rank, 1-25
+                         "LVL": {name: "level", class: "level___rMT3B" },            // lvl1-level...20, or level/5
+                         "ATK": {name: "attacking", class: "attacking___fHBku" },
+                         "CMT": {name: "commitment", class: "commitment___RlEbr" },
+                                // 4 types:
+                                // fac - f-membership1-commitment, 1-10
+                                // marriage - marriage1-commitment, 1-21
+                                // donator - donator1-commitment, 1-5
+                                // torn - years-of-service1-commitment, 1-10
+                       };
+
+
+    function whichPage() {
+        const params = new URLSearchParams(window.location.search);
+        let selectedTab = $("[class*='tabList_'] [class*='selectedTab_']").attr("id");
+        let urlTab = params.get("tab");
+        if (urlTab) return urlTab;
+        if (selectedTab) return selectedTab;
+        return 'honors';
+    }
+
+    function whichPanel() { return `#${whichPage()}-panel`; }
+
+    function liFromMedalEntry(entry, id) {
+        let mapEntry = medalTypeMap[entry.type];
+        if (!mapEntry) mapEntry = {name: "fake", class: "crimes___gPSVM" };
+        let li =
+            `<li data-id="${id}" class="medal___dYub_ ${mapEntry.class}">
+                   <i class="somesubsetandnumber-${mapEntry.name}-v2">
+                       <i class="md-icon medalIcon___AMWtj"></i>
+                   </i>
+                   <div class="information___yxwRo">
+                       <p class="date___hi0lf"></p>
+                       <p class="title____bn3U">${entry.name}</p>
+                       <p class="description___F6pkp">${entry.description}</p>
+                   </div>
+               </li>`;
+
+        return li;
+    }
+
     function liFromHonorEntry(entry, id) {
-        // Need fn to build letters...
         if (!entry || !entry.name || !entry.rarity || !entry.description) {
             debug("Default entry? ", entry);
             return null;
@@ -122,8 +168,85 @@
     }
 
     var detachedChildren;
-    function showMissingHonors() {
 
+    function getMedalsUl() {
+        let firstUl = $("#medals-panel").find("ul[class*='medalsList_']")[0];
+        if (!$(firstUl).length) {
+            firstUl = $(`<ul class="medalsList____X7l2"></ul>`);
+        }
+        let template = $(firstUl).clone();
+        $(template).empty();
+
+        // temp?
+        if ($(template).length) {
+            let saved = JSON.parse(GM_getValue("defMedalsUl", JSON.stringify("")));
+            log("Saved: ", saved, " template: ", $(template)[0]);
+            if (!saved || saved != $(template)[0]) {
+                GM_setValue("defMedalsUl", JSON.stringify($(template)[0]));
+            }
+        }
+
+        return $(template);
+    }
+
+    function showMissingMedals() {
+        // 2nd time, re-attach...
+        let panel = whichPanel();
+        if (detachedChildren) {
+            $(panel).children().slice(2).remove();
+            $(panel).append(detachedChildren);
+            detachedChildren = null;
+            $(`ul[class*='categoryList_'] > li[class*='category_']`).off('click.xedx');
+            return;
+        }
+
+        $(`ul[class*='categoryList_'] > li[class*='category_']`).on('click.xedx', showMissingMedals);
+
+        let template = getMedalsUl();
+        detachedChildren = $(panel).children().slice(2).detach();
+
+        // Build the rows of missing medals
+        let countNa = 0, countAdded = 0;
+        let newRow = $(template).clone();
+
+        let c = 0, needAppend = false;
+        for (let i=0; i<missingMedals.length; i++) {
+            let id = missingMedals[i];
+            let entry = allAwards.medals[id];
+            let li = liFromMedalEntry(entry, id);
+            if (!li || li == null) {
+                countNa++;
+                continue;
+            }
+            $(newRow).append(li);
+            countAdded++;
+            if (c++ == 2) {
+                c = 0;
+                $(panel).append(newRow);
+                newRow = $(template).clone();
+                needAppend = false;
+            } else {
+                needAppend = true;
+            }
+        }
+        if (needAppend == true)
+            $(panel).append(newRow);
+
+        debug("Medals missing: ", missingMedals.length, " N/A: ", countNa, " Added:", countAdded);
+    }
+
+    function getHonorsUl() {
+        let firstUl = $("#honors-panel").find("ul[class*='honorsList_']")[0];
+        let template = $(firstUl).clone();
+        $(template).empty();
+
+        // temp?
+        if ($(template).length) GM_setValue("defHonorsUl", JSON.stringify($(template)[0]));
+
+        return $(template);
+    }
+
+    function showMissingHonors(e) {
         // 2nd time, re-attach...
         if (detachedChildren) {
             $('#honors-panel').children().slice(2).remove();
@@ -135,10 +258,7 @@
 
         $(`ul[class*='categoryList_'] > li[class*='category_']`).on('click.xedx', showMissingHonors);
 
-        // Copy one list entry
-        let firstUl = $("#honors-panel").find("ul[class*='honorsList_']")[0];
-        let template = $(firstUl).clone();
-        $(template).empty();
+        let template = getHonorsUl();
 
         // Remove current contents
         detachedChildren = $('#honors-panel').children().slice(2).detach();
@@ -146,7 +266,7 @@
         // Build the rows of missing honors
         let countNa = 0, countAdded = 0;
         let newRow = $(template).clone();
-        let c = 0;
+        let c = 0, needAppend = false;
         for (let i=0; i<missingHonors.length; i++) {
             let id = missingHonors[i];
             let entry = allAwards.honors[id];
@@ -161,15 +281,20 @@
                 c = 0;
                 $('#honors-panel').append(newRow);
                 newRow = $(template).clone();
+                needAppend = false;
+            } else {
+                needAppend = true;
             }
         }
+        if (needAppend == true)
+            $('#honors-panel').append(newRow);
 
-        log("Honors missing: ", missingHonors.length, " N/A: ", countNa, " Added:", countAdded);
+        debug("Honors missing: ", missingHonors.length, " N/A: ", countNa, " Added:", countAdded);
     }
 
-    // Handle clicking one of the new tabs - display new page
+    /* / Handle clicking one of the new tabs - display new page
     function handleTabClick(e) {
-        log("[handleTabClick]: ", $(this), $(this).attr("id"));
+        debug("[handleTabClick]: ", $(this), $(this).attr("id"));
 
         switch($(this).attr("id")) {
             case "missing-honors": {
@@ -177,7 +302,7 @@
                 break;
             }
             case "missing-medals": {
-
+                showMissingHonors();
                 break;
             }
             case "locked-awards": {
@@ -186,77 +311,132 @@
             }
         }
     }
+    */
+
+    // temporary helper
+    var medalTypes = [];
+    function getMedalTypes() {
+        for (let [key, entry] of Object.entries(allAwards.medals)) {
+            if (!medalTypes.includes(entry.type))
+                medalTypes.push(entry.type);
+        }
+        log("medal types: ", medalTypes);
+    }
 
     // Only instll on Honors page for now...
     function installUI(retries=0) {
-        const params = new URLSearchParams(window.location.search);
-        if ($(".xtabstyle").length) return log("UI already installed: ", $(".xtabstyle"));
+        let page = whichPage();
+        if ($(".xtabstyle").length) {
+            log("Honors UI already installed: ", $(".xtabstyle"));
+            $(".xtabstyle").remove();
+        }
 
-        let tab = params.get("tab");
-        if (tab == 'medals' || tab == 'merits') return log("Will only install on the Honors page.");
-        let panelUl  = $("#honors-panel [class^='categoryList']");
+        // Only if I decide to put on medals page also
+        if ($("#medals-clone").length) {
+            log("Medals UI already installed: ", $(".xtabstyle"));
+            $("#medals-clone").remove();
+        }
+
+        let isHonorsPg = (page == 'honors');
+        log("[installUI] curr page: ", page);
+
+        //if (whichPage() == 'merits') return log("Will not install on the merits page.");
+        if (!isHonorsPg) return log("Not on honors page");
+
+        let panelUl = isHonorsPg ?
+            $("#honors-panel [class^='categoryList']") :
+            $("#medals-panel [class^='categoryList']");
+
+        if (!$(panelUl).length) { // try the opposite, just in case
+            panelUl = isHonorsPg ?
+                $("#medals-panel [class^='categoryList']") :
+                $("#honors-panel [class^='categoryList']");
+        }
 
         if (!$(panelUl).length) {
             if (retries++ < 50) return setTimeout(installUI, 250, retries);
             return log("installUI timed out");
         }
 
-        // Tabs under the existing ones
-        $(panelUl).append(`
-             <li id="missing-honors" class="xtabstyle" role="tab" tabindex="0"
-                 aria-labelledby="missing-tab">Missing Honors</li>
-             <li id="missing-medals" class="xtabstyle" role="tab" tabindex="0"
-                 aria-labelledby="medals-tab">Missing Medals</li>
-             <li id="locked-awards" class="xtabstyle" role="tab" tabindex="0"
-                 aria-labelledby="locked-tab">Locked</li>`);
+        if ($("#medals-panel").length) {
+            let panelClone = $(panelUl).clone();
+            $(panelClone).empty();
+            $(panelClone).attr("id", "medals-clone");
+            $(panelClone).append(`
+                 <li id="missing-honors" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="missing-tab">Missing Honors</li>
+                 <li id="missing-medals" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="medals-tab">Missing Medals</li>
+                 <li id="locked-awards" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="locked-tab">Locked</li>`);
+            $(panelUl).after(panelClone);
+        } else {
+            $(panelUl).append(`
+                 <li id="missing-honors" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="missing-tab">Missing Honors</li>
+                 <li id="missing-medals" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="medals-tab">Missing Medals</li>
+                 <li id="locked-awards" class="xtabstyle" role="tab" tabindex="0"
+                     aria-labelledby="locked-tab">Locked</li>`);
+        }
 
-        $(".xtabstyle").on('click', handleTabClick);
+        //$(".xtabstyle").on('click', handleTabClick);
+        $("#missing-honors").on('click', showMissingHonors);
+        $("#missing-medals").on('click', showMissingMedals);
 
+        /*
         // Clone a UL and LI to populate. Or, create our own styles...
         let firstUl = $("#honors-panel").find("ul[class*='honorsList_']")[0];
         let ulClone = $(firstUl).clone();
-
-        let firstLi = $(firstUl).find("li:first-child");
-        let liClone = $(firstLi).clone();
-
         $(ulClone).empty();
 
-        log("UL clone: ", $(ulClone));
-        log("LI clone: ", $(liClone));
+        log("UL clone: ", $(ulClone)[0]);
+        //log("LI clone: ", $(liClone));
 
         if (!$(ulClone).length)
             ulClone = $(`<ul class="honorsList"></ul>`);
-
+        */
     }
 
     function getMissingAwards(retries=0) {
-        if (retries == 0) log("[getMissingAwards]");
-
         if (!myAwards.honors.length || !allHonorsArr.length) {
             if (retries++ < 50) return setTimeout(getMissingAwards, retries);
             return log("[getMissingAwards] timed out.");
         }
 
-        missingHonors = allHonorsArr.filter(num => !myAwards.honors.includes(num));
-        missingMedals = allMedalsArr.filter(num => !myAwards.medals.includes(num));
+        let oldMedals = getOldMedals();
 
-        log("allHonorsArr: ", allHonorsArr);
-        log("myAwards.honors: ", myAwards.honors);
-        log("missingHonors: ", missingHonors);
+        missingHonors = allHonorsArr.filter(num => !myAwards.honors.includes(num) && !oldHonors.includes(num));
+        missingMedals = allMedalsArr.filter(num => !myAwards.medals.includes(num) && !oldMedals.includes(+num));
+
+        function getOldMedals() {
+            let ret = [];
+            let ng = { 54: 73, 81: 88, 97: 104, 117: 147, 152: 155, 163: 173 };
+            for (let [a, b] of Object.entries(ng)) {
+                for (let i = +a; i <= +b; i++) ret.push(+i);
+            }
+            return ret;
+        }
     }
 
     function handlePageLoad(retries=0) {
-        log("[handlePageLoad]");
+        debug("[handlePageLoad] ", retries);
         handlingPSChange = false;
+
         let h = honorsTab(), m = medalsTab();
-        //log("h: ", $(h), " m: ", $(m));
         if (!$(h).length || !$(m).length) {
             if (retries++ < 50) return setTimeout(handlePageLoad, 250, retries);
             return log("handlePageLoad timed out");
         }
-        installUI();
 
-        getMissingAwards();
+        const params = new URLSearchParams(window.location.search);
+        let selectedTab = $("[class*='tabList_'] [class*='selectedTab_']").attr("id");
+        let tab = params.get("tab");
+        log("[handlePageLoad] selectedTab: ", selectedTab, " tab: ", tab);
+
+        installUI();
+        if (!missingHonors.length || !missingMedals.length)
+            getMissingAwards();
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -274,7 +454,6 @@
 
     callOnHashChange(hashChangeHandler);
     installPushStateHandler(pushStateChanged);
-
 
     // Get all available (once)
     if (!Object.keys(allAwards.honors).length || !allHonorsArr.length || !allMedalsArr.length)
@@ -316,6 +495,11 @@
                 border-bottom: 1px solid #222;
                 display: flex;
             }
+            .medalsList {
+                border-bottom: 1px solid #222;
+                display: flex;
+                flex-wrap: wrap;
+            }
 
             .honorType {
                 background: url(/images/v2/awards/flags_reg.svg) 100% 0 no-repeat;
@@ -327,17 +511,76 @@
                 width: 13px;
             }
 
-            .limited { background-position: 0 -41px; }
-            .veryrare { background-position: 0 -67px; }
+            .common { background-position: 0 -15px; }
             .uncommon { background-position: 0 -28px; }
+            .limited { background-position: 0 -41px; }
             .rare ( background-position: 0 -54px; }
+            .veryrare { background-position: 0 -67px; }
+            .extremelyrare { background-position: 0 -80px; }
         `);
     }
 
-    // limited___bLYIw
-    // veryrare___GIMBu
-    // uncommon___otCmz
-    // rare___mAjX2
-
+    function getLockedMedalDiv() {
+        return `<div class="md-icon medalIcon___AMWtj">` +
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="63" viewBox="0 0 30 63" class="lockedMedal___zVS2E">` +
+                        `<defs>` +
+                            `<linearGradient id="linear-gradient" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">` +
+                                `<stop offset="0" stop-color="#222"></stop>`+
+                                `<stop offset="1" stop-color="#333"></stop>`+
+                            `</linearGradient>`+
+                            `<filter id="Path_3048" x="0" y="0" width="30" height="64" filterUnits="userSpaceOnUse">`+
+                                `<feOffset></feOffset>`+
+                                `<feGaussianBlur result="blur"></feGaussianBlur>`+
+                                `<feFlood flood-color="#fff" flood-opacity="0.051"></feFlood>`+
+                                `<feComposite operator="in" in2="blur"></feComposite>`+
+                                `<feComposite in="SourceGraphic"></feComposite>` +
+                            `</filter>`+
+                            `<filter id="Path_3048-2" x="0" y="0" width="30" height="64" filterUnits="userSpaceOnUse">`+
+                                `<feOffset></feOffset>`+
+                                `<feGaussianBlur stdDeviation="2.5" result="blur-2"></feGaussianBlur>`+
+                                `<feFlood flood-opacity="0.651" result="color"></feFlood>`+
+                                `<feComposite operator="out" in="SourceGraphic" in2="blur-2"></feComposite>`+
+                                `<feComposite operator="in" in="color"></feComposite>`+
+                                `<feComposite operator="in" in2="SourceGraphic"></feComposite>`+
+                            `</filter>`+
+                            `<linearGradient id="linear-gradient-2" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">`+
+                                `<stop offset="0" stop-color="#666"></stop><stop offset="1" stop-color="#333"></stop>`+
+                            `</linearGradient>`+
+                            `<filter id="iconmonstr-lock-1" x="3" y="13" width="24" height="30" filterUnits="userSpaceOnUse">`+
+                                `<feOffset></feOffset>`+
+                                `<feGaussianBlur stdDeviation="1" result="blur-3"></feGaussianBlur>`+
+                                `<feFlood></feFlood>`+
+                                `<feComposite operator="in" in2="blur-3"></feComposite>`+
+                                `<feComposite in="SourceGraphic"></feComposite>`+
+                            `</filter>`+
+                            `<clipPath id="clip-medal_locked"><rect width="30" height="63"></rect></clipPath>`+
+                        `</defs>`+
+                        `<g clip-path="url(#clip-medal_locked)">`+
+                            `<g transform="translate(-1026 -641)">`+
+                                `<g>`+
+                                    `<g transform="matrix(1, 0, 0, 1, 1026, 641)" filter="url(#Path_3048)">`+
+                                        `<path d="M243-23h30V30L258,40,243,30Z" transform="translate(-243 23)" fill="url(#linear-gradient)">`+
+                                        `</path>`+
+                                    `</g>`+
+                                    `<g transform="matrix(1, 0, 0, 1, 1026, 641)" filter="url(#Path_3048-2)">`+
+                                        `<path d="M243-23h30V30L258,40,243,30Z" transform="translate(-243 23)" fill="#fff"></path>`+
+                                    `</g>`+
+                                `</g>`+
+                            `<g transform="matrix(1, 0, 0, 1, 1026, 641)" filter="url(#iconmonstr-lock-1)">`+
+                                `<path d="M18,10V6A6,6,0,0,0,6,6v4H3V24H21V10ZM8,10V6a4,4,0,0,1,8,0v4Z" transform="translate(3 16)" fill="url(#linear-gradient-2)"></path>`+
+                            `</g>`+
+                        `</g>`+
+                    `</g>`+
+                `</svg>`+
+                `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="63" viewBox="0 0 30 63" class="progressBg___KOI0O">`+
+                    `<defs><linearGradient id="medals_crimes_progress_347" gradientTransform="rotate(90)"><stop offset="100%" stop-color="#FCC4194D" stop-opacity="0"></stop><stop offset="100%" stop-color="#FCC4194D" stop-opacity="1"></stop><stop offset="100%" stop-color="#FCC41900" stop-opacity="0"></stop></linearGradient>`+
+                    `</defs>`+
+                    `<g><path d="M0,0h30v53l-15,10L0,53V0Z" fill="url('#medals_crimes_progress_347')" stroke-width="0"></path></g>`+
+                `</svg>`+
+            `</div>`;
+    }
 
 })();
+
+
+
