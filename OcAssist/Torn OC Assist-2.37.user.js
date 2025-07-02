@@ -1780,6 +1780,39 @@
     // make sure the list is up to date. But just once...
     var membersArray = [];
     var membersNameById = {};
+
+    function updateMemberNotInOcStatus() {
+        log("**** [updateMemberNotInOcStatus] ****");
+        getFacStatus();
+
+        function getFacStatus(ID) {
+            log("**** getFacStatus ****", membersNotInOc);
+            let userIds = [];
+            Object.keys(membersNotInOc).forEach(key =>{
+                userIds.push(key);
+            });
+            log("**** ", userIds);
+            getStatusForUserArray(userIds, statusReqCb);
+        }
+
+        function statusReqCb(response) {
+            log("**** statusReqCbs ****", response);
+            if (!response) return log("Error: no response!");
+
+            let keys = Object.keys(response);
+            for (let idx=0; idx < keys.length; idx++) {
+                let userId = keys[idx];
+                let status = response[userId];
+                log("**** ", userId, status);
+
+                log("**** User ", userId, " is ", status);
+                //if (status == 'online') {}
+                //if (status == 'offline') {}
+                //if (status == 'idle') {}
+            }
+        }
+    }
+
     function facMemberCb(responseText, ID, options) {
         debug("facMembersCB");
 
@@ -1807,6 +1840,9 @@
                 }
             }
         }
+
+        updateMemberNotInOcStatus();
+
 
         updateMembersTableData();
 
