@@ -29,7 +29,7 @@
 (function() {
     'use strict';
 
-    const resetTableVal = 1.29;
+    const resetTableVal = 1.27;
 
     var params = new URLSearchParams(window.location.search);
     var urlTab = params.get("tab");
