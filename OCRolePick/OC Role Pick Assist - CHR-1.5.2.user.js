@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.4
+// @version      1.5.2
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
@@ -28,64 +28,6 @@
     'use strict';
 
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);    // Enables more verbose logging
-
-    // ================= experimental, alt way to get crime info ================
-    const hookFetch = false;
-    if (hookFetch == true) {
-        function logResponse(r) {
-            log("[logResponse]:\n", JSON.stringify(r, null, 4));
-        }
-
-        const { fetch: originalFetch } = unsafeWindow;
-        unsafeWindow.fetch = async (...args) => {
-            var [resource, config] = args;
-            var response = await originalFetch(resource, config);
-            const json = () => response.clone().json()
-            .then((data) => {
-                data = { ...data };
-
-                log("URL: ", response.url);
-                if (data?.DB) {
-                    log("[orgFetch] DB entries:");
-                    log(JSON.stringify(data.DB, null, 4));
-                }
-                    //for (let entry of Object.entries(data.DB)) {
-                    //    log(entry);
-                    //}
-                    //log(JSON.stringify(data, null, 4));
-                //}
-
-                /*
-                if(response.url.indexOf('?sid=attackData') != -1) {
-                    if(data.DB.error?.includes('in hospital') || data.DB.error?.includes('unconscious') || data.DB.error?.includes('This fight no longer exists')) {
-                        data.DB.defenderUser.playername += ' [Hospital]'
-                        delete data.DB.error
-                        delete data.startErrorTitle
-                    }
-                }
-
-                if(response.url.indexOf('page.php?sid=factionsProfile&step=getInfo') != -1) {
-                    if (hide_faction_desc === "true") {
-                        data.faction.description = 'Blocked by Walla Walla'
-                    }
-                }
-                */
-
-                return data;
-            })
-
-            response.json = json;
-            response.text = async () =>JSON.stringify(await json());
-
-            // ===========
-            log("response.url: ", response.url);
-            response.json().then( r => logResponse(r));
-            // ===========
-
-
-            return response;
-        };
-    }
 
     // ================= Color Coding the slots, based on CPR ===================
 
@@ -123,7 +65,6 @@
         if (location.hash) return new URLSearchParams(location.hash.slice(2)).get("tab");
     }
 
-    var crimeList = [];
     function processScenario(panel) {
         if (panel.classList.contains('role-processed')) return;
         panel.classList.add('role-processed');
@@ -131,26 +72,11 @@
         const slots = $(panel).find('[class*="wrapper_"]');
         var hasChance = false;
 
-        let ocId = $(panel).attr("data-oc-id");
-        let level = $(panel).find("[class^='levelValue_']").text();
-        let score = 0;
         Array.from(slots).forEach(slot => {
             // get raw role text and chance
             const roleElem      = slot.querySelector("[class*='title_']");
             const chanceElem    = slot.querySelector("[class*='successChance_']");
             if (!roleElem || !chanceElem) return;
-
-            let iconNode = $(slot).find("[class^='slotIcon_'] > div[class^='planning_']");
-            let style = $(iconNode).attr('style');
-            if (style) {
-                let idx = style.lastIndexOf(") ");
-                if (idx > -1) {
-                    let deg = parseFloat(style.slice(idx + 2).split('d')[0]);
-                    let slotScore = 360 - deg;
-                    score += slotScore;
-                    debug("deg: ", deg, " slot score: ", slotScore, " score: ", score);
-                }
-            } else debug("Slot Icon Node: ", $(iconNode));
 
             const rawRole       = roleElem.innerText.trim();
             const successChance = parseInt(chanceElem.textContent.trim(), 10) || 0;
@@ -186,11 +112,15 @@
             }
         });
 
-        if (hasChance == false) score = 9999;
-        let entry = {id: parseInt(ocId), lvl: parseInt(level), name: ocName, score: score}; //, f: filledSlots, e: emptySlots};
-        crimeList.push(entry);
-        debug("Crime list: ", crimeList);
-        sortCrimeList();
+        if (hasChance == false && !$(panel).attr("data-chance")) {
+            $(panel).attr("data-chance", hasChance);
+            let targetVal = parseInt($(panel).attr("data-oc-id"));
+            let entry = crimeList.find(item => item.id == targetVal);
+            if (entry) {
+                entry.score = 9999;
+                sortCrimeList();
+            }
+        }
     }
 
     var observer;
@@ -218,7 +148,20 @@
 
     // =========================== Calculating best OC to join =========================
 
+    var crimeList = [];
     var listSorted = false;
+    function getScoreForCrime(crime) {
+        let score = 0, emptySlots = 0, filledSlots = 0;
+        crime.slots.forEach(slot => {
+            if (slot.user) {
+                filledSlots++;
+                score += (100 - parseFloat(slot.user.progress));
+            }
+        });
+        let entry = {id: crime.id, lvl: crime.difficulty, name: crime.name, score: score, f: filledSlots, e: emptySlots};
+        crimeList.push(entry);
+    }
+
     function sortCrimeList() {
         if (!crimeList.length) return;
         crimeList.sort((a, b) => {
@@ -226,6 +169,23 @@
             return a.score - b.score;
         });
         listSorted = true;
+    }
+
+    function crimesCb(responseText, ID, param) {
+        let jsonObj = JSON.parse(responseText);
+        if (jsonObj.error) return console.error(jsonObj.error.code, jsonObj.error.error);
+        if (crimeList.length) crimeList = [];
+        jsonObj.crimes.forEach( crime => {
+            getScoreForCrime(crime);
+        });
+
+        // sort, best will be first, sorted by level then score
+        sortCrimeList();
+        debug("sorted crimeList: ", crimeList);
+    }
+
+    function getCrimes() {
+        xedx_TornFactionQueryv2("", "crimes", crimesCb, {"cat": "recruiting", "offset": "0"});
     }
 
     // ==================== Display the best ones to join, somehow =====================
@@ -237,8 +197,9 @@
         }
     }
 
-    // Order by level then score
+    // Testing: ordered by level then score
     function orderByScore(e) {
+        debug("orderByScore: ", listSorted, crimeList.length);
         if (!listSorted) return;
         for (let idx=0; idx<crimeList.length; idx++) {
             let entry = crimeList[idx];
@@ -249,9 +210,10 @@
                 $(node).attr('style', `order: ${idx};`);
             }
         }
+        debug("list: ", crimeList);
     }
 
-    // Highlight and scroll into focus
+    // Testing: highlight and scroll into focus
     function highlightNode(node) {
         debug("[highlightNode] ", $(node));
         if (!$(node).length) return false;
@@ -262,6 +224,7 @@
     }
 
     function goToBestChoice(e) {
+        debug("goToBestChoice: ", listSorted, crimeList.length);
         if (!listSorted) return;
         let entry = crimeList[0];
         let node = entry ? $(`div[data-oc-id='${entry.id}']`) : null;
@@ -349,8 +312,11 @@
     callOnHashChange(hashChangeHandler);
     installPushStateHandler(pushStateChanged);
 
+    validateApiKey();
     versionCheck();
     addStyles();
+
+    getCrimes();
 
     callOnContentLoaded(handlePageLoad);
 
