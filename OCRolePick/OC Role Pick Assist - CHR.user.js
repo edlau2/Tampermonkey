@@ -154,6 +154,7 @@
                 });
             });
         }
+
         let targetNode = document.querySelector('#factionCrimes-root') || document.body;
         observer.observe(targetNode, { childList: true, subtree: true });
     }
@@ -197,7 +198,6 @@
     function highlightNode(node) {
         debug("[highlightNode] ", $(node));
         if (!$(node).length) return false;
-        // $(node).addClass("highlight");
         let hn = $(`<div class="highlight2"></div>`);
         $(node).prepend($(hn));
         return true;
