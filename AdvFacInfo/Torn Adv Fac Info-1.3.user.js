@@ -220,6 +220,7 @@
             acSource.push({label: name, value: name, data: id});
             membersList[id] = {name: name};
         });
+
         facMembersUpdated = true;
         memberCount = Object.keys(membersList).length;
 
@@ -232,7 +233,13 @@
         if (statsNeedUpdate == true) updateMemberStats();
     }
 
+    // TEMPORARY test!
+    //getMemberStats(271665, 666);
+
     function processStatQuery(data, status) {
+        if (Number(this.idx) == 666) {
+            return log("Data: ", JSON.stringify(data, null, 4));
+        }
         setProgressText(`[${this.idx}/${memberCount}] Writing ${this.name} [${this.id}] to DB`);
         addStatsToDb(data, this.id);
     }
@@ -502,22 +509,15 @@
             .stat-tbl tr td:first-child {
                 width: 110px;
             }
-            .stat-tbl td,
-            .stat-tbl th {
+            .stat-tbl td {
                 color: white;
                 border: 1px solid white !important;
-
-                /* justify-content: center;
-                display: flex;
-                flex-flow: row wrap; */
-
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                /*margin-top: 5px;*/
                 height: 100%;
             }
-            .stat-tbl td span, .img-wrap {
+            .stat-tbl td span, .img-wrap, .stat-tbl th span {
                 display: flex;
                 flex-flow: row wrap;
                 justify-content: center;
@@ -527,7 +527,7 @@
             .stat-tbl thead {
                 position: sticky;
                 inset-block-start: 0;
-                background-color: #ddd;
+                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
             }
             .scroll-wrap {
                 overflow: scroll;
