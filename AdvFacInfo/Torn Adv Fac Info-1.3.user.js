@@ -262,23 +262,35 @@
 
         log("[getHonorForId] ", $(node));
         return $(node);
-
-        // <div class="honor-text-wrap default small"></div>
     }
 
+    var hdrsAdded = false;
     function buildTableRow(stat, id) {
         let divId = `stat-tbl-${stat}`;
         getStatsForMemberFromDb(id)
        .then(value => {
             log('Retrieved value:', value);
-            let keys = Object.keys(value);
-            log("Keys for stat ", stat, ": ", keys);
+
+            if (hdrsAdded == false) {
+                let keys = Object.keys(value[stat]);
+                let row = "";
+                keys.forEach(key => {
+                    row = row + `<th>${key}</th>`;
+                });
+                $("thead.sticky-th").append(row);
+                hdrsAdded = true;
+            }
+
+            let keys = Object.keys(value[stat]);
+            let cells = "";
+            keys.forEach(key => {
+                cells = cells + `<td><span>${value[stat][key]}</th>`;
+            });
 
             let honor = getHonorForId(id);
             let row = `<tr>
                            <td><div class="honor-text-wrap default img-wrap small">${$(honor).html()}</div></td>
-                           <td><span>${keys[0]}</span></td>
-                           <td><span>${value[keys[0]]}</span></td>
+                           ${cells}
                        </tr>`;
             $(`#${divId}`).find("tbody").append(row);
             log("Row added to ", $(`#${divId}`));
@@ -286,21 +298,26 @@
        .catch(error => console.error(error));
     }
 
+    function detachStatTbl() {
+         let sib = $("#tbl-btns").next();
+        if ($(sib).hasClass("stat-tbl")) {
+            let tblId = $(sib).attr("id");
+            detachedTables[tblId] = $(sib).detach();
+        }
+    }
+
     function buildStatTable(stat) {
         let divId = `stat-tbl-${stat}`;
         let table = `
             <div id="${divId}" class="stat-tbl scroll-wrap">
                 <table>
-                <thead><th>Test One</th><th>Test 2</th><th>Test Three</th></thead>
+                    <thead class="sticky-th title-black"><th>Member</th></thead>
                     <tbody></tbody>
                 </table>
             </div>
         `;
-        let sib = $("#tbl-btns").next();
-        if ($(sib).hasClass("stat-tbl")) {
-            let tblId = $(sib).attr("id");
-            detachedTables[tblId] = $(sib).detach();
-        }
+
+        detachStatTbl();
 
         if (detachedTables[divId]) {
             $("#tbl-btns").after(detachedTables[divId]);
@@ -344,6 +361,7 @@
             $(".stat-btn").on('click', handleHdrBtns);
 
         } else {
+            detachStatTbl();
             $("#tbl-btns").remove();
         }
     }
@@ -524,14 +542,21 @@
                 align-content: center;
                 height: 32px;
             }
-            .stat-tbl thead {
+            .stat-tbl thead.sticky-th {
                 position: sticky;
                 inset-block-start: 0;
-                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
+                font-size: 12px;
+                font-weight: bold;
+                letter-spacing: 0;
+                text-shadow: var(--tutorial-title-shadow);
+                color: var(--tutorial-title-color);
+                z-index: 2;
+                outline: 1px solid white;
+                outline-offset: -1px;
             }
             .scroll-wrap {
                 overflow: scroll;
-                height: 600px;
+                height: 340px;
                 width: 784px;
             }
         `);
