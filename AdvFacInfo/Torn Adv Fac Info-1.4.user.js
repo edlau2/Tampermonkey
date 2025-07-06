@@ -259,8 +259,6 @@
     function getHonorForId(id) {
         let node = $(`[data-id='${id}']`).find(".honor-text-wrap").clone();
         $(node).removeClass("big").addClass("small");
-
-        log("[getHonorForId] ", $(node));
         return $(node);
     }
 
@@ -542,14 +540,14 @@
         GM_addStyle(`
             .stat-tbl {
                 display: flex;
-                justify-content: center;
+                justify-content: left;
                 border: 1px solid white;
             }
             .stat-tbl > table {
                 width: 5000px;
                 left: 0;
                 position: relative;
-                margin-left: 158px;
+                /*margin-left: 158px;*/
             }
             .stat-tbl tr {
                 height: 32px;
