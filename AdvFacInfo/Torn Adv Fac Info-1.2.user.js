@@ -266,6 +266,11 @@
 
     // =============== Stats table(s) installation/handling ===================
 
+    function handleHdrBtns(e) {
+        let btn = $(e.currentTarget);
+        log("[handleHdrBtns]: ", $(btn).attr("id"));
+    }
+
     function getTopHeaderRow() {
         // attacking jobs trading jail hospital finishing_hits communication crimes bounties items travel drugs missions racing networth other
         if (!$("#tbl-btns").length) {
@@ -273,19 +278,21 @@
                            "hospital": "Hosp",     "finishing_hits": "Fin Hits", "communication": "Comm",  "crimes": "Crimes" };
             const row2 = { "bounties": "Bounty",   "items": "Items",             "travel": "Travel",       "drugs": "Drugs",
                            "missions": "Mission",  "racing": "Racing",           "networth": "NW",         "other": "Other" };
-            let hdr= `<div id="tbl-btns"><table><tbody></tbody></table></div>`;
+            let hdr= `<hr class="delimiter-999 m-top10"><div id="tbl-btns"><table><tbody></tbody></table></div>`;
             let table = $(hdr);
             let tbody = $(table).find('tbody');
             for (let i=0;i<2;i++) {
                 let row = "<tr>";
                 for (const [key, value] of Object.entries((i ==0 ? row1 : row2))) {
-                    row = row + `<td><input id='${key}-stat' type="submit" class="btn-dark-bg torn-btn" value="${value}"></td>`;
+                    row = row + `<td><input id='${key}' type="submit" class="btn-dark-bg stat-btn" value="${value}"></td>`;
                 }
                 row = row + "</tr>";
                 $(tbody).append(row);
             }
 
             $("#adv-fac-bar").after($(table));
+            $(".stat-btn").on('click', handleHdrBtns);
+
         } else {
             $("#tbl-btns").remove();
         }
@@ -345,7 +352,7 @@
                 `<div id="adv-fac-bar">
                     <div>
                         <label>Search:
-                           <input type="text" id="${searchid}" name="search" class="ac-search m-top10 ui-autocomplete-input ac-focus">
+                           <input type="text" id="${searchid}" name="search" class="ac-search m-top10 ui-autocomplete-input ac-border">
                         </label>
                         <input id='view-stats' type="submit" class="btn-dark-bg torn-btn" value="View Stats">
                         <input id='upd-stats' type="submit" class="btn-dark-bg torn-btn" value="Update">
@@ -419,6 +426,57 @@
             }
             #fac-search {
                 width: 175px !important;
+                margin-right: 10px;
+            }
+            .ac-border {
+                border: 1px solid white;
+            }
+            #tbl-btns {
+                display: flex;
+                justify-content: center;
+                padding: 10px;
+            }
+            #tbl-btns table {
+                /* margin-top: 10px; */
+            }
+            #tbl-btns tbody {
+                padding: 10px;
+            }
+            #tbl-btns td {
+                padding: 2px 6px 2px 6px;
+            }
+        `);
+
+        GM_addStyle(`
+            .stat-btn {
+                height: 24px;
+                width: 74px;
+                line-height: 16px;
+                font-family: "Fjalla One", Arial, serif;
+                font-size: 12px;
+                font-weight: normal;
+                text-align: center;
+                border-radius: 5px;
+                padding: 0 10px;
+                cursor: pointer;
+                color: #555;
+                color: var(--btn-color);
+                text-shadow: 0 1px 0 #FFFFFF40;
+                text-shadow: var(--btn-text-shadow);
+                background: linear-gradient(180deg, #DEDEDE 0%, #F7F7F7 25%, #CFCFCF 60%, #E7E7E7 78%, #D9D9D9 100%);
+                background: var(--btn-background);
+                border: 1px solid #aaa;
+                border: var(--btn-border);
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .stat-btn:hover {
+                filter: brightness(1.50);
+                border: 1px solid #222;
+            }
+            .stat-btn:active {
+                filter: brightness(0.80);
+                border: 1px solid #111;
             }
         `);
     }
