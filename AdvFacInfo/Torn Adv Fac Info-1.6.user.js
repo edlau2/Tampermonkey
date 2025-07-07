@@ -149,7 +149,6 @@
         keys.forEach(key => {
             dataToAdd[key] = stats[key];
         });
-        //const dataToAdd = { id: 1, name: 'Example Item', value: 'Some Data' };
         const request = objectStore.put(dataToAdd, id);
 
         request.onsuccess = () => log(`Added stats for: ${id}`);
@@ -201,7 +200,6 @@
             last = 0;
             lastKeyIdx = 0;
             GM_setValue("lastKeyIdx", last);
-            //return processUpdateDone();
         }
 
         let key = memberKeys[last];
@@ -260,13 +258,7 @@
         if (statsNeedUpdate == true) updateMemberStats();
     }
 
-    // TEMPORARY test!
-    //getMemberStats(271665, 666);
-
     function processStatQuery(data, status) {
-        if (Number(this.idx) == 666) {
-            return log("Data: ", JSON.stringify(data, null, 4));
-        }
         setProgressText(`[${this.idx}/${memberCount}] Writing ${this.name} [${this.id}] to DB`);
         addStatsToDb(data, this.id);
     }
@@ -294,35 +286,24 @@
         let divId = `stat-tbl-${stat}`;
         getStatsForMemberFromDb(id)
        .then(value => {
-            //log('Retrieved value:', value);
-
-            //log("{buildTableRow] rowKeys.length: ", rowKeys.length);
             if (!rowKeys) {
                 rowKeys = getAllKeysWithPaths(value[stat]);
-
-                //rowKeys = Object.keys(value[stat]);
-                log("Saved keys for stat: ", rowKeys);
                 let thRow = "<th>Member</th>";
 
                 rowKeys.forEach(key => {
-                    log("key: ", key, " type: ", typeof value[stat][key]);
                     if (key.indexOf(".") < 0 && typeof value[stat][key] != 'object') {
-                        log("Using key ", key, (key.indexOf(".") < 0), (typeof value[stat][key] != 'object'));
                         thRow = thRow + `<th>${key}</th>`;
                     } else if (key.indexOf(".") > -1) {
                         let parts = key.split('.');
-                        log("*** nested path, depth: ", parts.length);
                         let path = value[stat];
                         let newKey;
                         for (let idx=0; idx<parts.length-1; idx++) {
                             path = path[parts[idx]];
                             newKey = parts[idx+1];
-
-                        log("path: ", path, "newKey: ", newKey);
                         }
                         thRow = thRow + `<th>${newKey}</th>`;
                     } else {
-                        log("Skipped object key ", key);
+                        debug("Skipped object key ", key);
                     }
                 });
                 $("thead.sticky-thead > tr").empty();
@@ -334,22 +315,17 @@
             keys.forEach(key => {
                 if (key.indexOf(".") > -1) {
                     let parts = key.split(".");
-                    log("*** nested path, depth: ", parts.length);
                     let path = value[stat];
                     let newKey;
                     for (let idx=0; idx<parts.length-1; idx++) {
                         path = path[parts[idx]];
                         newKey = parts[idx+1];
                     }
-                    //let subkey = parts[0];
-                    //let base = value[stat][subkey];
-                    //let newKey = parts[1];
                     let dataVal = path[newKey];
-                    log("path[newKey]: ", path, "[", newKey, "] = ", path[newKey]);
                     let val = path[newKey];
                     cells = cells + `<td><span>${val}</th>`;
                 } else if (typeof value[stat][key] == 'object') {
-                    log("Skipping key ", key);
+                    debug("Skipping key ", key);
                 } else {
                     cells = cells + `<td><span>${value[stat][key]}</th>`;
                 }
@@ -361,7 +337,6 @@
                            ${cells}
                        </tr>`;
             $(`#${divId}`).find("tbody").append(row);
-            //log("Row added to ", $(`#${divId}`));
         })
        .catch(error => console.error(error));
     }
@@ -397,9 +372,6 @@
                 buildTableRow(stat, id);
             };
 
-            log("Finished table rows");
-            log("Add headers? ", rowKeys.length);
-            log("rowkeys: ", rowKeys);
             if (rowKeys.length) {
                 let thRow = "<th>Member</th>";
                 rowKeys.forEach(key => {
@@ -414,7 +386,7 @@
 
     function handleHdrBtns(e) {
         let btn = $(e.currentTarget);
-        log("[handleHdrBtns]: ", $(btn).attr("id"));
+        debug("[handleHdrBtns]: ", $(btn).attr("id"));
         buildStatTable($(btn).attr("id"));
     }
 
@@ -464,7 +436,7 @@
             let id = ui.item.data;
             let name = ui.item.label;
             let li = $(`[data-id='${id}']`);
-            log("autocompleteselect: ", ui.item, name, "[", id, "] ", $(li));
+            //log("autocompleteselect: ", ui.item, name, "[", id, "] ", $(li));
             $(li).addClass("outline-green bg-mild-gr");
             scrollTo($(li));
         });
@@ -481,6 +453,24 @@
         }
     }
 
+    const btnHelp = { "view-stats": "Click here to view all<br>" +
+                                    "personal stats, for all fac<br>" +
+                                    "members. It is organized into<br>" +
+                                    "a series of sub-categories that<br>" +
+                                    "you can select from. Click this<br>" +
+                                    "again to close all.",
+                      "upd-stats": "This will start to update all user's<br>" +
+                                   "stats again from the Torn servers. It<br>" +
+                                   "makes a request every two seconds by<br>" +
+                                   "default, so 30 a minute. If interrupted,<br>" +
+                                   "it will continue next time from where it<br>" +
+                                   "off.",
+                      "fac-opts": "This button would open a panel that would<br>" +
+                                  "then let you pick options controlling the<br>" +
+                                  "behavior of this script, had I implemented it.<br>" +
+                                  "However, it is still a work in progress...",
+                    };
+
     function installSearchUI(target) {
         debug("[installSearchUI] ", $(target));
         if (!$(target).length) return log("[installSearchUI] timeout installing search bar");
@@ -489,6 +479,8 @@
 
         $("#upd-stats").on('click', handleUpdateBtn);
         $("#view-stats").on('click', getTopHeaderRow);
+
+        addSearchBarHelp();
 
         updateFacMemberList();
         installAutoComplete(searchid);
@@ -500,7 +492,7 @@
             let div =
                 `<div id="adv-fac-bar">
                     <div>
-                        <label>Search:
+                        <label>
                            <input type="text" id="${searchid}" name="search" class="ac-search m-top10 ui-autocomplete-input ac-border">
                         </label>
                         <input id='view-stats' type="submit" class="btn-dark-bg torn-btn" value="View Stats">
@@ -508,10 +500,18 @@
                         <input id='fac-opts' type="submit" class="btn-dark-bg torn-btn" value="Options">
                         <span id="prog-text"></span>
                     </div>
-                    <!-- hr class="delimiter-999 m-top10" -->
                 </div>`;
 
             return div;
+        }
+
+        // Context sensitive help
+        function addSearchBarHelp() {
+            let btns = $("#adv-fac-bar input[type='submit']");
+            $.each(btns, function (index, button) {
+                let id = $(button).attr("id");
+                displayHtmlToolTip(button, btnHelp[id], "tooltip4");
+            });
         }
     }
 
