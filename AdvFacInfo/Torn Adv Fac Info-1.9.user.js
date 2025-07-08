@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Fac Info
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Adds better search and member stats to fac info page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php?step=your*
@@ -162,7 +162,6 @@
         transaction.onerror = (e) => log('ERROR: Transaction failed:', e);
     }
 
-
     // ============ API/web page stuff: fac members, personal stats ============
 
     var facMembersUpdated = false;
@@ -305,6 +304,73 @@
 
     // ======================== Options handling ==============================
 
+    const optsHdrs = ["Option", "Value", "Description"];
+    const advFacOpts = {
+        "Debug Logging":    {value: false, type: "checkbox", key: "debugLoggingEnabled",
+                            desc: "Enables advanced console logging."},
+        "API Interval":     {value: 2,     type: "number",   key: "apiIntervalSecs", min: 1, max: 60, label: "secs",
+                            desc: "Time in seconds between API calls for each member's stats."},
+        "Update Frequency": {value: 24,    type: "number",   key: "apiFrequencyHrs", min: 1, max: 168, label: "hrs",
+                            desc: "How much time, in hours, passes before stat updates will automatically start again."},
+    };
+
+    function buildOptTableRows() {
+        log("[buildOptTableRows]");
+
+        // Make fn to build the 'value' cell as an input (cb, input, select, etc)
+        for (const [key, entry] of Object.entries(advFacOpts)) {
+            let row = `<tr><td><span>${key}</span></td>`;
+            row = row + getValCell(entry) + `<td><span>${entry.desc}</span></td></tr>`;
+            $("#adv-fac-opts tbody").append(row);
+        };
+
+        function getValCell(entry) {
+        // <td><span>${entry.value}</span></td>
+            let cell = `<td><span>`;
+            if (entry.type == 'number') {
+                cell = cell +
+                    `<label>` +
+                    `<input type="number" name="${entry.key}" min="${entry.min}" max="${entry.max}" value="${entry.value}">` +
+                    `${entry.label}</label></span></td>`;
+            } else {
+                cell = cell + `${entry.value}</span></td>`;
+            }
+            return cell;
+        }
+    }
+
+    function buildOptTblHdr() {
+        let hdr = `<tr>`;
+        optsHdrs.forEach(name => {
+            hdr = hdr + `<th><span>${name}</span></th>`;
+        });
+        hdr = hdr + `</tr>`;
+        $("#adv-fac-opts thead").append(hdr);
+    }
+
+    function buildOptsTable() {
+        log("[buildOptsTable]");
+        if ($("#adv-fac-opts").length > 0) {
+            $("#adv-fac-opts").remove();
+            return;
+        }
+
+        let table = `
+            <div id="adv-fac-opts" class="opts-tbl xmt10">
+                <table cellpadding>
+                    <thead class="sticky-thead title-black"></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        `;
+
+        if ($(".stat-tbl").length> 0) $(".stat-tbl").remove();
+        if ($("#tbl-btns").length > 0) $("#tbl-btns").remove();
+        $("#adv-fac-bar").after($(table));
+        buildOptTblHdr();
+        buildOptTableRows();
+    }
+
     // =============== Stats table(s) installation/handling ===================
 
     var detachedTables = {};
@@ -386,7 +452,7 @@
         rowKeys = null;
         let divId = `stat-tbl-${stat}`;
         let table = `
-            <div id="${divId}" class="stat-tbl scroll-wrap">
+            <div id="${divId}" class="stat-tbl">
                 <table>
                     <thead class="sticky-thead title-black"><tr></tr></thead>
                     <tbody></tbody>
@@ -424,6 +490,8 @@
 
     function getTopHeaderRow() {
         if (!$("#tbl-btns").length) {
+            if ($("#adv-fac-opts").length > 0) $("#adv-fac-opts").remove();
+
             const row1 = { "attacking": "Attack",  "jobs": "Jobs",               "trading": "Trade",       "jail": "Jail",
                            "hospital": "Hosp",     "finishing_hits": "Fin Hits", "communication": "Comm",  "crimes": "Crimes" };
             const row2 = { "bounties": "Bounty",   "items": "Items",             "travel": "Travel",       "drugs": "Drugs",
@@ -587,6 +655,7 @@
 
         $("#upd-stats").on('click', handleUpdateBtn);
         $("#view-stats").on('click', getTopHeaderRow);
+        $("#fac-opts").on('click', buildOptsTable);
 
         addSearchBarHelp();
 
@@ -712,23 +781,27 @@
             }
         `);
 
-        // Stats tables
+        // Stats/opts tables
         GM_addStyle(`
             .sticky-top {
                 z-index: 99 !important;
             }
-            .stat-tbl {
+            .stat-tbl, .opts-tbl {
                 display: flex;
                 justify-content: left;
                 border: 1px solid #666;
+                border-radius: 6px;
             }
-            .stat-tbl > table {
+            .opt-tbl {
+                margin-top: 8px;
+            }
+            .stat-tbl > table,
+            .opts-tbl > table {
                 width: 5000px;
                 left: 0;
                 position: relative;
-                /*margin-left: 158px;*/
             }
-            .stat-tbl tr {
+            .stat-tbl tr, .opts-tbl tr {
                 height: 32px;
             }
             .stat-tbl tbody tr th:first-child {
@@ -750,6 +823,17 @@
                 min-width: 60px;
                 z-index: 0;
             }
+            .opts-tbl td {
+                color: var(--btn-color);
+                border: 1px solid #666 !important;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 60px;
+                height: 32px;
+                z-index: 0;
+                padding-left: 10px;
+            }
             .stat-tbl td span, .img-wrap, .stat-tbl th span {
                 display: flex;
                 flex-flow: row wrap;
@@ -757,7 +841,23 @@
                 align-content: center;
                 height: 32px;
             }
-            .stat-tbl table th {
+            .opts-tbl td span, .opts-tbl th span {
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: left;
+                align-content: center;
+                height: 32px;
+            }
+            .opts-tbl input[type="number"] {
+                width: 48px;
+                border-radius: 4px;
+                padding-left: 5px;
+                margin-right: 4px;
+            }
+            .opts-tbl td:last-child span {
+                word-wrap: break-word;
+            }
+            .stat-tbl table th, .opts-tbl table th {
                 border-left: 1px solid #666;
                 border-right: 1px solid #666;
                 text-overflow: ellipsis;
@@ -772,7 +872,7 @@
             table td:last-child {
                 padding-right: 10px;
             }
-            table thead th:first-child {
+            .stat-tbl table thead th:first-child {
                 position: sticky;
                 left: 0;
                 z-index: 9999;
@@ -781,7 +881,8 @@
                 background-color: #444;
                 padding: 0px;
             }
-            .stat-tbl thead.sticky-thead {
+            .stat-tbl thead.sticky-thead,
+            .opts-tbl thead.sticky-thead {
                 position: sticky;
                 inset-block-start: 0;
                 font-size: 12px;
