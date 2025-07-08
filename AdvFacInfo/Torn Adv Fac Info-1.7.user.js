@@ -152,8 +152,8 @@
         });
         const request = objectStore.put(dataToAdd, id);
 
-        request.onsuccess = () => log(`Added stats for: ${id}`);
-        request.onerror = (e) => log('Error adding stats:', e);
+        request.onsuccess = () => debug(`Added stats for: ${id}`);
+        request.onerror = (e) => debug('Error adding stats:', e);
 
         transaction.oncomplete = () => {
             //debug('Data added successfully, verifying...');
@@ -413,7 +413,6 @@
                 $("thead.sticky-thead > tr").empty();
                 $("thead.sticky-thead > tr").append(thRow);
             }
-            log("Done adding hdr cells to ", $("thead.sticky-thead > tr"));
         }
     }
 
@@ -508,15 +507,11 @@
     }
 
     function onResponse(event, ui) {
-        log("[onResponse] content: ", ui.content);
-        //$(".ac-hide").removeClass("ac-hide");
-        //$(".ac-res").removeClass("ac-res");
         $(".members-list .table-body li.table-row").removeClass("ac-hide").removeClass("ac-res");
 
         if (ui.content) {
             ui.content.forEach(el => {
                 let list = $(`[data-id='${el.data}']`).addClass("ac-res");
-                log("Matching items: ", $(list).length);
             });
         }
 
@@ -536,7 +531,6 @@
                 source: acSource,
                 response: onResponse,
                 create: function (event, ui) {
-                    log("[create] ", event, ui);
                     $(this).data('ui-autocomplete')._renderItem = function (ul, item) {
                         return $('<li>')
                         .addClass("li-content")
@@ -585,7 +579,8 @@
                     };
 
     function installSearchUI(target) {
-        debug("[installSearchUI] ", $(target));
+        debug("[installSearchUI] ", $(target), $("#adv-fac-bar"));
+        if ($("#adv-fac-bar").length) return log("Search bar already installed!");
         if (!$(target).length) return log("[installSearchUI] timeout installing search bar");
 
         $(target).before(getFacSearchDiv());
