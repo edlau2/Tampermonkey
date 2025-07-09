@@ -305,18 +305,10 @@
     // ======================= DB UI/Control Panel ============================
 
      function initCSS() {
+
+         // Figure out what is actually used here!!!
         const isDarkmode = $("body").hasClass("dark-mode");
         GM_addStyle(`
-            .chat-control-panel-popup {
-                position: fixed;
-                top: 10%;
-                left: 15%;
-                border-radius: 10px;
-                padding: 10px;
-                background: ${isDarkmode ? "#999" : "#F0F0F0"};
-                z-index: 1000;
-                display: none;
-              }
 
               .chat-control-panel-results {
                 padding: 10px;
@@ -327,35 +319,15 @@
                 display: inline-block !important;
               }
 
-              .chat-control-panel-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                background: ${isDarkmode ? "#404040" : "#B0B0B0"};
-                width: 100%;
-                height: 100%;
-                opacity: 0.7;
-                z-index: 900;
-                display: none;
-              }
 
               div#chat-player-list {
                 overflow-y: scroll;
                 height: 50px;
               }
-
-              a.chat-history-search:hover {
-                color: #318CE7 !important;
-              }
-
-              .chat-control-panel-item {
-                display: inline-block;
-                /* margin: 2px 2px 2px 2px; */
-              }
           `);
 
         GM_addStyle(`
-            #chatHistoryControl {
+            #dbCtrlPanelBtn {
                 width: 30px;
                 position: relative;
             }
@@ -373,15 +345,6 @@
                 margin-left: 5px;
             }
 
-            #cdc-opt-table td, label, input, .cpl-text {
-                line-height: 22px;
-                font-family: Arial, serif;
-                font-size: 14px;
-            }
-            #cdc-opt-table td label {
-                padding: 2px 20px 2px 20px;
-            }
-
             .dbg-log {
                 /*line-height: 22px;*/
                 font-family: Arial, serif;
@@ -389,17 +352,52 @@
                 color: black;
                 margin-top: 6px;
             }
-
-            .cdc-ip {
-
-            }
-            #history {
-                width: 50px;
-                border-radius: 5px;
-                padding-left: 5px;
-                margin-left: 5px;
-            }
         `);
+
+         // DB table styles - these are used, not sure about any above...
+         GM_addStyle(`
+             .db-tbl {
+                  background-color: #eee;
+              }
+              .db-tbl table {
+                  width: 784px;
+              }
+              .db-tbl tbody {
+                  /*height: 5000px; */
+                  background-color: #ddd;
+              }
+              .db-tbl tr {
+                  height: 28px;
+                  width: 982px;
+              }
+              .db-tbl td {
+                  border: 1px solid #aaa;
+                  color: black;
+                  width: 50%;
+              }
+
+              .db-control-panel-overlay {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  background: ${isDarkmode ? "#404040" : "#B0B0B0"};
+                  width: 100%;
+                  height: 100%;
+                  opacity: 0.7;
+                  z-index: 900;
+                  display: none;
+              }
+              .db-control-panel-popup {
+                  position: fixed;
+                  top: 10%;
+                  left: 15%;
+                  border-radius: 10px;
+                  padding: 10px;
+                  background: ${isDarkmode ? "#999" : "#F0F0F0"};
+                  z-index: 1000;
+                  display: none;
+               }
+         `);
     }
 
     function getCtrlPanelHtml() {
@@ -407,7 +405,7 @@
             <div class="xflexr">
                 <div class="xflexc" style="width: 25%;">
                     <div class=xflexr xmt10">
-                        <input type="text" class="chat-control-panel-item cpl-text xmr10" id="target-id-input" placeholder="Player ID" size="10" />
+                        <input type="text" class="ib cpl-text xmr10" id="target-id-input" placeholder="Player ID" size="10" />
                         <button id="chat-search" class="xedx-torn-btn" style="cursor: pointer;">Search</button>
                     </div>
                     <div id="chat-player-list" class="cpl-text xmt10"></div><br>
@@ -420,10 +418,34 @@
                     </div>
                 </div>
             </div>
-            <textarea readonly id="chat-results" cols="120" rows="30"></textarea>
+            <!-- textarea readonly id="chat-results" cols="120" rows="30"></textarea -->
+
+            <div id="db-table" class="db-tbl xmt10  scroll-wrap">
+                <table cellpadding>
+                    <thead class="sticky-thead title-black" style="height: 0px; opacity: 0"></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
         `;
 
         return innerHtml;
+    }
+
+    function fillDbTblRows(retries = 0) {
+        log("Fill DB table: ", $("#db-table tbody").length, Object.keys(membersList).length);
+        if (!$("#db-table tbody").length || !Object.keys(membersList).length) {
+            if (retries++ < 50) return setTimeout(fillDbTblRows, 250, retries);
+            return log("ERROR: no table body?");
+        }
+        let count = 0;
+        for (const [key, value] of Object.entries(membersList)) {
+            let row = `<tr class='db-row'><td><span>${value.name} [${key}]</span></td><td><span>Expandable Data</span></td></tr>`;
+            $("#db-table tbody").append($(row));
+            log("added row: ", $(row));
+            count++;
+        };
+        log("rows added: ", count);
     }
 
     function initControlPanel(retries=0) {
@@ -442,7 +464,7 @@
         if ($(".f-war-list > ul.table-header").css("position") == 'sticky')
             $(".f-war-list > ul.table-header").css("z-index", 999);
 
-        const $controlBtn = $(`<a id="chatHistoryControl" class="t-clear h c-pointer right last ${addlClass}">
+        const $controlBtn = $(`<a id="dbCtrlPanelBtn" class="t-clear h c-pointer right last ${addlClass}">
                                   <span class="icon-wrap svg-icon-wrap">
                                     <span class="link-icon-svg">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 10.33"><defs><style>.cls-1{opacity:0.35;}.cls-2{fill:#fff;}.cls-3{fill:#777;}</style></defs><g id="Слой_2" data-name="Слой 2"><g id="icons"><g class="cls-1"><path class="cls-2" d="M10,5.67a2,2,0,0,1-4,0,1.61,1.61,0,0,1,0-.39A1.24,1.24,0,0,0,7.64,3.7a2.19,2.19,0,0,1,.36,0A2,2,0,0,1,10,5.67ZM8,1C3,1,0,5.37,0,5.37s3.22,5,8,5c5.16,0,8-5,8-5S13.14,1,8,1ZM8,9a3.34,3.34,0,1,1,3.33-3.33A3.33,3.33,0,0,1,8,9Z"></path></g><path class="cls-3" d="M10,4.67a2,2,0,0,1-4,0,1.61,1.61,0,0,1,0-.39A1.24,1.24,0,0,0,7.64,2.7a2.19,2.19,0,0,1,.36,0A2,2,0,0,1,10,4.67ZM8,0C3,0,0,4.37,0,4.37s3.22,5,8,5c5.16,0,8-5,8-5S13.14,0,8,0ZM8,8a3.34,3.34,0,1,1,3.33-3.33A3.33,3.33,0,0,1,8,8Z"></path></g></g></svg>
@@ -451,12 +473,12 @@
                                 </a>`);
         $title.append($controlBtn);
 
-        debug("Added ctrl panel btn: ", $("#chatHistoryControl"));
+        debug("Added ctrl panel btn: ", $("#dbCtrlPanelBtn"));
 
-        const $controlPanelDiv = $(`<div id="chatControlPanel" class="chat-control-panel-popup">control</div>`);
+        const $controlPanelDiv = $(`<div id="dbControlPanel" class="db-control-panel-popup">control</div>`);
 
         //  chat-control-panel-item, replaced with xedx-torn-btn
-        const $controlPanelOverlayDiv = $(`<div id="chatControlOverlayPanel" class="chat-control-panel-overlay"></div>`);
+        const $controlPanelOverlayDiv = $(`<div id="dbControlOverlayPanel" class="-control-panel-overlay"></div>`);
 
         $controlPanelDiv.html(getCtrlPanelHtml());
 
@@ -481,6 +503,10 @@
         */
 
         $title.append($controlPanelDiv);
+
+        // Temp, fill table rows
+        fillDbTblRows();
+        log("rows: ", $(".db-row"));
 
         // Checkbox handlers
         $(".cdc-cb").on('click', function (e) {
@@ -516,6 +542,10 @@
 
                 $controlPanelDiv.fadeToggle(200);
                 $controlPanelOverlayDiv.fadeToggle(200);
+
+                log("On click, rows: ", $(".db-row"));
+                if (!$(".db-row").length)
+                    fillDbTblRows();
             //});
         });
 
@@ -675,7 +705,7 @@
         rowKeys = null;
         let divId = `stat-tbl-${stat}`;
         let table = `
-            <div id="${divId}" class="stat-tbl">
+            <div id="${divId}" class="stat-tbl scroll-wrap">
                 <table>
                     <thead class="sticky-thead title-black"><tr></tr></thead>
                     <tbody></tbody>
@@ -746,6 +776,7 @@
 
     function addAcStyles() {
         GM_addStyle(`
+            .ib { display: inline-block; }
             .ac-hide {
                 order: 10;
                 content-visibility: hidden;
@@ -1123,6 +1154,12 @@
                 height: 340px;
                 width: 784px;
                 max-width: 784px;
+            }
+            .scroll-wrap2 {
+                overflow: scroll;
+                height: 486px;
+                width: 982px;
+                max-width: 982px;
             }
         `);
 
