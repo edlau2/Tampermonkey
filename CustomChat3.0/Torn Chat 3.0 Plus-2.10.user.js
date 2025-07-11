@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Chat 3.0 Plus
 // @namespace    http://tampermonkey.net/
-// @version      2.09
+// @version      2.10
 // @description  This script allows customization of Chat 3.0
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -25,13 +25,17 @@
 
     var api_key = GM_getValue('gm_api_key', '');        // Only require public IP if in a faction...
     const dbgStyles = false;
-    const debugLoggingEnabled = false;
+    const debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);    // Enables more verbose logging
+    var installAutoScroll = GM_getValue("installAutoScroll", false);
     let basicFacInfo = JSON.parse(GM_getValue("basicFacInfo", JSON.stringify({})));
     const log = function(...data) {console.log(GM_info.script.name + ': ', ...data);}
     const debug = function(...data) {if (debugLoggingEnabled == true) console.log(GM_info.script.name + ': ', ...data);}
     const logStyle = function(...data) {if (dbgStyles == true) console.log(GM_info.script.name + ': ', ...data);}
     var facId = basicFacInfo.faction_id;
-    log("getfacinfo facId: ", facId);
+    debug("getfacinfo facId: ", facId);
+
+    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
+    GM_setValue("installAutoScroll", installAutoScroll);
 
     let pendStylesList = "";
     let atLoadStylesList = "";
@@ -53,9 +57,7 @@
             if (response.url.indexOf("metadata-v2") != -1) {
                 log("metadata change detected");
                 response.clone().json().then((data) => {
-                    log("metadata ack: ", data.acknowledged);
-                    log("metadata id: ", data._id);
-                    log("metadata: ", data);
+                    debug("metadata ack: ", data.acknowledged, "\nid: ", data.id, "\ndata: ", data);
                     if (data._id) {
                         GM_setValue("chatMetaData", JSON.stringify(data));
                         chatMetaData = JSON.parse(GM_getValue("chatMetaData", JSON.stringify({})));
@@ -86,7 +88,7 @@
         getFacInfo();
     } else {
         debug("Skipping [getFacInfo]: ", Object.keys(basicFacInfo).length, api_key);
-        log("[getFacInfo] basicFacInfo: ", basicFacInfo);
+        debug("[getFacInfo] basicFacInfo: ", basicFacInfo);
     }
 
     function checkCloudFlare() {
@@ -145,7 +147,7 @@
             BODY_BG_COLOR: '#181818',
             FOOTER_BG_COLOR: 'black',
             SNDR_AVATAR_COLOR: '#666',           // In fac chat, color of sender's name
-            MSGS_UNREAD: false,                  // 'none' hides the blue pop-up that says "x unread messages"
+            //MSGS_UNREAD: false,                  // 'none' hides the blue pop-up that says "x unread messages"
             MSG_BOX_HEIGHT: '39px'               // Height of text input field
             //HDR_USE_ICON: true                 // Display icon in header, links to fac page (TBD)
         },
@@ -241,6 +243,16 @@
     const addDevStyles = false;    // This ATM puts borders on various chat boxes, I use during development to locate elements
     const pendStyles = false;
 
+    // ======= Experimental test - hook 'messageCount..." buttons, right-click marks as read
+    function hookMsgCnt() {
+        let countBtns = $("[class^='messageCount']");
+        $(countBtns).off('contextmenu.xedx');
+        $(countBtns).css("border", "1px solid blue");
+        $(countBtns).on('contextmenu.xedx', function (e) {
+            $(this).remove();});
+    }
+    var msgBtnTimer = setInterval(hookMsgCnt, 3000);
+
     // ================= fac info, for fac id and icon ===============
     
     var facIcon = "https://factiontags.torn.com/";
@@ -290,7 +302,7 @@
         return JSON.parse(sessionStorage.getItem(key));
     }
     var sidebarData = getSidebarData();
-    log("Sidebar data: ", sidebarData);
+    debug("Sidebar data: ", sidebarData);
 
     // =======================================================
 
@@ -358,9 +370,9 @@
                           subSel: FOOTER, type: 'input', display: "Color of footer"},
         SNDR_AVATAR_COLOR: {val: options.fac.SNDR_AVATAR_COLOR, style: TEXT_CLR_STYLE,
                             subSel: (SNDR_NAME + NOT_ADMIN), when: 'now', type: 'input', display: "Sender name color"},
-        MSGS_UNREAD: {val: options.fac.MSGS_UNREAD, style: DISPLAY_STYLE,
-                      subSel: UNREAD_MSGS_SEL, when: 'now', type: 'cb',
-                      fn: 'MSGS_UNREAD', display: "Auto-Scroll, hide unread message balloon"},
+        //MSGS_UNREAD: {val: options.fac.MSGS_UNREAD, style: DISPLAY_STYLE,
+        //              subSel: UNREAD_MSGS_SEL, when: 'now', type: 'cb',
+        //              fn: 'MSGS_UNREAD', display: "Auto-Scroll, hide unread message balloon"},
         MSG_BOX_HEIGHT: {val: options.fac.MSG_BOX_HEIGHT, style: HEIGHT_STYLE,
                       subSel: FOOTER, when: 'load', type: 'input',
                       display: "Height of text area you type in"},
@@ -390,7 +402,7 @@
                          when: 'load', type: 'input',display: "Height of input text area"},
         MARK_UNREAD: {val: options.priv.MARK_UNREAD, style: DISPLAY_STYLE,
                       subSel: PRIVATE_CHAT_SEL, when: 'now', type: 'cb',
-                      fn: 'MARK_UNREAD', display: "Add 'Mark as Unread' dropdown option"},
+                      fn: 'MARK_UNREAD', display: "Add 'Mark as Unread' dropdown option (TBD)"},
         CLOSE_BTN: {val: options.priv.CLOSE_BTN, style: DISPLAY_STYLE,
                       subSel: PRIVATE_CHAT_SEL, when: 'now', type: 'cb',
                       fn: 'CLOSE_BTN', display: "Add close button to minimized chats"},
@@ -423,9 +435,7 @@
 
     function addStyleToList(rootSel, subSel, val, when='now') {
         let style = `${rootSel} ${subSel} {${val}}`;
-
         logStyle("Adding style: ", style, " when: ", when);
-
         if (!when)
             xedx_addStyle(style);
         else if (when == 'now')
@@ -443,11 +453,8 @@
 
     function hideUnreadMsgsBalloon(selector, attempts=0) {
         let msgs = document.querySelectorAll(selector);
-        //log("Unread msgs: ", msgs);
         if (msgs && msgs.length) {
             msgs.forEach(element => {
-                //log("Clicking ", $($(element)[0]), $(element));
-                //element.style.display = 'none';
                 $(element)[0].click();
             });
         } else {
@@ -480,7 +487,7 @@
 
     // 'Mark as unread' styles
     function installMarkUnread() {
-        log("[installMarkUnread]");
+        debug("[installMarkUnread]");
         const config = { childList: true, subtree: true };
 
         // Look for new chats becoming maximized or opened
@@ -493,30 +500,29 @@
         // need to add to that. The observer can observe as many elemts as desired
         let openChats = $(PRIVATE_CHAT_OPEN_SEL);
         for (let idx=0; idx<$(openChats).length; idx++) {
-            log("[addMarkUnreadObserver]Open chat #", idx, $(openChats)[idx]);
-            log("Call addMarkUnreadObserver with ", $(openChats)[idx]);
+            debug("[addMarkUnreadObserver]Open chat #", idx, $(openChats)[idx]);
+            debug("Call addMarkUnreadObserver with ", $(openChats)[idx]);
             addMarkUnreadObserver($(openChats)[idx]);
         }
 
         // Add the "Mark as unread" option to list: TBD !!!
         function addListOptToNode(node) {
-            log("[addListOptToNode]: ", $(node));
+            debug("[addListOptToNode]: ", $(node));
         }
 
         // This looks for the options div to open and the list to appear
         var addedListObserver;
         function addMarkUnreadObserver(node) {
             log("[addMarkUnreadObserver]: ", $(node));
-
             const handleNodesWithList = function(mutationsList, observer) {
                 let doAdd = false;
                 for (const mutation of mutationsList) {
                     if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        log("[MarkUnread]Add to list here!!");
-                        log("[MarkUnread]Added nodes: ", mutation.addedNodes);
+                        debug("[MarkUnread]Add to list here!!");
+                        debug("[MarkUnread]Added nodes: ", mutation.addedNodes);
 
                         for (let idx=0; idx<mutation.addedNodes.length; idx++) {
-                            log("[MarkUnread] adding list opt to node ", $(mutation.addedNodes[idx]));
+                            debug("[MarkUnread] adding list opt to node ", $(mutation.addedNodes[idx]));
                             addListOptToNode($(mutation.addedNodes[idx]));
                         }
                     }
@@ -534,7 +540,7 @@
         var openChatObserver;
         function installOpenChatObserver(retries=0) {
             let target = $("#chatRoot > div > div[class^='root']")[0];
-            log("[MarkUnread][installOpenChatObserver] ", $(target));
+            debug("[MarkUnread][installOpenChatObserver] ", $(target));
             if (!$(target).length) {
                 if (retries++ < 20) return setTimeout(installOpenChatObserver, 250, retries);
                 return log("[MarkUnread][installOpenChatObserver] timed out");
@@ -543,10 +549,10 @@
             const handleAddedNodes = function(mutationsList, observer) {
                 for (const mutation of mutationsList) {
                     if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        log("[MarkUnread][handleAddedNodes]Added: ", mutation.addedNodes);
+                        debug("[MarkUnread][handleAddedNodes]Added: ", mutation.addedNodes);
 
                         for (let idx=0; idx<mutation.addedNodes.length; idx++) {
-                            log("[MarkUnread][handleAddedNodes] adding ", $(mutation.addedNodes[idx]));
+                            debug("[MarkUnread][handleAddedNodes] adding ", $(mutation.addedNodes[idx]));
                             addMarkUnreadObserver($(mutation.addedNodes[idx]));
                         }
                     }
@@ -683,8 +689,8 @@
             } else {
                 // Prob not really an error, fac chat might be minimized...
                 // see if that is avail via metadata
-                debug("Error? no list? ", $(list), $(list)[0], list);
-                debug("selector: ", FAC_SCROLL_LIST);
+                //debug("Error? no list? ", $(list), $(list)[0], list);
+                //debug("selector: ", FAC_SCROLL_LIST);
             }
         } catch (e) {
             log("Error: ", e);
@@ -702,24 +708,22 @@
     var scrollTimer;
     function instScrollOpts(isCB, params) {
         if (!facId && isCB == true) {
-            log("[instScrollOpts] callback params: ", params);
+            debug("[instScrollOpts] callback params: ", params);
             return log("[instScrollOpts] no fac ID, already used API, no fac?");
         }
         if (isCB == true) {
-            log("[instScrollOpts] facId: ", facId, " callback params: ", params);
+             debug("[instScrollOpts] facId: ", facId, " callback params: ", params);
         }
         if (!facId) facId = GM_getValue("facId", null);
         if (!facId) {
-            log("[instScrollOpts] No fac ID, going to get");
+            debug("[instScrollOpts] No fac ID, going to get");
             getFacInfo(instScrollOpts);
             return;
         }
         let ap = (location.href.indexOf("loader.php?sid=attack&user2ID") > -1);
         log("[instScrollOpts] scroll inst, ap: ", ap);
         if (ap == false && !scrollTimer) {
-
             GM_addStyle(`#faction-${facId} > div.content___n3GFQ > div.root___uo_am > button {display: none !important;}`);
-
             scrollTimer = setInterval(scrollToLastElement, 3000);
         }
     }
@@ -728,7 +732,8 @@
     // ================== Install styles ============================
 
     installOptionStyles();
-    instScrollOpts();
+    if (installAutoScroll == true)
+        instScrollOpts();
 
     // =========== Add btn to remove minimized private chats ========
 
@@ -835,7 +840,6 @@
     // ================== Checkbox functions (options) ==============
 
     function handleCbOption(entry) {
-        log("handleCbOption: ", entry.fn);
         switch(entry.fn) {
             // Hide the unread messages bubbles - not sure this works correctly yet
             case 'MSGS_UNREAD': {
@@ -976,15 +980,15 @@
     `);
 
     // UI stuff - once page loaded, hook into settings panel
-    log("Adding event listener for loaded");
+    debug("Adding event listener for loaded");
     if (document.readyState == 'loading') {
-        log("readyState is loading (adding listener for DOMContentLoaded)");
+        debug("readyState is loading (adding listener for DOMContentLoaded)");
         document.addEventListener('DOMContentLoaded', (e) => {
             log("DOMContentLoaded: ", document.readyState);
             handlePageLoad({from: "DOMContentLoaded"});
         });
     } else {
-        log("readyState is: ", document.readyState);
+        debug("readyState is: ", document.readyState);
         handlePageLoad({from: document.readyState});
     }
 
@@ -1010,7 +1014,7 @@
     }
 
     window.addEventListener('hashchange', function() {
-        log('The hash has changed! new hash: ' + location.hash);
+        debug('The hash has changed! new hash: ' + location.hash);
         hookSettingsBtn();}, false);
 
     installPushStateHandler(hookSettingsBtn);
@@ -1020,6 +1024,13 @@
     // ================== UI elements and handlers =========================
 
     var gotAtBtn = false;
+
+    function getGenSettingsSpan() {
+        let genOptsTxt = $(`span[class*='root_'][class*='subtitle_'][class*='header_']`).filter(function() {
+                  return $(this).text() === "General Settings";});
+        return genOptsTxt;
+    }
+
     function hookSettingsBtn(retries=0) {
         let stBtn = $("#notes_settings_button");
         debug("hookSettingsBtn: ", $(stBtn).length);
@@ -1041,13 +1052,6 @@
             });
         }
 
-        let stSpan = $("[class*='panelSizeContainer_']").prev();
-        if (!$(stSpan).length) {
-            if (retries++ < 50) return setTimeout(hookSettingsBtn, 250, retries);
-            return log("Timed out finding settings span");
-        }
-
-        //let stSpan = $("[class*='panelSizeContainer_']").prev();
         installOptsBtn();
     }
 
@@ -1414,13 +1418,13 @@
                 let cb = $(`#sopt-${keyIdx}-${idx}`).prev();
                 let inp = $(`#sopt-${keyIdx}-${idx}`).next();
 
-                debug("keyidx: ", keyIdx, " idx: ", idx, " opt: ", $(`#sopt-${keyIdx}-${idx}`));
+                //debug("keyidx: ", keyIdx, " idx: ", idx, " opt: ", $(`#sopt-${keyIdx}-${idx}`));
                 if (type == 'cb') {
                     $(cb).prop('checked', val);
                     $(cb).on('change.xedx', handleCbValChange);
                 } else {
                     $(inp).on('change.xedx', handleOptValChange);
-                    debug("Added inp change handler to ", $(inp));
+                    //debug("Added inp change handler to ", $(inp));
                     $(inp).css("border", "1px solid pink");
                 }
             }
@@ -1434,7 +1438,7 @@
         if ($("#tcc-opts").length) return;
         let div = `
                 <div id="tcc-opts">
-                <div class="tcc-hdr-wrap">
+                <div class="tcc-hdr-wrap tcc-hdr-trnd">
                     <div class="tcc-hdr tcc-hdr-trnd" >
                         <!-- span class="tcc-xrt-btn btn ml18"><input id="tcc-close" class="tcc-torn-btn" value="Close"></span -->
                         <span class="tcc-hdr-first">Options</span>
@@ -1486,14 +1490,15 @@
         }
     }
 
+    var wrapTimer;
     function installOptsBtn(retries=0) {
-        let stSpan = $("[class*='panelSizeContainer_']").prev(); //$("#settings_panel").closest("[class*='subtitle_']");
+        let stSpan = getGenSettingsSpan();
         if (!$(stSpan).length) {
-            if (retries++ < 20) return setTimeout(installOptsBtn, 250, retries);
+            if (retries++ < 50) return setTimeout(installOptsBtn, 250, retries);
             return log("Timed out finding settings span");
         }
 
-        debug("installOptsBtn: ", $(stSpan).length, $("#xedx-wrap").length);
+        debug("installOptsBtn: ", retries, $(stSpan).length, $("#xedx-wrap").length);
         if ($("#xedx-wrap").length > 0) {
             return log("Opts wrap already installed");
         }
@@ -1503,6 +1508,7 @@
         let optSpan = `<span id="xopts">Extra Opts</span>`;
 
         debug("wrapping ", $(stSpan));
+        $(stSpan).addClass('xwrapped');
         $(stSpan).wrap($(wrapper));
         $("#xedx-wrap").append(optSpan);
         debug("wrapper: ", $("#xedx-wrap"));
@@ -1513,6 +1519,25 @@
         addScrollOptStyles();
 
         $("#xopts").on('click', buildOptsDiv);
+
+        // Seems like this dissapears periodically. Add an observer..
+        // for now, checking periodically...
+        if (wrapTimer) clearInterval(wrapTimer);
+        wrapTimer = setInterval(checkGenSettings, 2000);
+
+        function checkGenSettings() {
+            let install = false;
+            let setNode = getGenSettingsSpan();
+            let wrap = $("#xedx-wrap");
+            if (!$(wrap).length && $(setNode).length) install = true;
+            if ($(setNode).length && !$(setNode).hasClass('xwrapped')) install = true;
+            if (install == true) {
+                clearInterval(wrapTimer);
+                wrapTimer = null;
+                installOptsBtn();
+            }
+
+        }
     }
 
 
