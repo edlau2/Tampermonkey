@@ -1080,6 +1080,8 @@
 
     function handleHdrBtns(e) {
         let btn = $(e.currentTarget);
+        $(".selected").removeClass("selected");
+        $(btn).addClass("selected");
         debug("[handleHdrBtns]: ", $(btn).attr("id"));
         buildStatTable($(btn).attr("id"));
     }
@@ -1553,6 +1555,11 @@
             .stat-btn:active {
                 filter: brightness(0.80);
                 border: 1px solid #111;
+            }
+            .stat-btn.selected {
+                background: #111;
+                border: 1px solid #444;
+                filter: brightness(1.50);
             }
         `);
     }
