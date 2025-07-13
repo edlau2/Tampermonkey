@@ -134,7 +134,7 @@
                     scorePct += slotScore;
                     countScoresAdded++;
                     //debug("[processScenario] slot score: ", slotScore, "%, total scorePct: ",
-                          scorePct, " hrsToIdle: ", hrsToIdle, " total hrs: ", scoreHrs);
+                    //      scorePct, " hrsToIdle: ", hrsToIdle, " total hrs: ", scoreHrs);
                 }
             } else {
                 //debug("[processScenario] No score info for slot: ", $(slot), " iconNode: ", $(iconNode));
