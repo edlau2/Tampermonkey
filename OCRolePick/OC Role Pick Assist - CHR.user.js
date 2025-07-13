@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.8
+// @version      1.5.9
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
@@ -27,6 +27,7 @@
 (async function() {
     'use strict';
 
+    const isMobile = !isDesktop();
     debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);    // Enables more verbose logging
     var showCrimeScore = GM_getValue("showCrimeScore", false);
     var preferredLvl = GM_getValue("preferredLvl", 'any');
@@ -324,7 +325,7 @@
             $("#xoptsWrap").css("display", "flex");
         }
         $("#xoptsWrap").toggleClass("xclosed xopen");
-        $("#xoptsWrap > input").animate( {height: newH}, 100, function() {
+        $("#xoptsWrap > div > input").animate( {height: newH}, 100, function() {
             if (closing == true) $("#xoptsWrap").css("display", "none");
         });
         return false;
@@ -343,9 +344,11 @@
 
         let optsDiv2 = `
             <div id="xoptsWrap" class="xclosed" style="display: none;">
-                <input id="xedx-best-btn" class="xedx-torn-btn"  style="height: 0px;" value="Best">
-                <input id="xedx-sort-btn" class="xedx-torn-btn"  style="height: 0px;" value="Sort">
-                <input id="xedx-default-btn" class="xedx-torn-btn"  style="height: 0px;" value="Default">
+                <div class="xflexr opts-btn-wrap">
+                    <input id="xedx-best-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Best">
+                    <input id="xedx-sort-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Sort">
+                    <input id="xedx-default-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Default">
+                </div>
                 <div class="xflexr radio-wrap">
                     <span>Preferred Level:</span>
                     <div class="inner-wrap">
@@ -412,9 +415,11 @@
     //////////////////////////////////////////////////////////////////////
 
     logScriptStart();
+    debug("Debug logging enabled");
+    log("Running on ", (isMobile ? 'mobile' : 'desktop'), " device.");
 
     if (checkCloudFlare()) return log("Won't run while challenge active!");
-    log("Current fac tab: ", getCurrTab());
+    debug("Current fac tab: ", getCurrTab());
 
     callOnHashChange(hashChangeHandler);
     installPushStateHandler(pushStateChanged);
@@ -488,14 +493,18 @@
                 flex-flow: row wrap;
                 padding: 4px;
                 margin-top: 5px;
-                width: 776px;
+                /*width: 776px;*/
             }
-            #xoptsWrap > input {
+            #xoptsWrap > div > input {
                 margin: 0px 10px 0px 10px;
             }
             #xoptsWrap span {
                 font-size: 14px;
                 text-shadow: var(--oc-header-text-shadow);
+            }
+            .opts-btn-wrap {
+                display: flex;
+                flex-flow: row wrap;
             }
             .radio-wrap {
                 align-content: center;
@@ -522,7 +531,7 @@
                 display: flex;
                 padding: 4px 8px 4px 8px;
                 display: flex;
-                width: 130px;
+                /*width: 130px;*/
                 justify-content: space-between;
             }
         `);
