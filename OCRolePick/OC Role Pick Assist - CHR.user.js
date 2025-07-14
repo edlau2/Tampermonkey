@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.10
+// @version      1.5.11
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
@@ -513,6 +513,7 @@
             }
             #xoptsWrap > div > input[type='radio'] {
                 /*margin: 0px 2px 0px 2px;*/
+            }
             #xoptsWrap span {
                 font-size: 14px;
                 text-shadow: var(--oc-header-text-shadow);
@@ -521,10 +522,9 @@
                 display: flex;
                 flex-flow: row wrap;
             }
-            #xoptsWrap.xoptsMobile > div > input {
-                margin: 0px 4px 2px 4px;
-            }
             .radio-wrap {
+                display: flex;
+                flex-flow: row wrap;
                 align-content: center;
                 /*width: 280px;*/
                 justify-content: space-evenly;
