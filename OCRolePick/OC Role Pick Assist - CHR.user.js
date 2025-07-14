@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.11
+// @version      1.5.12
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
@@ -536,6 +536,9 @@
                 align-content: center;
                 display: flex;
                 flex-flow: row wrap;
+            }
+            #xoptsWrap.xoptsMobile > div.radio-wrap span:first-child {
+                margin: 0px 2px 0px 0px;
             }
             .radio-wrap label {
                 display: flex;
