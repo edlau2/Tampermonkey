@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.14
+// @version      1.5.15
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
@@ -333,21 +333,21 @@
 
     function getOptsDiv() {
         let optsDiv = `
-            <div id="xoptsWrap" class="xclosed" style="display: none;">
-                <input id="xedx-best-btn" class="xedx-torn-btn"  style="height: 0px;" value="Best Overall">
-                <input id="xedx-best-btn7" class="xedx-torn-btn"  style="height: 0px;" value="Best Lvl 7">
-                <input id="xedx-best-btn8" class="xedx-torn-btn"  style="height: 0px;" value="Best Lvl 8">
-                <input id="xedx-sort-btn" class="xedx-torn-btn"  style="height: 0px;" value="Sort">
-                <input id="xedx-default-btn" class="xedx-torn-btn"  style="height: 0px;" value="Default">
+            <div id="xoptsWrap" class="xopen" style="display: flex;">
+                <input id="xedx-best-btn" class="xedx-torn-btn"  style="height: 26px;" value="Best Overall">
+                <input id="xedx-best-btn7" class="xedx-torn-btn"  style="height: 26px;" value="Best Lvl 7">
+                <input id="xedx-best-btn8" class="xedx-torn-btn"  style="height: 26px;" value="Best Lvl 8">
+                <input id="xedx-sort-btn" class="xedx-torn-btn"  style="height: 26px;" value="Sort">
+                <input id="xedx-default-btn" class="xedx-torn-btn"  style="height: 26px;" value="Default">
             </div>
         `;
 
         let optsDiv2 = `
-            <div id="xoptsWrap" class="xoptsPc xclosed" style="display: none;">
+            <div id="xoptsWrap" class="xoptsPc xopen" style="display: flex;">
                 <div class="xflexr opts-btn-wrap">
-                    <input id="xedx-best-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Best">
-                    <input id="xedx-sort-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Sort">
-                    <input id="xedx-default-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Default">
+                    <input id="xedx-best-btn" type='submit' class="xedx-torn-btn"  style="height: 26px;" value="Best">
+                    <input id="xedx-sort-btn" type='submit' class="xedx-torn-btn"  style="height: 26px;" value="Sort">
+                    <input id="xedx-default-btn" type='submit' class="xedx-torn-btn"  style="height: 26px;" value="Default">
                 </div>
                 <div class="xflexr radio-wrap">
                     <span>Preferred Level:</span>
@@ -376,7 +376,7 @@
     }
 
     function installUI(retries=0) {
-        const toggleBtn = `<span id="opts-btn"><i class="fas fa-caret-right"></i></span>`;
+        const toggleBtn = `<span id="opts-btn"><i class="fas fa-caret-down"></i></span>`;
         let recBtn = $("#faction-crimes-root > div > div[class^='buttonsContainer_'] > button:first-child");
         if (!$(recBtn).length) {
             if (retries++ < 50) return setTimeout(installUI, 250);
