@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Role Pick Assist - CHR
 // @namespace    http://tampermonkey.net/
-// @version      1.5.9
+// @version      1.5.10
 // @description  Assists in finding best OC and role to join
 // @author       colaman32 - better by xedx [2100735] ;-)
 // @match        https://www.torn.com/factions.php?step=your*
