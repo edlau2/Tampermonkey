@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hospital Timer
 // @namespace    http://tampermonkey.net/
-// @version      1.13
+// @version      1.14
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -91,17 +91,21 @@
     }
 
     function amIinHosp() {
+        let icons, hosp;
         let data = getSidebarData();
-        let icons = data.statusIcons.icons;
-        let hosp = icons.hospital;
+        if (data) icons = data.statusIcons ? data.statusIcons.icons : null;
+        if (!icons) {
+            log("Error: amIinHosp didn't find icons! data: ", data);
+        }
+        hosp = icons ? icons.hospital : null;
 
         inHospital = hosp ? true : false;
         return inHospital;
     }
 
-    function checkHospStatus() {
+    function startHospClocks() {
         inHospital = amIinHosp();
-        debug("checkHospStatus: ", inHospital, hideWhenOK);
+        debug("startHospClocks: ", inHospital, hideWhenOK);
         if (inHospital == false && hideWhenOK == true && hidden == false) {
             if ($("#x-hosp-watch").length > 0 || $("#hospTimer").length > 0) {
                 if (!hidden) handleHide();
@@ -123,6 +127,20 @@
             installUI();
 
         setTimeout(removeFlash, 1000);
+    }
+
+    function checkHospStatus(retries=0) {
+        let icons, hosp;
+        let data = getSidebarData();
+        if (data) icons = data.statusIcons ? data.statusIcons.icons : null;
+        if (!icons) {
+            if (retries++ < 50) return setTimeout(checkHospStatus, 250, retries);
+            log("Error: checkHospStatus timed out!");
+        }
+        hosp = icons ? icons.hospital : null;
+        inHospital = hosp ? true : false;
+
+        startHospClocks();
     }
 
     function removeFlash() {
