@@ -343,7 +343,7 @@
         `;
 
         let optsDiv2 = `
-            <div id="xoptsWrap" class="xclosed" style="display: none;">
+            <div id="xoptsWrap" class="xoptsPc xclosed" style="display: none;">
                 <div class="xflexr opts-btn-wrap">
                     <input id="xedx-best-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Best">
                     <input id="xedx-sort-btn" type='submit' class="xedx-torn-btn"  style="height: 0px;" value="Sort">
@@ -359,6 +359,7 @@
                 </div>
             </div>
         `;
+
 
         return optsDiv2;
     }
@@ -384,6 +385,10 @@
         $(recBtn).prepend(toggleBtn);
         $("#opts-btn").on('click', handleShowOpts);
         $(recBtn).parent().after(getOptsDiv());
+
+        if (true || isMobile) {
+            $("#xoptsWrap").addClass("xoptsMobile").removeClass("xoptsPc");
+        }
 
         $("#xedx-best-btn").on('click', goToBestChoice);
         $("#xedx-sort-btn").on('click', orderByScore);
@@ -489,15 +494,25 @@
                 background: var(--tabs-bg-gradient);
                 border-radius: 5px;
                 box-shadow: var(--tabs-shadow);
-                display: flex;
-                flex-flow: row wrap;
+                /*display: flex;
+                flex-flow: row wrap;*/
                 padding: 4px;
                 margin-top: 5px;
                 /*width: 776px;*/
             }
-            #xoptsWrap > div > input {
-                margin: 0px 10px 0px 10px;
+            .xoptsPc {
+                display: flex;
+                flex-flow: row wrap;
             }
+            .xoptsMobile {
+                display: flex;
+                flex-direction: column;
+            }
+            #xoptsWrap > div > input[type='submit'] {
+                margin: 0px 4px 0px 4px;
+            }
+            #xoptsWrap > div > input[type='radio'] {
+                /*margin: 0px 2px 0px 2px;*/
             #xoptsWrap span {
                 font-size: 14px;
                 text-shadow: var(--oc-header-text-shadow);
@@ -506,9 +521,12 @@
                 display: flex;
                 flex-flow: row wrap;
             }
+            #xoptsWrap.xoptsMobile > div > input {
+                margin: 0px 4px 2px 4px;
+            }
             .radio-wrap {
                 align-content: center;
-                width: 280px;
+                /*width: 280px;*/
                 justify-content: space-evenly;
             }
             .radio-wrap span:first-child {
