@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Racing Alert
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Keep the racing icon active, to alert when not in a race
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -87,6 +87,8 @@
     addStyles();
 
     timer = setInterval(handlePageLoad, 5000);
-    callOnContentLoaded(handlePageLoad);
+    handlePageLoad();
 
 })();
+
+
