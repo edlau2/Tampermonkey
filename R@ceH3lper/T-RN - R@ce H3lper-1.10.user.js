@@ -3,10 +3,11 @@
 // @namespace   maf1a.raceway
 // @author      Maf1a[61o357]
 // @description Get Accurate stats for your car. And repair helper.
-// @match       https://www.torn.com/loader.php?sid=racing*
-// @version     1.11
+// @include     https://www.torn.com/loader.php?sid=racing*
+// @version     1.10
 // @grant       GM_addStyle
 // @require     https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js
+// @require     https://greasyfork.org/scripts/39572-tornlib/code/tornlib.js?version=259509
 // ==/UserScript==
 
 /*eslint no-unused-vars: 0*/
