@@ -37,6 +37,8 @@
                             desc: "Enables advanced console logging."},
         "Auto-Clean DB":    {value: true, type: "checkbox", key: "autoPruneDb", label: "true",
                             desc: "Automatically remove DB entries when members leave the fac."},
+        "Details View":     {value: "", type: "select", key: "detailsView", options: ["Tree", "List"], label: "Style: ",
+                             desc: "Select how to display the member's detailed stats from the database"},
         "API Interval":     {value: 2,     type: "number",   key: "apiIntervalSecs", min: 1, max: 60, label: "secs",
                             desc: "Time in seconds between API calls for each member's stats."},
         "Update Frequency": {value: 24,    type: "number",   key: "apiFrequencyHrs", min: 1, max: 168, label: "hrs",
@@ -49,6 +51,7 @@
     var apiIntervalSecs = GM_getValue("apiIntervalSecs", 2);
     var apiFrequencyHrs = GM_getValue("apiFrequencyHrs", 24);
     var autoPruneDb = GM_getValue("autoPruneDb", true);
+    var detailsView = GM_getValue("detailsView", "Tree");
 
     saveOpts();
 
@@ -57,6 +60,7 @@
         apiIntervalSecs = GM_getValue("apiIntervalSecs", apiIntervalSecs);
         apiFrequencyHrs = GM_getValue("apiFrequencyHrs", apiFrequencyHrs);
         autoPruneDb = GM_getValue("autoPruneDb", autoPruneDb);
+        detailsView = GM_getValue("detailsView", detailsView);
     }
 
     function saveOpts() {
@@ -64,6 +68,7 @@
         GM_setValue("apiIntervalSecs", apiIntervalSecs);
         GM_setValue("apiFrequencyHrs", apiFrequencyHrs);
         GM_setValue("autoPruneDb", autoPruneDb);
+        GM_setValue("detailsView", detailsView);
     }
 
     if (GM_getValue("lastUpdated", -1) == -1) GM_setValue("lastUpdated", -1);
@@ -558,6 +563,65 @@
     }
 
     // TBD...
+    var lvl = 0;
+
+    function getLi(jsonNode, key) {
+        let keyVal = jsonNode[key];
+        let li;
+        if (typeof keyVal == 'object') {
+            li = `<li data-lvl="${lvl}" class="obj-lvl-${lvl}"><h${lvl}><a href="#">${lvl}: ${key}</a></h${lvl}>`;
+        } else {
+             li = `<li data-lvl="${lvl}" class="li-lvl-${lvl}"><h${lvl}><a href="#">${lvl}: ${key}: ${keyVal}</a></h${lvl}></li>`;
+        }
+        return li;
+    }
+
+    function buildHtmlListFromJson(jsonNode, htmlString) {
+        log("buildHtmlListFromJson");
+        let keys = Object.keys(jsonNode);
+        lvl++;
+        if (keys.length) {
+            let lastWasLi = false;
+            let lastWasUl = false;
+            htmlString  += `<ul data-lvl="${lvl}">`;
+            keys.forEach(key => {
+                let keyVal = jsonNode[key];
+                if (typeof keyVal == 'object') {
+                    let savedNode = jsonNode;
+                    htmlString +=  getLi(jsonNode, key);
+                    let nextHtml = buildHtmlListFromJson(jsonNode[key], '', lvl);
+                    nextHtml += "</li>";
+                    htmlString += nextHtml;
+                }
+                else {
+                    htmlString += getLi(jsonNode, key);
+                }
+            });
+            lvl--;
+            htmlString += "</ul>";
+        }
+        return htmlString;
+    }
+
+    function handleAccordianClick(e) {
+        var link = $(this);
+        var closest_ul = link.closest("ul");
+        var parallel_active_links = closest_ul.find(".active")
+        var closest_li = link.closest("li");
+        var link_status = closest_li.hasClass("active");
+        var count = 0;
+
+        closest_ul.find("ul").slideUp(function() {
+            if (++count == closest_ul.find("ul").length)
+                parallel_active_links.removeClass("active");
+        });
+
+        if (!link_status) {
+            closest_li.children("ul").slideDown();
+            closest_li.addClass("active");
+        }
+    }
+
     function handleMemberClick(e) {
         debug("[handleMemberClick] ", $(this), $(this).find("span").text());
         if (savedDbData) {
@@ -571,19 +635,125 @@
                     log("Value: ", value);
                     let stats = value.stats ? value.stats : value;
                     log("Stats: ", stats);
+                    log("detailsView: ", detailsView);
 
-                    let statStr = JSON.stringify(stats, null, 4);
-                    log("Formatted: ", statStr);
+                    if (false && detailsView == "Tree") {
+                        let statStr = JSON.stringify(stats, null, 4);
+                        let tmpDiv = `<div id='junkDiv' style="width: 100%; position:relative;">
+                                          <button id="junk-btn" class="xedx-torn-btn" style="cursor: pointer;position: absolute; top: 3px; left: 90%;">Close</button>
+                                          <textarea style="width: 100%; height: 200px;">${statStr}</textarea>
+                                      </div>`;
+                        $(this).closest('table').before(tmpDiv);
+                        $("#junk-btn").on('click', function() {$("#junkDiv").remove();});
+                    } else if (true || detailsView == "List") {
+                        let html = `<div id='accordian-wrap'><div id='accordian' class='flist' style='width: 100%;'></div>`;
+                        html += buildHtmlListFromJson(stats, html);
+                        html += "</div>";
 
-                    let tmpDiv = `<div id='junkDiv' style="width: 100%; position:relative;">
-                                      <button id="junk-btn" class="xedx-torn-btn" style="cursor: pointer;position: absolute; top: 3px; left: 95%;">Close</button>
-                                      <textarea style="width: 100%; height: 200px;">${statStr}</textarea>
-                                  </div>`;
-                    $(this).closest('table').before(tmpDiv);
-                    $("#junk-btn").on('click', function() {$("#junkDiv").remove();});
-                    //setTimeout(function() {$("#junkDiv").remove();}, 10000);
+                        $(this).closest('table').before($(html));
+
+
+                        $("#accordian a").on('click', handleAccordianClick);
+
+                    } else {
+                        debugger;
+                    }
             });
         }
+    }
+
+    function addAccordianStyles() {
+        GM_addStyle(`
+            #accordian-wrap {
+                width: 100%;
+                max-height: 200px;
+                overflow-y: auto;
+                /*top: 0px;*/
+                position: sticky;
+                display: flex;
+                flex-direction: column;
+            }
+            #accordian ul {
+                display: flex;
+                flex-diection: column;
+            }
+            #accordian {
+                    background: #004050;
+                    /*width: 250px;*/
+                    margin: 50px auto 0 auto;
+                    color: black;
+                    box-shadow: 0 5px 15px 1px rgba(0, 0, 0, 0.6), 0 0 200px 1px rgba(255, 255, 255, 0.5);
+            }
+
+            #accordian h3 {
+                    background: #003040;
+                    background: -webkit-gradient(linear, left top, left bottom, from(#003040), to(#002535));
+                    background: linear-gradient(#003040, #002535);
+            }
+
+            #accordian h3 a {
+                    padding: 0 10px;
+                    font-size: 12px;
+                    line-height: 34px;
+                    display: block;
+                    color: black;
+                    text-decoration: none;
+            }
+
+            #accordian h3:hover {
+                    text-shadow: 0 0 1px rgba(255, 255, 255, 0.7);
+            }
+
+            #accordian li {
+                    list-style-type: none;
+            }
+
+            #accordian ul ul li a,
+            #accordian h4 {
+                    color: black;
+                    text-decoration: none;
+                    font-size: 11px;
+                    line-height: 27px;
+                    display: block;
+                    padding: 0 15px;
+                    -webkit-transition: all 0.15s;
+                    transition: all 0.15s;
+                    position: relative;
+            }
+
+            #accordian ul ul li a:hover {
+                    background: #003545;
+                    border-left: 5px solid lightgreen;
+            }
+
+            #accordian ul ul {
+                    display: none;
+            }
+
+            #accordian li.active>ul {
+                /*display: block;*/
+                display: flex;
+                flex-direction: column;
+            }
+
+            #accordian ul ul ul {
+                    margin-left: 15px;
+                    border-left: 1px dotted rgba(0, 0, 0, 0.5);
+            }
+
+            #accordian a:not(:only-child):after {
+                    content: "\f104";
+                    font-family: fontawesome;
+                    position: absolute;
+                    right: 10px;
+                    top: 0;
+                    font-size: 14px;
+            }
+
+            #accordian .active>a:not(:only-child):after {
+                    content: "\f107";
+            }
+        `);
     }
 
     function handleCtrlPanelCb(e) {
@@ -894,6 +1064,14 @@
         debug("Set option ", $(this).attr("name"), " to ", $(this).prop('checked'));
     }
 
+    function handleOptSelectChange(e) {
+        log("[handleOptSelectChange] ", $(this));
+        log("Name/key: ", $(this).attr("name"), " option: ", $(this).val());
+        GM_setValue($(this).attr("name"), $(this).val());
+        readOpts();
+        debug("Set option ", $(this).attr("name"), " to ", $(this).val());
+    }
+
     function buildOptTableRows() {
         for (const [key, entry] of Object.entries(advFacOpts)) {
             let row = `<tr><td><span>${key}</span></td>`;
@@ -916,6 +1094,16 @@
                 cell = cell +
                     `<td><label class="xflexr">` +
                     `<input type="checkbox" name="${entry.key}" ${ck}>` +
+                    `<span>${entry.label}</span></label></td>`;
+            } else if (entry.type == "select") {
+                let value = GM_getValue(entry.key, entry.value);
+                let opts = "";
+                entry.options.forEach(name => {
+                    opts += `<option value="${name}">${name}</option>`;
+                });
+                cell = cell +
+                    `<td><label class="xflexr">` +
+                    `<select name="${entry.key}">${opts}</section>` +
                     `<span>${entry.label}</span></label></td>`;
             } else {
                 return log("ERROR: invalid option type: ", entry);
@@ -957,6 +1145,7 @@
         // Option handlers
         $('.opts-tbl input[type="number"]').on('change', handleOptInputChange);
         $('.opts-tbl input[type="checkbox"]').on('change', handleOptCbChange);
+        $('.opts-tbl select').on('change', handleOptSelectChange);
     }
 
     // ============================= Table Sorting ==========================
@@ -1445,6 +1634,8 @@
         addToolTipStyle();
         addAcStyles();
         addSortArrowStyles();
+
+        addAccordianStyles();
 
         // If TTS is running, '#xedx-search' disables (moves) that search bar
         // Styles for the top search bar
