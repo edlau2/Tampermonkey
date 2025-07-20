@@ -668,6 +668,7 @@
     const filterAliases = {
         //"Gold Only (URT)" : "Gold Only (URT/JLT)",
         "Gold Only (URT/JLT)": "Gold Only (URT)",
+
     };
 
     // Options for the start time select
@@ -837,31 +838,14 @@
                 }
 
                 case "maxRacersFilter": {
-                    // This may already have been done???
-                    let liList = $(".events-list > li");
-                    $(liList).each(function(idx, li) {
-                        let dnode = $(li).find("ul.event-info li.drivers");
-                        let parts = $(dnode).text().split('/');
-                        if (parts.length > 1) {
-                            let currUsers = parseInt(getAfterCr(parts[0]));
-                            let tmp = parts[1].replaceAll('\n', '');
-                            if (tmp) tmp = tmp.trim();
-                            let maxUsers = parseInt(tmp);
-                            $(li).attr("data-currUsers", currUsers);
-                            $(li).attr("data-maxUsers", maxUsers);
-                        }
-                    });
-
                     let opts = maxSelect[entry.selected];
-                    log("Max users opts: ", opts);
+                    debug("Max users opts: ", opts);
 
                     let val = Number(opts.racers);
-                    let op = opts.op;
                     list = $(".events-list > li").filter(function() {
                         var racers = parseInt($(this).attr('data-maxUsers'));
                         let diff = racers - val;
-                        log("Val: ", val, " racers: ", racers, " diff: ", diff, " op: ", op);
-                        return (op == 'le') ? (diff <= 0) : (diff >= 0);
+                        return (opts.op == 'le') ? (diff >= 0) : (diff <= 0);
                      });
 
                     break;
@@ -929,6 +913,10 @@
                 debug("886 - Save new key: ", key, " instead of ", alias, " Table: ", activeTable);
                 filterTable.misc[key] = JSON.parse(JSON.stringify(filterTable.misc[alias]));
                 delete filterTable.misc[alias];
+                debug("New keys: ", Object.keys(filterTable.misc));
+                GM_setValue(activeTable, JSON.stringify(filterTable));
+            } else {
+                filterTable.misc[key] = JSON.parse(JSON.stringify(defFilterTable.misc[key]));
                 debug("New keys: ", Object.keys(filterTable.misc));
                 GM_setValue(activeTable, JSON.stringify(filterTable));
             }
@@ -1046,6 +1034,10 @@
                     debug("1012 - Save new key: ", key, " instead of ", alias, " table: ", activeTable);
                     filterTable.misc[key] = JSON.parse(JSON.stringify(filterTable.misc[alias]));
                     delete filterTable.misc[alias];
+                    debug("New keys: ", Object.keys(filterTable.misc));
+                    GM_setValue(activeTable, JSON.stringify(filterTable));
+                }  else {
+                    filterTable.misc[key] = JSON.parse(JSON.stringify(defFilterTable.misc[key]));
                     debug("New keys: ", Object.keys(filterTable.misc));
                     GM_setValue(activeTable, JSON.stringify(filterTable));
                 }
@@ -1310,6 +1302,13 @@
                     row = row + `</select></label></td>`;
                     break;
                 }
+                case "max-select": {
+                    row = `<td><label>Racers<select class='xmselect' id='${entry.id}' data-selected='${entry.selected}'>`;
+                    for (let [key, value] of Object.entries(maxSelect))
+                        row = row + `<option class='xmisc' name='${mainKey}' value="${key}">${value.name}</option>`;
+                    row = row + `</select></label></td>`;
+                    break;
+                }
                 default: {
                     row = `<td><select class='' name='error'><option value="">Error</option></select></td>`;
                     break;
@@ -1331,6 +1330,10 @@
                         debug("1286 - Save new key: ", key, " instead of ", alias, " table: ", activeTable);
                         filterTable.misc[key] = JSON.parse(JSON.stringify(filterTable.misc[alias]));
                         delete filterTable.misc[alias];
+                        debug("New keys: ", Object.keys(filterTable.misc));
+                        GM_setValue(activeTable, JSON.stringify(filterTable));
+                    } else {
+                        filterTable.misc[key] = JSON.parse(JSON.stringify(defFilterTable.misc[key]));
                         debug("New keys: ", Object.keys(filterTable.misc));
                         GM_setValue(activeTable, JSON.stringify(filterTable));
                     }
@@ -1539,7 +1542,8 @@
                 .tr-misc {
 
                 }
-                #st-select {
+                /* #st-select, */
+                .xmselect {
                     margin: -4px 0px 0px 10px;
                     border-radius: 4px;
                 }
