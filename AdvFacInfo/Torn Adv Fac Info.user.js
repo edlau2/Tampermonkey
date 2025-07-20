@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Adv Fac Info
-// @namespace    http://tampermonkey.net/
-// @version      1.15
+// @namespace    http://tampe8monkey.net/
+// @version      1.22
 // @description  Adds better search and member stats to fac info page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/factions.php?step=your*
@@ -28,6 +28,7 @@
     'use strict';
 
     const searchid = "fac-search";
+    const myId = getPlayerId();
 
     // ======================== Options editable via the UI ===================
 
@@ -35,6 +36,10 @@
     const advFacOpts = {
         "Debug Logging":    {value: false, type: "checkbox", key: "debugLoggingEnabled", label: "false",
                             desc: "Enables advanced console logging."},
+        "Auto-Clean DB":    {value: true, type: "checkbox", key: "autoPruneDb", label: "true",
+                            desc: "Automatically remove DB entries when members leave the fac."},
+        "Details View":     {value: "", type: "select", key: "detailsView", options: ["Tree", "List"], label: "Style: ",
+                             desc: "Select how to display the member's detailed stats from the database"},
         "API Interval":     {value: 2,     type: "number",   key: "apiIntervalSecs", min: 1, max: 60, label: "secs",
                             desc: "Time in seconds between API calls for each member's stats."},
         "Update Frequency": {value: 24,    type: "number",   key: "apiFrequencyHrs", min: 1, max: 168, label: "hrs",
@@ -46,6 +51,8 @@
 
     var apiIntervalSecs = GM_getValue("apiIntervalSecs", 2);
     var apiFrequencyHrs = GM_getValue("apiFrequencyHrs", 24);
+    var autoPruneDb = GM_getValue("autoPruneDb", true);
+    var detailsView = GM_getValue("detailsView", "Tree");
 
     saveOpts();
 
@@ -53,12 +60,16 @@
         debugLoggingEnabled = GM_getValue("debugLoggingEnabled", debugLoggingEnabled);
         apiIntervalSecs = GM_getValue("apiIntervalSecs", apiIntervalSecs);
         apiFrequencyHrs = GM_getValue("apiFrequencyHrs", apiFrequencyHrs);
+        autoPruneDb = GM_getValue("autoPruneDb", autoPruneDb);
+        detailsView = GM_getValue("detailsView", detailsView);
     }
 
     function saveOpts() {
         GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
         GM_setValue("apiIntervalSecs", apiIntervalSecs);
         GM_setValue("apiFrequencyHrs", apiFrequencyHrs);
+        GM_setValue("autoPruneDb", autoPruneDb);
+        GM_setValue("detailsView", detailsView);
     }
 
     if (GM_getValue("lastUpdated", -1) == -1) GM_setValue("lastUpdated", -1);
@@ -155,7 +166,6 @@
             if (getKeys == true) {
                 getAllKeysFromObjectStore()
                 .then(keys => {
-                    log("All keys:", keys);
                     facDbKeys = keys;
                     facDbCount = keys.length;
                     if (waitingOnUpdateCheck == true) {
@@ -280,6 +290,7 @@
     }
 
     // TBD....
+    var savedDbData;    // For a 'details' click...
     function fillCtrlPanelRows(retries=0) {
         if (!facDb) {
             log("DB not open yet!");
@@ -294,24 +305,28 @@
         }
 
         getAllKeysAndValues().then(data => {
+            savedDbData = JSON.parse(JSON.stringify(data));
             data.forEach(entry => {
                 let id = entry.key;
-                let name = membersList[id].name;
-                let lastUpd = entry.value.lastUpdated;
-                let row = `<tr class='db-row'>
-                              <td><span>${name} [${id}]</span></td>
-                              <td><span>${tm_str(lastUpd)}</span></td>
-                              <td><span> </span></td>
-                              <td><input type="checkbox" name="select"></td>
-                          </tr>`;
-                $("#db-table tbody").append($(row));
+                if (membersList[id] && membersList[id] != undefined) {
+                    let name = membersList[id].name;
+                    let lastUpd = entry.value.lastUpdated;
+                    let row = `<tr class='db-row'>
+                                  <td><span>${name} [${id}]</span></td>
+                                  <td><span>${tm_str(lastUpd)}</span></td>
+                                  <!-- td><span> </span></td -->
+                                  <td><input type="checkbox" name="select"></td>
+                              </tr>`;
+                    $("#db-table tbody").append($(row));
+                }
             });
 
             // Handler for clicking the member name (details?)
-            log("Add td click handlers: ", $(".db-tbl table tbody td:first-child"));
+            //log("Add td click handlers: ", $(".db-tbl table tbody td:first-child"));
             $(".db-tbl table tbody td:first-child").on('click', handleMemberClick);
 
-            log("Add cb click handlers: ", $(".db-tbl table tbody td input"));
+            // May not want the cb...
+            //log("Add cb click handlers: ", $(".db-tbl table tbody td input"));
             $(".db-tbl table tbody td input").on('change', handleCtrlPanelCb);
 
         }).catch(error => {
@@ -323,6 +338,7 @@
 
     var facMembersUpdated = false;
     var membersList = {};
+    var usersNotInFac = [];
     var acSource = [];
     var memberCount = -1;
     var acWaitingOnMembers = false;   // Auto-Complete waiting
@@ -506,6 +522,19 @@
 
         if (acWaitingOnMembers == true) installAutoComplete(searchid);
 
+        // Get members in DB no longer in fac
+        getAllKeysFromObjectStore()
+            .then(keys => {
+                keys.forEach(key => {
+                    if (membersList[key] == undefined)
+                        usersNotInFac.push(key);
+                });
+            }).catch(error => {
+                log("ERROR: Failed to retrieve keys:", error);
+        });
+
+        debug("Orphaned users list: ", usersNotInFac);
+
         // Startup 'updates needed' check
         doStartupUpdates();
 
@@ -534,8 +563,290 @@
         }
     }
 
+    // TBD...
+    var lvl = 0;
+
+    function cap(word) {
+        return word.charAt(0).toUpperCase() + word.slice(1)
+    }
+
+    function getLi(jsonNode, key) {
+        let keyVal = jsonNode[key];
+        let li;
+        let hlvl = +lvl + 1;
+            let txt = cap(key);
+        if (typeof keyVal == 'object') {
+            //li = `<li data-lvl="${lvl}" class="obj-lvl-${lvl}"><h${hlvl}><a href="#">${txt}</a><i class="fas fa-caret-right pt10"></i></h${hlvl}>`;
+            li = `<li data-lvl="${lvl}" class="obj-lvl-${lvl}"><span><a href="#">${txt}</a><i class="fas fa-caret-right pt"></i></span>`;
+        } else {
+            //li = `<li data-lvl="${lvl}" class="obj-lvl-${lvl}"><h${hlvl}><a href="#">${txt}: ${keyVal}</a></h${hlvl}></li>`;
+            li = `<li data-lvl="${lvl}" class="obj-lvl-${lvl}"><span><a href="#">${txt}: ${keyVal}</a></span></li>`;
+        }
+        return li;
+    }
+
+    function buildHtmlListFromJson(jsonNode, htmlString) {
+        log("buildHtmlListFromJson");
+        let keys = Object.keys(jsonNode);
+        lvl++;
+        if (keys.length) {
+            let lastWasLi = false;
+            let lastWasUl = false;
+            htmlString  += `<ul data-lvl="${lvl}" class="xfc">`;
+            keys.forEach(key => {
+                let keyVal = jsonNode[key];
+                if (typeof keyVal == 'object') {
+                    let savedNode = jsonNode;
+                    htmlString +=  getLi(jsonNode, key);
+                    let nextHtml = buildHtmlListFromJson(jsonNode[key], '', lvl);
+                    nextHtml += "</li>";
+                    htmlString += nextHtml;
+                }
+                else {
+                    htmlString += getLi(jsonNode, key);
+                }
+            });
+            lvl--;
+            htmlString += "</ul>";
+        }
+        return htmlString;
+    }
+
     function handleMemberClick(e) {
+        e.stopPropagation();
+        e.preventDefault();
         debug("[handleMemberClick] ", $(this), $(this).find("span").text());
+        $("#mem-stat-wrap").remove();
+        $("#accordian-hdr").remove();
+        if (savedDbData) {
+            let fullName = $(this).find("span").text();
+            let tmp = fullName.split('[')[1];
+            let id = tmp.split(']')[0];
+            log("Full Name: ", fullName, " ID: ", id);
+
+            getStatsForMemberFromDb(id)
+                .then(value => {
+                    log("Value: ", value);
+                    let stats = value.stats ? value.stats : value;
+                    log("Stats: ", stats);
+                    log("detailsView: ", detailsView);
+
+                    if (detailsView == "Tree") {
+                        let statStr = JSON.stringify(stats, null, 4);
+                        let tmpDiv = `<div id='mem-stat-wrap' style="width: 100%; position:relative;">
+                                          <button id="junk-btn" class="xedx-torn-btn" style="cursor: pointer;position: absolute; top: 3px; left: 90%;">Close</button>
+                                          <textarea style="width: 100%; height: 200px;">${statStr}</textarea>
+                                      </div>`;
+                        $(this).closest('table').before(tmpDiv);
+                        $("#junk-btn").on('click', function() {$("#mem-stat-wrap").remove();});
+                    } else if (detailsView == "List") {
+                        let root = `<div id="mem-stat-wrap" class='accordian-wrap'>
+                                        <div id='accordian' class='flist' style='width: 100%;'>
+                                        </div>
+                                    </div>`;
+                        let hdr = `<li id="accordian-hdr" data-lvl="${lvl}" class="obj-lvl-${lvl}">
+                                       <span><a href="#">Personal Stats for ${fullName}</a></span>
+                                   </li>`;
+
+                        $("#db-table").before($(hdr));
+                        $(this).closest('table').before($(root));
+
+                        let html = buildHtmlListFromJson(stats, '');
+                        $('#accordian').append(html);
+
+                        $('#accordian ul ul').hide();
+
+
+                        var inClick = false;
+                        function resetClick(){inClick = false;}
+
+                        $('#accordian ul li').on('click', function(e) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            if (inClick == true) return false;
+                            inClick = true;
+                            setTimeout(resetClick, 500);
+
+                            // Find the direct child <ul> of the clicked <li> and toggle its visibility
+                            let i = $(this).find("> h2 > i.fas, > h3 > i.fas, > span > i.fas");
+                            log("Click: ", $(this), $(i));
+                            $(this).children('ul').slideToggle();
+                            $(i).toggleClass("fa-caret-right fa-caret-down");
+                            return false;
+                        });
+
+                    } else {
+                        debugger;
+                    }
+            });
+        }
+    }
+
+    function addAccordianStyles() {
+        GM_addStyle(`
+            .xfc {display: flex; flex-direction: column; }
+            .xdn { display: none; }
+
+            l1.obj-lvl-1 { padding-left: 5px; }
+            [class^='obj-lvl']:not(.obj-lvl-1) { padding-left: 50px; }
+
+            /*
+            li.obj-lvl-1 span {
+                background: linear-gradient(#999, #445572);
+            }
+            li.obj-lvl-2 span {
+                background: linear-gradient(#bbb, #445572);
+            }
+            li.obj-lvl-3 span {
+                background: linear-gradient(#ddd, #445572);
+            }
+            */
+
+            span.pt {padding-top: 5px; }
+            h2.pt, h3.pt, h4.pt, h5.pt {padding-top: 10px; }
+
+            .accordian-wrap {
+                width: 100%;
+                /* max-height: 200px; */
+                overflow-y: auto;
+                position: sticky;
+                display: flex;
+                flex-direction: column;
+            }
+            #accordian-hdr {
+                background: #ddd;
+                box-shadow: 0 5px 15px 1px rgba(0, 0, 0, 0.6), 0 0 200px 1px rgba(255, 255, 255, 0.5);
+                height: 32px;
+                position: sticky;
+                justify-content: center;
+                display: flex;
+                align-content: center;
+                flex-flow: row wrap;
+                justify-content: center;
+                width: 734px;
+                margin-left: 10px;
+            }
+            #accordian-hdr span a {
+                color: black;
+                font-size: large;
+            }
+            #accordian ul {
+                display: flex;
+                flex-direction: column;
+            }
+            #accordian ul:first-child {
+                padding-left: 10px;
+            }
+            #accordian {
+                /*background: #004050;*/
+                /*width: 250px;*/
+                /*margin: 20px auto 0 auto;*/
+                color: black;
+                padding-top: 20px;
+                /*box-shadow: 0 5px 15px 1px rgba(0, 0, 0, 0.6), 0 0 200px 1px rgba(255, 255, 255, 0.5);*/
+            }
+
+            #accordian span {
+                display: flex;
+                flex-flow: row wrap;
+                margin-top: 0px;
+                margin-bottom: 0px;
+            }
+            #accordian span i.fas {
+                padding-top: 5px;
+            }
+
+            #accordian h2,
+            #accordian h3,
+            #accordian h4,
+            #accordian h5 {
+                padding-top: 5px;
+                display: flex;
+                flex-flow: row wrap;
+                margin-top: 0px;
+                margin-bottom: 0px;
+            }
+            #accordian a {
+                border-radius: 4px;
+            }
+            /* #accordian h3 a {
+                line-height: 34px;
+                color: black;
+                text-decoration: none;
+                padding: 5px;
+            } */
+
+            #accordian span a,
+            #accordian h2 a,
+            #accordian h3 a,
+            #accordian h4 a {
+                color: black;
+                padding: 5px;
+            }
+            #accordian span:hover,
+            #accordian h3:hover {
+                text-shadow: 0 0 1px rgba(255, 255, 255, 0.7);
+            }
+
+            #accordian li {
+                display: flex;
+                flex-direction: column;
+                list-style-type: none;
+            }
+
+            #accordian span {
+                color: black;
+                -webkit-transition: all 0.15s;
+                transition: all 0.15s;
+                position: relative;
+            }
+            #accordian ul ul li a,
+            #accordian h4 {
+                color: black;
+                text-decoration: none;
+                /*line-height: 27px;*/
+                -webkit-transition: all 0.15s;
+                transition: all 0.15s;
+                position: relative;
+            }
+            /*#accordian ul li a:hover {*/
+            #accordian ul li span:hover {
+                background: #ddd;
+                border-left: 15px solid lightgreen;
+                box-shadow: 0 5px 15px 1px rgba(0, 0, 0, 0.6), 0 0 200px 1px rgba(255, 255, 255, 0.5);
+            }
+
+            #accordian ul ul li a:hover {
+                background: #eee;
+                border-left: 5px solid lightgreen;
+            }
+
+            #accordian ul ul {
+                border-left: 2px dotted rgba(0, 0, 0, 0.8);
+            }
+
+            #accordian li.active>ul {
+                background: #99ffff;
+            }
+
+            #accordian ul ul ul {
+                margin-left: 15px;
+            }
+
+            #accordian a:not(:only-child):after {
+                content: "\f104";
+                font-family: fontawesome;
+                position: absolute;
+                right: 10px;
+                top: 0;
+                border-top: 1px dotted red;
+            }
+
+            #accordian .active>a:not(:only-child):after {
+                content: "\f107";
+                border-top: 1px dotted yellow;
+            }
+        `);
     }
 
     function handleCtrlPanelCb(e) {
@@ -697,18 +1008,31 @@
         return innerHtml;
     }
 
+    // Add sort on header column click....
     function addTblHdr() {
         let hdr = `<tr>
-                      <th>Member Name</th>
+                      <th>Member Name (click name for details)</th>
                       <th>Last Update</th>
-                      <th>View Details</th>
+                      <!-- th>View Details</th -->
                       <th></th>
                   </tr>`;
         $("#db-table thead.sticky-thead").append(hdr);
     }
 
+    function openDbConsole(e) {
+        log("[openDbConsole]");
+        $("#dbControlPanel").fadeToggle(200);
+        $("#dbControlOverlayPanel").fadeToggle(200);
+
+        if (!$(".db-row").length) {
+            fillCtrlPanelRows();
+        }
+    }
+
+    var consoleInit = false;
     function initControlPanel(retries=0) {
         debug("initControlPanel");
+        if (consoleInit == true) return;
         let $title = $(".header-navigation.right > .header-buttons-wrapper > ul");
         let addlClass = "btn-wrap-fmt";
         if ($title.length === 0) {
@@ -732,34 +1056,13 @@
         const $controlPanelOverlayDiv = $(`<div id="dbControlOverlayPanel" class="-control-panel-overlay"></div>`);
 
         $controlPanelDiv.html(getCtrlPanelHtml());
-
-        /*
-        // Control panel onClick listeners
-        $controlPanelDiv.find("button#db-search").click(function () {
-            const inputId = $controlPanelDiv.find("input#chat-target-id-input").val();
-            dbReadByTargetPlayerId(inputId).then((result) => {
-                //log("InputId: ", inputId);
-                let text = "";
-                for (const message of result) {
-                    //log("Res msg: ", message);
-                    const timeStr = formatDateStringLong(new Date(message.timestamp));
-                    text += timeStr + " " + message.senderPlayerName + ": " + message.messageText + "\n";
-                }
-                text += "Found " + result.length + " records\n";
-                const $textarea = $("textarea#chat-results");
-                $textarea.val(text);
-                $textarea.scrollTop($textarea[0].scrollHeight);
-            });
-        });
-        */
-
         $title.append($controlPanelDiv);
+
+        log("Appended ctrl panel: ", $("#db-table"), $("#dbControlPanel"));
+        consoleInit = true;
 
         addTblHdr();
         fillCtrlPanelRows();
-
-
-        //debug("rows: ", $(".db-row"));
 
         // Checkbox handlers
         $(".cdc-cb").on('click', function (e) {
@@ -773,34 +1076,7 @@
             updateOption(key, $(this).val());
         });
 
-        $controlBtn.click(function () {
-            //dbReadAllPlayerId().then((result) => {
-            //    //log("dbReadAllPlayerId res: ", result);
-            //    const $playerListDiv = $controlPanelDiv.find("div#chat-player-list");
-            //    $playerListDiv.empty();
-            //    let num = 0;
-            //    for (const message of result) {
-            //        if (num == 8) {
-            //            $playerListDiv.append($(`<br>`));
-            //            num = -1;
-            //        }
-            //        num++;
-            //        let a = $(`<a class="chat-control-player">${message.targetPlayerName}</a>`);
-            //        a.click(() => {
-            //            $controlPanelDiv.find("input#chat-target-id-input").val(message.targetPlayerId);
-            //            $controlPanelDiv.find("button#chat-search").trigger("click");
-            //        });
-            //        $playerListDiv.append(a);
-            //    }
-
-                $controlPanelDiv.fadeToggle(200);
-                $controlPanelOverlayDiv.fadeToggle(200);
-
-                //debug("On click, rows: ", $(".db-row"));
-                if (!$(".db-row").length)
-                    fillDbTblRows();
-            //});
-        });
+        $("#dbCtrlPanelBtn").on('click', openDbConsole);
 
         $controlPanelOverlayDiv.click(function () {
             $controlPanelDiv.fadeOut(200);
@@ -808,9 +1084,15 @@
         });
 
         $("#dashboard-close").on('click', function () {
-            $controlPanelDiv.fadeOut(200);
-            $controlPanelOverlayDiv.fadeOut(200);
+            if ($("#mem-stat-wrap").length > 0) {
+                $("#mem-stat-wrap").remove();
+                $("#accordian-hdr").remove();
+            } else {
+                $controlPanelDiv.fadeOut(200);
+                $controlPanelOverlayDiv.fadeOut(200);
+            }
         });
+
     }
 
     // ======================== Options handling ==============================
@@ -827,6 +1109,14 @@
         let labelTxt = ($(this).prop('checked') == true) ? 'true' : 'false';
         $(this).next().text(labelTxt);
         debug("Set option ", $(this).attr("name"), " to ", $(this).prop('checked'));
+    }
+
+    function handleOptSelectChange(e) {
+        log("[handleOptSelectChange] ", $(this));
+        log("Name/key: ", $(this).attr("name"), " option: ", $(this).val());
+        GM_setValue($(this).attr("name"), $(this).val());
+        readOpts();
+        debug("Set option ", $(this).attr("name"), " to ", $(this).val());
     }
 
     function buildOptTableRows() {
@@ -851,6 +1141,16 @@
                 cell = cell +
                     `<td><label class="xflexr">` +
                     `<input type="checkbox" name="${entry.key}" ${ck}>` +
+                    `<span>${entry.label}</span></label></td>`;
+            } else if (entry.type == "select") {
+                let value = GM_getValue(entry.key, entry.value);
+                let opts = "";
+                entry.options.forEach(name => {
+                    opts += `<option value="${name}">${name}</option>`;
+                });
+                cell = cell +
+                    `<td><label class="xflexr">` +
+                    `<select name="${entry.key}">${opts}</section>` +
                     `<span>${entry.label}</span></label></td>`;
             } else {
                 return log("ERROR: invalid option type: ", entry);
@@ -889,9 +1189,18 @@
         buildOptTblHdr();
         buildOptTableRows();
 
+        // Will this work?
+        $('.opts-tbl select').each(function() {
+            let key = $(this).attr("name");
+            let value = GM_getValue(key, null);
+            log("Set select: ", key, value);
+            $(this).val(value);
+        });
+
         // Option handlers
         $('.opts-tbl input[type="number"]').on('change', handleOptInputChange);
         $('.opts-tbl input[type="checkbox"]').on('change', handleOptCbChange);
+        $('.opts-tbl select').on('change', handleOptSelectChange);
     }
 
     // ============================= Table Sorting ==========================
@@ -911,7 +1220,6 @@
 
             table thead tr th.sort-asc:after {
                 content: "\u25b4";
-
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -920,7 +1228,6 @@
 
             table thead tr th.sort-desc:after {
                 content: "\u25be";
-
                 position: absolute;
                 top: 0;
                 bottom: 0;
@@ -1046,6 +1353,7 @@
 
             let keys = rowKeys; 
             let cells = "";
+            log("******* Check This! ********");
             if (keys) keys.forEach(key => {
                 if (key.indexOf(".") > -1) {
                     let parts = key.split(".");
@@ -1065,13 +1373,15 @@
                 }
             });
 
-            let honor = getHonorForId(id);
-            let name = membersList[id].name;
-            let row = `<tr data-id="${id}" data-name="${name}">
-                           <th><span class="honor-text-wrap default img-wrap small">${$(honor).html()}</span></th>
-                           ${cells}
-                       </tr>`;
-            $(`#${divId}`).find("tbody").append(row);
+            if (membersList[id]  != undefined) {
+                let honor = getHonorForId(id);
+                let name = membersList[id].name;
+                let row = `<tr data-id="${id}" data-name="${name}">
+                               <th><span class="honor-text-wrap default img-wrap small">${$(honor).html()}</span></th>
+                               ${cells}
+                           </tr>`;
+                $(`#${divId}`).find("tbody").append(row);
+            }
         })
        .catch(error => console.error(error));
     }
@@ -1285,6 +1595,9 @@
                                    "off.",
                       "fac-opts": "This allows you to set various options<br>" +
                                   "the script uses. Self-explanatory...",
+                      "view-db": "This allows you to view the saved contents of<br>" +
+                                 "the faction stats database, and perform minor<br>" +
+                                 "maintainence.",
                     };
 
     function installSearchUI(target) {
@@ -1297,6 +1610,7 @@
         $("#upd-stats").on('click', handleUpdateBtn);
         $("#view-stats").on('click', getTopHeaderRow);
         $("#fac-opts").on('click', buildOptsTable);
+        $("#view-db").on('click', openDbConsole);
 
         addSearchBarHelp();
 
@@ -1316,6 +1630,7 @@
                         <input id='view-stats' type="submit" class="btn-dark-bg torn-btn" value="View Stats">
                         <input id='upd-stats' type="submit" class="btn-dark-bg torn-btn" value="Update">
                         <input id='fac-opts' type="submit" class="btn-dark-bg torn-btn" value="Options">
+                        <input id='view-db' type="submit" class="btn-dark-bg torn-btn" value="DB">
                         <span id="prog-text"></span>
                     </div>
                 </div>`;
@@ -1375,6 +1690,7 @@
         addToolTipStyle();
         addAcStyles();
         addSortArrowStyles();
+        addAccordianStyles();
 
         // If TTS is running, '#xedx-search' disables (moves) that search bar
         // Styles for the top search bar
@@ -1428,6 +1744,13 @@
         `);
 
         // Stats/opts tables
+
+        GM_addStyle(`
+            tr[data-id="${myId}"] > td {
+                background-color: rgba(108,195,21,.07) !important;
+            }
+         `);
+
         GM_addStyle(`
             .sticky-top {
                 z-index: 99 !important;

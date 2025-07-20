@@ -28,6 +28,7 @@
     'use strict';
 
     const searchid = "fac-search";
+    const myId = getPlayerId();
 
     // ======================== Options editable via the UI ===================
 
@@ -1352,6 +1353,7 @@
 
             let keys = rowKeys; 
             let cells = "";
+            log("******* Check This! ********");
             if (keys) keys.forEach(key => {
                 if (key.indexOf(".") > -1) {
                     let parts = key.split(".");
@@ -1688,7 +1690,6 @@
         addToolTipStyle();
         addAcStyles();
         addSortArrowStyles();
-
         addAccordianStyles();
 
         // If TTS is running, '#xedx-search' disables (moves) that search bar
@@ -1743,6 +1744,13 @@
         `);
 
         // Stats/opts tables
+
+        GM_addStyle(`
+            tr[data-id="${myId}"] > td {
+                background-color: rgba(108,195,21,.07) !important;
+            }
+         `);
+
         GM_addStyle(`
             .sticky-top {
                 z-index: 99 !important;
