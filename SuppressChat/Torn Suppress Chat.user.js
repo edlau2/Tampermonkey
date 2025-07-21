@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Torn Suppress Chat
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.2
 // @description  This script prevents chats.
 // @author       xedx [2100735]
-// @match        https://www.torn.com/gym.php*
+// @match        https://www.torn.com/*
 // @run-at       document-start
 // @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -15,8 +17,17 @@
 (function() {
     'use strict';
 
-    // Comment out this line to see proof that chats are disabled
-    GM_addStyle(`#chatRoot { display: none; }`);
+    // Comment out these lines to see proof that chats are disabled
+    GM_addStyle(`
+        #chatRoot { display: none; }
+        div.xchat { padding-bottom: 5px; padding-top: 0px; }
+        span.xchat { font-weight: 700; }
+        a.xchat { margin-left: 5px; }
+        #xhac-root { z-index: 99999999; }
+   `);
+
+    var suppressOn = GM_getValue("suppressOn", true);
+    GM_setValue("suppressOn", suppressOn);
 
     function log(...data) { console.log(GM_info.script.name + ': ', ...data); }
     log("Script started");
@@ -25,11 +36,13 @@
     unsafeWindow.fetch = async (...args) => {
         let [resource, config] = args;
 
-        const url = typeof resource === 'string' ? resource : resource.url;
-        log("Unsafe Fetch: ", url);
-        if (url.indexOf(`/chat`) > -1 || url.indexOf(`/sendbird`) > -1) {
-            log(`Fetch to ${url} prevented by override.`);
-            return Promise.reject(new TypeError('Fetch to this URL is blocked.'));
+        if (suppressOn == true) {
+            const url = typeof resource === 'string' ? resource : resource.url;
+            //log("Unsafe Fetch: ", url);
+            if (url.indexOf(`/chat`) > -1 || url.indexOf(`/sendbird`) > -1) {
+                log(`Fetch to ${url} prevented by override.`);
+                return Promise.reject(new TypeError('Fetch to this URL is blocked.'));
+            }
         }
     return originalUnsafeFetch(resource, config);
     };
@@ -37,35 +50,38 @@
     // ============Minimal UI to enable/disable dynamically, TBD =================
 
     function installUi(retries=0) {
-        GM_addStyle(`
-            div.xchat { padding-bottom: 5px; padding-top: 0px; }
-            span.xchat { font-weight: 700; }
-            a.xchat { margin-left: 5px; }
-        `);
-        let newNode = `<div id="xhsc-root"><div class="xchat"><span class="xchat">Chat Icons</span>
-                       <a id="xhsc" class="t-blue show-hide xchat">[show]</a></div></div>`;
         let target = $('#sidebar').find('div[class^=toggle-content__]').find('div[class^=content___]')[0];
+        if (!$(target).length) {
+            if (retries++ < 100) return setTimeout(installUi, 250, retries);
+            return log("[installUi] Timed Out!");
+        }
+
+        let newNode = `<div id="xhsc-root"><div class="xchat"><span class="xchat">Chat Icons</span>
+                       <a id="xhsc" class="t-blue xs xchat">[show]</a></div></div>`;
         $(target).append(newNode);
 
-        $('#xhsc').on('click', function (e) {
-            const hide = $('#xhsc').text() == '[hide]';
+        $('#xhsc-root').on('click', function (e) {
+            let hide = $('#xhsc').hasClass('xh');
+            $('#xhsc').toggleClass('xs xh');
             if (hide == true) {
                 $("#chatRoot").css("display", "none");
+                $('#xhsc').text("[show]");
             } else {
                 $("#chatRoot").css("display", "block");
+                $('#xhsc').text("[hide]");
             }
+            GM_setValue("suppressOn", hide);
             return false;
         });
     }
 
     function checkForReady() {
-        if (window.jQuery) {
-            installUi()
+        if (window.jQuery || unsafeWindow.jQuery) {
+            installUi();
         } else {
             setTimeout(checkForReady, 250);
         }
     }
     checkForReady();
-
 
 })();
