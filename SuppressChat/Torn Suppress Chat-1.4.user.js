@@ -33,8 +33,7 @@
         #xhac-root { z-index: 99999999; }
    `);
 
-
-    log("Script started, enabled: ", suppressOn);
+    log("version " + GM_info.script.version + " started, enabled: ", suppressOn);
 
     const originalUnsafeFetch = unsafeWindow.fetch;
     unsafeWindow.fetch = async (...args) => {
