@@ -921,6 +921,7 @@
                   padding: 0px 4px 0px 4px;
                   outline: 1px solid #666;
                   background: linear-gradient(180deg, #333333 0%, #555555 25%, #333333 60%, #333333 78%, #333333 100%);
+                  color: var(--tutorial-title-color);
               }
               .db-tbl table tbody td input {
                   margin-right: 0px;
@@ -1579,11 +1580,10 @@
 
         $(sel).on( "autocompleteselect", function( event, ui ) {
             $(".members-list .table-body li").removeClass("ac-hide").removeClass("ac-res");
-            $(".outline-green").removeClass("outline-green");
+            $(".outline-green").removeClass("outline-green").removeClass("bg-mild-gr");
             let id = ui.item.data;
             let name = ui.item.label;
             let li = $(`[data-id='${id}']`);
-            //log("autocompleteselect: ", ui.item, name, "[", id, "] ", $(li));
             $(li).addClass("outline-green bg-mild-gr");
             scrollTo($(li));
         });
