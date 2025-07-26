@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn PDA Tests
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.0.1
 // @description  This script tests for PDA compliance
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -21,11 +21,18 @@
 (function() {
     'use strict';
 
+    const isMobileView = viewPortWidthPx <= 784;
+    const isTampermonkeyEnabled = typeof unsafeWindow !== 'undefined';
+
     console.log("Torn PDA Tests started");
     console.log("Test GM_info.script.name");
 
+    if (GM_info.script.name === undefined)
+        GM_info.script.name = "Torn PDA Tests";
+
     try {
-    console.log("Script name: ", GM_info.script.name);
+        console.log("Script name: ", GM_info, GM_info.script.name, "\nisTampermonkeyEnabled: ", isTampermonkeyEnabled,
+                   " isMobileView: ", isMobileView);
     } catch (err) {
         console.log("Failed! ", err);
     }
