@@ -32,8 +32,9 @@
         GM_info.script.name = "Torn PDA Tests";
 
     try {
-        console.log("Script name: ", GM_info, GM_info.script.name, "\nisTampermonkeyEnabled: ", isTampermonkeyEnabled,
-                   " isMobileView: ", isMobileView);
+        console.log("GM_info: ", JSON.stringify(GM_info, null, 4));
+        console.log("Script name: ", JSON.stringify(GM_info.script.name, null, 4));
+        console.log("isTampermonkeyEnabled: ", isTampermonkeyEnabled, " isMobileView: ", isMobileView);
     } catch (err) {
         console.log("Failed! ", err);
     }
@@ -46,8 +47,13 @@
     log("quick jquery test");
     log("sidebarroot: ", $('#sidebarroot').length);
 
-    debugLoggingEnabled =
+    let debugLoggingEnabled =
         GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
+    log("GM_getValue returned: ", debugLoggingEnabled);
 
+    GM_setValue("debugLoggingEnabled", true);    
+    debugLoggingEnabled =
+        GM_getValue("debugLoggingEnabled", false);
+    log("GM_getValue 2 returned: ", debugLoggingEnabled);
 
 })();
