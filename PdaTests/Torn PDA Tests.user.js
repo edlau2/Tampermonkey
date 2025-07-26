@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn PDA Tests
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  This script tests for PDA compliance
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
