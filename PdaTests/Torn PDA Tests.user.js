@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn PDA Tests
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  This script tests for PDA compliance
 // @author       xedx [2100735]
 // @match        https://www.torn.com/*
@@ -21,6 +21,7 @@
 (function() {
     'use strict';
 
+    const viewPortWidthPx = window.innerWidth;
     const isMobileView = viewPortWidthPx <= 784;
     const isTampermonkeyEnabled = typeof unsafeWindow !== 'undefined';
 
