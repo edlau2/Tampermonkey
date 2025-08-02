@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -32,29 +32,32 @@
           div[class*='crimeOptionSection__'][class*='flexGrow_']:not('.xbc'):not('.xskip')`;
 
     const specialTargets = {
-        'lake': "Net",
-        'foundry': "Zip Ties",
-        'fertilizer': "Zip Ties, Hand Drill",
+        'lake': "Net, Diesel",
+        'foundry': "Zip Ties, Magnesium Shavings, Fire Extinguisher",
+        "brewery": "Fire Extinguisher",
+        'fertilizer': "Zip Ties, Hand Drill, Fire Extinguisher",
         'cottage': "Lockpicks, Zip Ties",
         'beach': "Net",
-        'mobile': "Dog Treats, Hand Drill",
+        'mobile': "Dog Treats, Hand Drill, Blowtorch",
         'suburban': "Dog Treats, Hand Drill",
         'scout': "",
-        'tool': "Lockpicks, Hand Drill",
+        'tool': "Lockpicks, Hand Drill, Blowtorch",
         'cabin': "Lockpicks",
         'cleaning': "Lockpicks",
-        'farm': "Hand Drill, C4",
-        'truckyard': "Dog Treats",
+        'farm': "Hand Drill, C4, Blowtorch, Methane",
+        'truckyard': "Dog Treats, Diesel",
         'funeral': "Scalpel",
         'dentist': "Scalpel, Hand Drill",
         'printing': "Scalpel",
+        'paper': "Fire Extinguisher",
         'storage': "Card Programmer, C4",
         'post': "Card Programmer",
         'facility': "",
-        'market': "Card Programmer, Lockpicks",
-        'ship': "Hand Drill, C4",
-        'factory': "C4",
-  };
+        'market': "Card Programmer, Lockpicks, Bonded Latex",
+        'ship': "Hand Drill, C4, Thermite, Fire Extinguisher",
+        'factory': "C4, Hydrogen, Fire Extinguisher",
+        'dock': "Kerosene",
+    };
 
     function isBurglary() {if (window.location.href.indexOf("burglary") > -1) return true;}
     function isCracking() {return (window.location.href.indexOf("cracking") > -1) ? true : false;}
@@ -193,7 +196,12 @@
         doClickYes(yesBtn, randClass);
     }
 
-    GM_addStyle(".xbc {border: 1px solid red;} .xskip {border: 1px solid green;}");
+    GM_addStyle(`.xbc {border: 1px solid red;}
+                 .xskip {border: 1px solid green;}
+                 .bblue {border: 2px solid blue !important;}
+                 .bbyellow {outline: 1px solid #ffff00a8;
+                            outline-offset: -4px;}`);
+
     function addAbandonHandlers() {
         let list = $(crimeSelector);
         for (let idx=0; idx < $(list).length; idx++) {
@@ -208,12 +216,17 @@
             if ($(element).hasClass("xskip") || text.indexOf('scout') > -1) continue;
 
             let special = getSpecial(text);
+            debug("Special for ", text, " is: ", special);
             if (special && special.length > 0) {
                 let newText = "(" + special +")";
                 let abWrap = $(element).find("[class^='abandon']");
                 let spSpan = `<span style="padding-left: 5px;">${newText}</span>`;
                 $(abWrap).before(spSpan);
                 $(element).addClass("xskip");
+                if (special.indexOf("xtinguisher") > -1)
+                    $(element).addClass("bblue");
+                if (special.indexOf("Blowtorch") > -1)
+                    $(element).addClass('bbyellow');;
                 continue;
             }
 
