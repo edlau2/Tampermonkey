@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Burglary New Items Helper PDA
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      1.1
 // @description  An OC 2.0 Friendly Burglary Helper
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=crimes*
@@ -216,7 +216,7 @@
             if ($(element).hasClass("xskip") || text.indexOf('scout') > -1) continue;
 
             let special = getSpecial(text);
-            debug("Special for ", text, " is: ", special);
+            //debug("Special for ", text, " is: ", special);
             if (special && special.length > 0) {
                 let newText = "(" + special +")";
                 let abWrap = $(element).find("[class^='abandon']");
