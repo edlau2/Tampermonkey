@@ -579,14 +579,11 @@
     }
 
     function handleHelp(e) {
-        alertWithTimeout(`Press 'Best' to scroll to the OC you should join.<br>
-                          Pressing 'Sort' will sort all in th order you should<br>
-                          pick from, best on top.<br>
-                          You can select the level you'd prefer to have precedence,<br>
-                          either 7 or 8, or 'any' for no preference. Hovering over<br>
-                          a position will show you the requirement for that slot, and<br>
-                          optionally the cpr required for all positions.`, 30);
-        log("[handleHelp]");
+        alertWithTimeout(`Press 'Best' to scroll to the OC you should join.\n
+                          Pressing 'Sort' will sort all in the order you should pick from, best on top.\n
+                          You can select the level you'd prefer to have precedence, either 7 or 8, or 'any' for no preference.\n
+                          Hovering over a position will show you the requirement for that slot.\n
+                          The '?' button will display the cpr required for all positions.`, 15);
     }
 
     function installUI(retries=0) {
