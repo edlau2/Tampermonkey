@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Total Solution by XedX
 // @namespace    http://tampermonkey.net/
-// @version      4.48
+// @version      4.49
 // @description  A compendium of many of my individual scripts
 // @author       xedx [2100735]
 // @icon         https://www.google.com/s2/favicons?domain=torn.com
@@ -148,8 +148,21 @@
     // These are the URLs for the framework HTML that is used to hold the
     // dynamically created options pages, which save the option locally in
     // script local storage. Nothing is ever saved at these URLs.
+
+    // Note: I'm now testing only using a 100% internally generated options page, which
+    // means that when it changes this script will have to change also. Up side is this
+    // script won't have to connect to my server, hosted at AWS, which could, although
+    // highly unlikely, be down.
+    //
+    // This is the variable that contols using the locally generated vs remote page.
+    // Here I am forcing to true, use locally generated page.
+    // Does not work! Must over-write downloaded page....
+    var useLocalCfgPage = GM_getValue("useLocalCfgPage", false);
+    //GM_setValue("useLocalCfgPage", true);
+
     const tornStatTrackerCfgURL = "http://18.119.136.223:8080/TornTotalSolution/StatTracker.html";
     const tornTotalSolutionCfgURL = "http://18.119.136.223:8080/TornTotalSolution/TTS-Opts.html";
+    const tornTotalSolutionCfgURLAlt = "http://18.119.136.223:8080/TornTotalSolution/TTS-OptsAlt.html";
 
     var jsonResp = null;
     var personalStats = null;
@@ -267,18 +280,12 @@
     // Note: The 'User->Inventory' API call has been removed, perhaps
     // permanently. This won't work unless a workaround is found.
     function personalStatsQuery(callback=personalStatsQueryCB) {
-        log('[personalStatsQuery]');
-
-        //logApiCall('user: personalstats,profile,attacks,honors,weaponexp,inventory');
-        //xedx_TornUserQueryDbg(null, 'personalstats,profile,attacks,honors,weaponexp,inventory', callback);
-
         logApiCall('user: personalstats,profile,attacks,honors,weaponexp');
         xedx_TornUserQuery(null, 'personalstats,profile,attacks,honors,weaponexp', callback);
     }
 
     // Callback for above
     function personalStatsQueryCB(responseText, ID) {
-        //log('[personalStatsQueryCB] response: ', responseText);
         if (responseText == undefined) {
             log('[personalStatsQueryCB] unknown error, no response!');
             return;
@@ -305,7 +312,6 @@
                     queryRetries = 0;
                 }
             }
-            //handleApiComplete();
             return  handleError(responseText);
         }
 
@@ -368,11 +374,6 @@
                 return resolve("tornLatestAttacksExtender complete!");
         });
 
-        //.catch((error) => {
-        //    log("[tornLatestAttacksExtender] ERROR: ", error);
-        //    rejectDebug(error);
-        //});
-
         function extendLatestAttacks() {
             // Find first column
             let mainDiv = $('#column1');
@@ -387,15 +388,12 @@
             let key = 'xedx-mattacks-ext_active';
             let sel = "#xedx-mattacks-ext > div.bottom-round";
             let isActive = GM_getValue(key, true);
-            log("[extendLatestAttacks] active: ", isActive);
             if (isActive) {
                 $("#xedx-mattacks-ext").addClass("active");
                 $(sel).addClass("xshow").removeClass("xhide");
-                log("[extendLatestAttacks] set to block: ", $(sel));
             } else {
                 $("#xedx-mattacks-ext").removeClass("active");
                 $(sel).addClass("xhide").removeClass("xshow");
-                log("[extendLatestAttacks] set to none: ", $(sel));
             }
 
             populateLatestAttacksList();
@@ -450,23 +448,26 @@
             if (result === 'Escape') {result = 'Escaped from';}
             if (result === 'Assist') {result = 'Assisted in attacking';}
 
-            let respect = offense ? ("Respect gained: " +obj.respect_gain) : ("Respect Lost: "  + obj.respect_loss);
+            //let respect = offense ? ("Respect gained: " +obj.respect_gain) : ("Respect Lost: "  + obj.respect_loss);
+            let respect = offense ? ("+" + obj.respect_gain) : ("-"  + obj.respect_loss);
 
             let newNode =
-            //'<li class="xadwrap" data-location="loader.php?sid=attackLog\u0026ID=' + obj.code + '" title="' + title + '">' +
-            '<li class="xadwrap" title="' + title + '">' +
-                '<span class="x-rdivider" style="width: 80%; white-space: nowrap; overflow:hidden;">' +
-                    '<a href="profiles.php?XID=' + obj.attacker_id + '" target="_blank">' + sp + attacker + sp + '</a>' +
-                    result + stTxt + '<a href="profiles.php?XID=' + obj.defender_id + '" target="_blank">' +
-                    sp + obj.defender_name + facName + '</a><br>' + respect +
-                '</span>' +
-                '<span class="xflex">' +
-                     //getTestSvg() +
-                    '<a href="' +  logURL + '" target="_blank">' +
-                        '<span class="xview">View</span>' +
-                    '</a>' +
-                '</span>' +
-            '</li>';
+            `<li class="xadwrap" title="${title}">
+                <span class="x-rdivider" style="width: 80%; white-space: nowrap; overflow:hidden;
+                    display: flex; align-content: center; justify-content: space-between;">
+                    <span style="display: flex; flex-flow: row wrap; align-content: center;">
+                        <a href="profiles.php?XID=${obj.attacker_id}" target="_blank">${sp} ${attacker} ${sp} </a>
+                        ${result}${stTxt}<a href='profiles.php?XID=${obj.defender_id}' target="_blank">
+                        ${sp}${obj.defender_name} ${facName}</a>
+                    </span>
+                    <span style="display: flex; float: right; justify-content: flex-end; align-content: center;flex-wrap: wrap;">${respect}</span>
+                </span>
+                <span class="xflex">
+                    <a href="${logURL}" target="_blank">
+                        <span class="xview">View</span>
+                    </a>
+                </span>
+            </li>`;
 
             return newNode;
         }
@@ -624,6 +625,7 @@
                             "racing":  '#228B22',  // Forest Green
                             "foes":    '#FF8C00',  // DarkOrange
                             "jail":    '#CD5C5C',  // Indian Red
+                            "skill":   'yellow',
                             "misc":    '#FF60B0',  // No clue, need a color here...
                            };
 
@@ -648,7 +650,7 @@
             let result = buildStatsUI();
 
             if (autoUpdateMinutes) {
-                log('[tornStatTracker] updating every ' + autoUpdateMinutes + ' minute(s)');
+                debug('[tornStatTracker] updating every ' + autoUpdateMinutes + ' minute(s)');
                 stats_updateTimer = setInterval(function() {
                     personalStatsQuery(updateStatsHandlerer)}, autoUpdateMinutes *60 * 1000);
             }
@@ -658,11 +660,6 @@
             else
                 return resolve("tornStatTracker complete!");
         });
-
-        //.catch((error) => {
-        //    log("[tornStatTracker] ERROR: ", error);
-        //    rejectDebug(error);
-        //});
 
         function updateStatsHandlerer(responseText, ID) {
             log('[updateStatsHandlerer]');
@@ -722,16 +719,10 @@
             let isActive = GM_getValue(key, true);
             if (isActive) {
                 $("#xedx-mstats-tracker").addClass("active");
-                //$(sel).attr("style", "display: block;");
                 $(sel).addClass("xshow").removeClass("xhide");
-                //log("adding class 'active': ", $("#xedx-mstats-tracker"));
-                //log("set to block: ", $(sel));
             } else {
                 $("#xedx-mstats-tracker").removeClass("active");
-                //$(sel).attr("style", "display: none;");
                 $(sel).addClass("xhide").removeClass("xshow");
-                //log("removing class 'active': ", $("#xedx-mstats-tracker"));
-                //log("set to none: ", $(sel));
             }
 
             // Populate the UL of enabled stats
@@ -933,6 +924,9 @@
 
         // TBD FIX FOR API V2
 
+        // *** SKILL - get from skills, not personalstats, API call! ***
+        // *** New category, just for skills! ***
+
         function addOptStat(name, desc, category, required=null) {
             optStats[name] = {enabled: GM_getValue(name, false), name: desc, cat: category, req: required};
         }
@@ -1046,7 +1040,7 @@
             checkboxes[i].addEventListener('click', statsClickHandler);
         }
 
-        let saveButton = document.querySelector('#xedx-button');
+        let saveButton = document.querySelector('#save-opts-btn');
         saveButton.addEventListener('click', handleStatsSaveButton);
 
         function addStatsTableRow(statName) {
@@ -1074,10 +1068,17 @@
 
         function handleStatsSaveButton(ev) {
             debug('[handleStatsSaveButton]');
+            $("#hdr-msg").text("All changes saved!");
+            $('#save-opts-btn').removeClass("blinkWarn");
+            log("mag text, saved, hiding: ", $("#hdr-msg"));
+            //$("#hdr-msg").css("visibility", "hidden");
+            //$("#hdr-msg").text("Your changes have been saved!");
+            setHdrMsg("Your changes have been saved!");
             GM_setValue("stats-config", 'saved');
             const newP = '<p id="x1"><span class="notification">Data Saved!</span></p>';
             let myTable = document.getElementById('xedx-table');
             myTable.parentNode.insertBefore($(newP)[0], myTable.nextSibling);
+            setTimeout(setHdrMsg, 3000);
             setTimeout(clearStatsResult, 3000);
         }
 
@@ -1085,6 +1086,10 @@
             document.getElementById('x1').remove();
         }
     }
+
+    //////////////////////////////////////////////////////////////////////
+    // Handlers for "Torn Quick Refills" (called at content loaded)
+    //////////////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////////////
     // Handlers for "Torn Drug Stats" (called at API call complete)
@@ -1111,7 +1116,7 @@
                                     <div class="move-wrap"><i class="accordion-header-move right"></i></div>
                                 Drug and Rehab Stats</div>
                                 <div class="bottom-round">
-                                    <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto;">
+                                    <div id="xedx-drug-stats-content-div" class="cont-gray bottom-round" style="height: 174px; overflow: auto">
                                             <ul class="info-cont-wrap">
                                             <li title="original"><span id="xedx-div-span-cantaken" class="divider"><span>Cannabis Used</span></span>
                                             <span id="xedx-val-span-cantaken" class="desc xdrugd">0</span></li>
@@ -1362,8 +1367,8 @@
 
             let mainDiv = document.getElementById('column0');
             if (!validPointer(mainDiv)) {
-                log("mainDiv not found!");
-                log("tornJailStats: CF active? ", $("#challenge-form"));
+                log("[tornJailStats] mainDiv not found!");
+                log("[tornJailStats]: CF active? ", $("#challenge-form"));
                 return reject('[tornJailStats] mainDiv nor found! Try calling later.');
             }
             $(mainDiv).append(getJailStatsDiv());
@@ -1440,7 +1445,6 @@
                 } else {
                     valSpan.innerText = stats[name];
                 }
-
 
                 if (globalOpts.statHyperLinks) {
                     let newNode = '<a href="https://www.torn.com/personalstats.php?ID=' +
@@ -1597,24 +1601,6 @@
             getFacBalance();
 
             let respect = personalStats.respectforfaction;
-            /*
-            let children = document.querySelector("#column0").children;
-            let useSel = null;
-
-            let ul = null;
-            for (let i=0; i<children.length; i++) {
-                //let title = children[i].querySelector("div.title.main-title.title-black.active.top-round > h5");
-                let node = children[i];
-                let title = $(node).find('.box-title')[0];
-                if (!title) continue;
-                if (title.innerText == 'Faction Information') {
-                    useSel = children[i];
-                    break;
-                }
-            };
-            if (useSel) ul = $(useSel).find('div.bottom-round > div.cont-gray > ul.info-cont-wrap');
-            */
-
             let ul = $("#item10961662  ul.info-cont-wrap");
             if (!ul) return '[tornFacRespect] Unable to find correct ul!';
 
@@ -1844,7 +1830,8 @@
                 "}");
 
         let sbData = getSidebarData();
-        if (sbData.statusIcons.icons.hospital)
+        if (sbData && sbData.statusIcons && sbData.statusIcons.icons &&
+            sbData.statusIcons.icons.hospital)
             inHosp = true;
 
         installCollapsibleCaret("nav-city");
@@ -2149,6 +2136,19 @@
     //
     // Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
     function initCustLinksObject() {
+        var slotsIcon;
+
+        // Just for code collapse...
+        if (true) {
+            slotsIcon = `<span class="defaultIcon____xs95 mobile____pGyh">
+                <svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="14" height="14" viewBox="0 0 14 14">
+                <path d="m0,0h1.77c0,.65.23.98.69.98l3.36-.98h.4c1.37.27,2.72.63,4.05,1.08h.29c.71-.04,1.35-.45,1.68-1.08h1.77v.29c0,
+                1.58-1.05,3.2-3.15,4.84-.24.53-.37,1.1-.4,1.68v.2l.09.09v.09c-1.31.62-1.97,1.21-1.97,1.78v.49l.59,1.97c0,1.23-.96,
+                1.96-2.87,2.18h-.4c-1.72,0-2.7-.73-2.95-2.18v-.09c.07-1.04.27-2.06.58-3.05l-.09-.7c1.68-1.12,3.42-2.14,
+                5.22-3.05l.5-.69c0-.59-.79-.89-2.37-.89l-2.27-.8h-.1c-.93.04-1.72.68-1.97,1.57l-.09.5H0V0Z">
+                </path></svg></span>`;
+        }
+
         debug('[initCustLinksObject]');
 
         // Add 'dump' 'racetrack' - see altercoes for others (stock market, travel agency)
@@ -2172,7 +2172,7 @@
         let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log",
                                                                            link: "page.php?sid=log", cat: "Home"})));
         let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots",
-                                                                             link: "page.php?sid=slots", cat: "Casino"})));
+                                                                             link: "page.php?sid=slots", cat: "Casino", icon: slotsIcon})));
         //https://www.torn.com/page.php?sid=spinTheWheel
         let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel",
                                                                                     link: "page.php?sid=spinTheWheel", cat: "Casino"})));
@@ -2189,8 +2189,8 @@
         //                                                                   link: "page.php?sid=log", cat: "Home", hospOK: true}));
 
         // Add crimes...
-        const crimeURLRoot = "https://www.torn.com/loader.php?sid=crimes#/";
-        const crimesPath = "loader.php?sid=crimes#/";
+        const crimeURLRoot = "https://www.torn.com/page.php?sid=crimes#/";
+        const crimesPath = "page.php?sid=crimes#/";
         const crimeULs = [
              "searchforcash",
              "bootlegging",
@@ -2286,7 +2286,6 @@
         GM_setValue("custlink-disposal", JSON.stringify(link19));
         GM_setValue("custlink-cracking", JSON.stringify(link20));
         GM_setValue("custlink-forgery", JSON.stringify(link21));
-
         GM_setValue("custlink-bazaar", JSON.stringify(link22));
 
 
@@ -2764,7 +2763,6 @@
                         // Highlight & save quantity
                         liList[i].style.backgroundColor = color;
                         array[index].quantity = qty;
-                        //debug('[tornMuseumSetHelper] Highlighted ' + element.name + "'s, count = " + qty);
                     }
                 });
             }
@@ -2778,7 +2776,6 @@
 
             // Change this to div.childNodes to support multiple top-level nodes
             return div.firstChild;
-            //return div.childNodes;
         }
 
         // Insert a node after a reference node
@@ -5555,9 +5552,9 @@
 
         function installUI(retries=0) {
             if (!retries)
-                log('[installUI] tornFacPageSearch ');
+                debug('[installUI] tornFacPageSearch ');
             else
-                log('[installUI] tornFacPageSearch (retry # ' + retries + ")");
+                debug('[installUI] tornFacPageSearch (retry # ' + retries + ")");
             const searchDiv = getFacSearchDiv();
 
             if (retries > 5) {
@@ -5571,7 +5568,7 @@
                 debug('[installUI] targetNode not found retrying...');
                 return setTimeout(function() {installUI(++retries)}, 500);
             }
-            log('[installUI] primary target found:', targetNode);
+            debug('[installUI] primary target found:', targetNode);
 
             if (location.href.indexOf('/tab=info') > -1) {
                 targetNode = document.querySelector("#react-root-faction-info > div > div > div.faction-info-wrap > div.f-war-list.members-list");
@@ -7914,18 +7911,18 @@
 
     // Testing
     function generalToolTip(name) {
-        return "This is a really generic Tool Tip <br>for [" + name + "] , <br>to be replaced at a later date!";
+        return `This is a really generic Tool Tip for "${name}", to be replaced at a later date...`;
     }
 
     function attacksExtenderTt() {
-        return "Adds a dialog that displays up to the latest 100 <br>" +
-            "attacks, along with attacker, defender, faction, and respect.<br>" +
+        return "Adds a dialog that displays up to the latest 100 " +
+            "attacks, along with attacker, defender, faction, and respect. " +
             "Date and time format are configurable, and is linked to the attack log.";
     }
 
     function statTrackerTt() {
-        return "Adds a dialog to the home page to track almost any <br>" +
-            "personal stat you'd like. The stats to watch can be added via<br> " +
+        return "Adds a dialog to the home page to track almost any " +
+            "personal stat you'd like. The stats to watch can be added via " +
             "a configuration menu.";
     }
 
@@ -7936,7 +7933,7 @@
     }
 
     function drugStatsTt() {
-        return "Adds drug usage statistics to the home page." + CRLF +
+        return "Adds drug usage statistics to the home page. " +
             "Shows the amount taken, overdoses, rehabs, as " +
             "well as installing tool tips for each with drug details " +
             "such as OD %, effects, and addiction points added.";
@@ -7952,17 +7949,17 @@
     }
 
     function museumSetTT() {
-        return "Highlights items on the items page<br>" +
-               "that are part of full sets, lets you know<br>" +
-               "what is missing, and how much you can gain<br>" +
-               "from selling them.<br><br>" +
+        return "Highlights items on the items page " +
+               "that are part of full sets, lets you know " +
+               "what is missing, and how much you can gain " +
+               "from selling them. " +
                "You can change the highlight colors via the" +
-               "'storage' tab in TM, I will at some point make<br>" +
+               "'storage' tab in TM, I will at some point make " +
                "a friendly option editor.";
     }
 
     function jailStatsTt() {
-        return "Adds jail and bounty statistics to the home page." + CRLF +
+        return "Adds jail and bounty statistics to the home page. " +
             "Shows the amounts, as installing tool tips for each with " +
             "progress towards any merits.";
     }
@@ -7972,7 +7969,7 @@
     }
 
     function ttFilterTt() {
-        return "This hides various Torn Tools features that I find redundant or annoying." + CRLF +
+        return "This hides various Torn Tools features that I find redundant or annoying. " +
             "It hides the 'TornTools Active' icon on the lower left, the 'last active' status on " +
             "various fac pages, and the Bat Stats estimates showing up underneath users on various pages.";
     }
@@ -8013,7 +8010,7 @@
             .xedx-tts-span {line-height: 12px; margin-left: 10px;}
             .powered-by {color: var(--default-blue-color); text-decoration: none; cursor: pointer;}
             .xedx-mobile {color: #74c0fc !important; line-height: 33px !important; cursor: pointer; margin-left: 25px;}
-            `);
+        `);
 
         let cfgSpan = '<div class="xedx-tts-span"><span> Enhanced By: </span><a class="powered-by" id="xedx-opts">XedX [2100735]</a></div>';
         let mobileCfgSpan = '<div class="xedx-tts-span"><a class="xedx-mobile" id="xedx-opts">TTS Options</a></div>';
@@ -8039,14 +8036,34 @@
 
         // Experiment: load locally, don't need my server
         $(serverDiv).append(usingMobileMenu ? mobileCfgSpan : cfgSpan);
+
+        // Experimental: add to sidebar (optionally!). Need to grap class names dynamically,
+        // are dynamic.
+        if (!isMobile) {
+
+            let optDiv = `<div class="area-desktop___bpqAS" id="nav-ttsOpts">
+                              <div class="area-row___iBD8N">
+                                  <span class="linkName___FoKha" style="padding-left: 34px;">TTS Options</span>
+                              </div>
+                          </div>`;
+
+            //$("#nav-calendar").after(optDiv);
+            $("#nav-rules").after(optDiv);
+        }
+
+        $("#nav-ttsOpts").on('click', function() { $("#xedx-opts").trigger('click'); });
         $("#xedx-opts").on('click', function() {
             log('[handleTtsOptionsClick]');
 
-            if (!GM_getValue("useLocalCfgPage", false)) {
-                log("Opening remote configuration page");
-                general_configWindow = window.open(tornTotalSolutionCfgURL);
+            if (!useLocalCfgPage || useLocalCfgPage == false) {
+                let useUrl = tornTotalSolutionCfgURL;
+                let useAltCfgFile = GM_getValue("useAltCfgFile", false);
+                if (useAltCfgFile == true)
+                    useUrl = tornTotalSolutionCfgURLAlt;
+                log("URL: ", useUrl);
+                general_configWindow = window.open(useUrl);
             } else {
-                log("Opening local configuration page");
+                log("*** Opening local configuration page");
                 // Would need the .css used to be here locally as well....
                 openTTSConfigWebPage();
             }
@@ -8071,8 +8088,9 @@
         if (!general_configWindow) {
             log("Failed to open configuration window!");
         } else {
-
+            log("writing config page to doc: ", general_configWindow.document);
             general_configWindow.document.write(getConfigWebPage());
+            general_configWindow.document.close();
         }
 
         //x.close();
@@ -8339,10 +8357,41 @@
     // Empty fn to use in the enabled scripts definitions, to prevent the "requires restart" message
     function dummyFn() {}
 
+    var catColors = {
+        "items":   "#DAA520", // GoldenRod
+        "gym":     "#00FFFF", // Cyan
+        'all':     "#F0F8FF", // AliceBlue
+        'home':    "#FFFFF0", // Ivory
+        'casino':  "#90EE90", // LightGreen
+        'attack':  "#F08080", // LightCoral
+         //"#CD5C5C"; // IndianRed
+        'racing':  "#7FFFD4", // Aquamarine
+        'jail':    "#DC143C", // Crimson
+        'faction': "#FF8C00", // DarkOrange
+        'misc':    "#D8BFD8", // Thistle
+        'default': "#FFE4C4", // Bisque
+    };
+
+    function getBgColor(category) { return catColors[category] ?? catColors["default"]; }
+
     function handleGeneralConfigPage() {
         log('[handleGeneralConfigPage]');
 
+        // Could replace serv-side html with local for testing...
+        let useLocalPg = true;
+        let newPage = getConfigWebPage();
+        //log('[handleGeneralConfigPage] new page: ', $(newPage));
+
+        if (useLocalPg == true) {
+            $('body').html(newPage);
+            var fixedElementHeight = $(".hdr-wrap").outerHeight(); // Get the height of the fixed element
+            $(".outer-scroll").css("margin-top", (parseInt(fixedElementHeight) + 30) + "px");
+        }
+
         addToolTipStyle();
+        GM_addStyle( `.dbg-clickable { margin-right: 10px; width: 14px; }` );
+
+        // TBD: Migrate all (most) to general table. See the addDebugStyle() fn
 
         // Main menu: supported scripts
         addSupportedScriptsTable();
@@ -8360,7 +8409,7 @@
         addApiCallsTable();
 
         // Install handlers
-        $('#xedx-button').on('click', handleGenOptsSaveButton); // General 'Save' button handler
+        $('#save-opts-btn').on('click', handleGenOptsSaveButton); // General 'Save' button handler
         $(".xtblehdr").on('click', optsHdrClick);
         $(".xexpand").on('click', optsHdrClick);
 
@@ -8386,10 +8435,28 @@
             const expHdr = `<tr class="xexpand xhidden"><th colspan=3;>...click to expand</th></tr>`;
             $('#xedx-table').append(expHdr);
 
+            $(".hasTt").tooltip({
+                content: function() {
+                    let scriptName = $(this).attr("data-name");
+                    let ttText = opts_enabledScripts[scriptName].ttFn(opts_enabledScripts[scriptName].name);
+                    $("#tootlTipArea").text(ttText);
+                    $("#tootlTipArea").css("visibility", "visible");
+                    return "";
+                },
+                close: function(event, ui) {     // never gets called...
+                    //$("#tootlTipArea").text("");
+                    //$("#tootlTipArea").css("visibility", "hidden");
+                }
+            });
+
+            $('tbody').on('mouseleave', function() {
+                $("#tootlTipArea").text("");
+                $("#tootlTipArea").css("visibility", "hidden");
+            });
+
             // Install handlers ... general opts (which scripts to support)
             let checkboxes = document.getElementsByClassName('gen-clickable');
             for (let i=0; i<checkboxes.length; i++) {
-                // Saves state into storage
                 checkboxes[i].addEventListener('click', genOptsClickHandler);
             }
 
@@ -8410,23 +8477,47 @@
 
                 // To change text desc:
                 //let newRow = '<tr class="xvisible" style="background-color: ' + bgColor + ';" id="' + id + '" title="original">' +
-                let newRow = '<tr class="xvisible" style="background-color: ' + bgColor + ';" id="' + id + '">' +
-                    '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="gen-clickable" name="' + scriptName + '"' +
-                    (opts_enabledScripts[scriptName].enabled ? ' checked ': '') + ' /></td>' +
-                    '<td>' + opts_enabledScripts[scriptName].name + addlText + '</td>' +
-                    '<td>' + opts_enabledScripts[scriptName].cat + '</td></tr>';
+                let ck = (opts_enabledScripts[scriptName].enabled ? ' checked ': '');
+                let newRow = `<tr class="xvisible" style="background-color: ${bgColor};" id="${id}">
+                    <td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="gen-clickable" name="${scriptName}"
+                    ${ck} /></td><td>${opts_enabledScripts[scriptName].name} ${addlText}</td>
+                    <td>${opts_enabledScripts[scriptName].cat}</td></tr>`;
+
+
                 $('#xedx-table').append(newRow);
 
                 // Add general tool tip - gettext from fn.
-                log('[[handleGeneralConfigPage]] ttFn: ', opts_enabledScripts[scriptName].ttFn);
+                //debug('[[handleGeneralConfigPage]] ttFn: ', opts_enabledScripts[scriptName].ttFn);
                 if (opts_enabledScripts[scriptName].ttFn) {
                     let ttText = opts_enabledScripts[scriptName].ttFn(opts_enabledScripts[scriptName].name);
-                    log('text: ', ttText);
                     let node = document.getElementById(id);
-                    //displayToolTip(node, ttText);
-                    displayHtmlToolTip(node, ttText, "ttsOptsTooltip");
+
+                    //displayHtmlToolTip(node, ttText, "ttsOptsTooltip");
+                    $(node).addClass("hasTt");
+                    $(node).attr("data-name", scriptName);
+                    $(node).attr("title", "original");
+                    $(node).attr("data-html", "true");
+
+                    if (true == false) {
+                        $(".hasTt").tooltip({
+                            // Set the content option to a function
+                            content: function() {
+                                log("Tooltip triggered!");
+                                // Get the original title attribute of the hovered element
+                                // var originalTitle = $(this).attr("title");
+                                // Update the text of the target span
+                                $("#hdr-msg").text(ttText);
+                                return "";
+                            },
+                            // Add a close event to clear the span when the mouse leaves
+                            close: function(event, ui) {
+                                $("#hdr-msg").text("");
+                            }
+                        });
+                    }
                 }
 
+            /*
             function getBgColor(category) {
                 switch (category) {
                     case "items":
@@ -8453,6 +8544,8 @@
                         return "#FFE4C4"; // Bisque
                 }
             }
+            */
+
             }
 
             // Gen opts script selected handler, save to storage
@@ -8465,35 +8558,48 @@
 
         // Helper to build the debug opts menu. TBD: add opts to save values!!!!
         function addDebugMenu() {
-            log('[addDebugMenu]');
-            let tbody = document.querySelector("#debug-opts-div > table > tbody");
-            // Add header
-            const tblHdr = '<tr id="dbgtblhdr" class="xtblehdr xvisible open"><th>Value</th><th>Debug Option</th></tr>';
+            debug('[addDebugMenu]');
+            let dbgOpts = [
+                    { id: "dbgopts-logging", type: "cb", def: true, desc: "Enable Logging" },
+                    { id: "dbgopts-dbglogging", type: "cb", def: false, desc: "Enable Debug Only Logging" },
+                    { id: "dbgopts-alertonerror", type: "cb", def: false, desc: "Alert on API errors" },
+                    { id: "api-call-log-size", type: "number", min: 1, max: 200, def: maxApiCalls,
+                      desc: "API Call Log Size (default 10)" },
+                ];
+            let tbody = $("#debug-opts-div > table > tbody");
+            const tblHdr = `<tr id="dbgtblhdr" class="xtblehdr xvisible open"><th>Value</th><th>Debug Option</th></tr>`;
             $(tbody).append(tblHdr);
 
             // Add rows
-            let newRow = '<tr class="xvisible defbg">' +
-                '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
-                ' id="dbgopts-logging" ' + (GM_getValue("dbgopts-logging", true) ? 'checked' : '') + '/></td><td>Enable Logging</td></tr>';
-            $(tbody).append(newRow);
-
-            newRow = '<tr class="xvisible defbg">' +
-                '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
-                ' id="dbgopts-dbglogging" ' + (GM_getValue("dbgopts-dbglogging", false) ? 'checked' : '') + '/></td><td>Enable Debug Only Logging</td></tr>';
-            $(tbody).append(newRow);
-
-            newRow = '<tr class="xvisible defbg">' +
-                '<td><input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"' +
-                ' id="dbgopts-alertonerror" ' + (GM_getValue("dbgopts-alertonerror", false) ? 'checked' : '') + '/></td><td>Alert on API errors</td></tr>';
-            $(tbody).append(newRow);
-
-            let size = GM_getValue("api-call-log-size", maxApiCalls);
-            log('[addDebugMenu] api-call-log-size: ', size, maxApiCalls);
-            newRow = '<tr class="xvisible defbg">' +
-                '<td><input class="dbg-opt" type="number" id="api-call-log-size"' +
-                'name="api-call-log-size" min="1" max="200" value="' + size + '"/></td>' +
-                '<td>API Call Log Size (default 10)</td></tr>';
-            $(tbody).append(newRow);
+            log("Adding dbg rows: ", $(dbgOpts).length);
+            dbgOpts.forEach(entry => {
+                let row = '';
+                log("Add entry: ", entry);
+                switch (entry.type) {
+                    case "cb": {
+                        let checked = (GM_getValue(entry.id, entry.def) == true) ? 'checked' : '';
+                        row = `<tr class="xvisible defbg"><td>
+                                   <input type="checkbox" style="margin-right: 10px; width: 14px;" class="dbg-clickable"
+                                        id="${entry.id}"  ${checked} /></td><td>${entry.desc}
+                               </td></tr>`;
+                        $(tbody).append(row);
+                        break;
+                    }
+                    case "number": {
+                        let val = GM_getValue(entry.id, entry.def);
+                        row = `<tr class="xvisible defbg">
+                                   <td><input class="dbg-opt" type="number" id="${entry.id}"
+                                   name="${entry.id}" min="${entry.min}" max="${entry.max}" value="${val}"/></td>
+                               <td>${entry.desc}</td></tr>`;
+                        $(tbody).append(row);
+                        break;
+                    }
+                    default: {
+                        log("Error: unknown type");
+                        break;
+                    }
+                }
+            });
 
             // Add footer
             const expHdr = `<tr class="xexpand"><th colspan=2;>...click to expand</th></tr>`;
@@ -8507,28 +8613,22 @@
             optsHdrClick({currentTarget: document.querySelector("#dbgtblhdr")});
 
             function handleDbgOptClick(ev) {
-                log('[handleDbgOptClick]');
-                debug('[handleDbgOptClick] ev: ', ev);
                 let size = $('#api-call-log-size').value;
-                debug('[handleDbgOptClick] checked: ', $("#" + ev.currentTarget.id).prop("checked"));
                 GM_setValue(ev.currentTarget.id,$("#" + ev.currentTarget.id).prop("checked"));
                 setOptsModified();
             }
 
              function handleDbgOptSet(ev) {
-                 log('[handleDbgOptClick]');
-                 debug('[handleDbgOptClick] ev: ', ev);
-                 log('[handleDbgOptSet] ' + $(ev.currentTarget).attr('name') + ' value: ',
-                      $("#" + ev.currentTarget.id).val());
                  GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
                  setOptsModified();
                  initDebugOptions();
             }
+            log("Done with dbg opts");
         }
 
         // Helper to build the cache opts menu. TBD: add opts to save values!!!!
         function addCacheMenu() {
-            log('[addCacheMenu]');
+            //debug('[addCacheMenu]');
             let tbody = document.querySelector("#cache-opts-div > table > tbody");
             // Add header
             const tblHdr = '<tr id="cachetblhdr" class="xtblehdr xvisible open"><th>Value</th><th>Caching Option</th></tr>';
@@ -8559,11 +8659,11 @@
 
             // TBD: add opts to save values!!!!
             function handleCacheOptChange(ev) {
-                log('[handleCacheOptChange]');
-                log('[handleCacheOptChange] id: ', ev.currentTarget.id);
-                log('[handleCacheOptChange] ev: ', ev);
-                log('[handleCacheOptChange] ' + $(ev.currentTarget).attr('name') + ' cache val: ',
-                      $("#" + ev.currentTarget.id).val());
+                //debug('[handleCacheOptChange]');
+                //debug('[handleCacheOptChange] id: ', ev.currentTarget.id);
+                //debug('[handleCacheOptChange] ev: ', ev);
+                //debug('[handleCacheOptChange] ' + $(ev.currentTarget).attr('name') + ' cache val: ',
+                //      $("#" + ev.currentTarget.id).val());
                 GM_setValue(ev.currentTarget.id, $("#" + ev.currentTarget.id).val());
                 setOptsModified();
             }
@@ -8572,7 +8672,7 @@
         // Helper to build the table of API calls made,.
         // GM_setValue('call_log_updated', true);
         function addApiCallsTable() {
-            log('[addApiCallsTable]');
+            //debug('[addApiCallsTable]');
             let tbody = document.querySelector("#api-usage-div > table > tbody");
             // Add header
             const tblHdr = `<tr id="apiCallstblhdr" class="xtblehdr xvisible open"><th colspan=2>API Calls</th></tr>`;
@@ -8599,7 +8699,7 @@
             function checkApiTableChanged() {
                 let changed = GM_getValue('call_log_updated', false);
                 let visible = $('#apiCallstblhdr').hasClass('open');
-                log('[checkApiTableChanged] ', changed, visible);
+                //log('[checkApiTableChanged] ', changed, visible);
 
                 if (changed && visible) {
                     refreshApiTableRows();
@@ -8608,20 +8708,20 @@
             }
 
             function refreshApiTableRows() {
-                log('[refreshApiTableRows]');
+                //debug('[refreshApiTableRows]');
                 clearApiTableRows();
                 addApiTableRows();
             }
 
             function clearApiTableRows() {
-                log('[clearApiTableRows]');
+                //debug('[clearApiTableRows]');
                 $("#api-usage-body tr.bodyrow").remove();
             }
 
             function addApiTableRows() {
                 // Add rows
                 loadApiCallLog();
-                log('[addApiTableRows] log: ', apiCallLog);
+                //debug('[addApiTableRows] log: ', apiCallLog);
                 let keys = Object.keys(apiCallLog);
                 for (let i=0; i<keys.length; i++) {
                     let timestamp = keys[i];
@@ -8634,7 +8734,7 @@
 
         // Helper to build the custom links table
         function addCustLinksTable() {
-            log('[fillCustLinksTable]');
+            //debug('[fillCustLinksTable]');
             GM_addStyle(`.ctr-input {text-align: center;}`);
 
             initCustLinksObject(); // Fills object from storage
@@ -8653,7 +8753,7 @@
                 let key = allKeys[i];
                 if (key.indexOf('custlink-') == -1) continue;
                 let data = JSON.parse(GM_getValue(key));
-                debug('[fillCustLinksTable] build row: ', data);
+                //debug('[fillCustLinksTable] build row: ', data);
 
                 let custom = data.cust
                 let newRow = '';
@@ -8694,7 +8794,7 @@
 
             // Custom sidebar links, 'Add Row' button
             function handleGenCfgAddLinkRow() { // Handler for the 'add row' button
-                log('[handleGenCfgAddLinkRow]');
+                //debug('[handleGenCfgAddLinkRow]');
                 const rowHtml = `<tr data-type="cust""><td><input type="checkbox" class="link-clickable" onclick="genLinksClickHandler"/></td>
                     <td data-type='desc' class="ctr-input"><input type="string"></td>
                     <td data-type='link' class="ctr-input"><input type="string"></td>
@@ -8702,51 +8802,9 @@
                 $("#xedx-links-table-body").append(rowHtml);
             }
 
-            /*
-            // Initialize custom links - defaults (set cust=false). Sets value in storage, to be read into table by updateCustLinksRows()
-            function initCustLinksObject() {
-                log('[initCustLinksObject]');
-
-                // Add 'dump' 'racetrack' - see altercoes for others (stock market, travel agency)
-                // drag-and-drop to set order? (they appear in reverse order of here)
-                // Maybe get list then traverse backwards? Or give an index value....better...
-                //https://www.torn.com/racing.php
-                //https://www.torn.com/dump.php
-                //https://www.torn.com/travelagency.php
-                let link0 = JSON.parse(GM_getValue('custlink-bounties', JSON.stringify({enabled: true, cust: false, desc: "Bounties", link: "https://www.torn.com/bounties.php#!p=main", cat: "City"})));
-                let link1 = JSON.parse(GM_getValue('custlink-auctionhouse', JSON.stringify({enabled: true, cust: false, desc: "Auction House", link: "amarket.php", cat: "City"})));
-                let link2 = JSON.parse(GM_getValue('custlink-bitsnbobs', JSON.stringify({enabled: true, cust: false, desc: "Bits 'n Bobs", link: "shops.php?step=bitsnbobs", cat: "City"})));
-                let link3 = JSON.parse(GM_getValue("custlink-pointsbuilding", JSON.stringify({enabled:true, cust: false, desc: "Points Building", link: "points.php", cat: "City"})));
-                let link4 = JSON.parse(GM_getValue("custlink-itemmarket", JSON.stringify({enabled:true, cust: false, desc: "Item Market", link: "imarket.php", cat: "City"})));
-                let link5 = JSON.parse(GM_getValue("custlink-log", JSON.stringify({enabled:true, cust: false, desc : "Log", link: "page.php?sid=log", cat: "Home"})));
-                let link6 = JSON.parse(GM_getValue("custlink-slots", JSON.stringify({enabled:true, cust: false, desc: "Slots", link: "loader.php?sid=slots", cat: "Casino"})));
-                let link7 = JSON.parse(GM_getValue("custlink-spinthewheel", JSON.stringify({enabled:true, cust: false, desc: "Spin the Wheel", link: "loader.php?sid=spinTheWheel", cat: "Casino"})));
-                let link8 = JSON.parse(GM_getValue("custlink-poker", JSON.stringify({enabled:true, cust: false, desc: "Poker", link: "loader.php?sid=holdem", cat: "Casino"})));
-                let link9 = JSON.parse(GM_getValue("custlink-russianroulette", JSON.stringify({enabled:true, cust: false, desc: "Russian Roulette", link: "page.php?sid=russianRoulette", cat: "Casino"})));
-
-                // Force an adjustment - move 'Log' to under 'Home'
-                // Make editable?
-                link5.cat = "Home";
-
-                GM_setValue('custlink-bounties', JSON.stringify(link0));
-                GM_setValue('custlink-auctionhouse', JSON.stringify(link1));
-                GM_setValue('custlink-bitsnbobs', JSON.stringify(link2));
-                GM_setValue("custlink-pointsbuilding", JSON.stringify(link3));
-                GM_setValue("custlink-itemmarket", JSON.stringify(link4));
-                GM_setValue("custlink-log", JSON.stringify(link5));
-                GM_setValue("custlink-slots", JSON.stringify(link6));
-                GM_setValue("custlink-spinthewheel", JSON.stringify(link7));
-                GM_setValue("custlink-poker", JSON.stringify(link8));
-                GM_setValue("custlink-russianroulette", JSON.stringify(link9));
-
-                // Then fill the 'custLinksOpts' object
-                updateCustLinksRows();
-            }
-            */
-
             // Handle clicking a checkbox
             function genLinksClickHandler(ev) {
-                log('[genLinksClickHandler]');
+                //debug('[genLinksClickHandler]');
 
                 let descNode = null, desc = null, keyName = '', linkNode = null, link = '', catNode = null, cat = '', linkValue = {};
                 let parentNode = ev.target.parentNode;
@@ -8774,27 +8832,46 @@
                     linkValue = {enabled: enabled, cust: custom, desc: desc, link: link, cat: cat};
                 }
                 if (custom && (!link || !desc)) {
-                    debug('[genLinksClickHandler] deleting value: ', linkValue);
+                    //debug('[genLinksClickHandler] deleting value: ', linkValue);
                     GM_deleteValue(keyName);
                 } else {
-                    debug('[genLinksClickHandler] setting value: ', linkValue);
+                    //debug('[genLinksClickHandler] setting value: ', linkValue);
                     GM_setValue(keyName, JSON.stringify(linkValue));
                 }
             }
         }
     }
 
+    function setHdrMsg(msg) {
+        log("[setHdrMsg]: ", msg, $("#hdr-msg"));
+        if (!msg) {
+            log("Clearing msg and hiding");
+            $("#hdr-msg").text("");
+            $("#hdr-msg").css("visibility", "hidden");
+        } else {
+            log("Set msg: ", msg);
+            $("#hdr-msg").text(msg);
+            $("#hdr-msg").css("visibility", "visible");
+        }
+    }
+
     // Function to set the 'Save' button state, green or red.
     function setOptsModified(modified=true) {
-        if (modified) {
-            $('#xedx-button').removeClass('cr').addClass('cg');
+        if (modified == true) {
+            $('#save-opts-btn').addClass("blinkWarn");
+            log("Adding text, unhiding: ", $("#hdr-msg"));
+            setHdrMsg("You have unsaved changes!");
+            //$("#hdr-msg").css("visibility", "visible");
         } else {
-            $('#xedx-button').removeClass('cg').addClass('cr');
+            //setTimeout(setHdrMsg, 3000);
+            $('#save-opts-btn').removeClass("blinkWarn");
+            setTimeout(setHdrMsg, 3000);
+            //$("#hdr-msg").css("visibility", "hidden");
+            //log("Adding text, hiding: ", $("#hdr-msg"));
         }
     }
 
     function scrollTo(hash) {
-        log('[handleGeneralConfigPage] scrollTo: ', hash);
         if (!hash) return;
         $(document.body).animate({
             'scrollTop':   $(hash).offset().top
@@ -8809,7 +8886,7 @@
     // For simplicity, may force a refresh for some script opts. Also creates the
     // "Data Saved!" indicator.
     function handleGenOptsSaveButton(ev) {
-        log('[handleGenOptsSaveButton]');
+        debug('[handleGenOptsSaveButton]');
 
         // Temporary workaround until I can figure out how this happened to me - once...
         let val = GM_getValue("custlink-");
@@ -8836,6 +8913,8 @@
             $("#xedx-addl-links-div").attr("style", "display: none;");
         }
 
+
+        setHdrMsg("Your changes have been saved!");
         setOptsModified(false);
     }
 
@@ -8889,6 +8968,9 @@
         // Experimental
         //if (checkCloudflare) return setTimeout(handlePageLoad, 250);
 
+        // Links to options menu(s)
+        installConfigMenu();
+
         // Everything that returns "not at home" if abroad ... put in here
         if (!awayFromHome()) {
             if (opts_enabledScripts.tornHoldemScore.enabled) {tornHoldemScore().then(a => _a(a), b => _b(b));}
@@ -8923,8 +9005,6 @@
         if (isPointsPage()) {
             if (opts_enabledScripts.tornDisableRefills.enabled) {tornDisableRefills().then(a => _a(a), b => _b(b));}
         }
-
-
     }
 
     // And some need to wait until the page is complete. (readystatecomplete)
@@ -8933,7 +9013,6 @@
 
         // Everything that returns "not at home" if abroad ... put in here
         if (!awayFromHome()) {
-
             if (isFactionPage()) {
                 if (opts_enabledScripts.tornFacPageSearch.enabled) {tornFacPageSearch().then(a => _a(a), b => _b(b));}
             }
@@ -8954,7 +9033,7 @@
 
         // Adds the link to the general options page.
         // Currently, underneath the indicator of which server we're connected to.
-        installConfigMenu();
+        //installConfigMenu();
 
         if (opts_enabledScripts.hideShowChat.enabled) {tornHideShowChat().then(a => _a(a), b => _b(b));}
 
@@ -8983,7 +9062,6 @@
         // Everything that returns "not at home" if abroad ... put in here
         if (!awayFromHome()) {
             if (isIndexPage()) {
-                GM_addStyle( ".d .sortable-list .info-cont-wrap .desc { width: 35% !important; }");
                 if (opts_enabledScripts.latestAttacks.enabled) {tornLatestAttacksExtender().then(a => _a(a), b => _b(b));}
 
                 if (opts_enabledScripts.statTracker.enabled) {tornStatTracker().then(a => _a(a), b => _b(b));}
@@ -9350,7 +9428,7 @@
     if (urlNohash == tornStatTrackerCfgURL) {
         handleStatsConfigPage();
     // Separate URL just for the General script config page.
-    } else if (urlNohash == tornTotalSolutionCfgURL) {
+    } else if (urlNohash == tornTotalSolutionCfgURL || urlNohash == tornTotalSolutionCfgURLAlt) {
         handleGeneralConfigPage()
     // Every thing else - the real scripts - called for every Torn page.
     // Filtered in the callback by actual page.
@@ -9368,94 +9446,296 @@
     //
     // Extra stuff I just needed to put somewhere....no longer used?
     //
+    function getCfgStylesHtml() {
+        return `
+             body {background-color: lightgray;}
+             h2  {color: black;}
+             .w1 {width: 10%;}
+             .w2 {width: 20%;}
+             .w3 {width: 50%;}
+             .w4 {width: 20%;}
+             table input {width: 100%;}
+             .outer-scroll {
+                 text-align: center;
+                 overflow-y: auto;
+                 height: 90vh;
+                 overscroll-behavior: contain;
+                 /*margin-bottom: 30px;*/
+             }
 
-    const ttsStyles =
-          `<style>
-         body {background-color: lightgray;}
-         h2   {color: black;}
-         .w1 {width: 10%;}
-         .w2 {width: 20%;}
-         .w3 {width: 50%;}
-         .w4 {width: 20%;}
-         table input {width: 100%;}
-         .outer {text-align: center;}
-         .subtab-hdr {margin-top:  20px; margin-bottom:  20px; margin-right: 20px;}
-         .notification {color: red; font-size: 18px; margin-top:  10px;}
-         td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
-         th {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
-         table {border: 2px solid; width: 50%; margin: auto;}
-         .xedx-tts-btn {width: 128px; height: 32px; border-radius: 10px; font-weight: bold; font-size: 24px;}
-         .cg {color: limegreen;}
-         .cr {color: red;}
-          </style>`;
+             .subtab-hdr {margin-top:  20px; margin-bottom:  20px; margin-right: 20px;}
+             .notification {color: red; font-size: 18px; margin-top:  10px;}
+             td {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
+             th {text-align: center; vertical-align: middle; border: 1px solid; width: auto;}
+             table {border: 2px solid; width: 50%; margin: auto;}
+
+             #save-opts-btn {
+                 width: 128px;
+                 height: 32px;
+                 border-radius: 10px;
+                 font-weight: bold;
+                 font-size: 24px;
+                 color: rgb(0, 160, 0);
+             }
+             #save-opts-btn:hover {
+                 transform: scale(1.2);
+                 /*background-color: #bbb;*/
+                 background-image: linear-gradient(90deg, #bbbbbb, #efefef, #bbbbbb);
+                 color: rgb(0, 220, 0);
+             }
+             .cg {color: limegreen;}
+             .cr {color: red;}
+             .hdr-wrap {
+                 background: linear-gradient(180deg, #999999 0%, #333333 100%);
+                 display: flex;
+                 flex-direction: column;
+                 position: fixed;
+                 /*margin-bottom: 20px;*/
+                 /*pointer-events: none;*/
+                 width: 100%;
+             }
+             .hdr-wrap * {
+                justify-content: center;
+                display: flex;
+                flex-flow: row wrap;
+                align-content: center;
+                margin: 0px;
+             }
+             .hdr-wrap p {
+                 margin: 20px 0px 0px 0px;
+             }
+             .hdr-wrap span {
+                 margin: 20px 0px 20px 0px;
+                 font-size: 26;
+                 min-height: 32px;
+                 color: #aaa;
+             }
+             .content {
+                 display: flex;
+                 flex-direction: column;
+                 position: relative;
+                 max-height: 100vh;
+                 margin-bottom: 30px;
+                 overscroll-behavior: contain;
+             }
+             .blinkWarn {
+                 color: red;
+                 animation: blinker 1.4s linear infinite;
+             }
+             .blinkGreen {
+                 color: green;
+                 animation: blinker 1.4s linear infinite;
+             }
+
+             @keyframes blinker {
+                 0%, 100% {opacity: 1;}
+                 50%, 70% {opacity: .3;}
+             }
+
+             #tootlTipArea {
+                 position: absolute;
+                 left: 0;
+                 top: 0;
+                 background: transparent;
+                 padding: 5px 5px 5px 20px;
+                 max-width: 400px;
+                 font-family: arial;
+             }
+     `;}
+
+    function getConfigWebPageHead() {
+        let styles = getCfgStylesHtml();
+        let head =
+            `<head>
+                <meta http-equiv=Content-Security-Policy content="script-src 'self' 'unsafe-inline' googleapis.com;">
+                <meta http-equiv="Content-Security-Policy" content="script-src-elem 'self'
+                      https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js;">
+                <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+                <style>${styles}</style>
+            </head>`;
+
+        return head;
+    }
+
+    function getConfigWebPageBody() {
+        let body = `<body>
+                <div class="content">
+                    <div class="hdr-wrap">
+                        <h2>Torn Total Solution Options</h2>
+                        <p id="tootlTipArea" class="tt-display"></p>
+                        <p><input class="button xedx-tts-btn cg2" type="submit" value="Save" id="save-opts-btn"></p>
+                        <span id="hdr-msg" style="visibility: hidden;">You have unsaved changes!</span>
+                    </div>
+                    <div class="outer-scroll">
+                    <!-- Main (supported scripts) table -->
+                        <div id="xedx-main-opts-div">
+                            <table id="xedx-table">
+                                <tbody id="xedx-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Additional Sidebar Links table -->
+                        <div id="xedx-addl-links-div">
+                            <table id="xedx-addl-links-table">
+                                <tbody id="xedx-links-table-body">
+                                    <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                        <b>Additional Sidebar Links</b>
+                                        <button id="new-link-add-row" style="margin-left: 20px;">Add Custom Link</button>
+                                    </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Debug options table -->
+                        <div id="debug-opts-div">
+                            <table>
+                                <tbody id="dbg-opt-body">
+                                <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                    <b>Debugging Options</b>
+                                </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Cache options table -->
+                        <div id="cache-opts-div">
+                            <table>
+                                <tbody id="cache-opt-body">
+                                <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                    <b>Caching Options</b>
+                                </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- API Calls table -->
+                        <div id="api-usage-div">
+                            <table>
+                                <tbody id="api-usage-body">
+                                <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                    <b>API Calls</b>
+                                    <button id="api-calls-clear" style="margin-left: 20px;">Clear</button>
+                                </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="col-flex-wrap" style="margin: 20px 0px 30px 0px;">
+                            <div>
+                                <span>Outdated documentation for the curious:</span>
+                                <span>
+                                    <a href="https://github.com/edlau2/Tampermonkey/tree/master/TornTotalSolution">
+                                        TTS Main GitHub Page
+                                    </a>
+                                </span>
+                                <span>
+                                    <a href="https://github.com/edlau2/Tampermonkey/tree/master">
+                                        Root GitHub Page
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </body>`;
+        return body;
+    }
+
+    function getConfigWebPageAlt() {
+        let styles = getCfgStylesHtml();
+        //let pageAlt = `<html> ${getConfigWebPageHead()}${getConfigWebPageBody()}</html>`;
+        let pageAlt = `<html>${getConfigWebPageBody()}</html>`;
+        return pageAlt;
+    }
 
     function getConfigWebPage() {
+        let styles = getCfgStylesHtml();
         let page =
             `<html>
             <head>
-                <meta http-equiv=Content-Security-Policy content="script-src 'self' 'unsafe-inline';">
-                <!-- link rel="stylesheet" href="xedx-tts-styles.css" -->`
-                + ttsStyles +
-            `</head>
+                <meta http-equiv=Content-Security-Policy content="script-src 'self' 'unsafe-inline' googleapis.com;">
+                <style>${styles}</style>
+            </head>
             <body>
-                <div class="outer">
-                <!-- Main (supported scripts) table -->
-                    <div id="xedx-main-opts-div">
+                <div class="content">
+                    <div class="hdr-wrap">
                         <h2>Torn Total Solution Options</h2>
-                        <p><br><input class="button xedx-tts-btn cr" type="submit" value="Save" id="xedx-button"></p>
-                        <table id="xedx-table">
-                            <tbody id="xedx-table-body">
-                            </tbody>
-                        </table>
+                        <p id="tootlTipArea" class="tt-display"></p>
+                        <p><input class="button xedx-tts-btn cg2" type="submit" value="Save" id="save-opts-btn"></p>
+                        <span id="hdr-msg" style="visibility: hidden;">You have unsaved changes!</span>
                     </div>
+                    <div class="outer-scroll">
+                    <!-- Main (supported scripts) table -->
+                        <div id="xedx-main-opts-div">
+                            <table id="xedx-table">
+                                <tbody id="xedx-table-body">
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <!-- Additional Sidebar Links table -->
-                    <div id="xedx-addl-links-div">
-                        <table id="xedx-addl-links-table">
-                            <tbody id="xedx-links-table-body">
+                        <!-- Additional Sidebar Links table -->
+                        <div id="xedx-addl-links-div">
+                            <table id="xedx-addl-links-table">
+                                <tbody id="xedx-links-table-body">
+                                    <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                        <b>Additional Sidebar Links</b>
+                                        <button id="new-link-add-row" style="margin-left: 20px;">Add Custom Link</button>
+                                    </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Debug options table -->
+                        <div id="debug-opts-div">
+                            <table>
+                                <tbody id="dbg-opt-body">
                                 <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
-                                    <b>Additional Sidebar Links</b>
-                                    <button id="new-link-add-row" style="margin-left: 20px;">Add Custom Link</button>
+                                    <b>Debugging Options</b>
                                 </div>
-                            </tbody>
-                        </table>
-                    </div>
+                                </tbody>
+                            </table>
+                        </div>
 
-                    <!-- Debug options table -->
-                    <div id="debug-opts-div">
-                        <table>
-                            <tbody id="dbg-opt-body">
-                            <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
-                                <b>Debugging Options</b>
+                        <!-- Cache options table -->
+                        <div id="cache-opts-div">
+                            <table>
+                                <tbody id="cache-opt-body">
+                                <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                    <b>Caching Options</b>
+                                </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- API Calls table -->
+                        <div id="api-usage-div">
+                            <table>
+                                <tbody id="api-usage-body">
+                                <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
+                                    <b>API Calls</b>
+                                    <button id="api-calls-clear" style="margin-left: 20px;">Clear</button>
+                                </div>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="col-flex-wrap" style="margin: 20px 0px 30px 0px;">
+                            <div>
+                                <span>Outdated documentation for the curious:</span>
+                                <span>
+                                    <a href="https://github.com/edlau2/Tampermonkey/tree/master/TornTotalSolution">
+                                        TTS Main GitHub Page
+                                    </a>
+                                </span>
+                                <span>
+                                    <a href="https://github.com/edlau2/Tampermonkey/tree/master">
+                                        Root GitHub Page
+                                    </a>
+                                </span>
                             </div>
-                            </tbody>
-                        </table>
+                        </div>
                     </div>
-
-                    <!-- Cache options table -->
-                    <div id="cache-opts-div">
-                        <table>
-                            <tbody id="cache-opt-body">
-                            <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
-                                <b>Caching Options</b>
-                            </div>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- API Calls table -->
-                    <div id="api-usage-div">
-                        <table>
-                            <tbody id="api-usage-body">
-                            <div  class="subtab-hdr" style="display: inline-block; cursor: pointer;">
-                                <b>API Calls</b>
-                                <button id="api-calls-clear" style="margin-left: 20px;">Clear</button>
-                            </div>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- p><br><input class="button xedx-tts-btn cr" type="submit" value="Save" id="xedx-button"></p -->
                 </div>
             </body>
         </html>`;
