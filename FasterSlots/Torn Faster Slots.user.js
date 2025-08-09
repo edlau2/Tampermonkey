@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Faster Slots
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.3
 // @description  This script speeds up slot outcomes, and tracks stats locally
 // @author       xedx [2100735]
 // @match        https://www.torn.com/page.php?sid=slots
@@ -36,8 +36,17 @@
     var lastResultWon = false;
     var lastBetAmt = 0;
     var money = null, moneyTotal = 0;
+    var pot = GM_getValue("pot", null);
 
     var spinSpeed = GM_getValue("spinSpeed", -1);
+
+    // Limits
+    var optWonOver = GM_getValue("optWonOver", 0);
+    var optLostOver = GM_getValue("optLostOver", 0);
+    var optLostPot = GM_getValue("optLostPot", false);
+    var lockLimitsEnabled = GM_getValue("lockLimitsEnabled", false);
+    const lockTimeSecs = GM_getValue("lockTimeSecs", 300);
+    var unlockTime = GM_getValue("unlockTime");
 
     const MAX_RETRIES = 50;
     const targetSel = `#mainContainer > div.content-wrapper > div.slots-main-wrap > div`;
@@ -45,6 +54,13 @@
     const ts = () => { return new Date().toTimeString().split(' ')[0]; }
     function moneyOnHand() { return $("#user-money").data("money"); }
     function getTokens() {return $("#tokens").text(); }
+
+    function readOpts() {
+        lockLimitsEnabled = GM_getValue("lockLimitsEnabled", lockLimitsEnabled);
+        optLostPot = GM_getValue("optLostPot", optLostPot);
+        optWonOver = GM_getValue("optWonOver", optWonOver);
+        optLostOver = GM_getValue("optLostOver", optLostOver);
+    }
 
     function readStats() {
         moneyWon = GM_getValue("moneyWon", 0);   // Money won so far
@@ -58,13 +74,14 @@
     function writeStats(reset=false) {
         if (reset == true) {
             moneyWon = 0; moneyLost = 0;
-            wins = 0; losses = 0;
+            wins = 0; losses = 0; pot = money ?? moneyOnHand();
         }
         GM_setValue("moneyWon", p(moneyWon ?? 0));   // Money won so far
         GM_setValue("moneyLost", p(moneyLost ?? 0));
         GM_setValue("wins", p(wins ?? 0));
         GM_setValue("losses", p(losses ?? 0));
         GM_setValue("spinSpeed", spinSpeed);
+        GM_setValue("pot", pot);
     }
 
     function updateStats(data) {
@@ -86,6 +103,152 @@
         updateStatsTable();
     }
 
+    GM_addStyle(`
+        .locked {
+            opacity: .2;
+            pointer-events: none;
+        }
+        .locked li {
+            background-color: #f05e5a;
+        }
+        #lock-msg-wrap {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            top: 80%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #lock-msg {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+            font-family: arial;
+            font-size: 62px;
+            color: red;
+        }
+        #lock-time {
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: center;
+            font-family: arial;
+            font-size: 36px;
+            color: red;
+        }
+    `);
+
+    var lockTimer;
+    var unlockTimer;
+    const secsInHr = 60 * 60;
+    const nn = function(t) {return t == 0? '00' : t < 10 ? '0' + t : t;}
+    function cvtSecs(secs) {
+        let hrs = Math.floor(secs / secsInHr);
+        let remains = secs - (hrs * secsInHr);
+        let mins = Math.floor(remains/60);
+        secs = remains - mins * 60;
+        return (nn(hrs) + ":" + nn(mins) + ":" + nn(secs));
+    }
+
+    function updateLockTime() {
+        let t = parseInt($("#lock-time").attr('data-time')) - 1;
+        $("#lock-time").attr('data-time', t);
+        if (t > 0) {
+            $("#lock-time").text(cvtSecs(t));
+            lockTimer = setTimeout(updateLockTime, 1000);
+            return;
+        }
+        lockTimer = null;
+        unlockBets("updateLockTime");
+    }
+
+    function addLockedDiv(time, retries=0) {
+        let node = `
+            <div id='lock-msg-wrap'>
+                <span id='lock-msg'>LOCKED!</span>
+                <span id='lock-time'></span>
+            </div>
+        `;
+        $("#stats-tbl table").append(node);
+        if (!$("#lock-msg-wrap").length) {
+            if (retries++ < 50) return setTimeout(relockBets, 250, retries);
+            return debug("Relock, timed out.");
+        }
+
+        $("#lock-time").attr('data-time', time);
+        updateLockTime();
+    }
+
+    function unlockBets(from) {
+        //debug("[unlockBets]: ", from);
+        GM_setValue("unlockTime", 0);
+        $(".slots-btn-list").removeClass('locked');
+        $("#stat-bod").removeClass('locked')
+        $(".cr").removeClass("cr");
+        $("#lock-msg-wrap").remove();
+        unlockTimer = null;
+    }
+
+    function lockAllBets(sel) {
+        let timeNow = new Date().getTime() / 1000;
+        let unlockAt = timeNow + lockTimeSecs;
+        GM_setValue("unlockTime", unlockAt);
+
+        $(".slots-btn-list").addClass('locked');
+        $("#stat-bod").addClass('locked')
+        $(sel).addClass("cr");
+        addLockedDiv(lockTimeSecs);
+        if ($("#lock-msg-wrap").length) {
+            if (!unlockTimer)
+                unlockTimer = setTimeout(unlockBets, lockTimeSecs * 1000, "lockAllBets timer");
+        }
+
+    }
+
+    function relockBets(retries=0) {
+        let unlockAt = GM_getValue("unlockTime", 0);
+        let timeNow = new Date().getTime() / 1000;
+        let secs = +unlockAt - +timeNow;
+        if (secs > 0) {
+            $(".slots-btn-list").addClass('locked');
+            $("#stat-bod").addClass('locked');
+            addLockedDiv(secs, retries);
+            if ($("#lock-msg-wrap").length > 0) {
+                if (!unlockTimer)
+                    unlockTimer = setTimeout(unlockBets, secs * 1000);
+                updateLockTime();
+            }
+        }
+    }
+
+    const ppi = function(x) {return parseInt(Math.abs(x)); }
+    function enforceLockLimits() {
+        let profit = moneyWon - moneyLost;
+        if (ppi(optWonOver) > 0 && profit > 0) {
+            if (ppi(profit) > ppi(optWonOver)) lockAllBets("#optWonOver");
+        }
+        if (ppi(optLostOver) > 0 && profit < 0) {
+            if (ppi(profit) > ppi(optLostOver)) lockAllBets("#optLostOver");
+        }
+        if (optLostPot == true && profit < 0) {
+            if (ppi(profit) > ppi(pot)) lockAllBets("#lostPot");
+        }
+    }
+
+    function checkLockState() {
+        let unlockAt = GM_getValue("unlockTime", 0);
+        if (unlockAt <= 0 || !unlockAt) {
+            return unlockBets("checkLockState");
+            //return log("checkLockState: unlockAt, ", unlockAt);
+        }
+        let now = new Date().getTime() / 1000;
+        if (now > parseInt(unlockAt))  {
+            return unlockBets("checkLockState");
+            //return log("checkLockState: now, ", now, parseInt(unlockAt), (now - unlockAt));
+        }
+        relockBets();
+    }
+
     const originalAjax = $.ajax;
     if (doFastSlots == true) {
         $.ajax = function (options) {
@@ -97,8 +260,12 @@
                 options.success = function (data, textStatus, jqXHR) {
                     updateStats(data);
 
+                    if (lockLimitsEnabled == true) {
+                        enforceLockLimits();
+                    }
+
                     // Make stop immediately...maybe small delay?
-                    debug("Speed is ", data.barrelsAnimationSpeed, " Setting to ", spinSpeed);
+                    //debug("Speed is ", data.barrelsAnimationSpeed, " Setting to ", spinSpeed);
                     if (spinSpeed > 0) {
                         data.barrelsAnimationSpeed = spinSpeed;
                     } else {
@@ -190,7 +357,7 @@
                 align-content: center;
                 flex-flow: row wrap;
             }
-            #test-btn > i {
+            #table-btn > i {
                 position: absolute;
                 cursor: pointer;
                 color: black;
@@ -200,6 +367,21 @@
                 border: 1px solid white;
                 background-color: white;
             }
+            #limits td {
+                display: flex;
+                flex-flow: row wrap;
+                justify-content: center;
+            }
+            #optLostOver, #optWonOver {
+                width: 100px;
+                margin: 0px 10px 0px 10px;
+                border-radius: 4px;
+                padding: 2px 4px 2px 4px;
+            }
+            #optLostPot {
+                margin: 0px 10px 0px 10px;
+            }
+            .cr { color: red; }
         `);
     }
 
@@ -212,6 +394,10 @@
             tokens = getTokens();
         }
         if (money == null) money = moneyOnHand();
+        if (pot == null) {
+            pot = money;
+            GM_setValue("pot", pot);
+        }
         debug("[updateStatsTable] ", asCurrency(moneyWon), asCurrency(moneyLost), wins, losses,
             tokens, money, moneyTotal, ((lastResultWon == true) ? "Win" : "Loss"));
 
@@ -222,7 +408,7 @@
                     <thead>
                         <tr colspan="4">
                             <th>
-                            <span id="test-btn"><i class="fas fa-caret-down fa-3x"></i></span>
+                            <span id="table-btn"><i class="fas fa-caret-down fa-3x"></i></span>
                             </th>
                         </tr>
                     </thead>
@@ -232,7 +418,7 @@
                             <td>Lost: ${asCurrency(moneyLost ?? 0)}</td><td>Win/Loss: ${wins}/${losses}</td>
                         </tr>
                         <tr>
-                            <td>Tokens: ${tokens}</td><td>On-Hand: ${asCurrency(money)}</td>
+                            <td id='test-btn'>Tokens: ${tokens}</td><td>On-Hand: ${asCurrency(money)}</td>
                             <!-- td>Last Result: ${((lastResultWon == true) ? "Win" : "Loss")}</td -->
                             <td class="num-ip">
                                 <span><label>Speed:
@@ -244,10 +430,35 @@
                                 <!-- span id="opts-btn"><i class="fas fa-caret-down"></i></span -->
                             </td>
                         </tr>
+                        <tr id='limits'>
+                        <td class="c-ctr">  <!-- style="min-width: 183px; display: flex; flex-flow: row wrap;" -->
+                            <span><label>
+                                <input type="checkbox" id="lockLimitsEnabled" name="lockLimitsEnabled" style="margin-right: 10px;">
+                                Enforce Gambling Limits</label>
+                            </span>
+                        </td>
+                        <!-- td colspan="3" style="width: -webkit-fill-available; display: flex; flex-flow: row wrap;">
+                            <td><span class="locks" -->
+                            <td><span><label>Lost over:<input type="text" id="optLostOver" name="optLostOver"></label></span></td>
+                            <td><span><label>Lost pot (${asCurrency(pot)}):<input type="checkbox" id="optLostPot" name="optLostPot"></label></span></td>
+                            <td><span><label>Won over:<input type="text" id="optWonOver" name="optWonOver"></label></span></td>
+                            <!-- /span>
+                        </td -->
+                        </tr>
                     </tbody>
                 </table>
             </div>
         `;
+
+        /*
+        <td colspan="3" style="width: -webkit-fill-available; display: flex; flex-flow: row wrap;">
+            <span class="locks">
+            <span><label>Lost over:<input type="number" id="optLostOver" name="optLostOver"></label></span>
+            <span><label>Lost pot<input type="checkbox" id="optLostPot" name="optLostPot"></label></span>
+            <span><label>Won over:<input type="number" id="optWonOver" name="optWonOver"></label></span>
+            </span>
+        </td>
+        */
 
         log("[updateStatsTable] ", $("#stats-tbl"));
 
@@ -258,19 +469,32 @@
             $(target).append(table);
         }
 
+        $('#optLostOver').val(asCurrency(optLostOver));
+        $('#optWonOver').val(asCurrency(optWonOver));
+        $("#lockLimitsEnabled").prop("checked", lockLimitsEnabled);
+        $("#optLostPot").prop("checked", optLostPot);
+
         $("#xrst").on('click', handleTableReset);
 
         $("#opts-btn").on('click', function() {
                 $("#opts-btn > i").toggleClass("fa-caret-right fa-caret-down");
                 $("#stat-bod").slideToggle(1000);
         });
-        $("#test-btn").on('click', function() {
-                $("#test-btn > i").toggleClass("fa-caret-right fa-caret-down");
+        $("#table-btn").on('click', function() {
+                $("#table-btn > i").toggleClass("fa-caret-right fa-caret-down");
                 $("#stat-bod").fadeToggle(1000);
         });
 
         $("#speed").val(spinSpeed);
         $("#speed").on('change', handleSpeedChange);
+
+        $("#limits input[type='checkbox']").on('change', handleCbOptChange);
+        $("#limits input[type='text']").on('input', handleNumOptChange);
+        $("#limits input[type='text']").on('blur', handleNumOptChange);
+        //$("#optWonOver").on('input', handleNumOptChange);
+        //$("#optWonOver").on('blur', handleNumOptChange);
+
+        //$('#test-btn').on("click", lockAllBets);
 
         if (!updateInterval) {
             updateInterval = setInterval( function() {
@@ -279,9 +503,37 @@
         }
     }
 
-    // Add minimal UI so I know what's going on.
+    function handleCbOptChange(e) {
+        if (e) e.preventDefault();
+        if (e) e.stopPropagation();
+        let key = $(this).attr('name');
+        let checked = $(this).prop('checked');
+        GM_setValue(key, checked);
+        readOpts();
+    }
+
+    function handleNumOptChange(e) {
+        let key = $(this).attr('name');
+        let value = $(this).val();
+        value = value.replace(/[^0-9.]/g, '');
+        let numberValue = parseInt(value);
+
+        if (!isNaN(numberValue)) {
+            const formatter = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+            $(this).val(formatter.format(numberValue));
+        } else {
+            $(this).val('');
+        }
+        GM_setValue(key, numberValue);
+        readOpts();
+    }
+
     function installUI(retries = 0) {
-        /*if (retries == 0)*/ debug('[installUI]');
         let target = $(targetSel);
         if (!$(target).length) {
             if (retries++ < MAX_RETRIES) return setTimeout(installUI, 250, retries);
@@ -291,6 +543,8 @@
         addTableStyles();
         updateStatsTable();
         $("#speed").on('change', handleSpeedChange);
+
+        checkLockState();
     }
 
     // Kick things off
