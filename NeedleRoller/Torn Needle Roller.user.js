@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Needle Roller
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Allow quick-equip for needles
 // @author       xedx [2100735]
 // @run-at       document-start
@@ -279,7 +279,13 @@
             }
         }
 
-        debug("[updateNeedles] needles: ", needles);
+        debug("[updateNeedles] needles, len: ", needles.length, "\n", needles);
+
+        if (needles && needles.length) {    // ????
+            needles.forEach(entry => {
+                replaceNode(entry);
+            });
+        }
 
         function replaceNode(entry) {
             let newNode = getNodeForEntry(entry);
