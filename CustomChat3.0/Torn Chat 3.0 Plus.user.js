@@ -856,9 +856,13 @@
     function autoRetry(retries=0) {
         const maxRetries = 15;
         let node = $(`#faction-${facId} [class*='retryMessage']`);
+        debug("[AutoRetry] ", $(node));
         if ($(node).length > 0) {
             debug("Found retry btn, clicking! (", retries, " retries)");
             $(node).trigger('click');
+            $(node).click();
+            $($(node)[0]).click();
+            return;
         }
         if (retries++ < maxRetries) return setTimeout(autoRetry, 1000, retries);
         debug("No retry message found after ", maxRetries, " seconds");
@@ -897,6 +901,7 @@
                 break;
             }
             case 'AUTO_RETRY': {
+                log("Calling autoRetry");
                 autoRetry();
                 break;
             }
