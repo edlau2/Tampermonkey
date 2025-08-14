@@ -704,8 +704,8 @@
 
     const sortSelect = {
         "none": {name: "-- none --", attr: "", dir: ""},
-        "startAsc": {name: "Start, asc", attr: "data-startTime", dir: "asc"},
-        "startDesc": {name: "Start, desc", attr: "data-startTime", dir: "desc"},
+        "startAsc": {name: "Start, asc", attr: "data-starttime", dir: "asc"},
+        "startDesc": {name: "Start, desc", attr: "data-starttime", dir: "desc"},
         "driversAsc": {name: "Drivers Max, asc", attr: "data-maxUsers", dir: "asc"},
         "driversDesc": {name: "Drivers Max, desc", attr: "data-maxUsers", dir: "desc"},
         "lapsAsc": {name: "Lapd, asc", attr: "data-laps", dir: "asc"},
