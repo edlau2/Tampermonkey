@@ -36,8 +36,8 @@
     var preferredLvl = GM_getValue("preferredLvl", 'any');
     var pausedOcsFirst = GM_getValue("pausedOcsFirst", true);
 
-    var uploadMyCprs = GM_getValue("uploadMyCprs", true);
-    var collectAllCprs = GM_getValue("collectAllCprs", true);
+    var uploadMyCprs = GM_getValue("uploadMyCprs", true);              // Unused ATM
+    var collectAllCprs = GM_getValue("collectAllCprs", false);
 
     GM_setValue("showCrimeScore", showCrimeScore);
     GM_setValue("preferredLvl", preferredLvl);
