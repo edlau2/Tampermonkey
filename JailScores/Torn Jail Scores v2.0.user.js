@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.40
+// @version      2.41
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview*
@@ -50,7 +50,6 @@
     var hideLimit = GM_getValue("hideLimit", 0);          // Filter, don't show if under this %
     var tzDisplay = GM_getValue("tzDisplay", "utc");      // Timezone to use for calcs.
     var xtraDbgLogging = GM_getValue("xtraDbgLogging", 0);
-    var optTryLastPages = GM_getValue("optTryLastPages", false);
     var blinkOnSuccess = GM_getValue("blinkOnSuccess", false);
 
     var showResultHistory = GM_getValue("showResultHistory", false); // Save past X results and display as a list
@@ -361,11 +360,9 @@
         scoresCalculated = false;
         $(".user-info-list-wrap .score").removeClass("score");
         if (currHash.indexOf("reload") > -1) {
-            debug("Hash changed for page jump, reload!");
             reloadUserList();
         } else {
             // Or just reload?
-            debug("Hash changed for page jump, recalc scores...");
             setTimeout(addJailScores, 250);
         }
     }
@@ -1722,8 +1719,6 @@
         $("#quick-bust-ylw").prop('checked', quickBustYlw);
         $("#pre-release-btn").prop('checked', enablePreRelease);
         $("#penalty-btn").prop('checked', dispPenalty);
-        $("#xedx-save-opt-btn").on("click", handleSaveOptsBtn);
-        $("#xlast-page-opt").prop('checked', optTryLastPages);
         $("#save-results").prop("checked", showResultHistory);
         $("#show-limits").prop("checked", showLimits);
         $("#lock-animations").prop("checked", lockAnimations);
@@ -1787,9 +1782,6 @@
     const timeZoneText = "This option allows you to select when the count<br>" +
           "for daily busts roll over, either midnight local time, or TCT (Torn time).<br>" +
           "It has no effect on anything but the display in the UI,";
-    const page2optText = "The 'page 2' option is experimental and may be illegal<br>" +
-          "to use, so prob don't want to turn it on.<br>" +
-          "Also not sure it works quite right all the time....";
     const saveResultsText =
           "If enabled, the past " + maxSavedResults + " results will be saved and<br>" +
           "viewable in a list in case they scrolled past to fast to read.";
@@ -1802,7 +1794,6 @@
         {sel: "#penalty-btn", text: penaltyBtnText, devMode: false},
         {sel: "#xtz-tct", text: timeZoneText, devMode: false},
         {sel: "#xtz-local", text: timeZoneText, devMode: false},
-        {sel: "#xlast-page-opt", text: page2optText, devMode: true},
         {sel: "#save-results", text: saveResultsText, devMode: false} ];
 
     function addJailOptsToolTips() {
@@ -1836,7 +1827,6 @@
         enablePreRelease = $("#pre-release-btn").is(":checked");
         dispPenalty = $("#penalty-btn").is(":checked");
         tzDisplay = $("#xtz-tct").is(":checked") ? "tct" : "local";
-        optTryLastPages = DEV_MODE && $("#xlast-page-opt").is(":checked");
 
         showResultHistory = $("#save-results").is(":checked");
         showLimits = $("#show-limits").is(":checked");
@@ -1855,7 +1845,6 @@
         GM_setValue("enablePreRelease", enablePreRelease);
         GM_setValue("dispPenalty", dispPenalty);
         GM_setValue("tzDisplay", tzDisplay);
-        GM_setValue("optTryLastPages", optTryLastPages);
         GM_setValue("blinkOnSuccess", blinkOnSuccess);
 
         GM_setValue("showResultHistory", showResultHistory);
@@ -1953,11 +1942,8 @@
         // Need correct height...
         let newHeight = needStatDiv ? optsDivHeightDef :
                         enablePreRelease ? optsDivHeightPreRelease : optsDivHeightDef;
-        //$(sel).css("height", newHeight);
         $(sel).css("height", "fit-content");
         $(sel).css("min-width", $(MAIN_DIV_SEL).css("width"));
-
-        //log("[swapStatsOptsView] height: ", $(sel).css("height"));
 
         if (needStatDiv) {
             fillJailStatsDiv();
@@ -2119,7 +2105,6 @@
         debug("Setting start page num: ", hashNum, " prev: ", pageNum," saved: ", getStartNumFromHash(savedHash));
         let startNum = hashNum; // pageNum ? pageNum : getStartNumFromHash(savedHash);
 
-        // Temp: scrap jumping...
         scoresCalculated = false;
         debug("Quick reload URL: ", useURL, " start num: ", startNum);
         $.post(
@@ -2129,10 +2114,7 @@
                 start: startNum
             },
             function (response) {
-                // Might not be able to do this here, may pend processing w/seTimeout...
-                //observerOff();
                 processResponse(response, pageNum);
-                //observerOn();
             }
         );
         debug("Exit reloadUserList, request submitted");
@@ -2163,52 +2145,6 @@
 
         debug("setActivePage: curr: ", $(currPage));
         debug("setActivePage: active: ", $(activePage));
-    }
-
-    function doLastPageJump() {
-        debug("[doLastPageJump] totalPlayers: ", totalPlayers);
-
-        if (DEV_MODE == false || optTryLastPages == false) {
-            debug("Jumping not allowed!");
-            return false;
-        }
-
-        let lastPgBtn = $(lastPageSel);
-        let lastPageNum = $(lastPgBtn).attr('page');
-        let clickBtn = $(`.pagination-wrap a[page='${lastPageNum}']`)[0];
-        let currPgBtn = $(activePageSel);
-
-        // EXPERIMENTAL
-        let href = $(lastPgBtn).attr("href");
-        if (href && href.indexOf('start') > -1) {
-            href = href + "&reload=true";
-            $(lastPgBtn).attr("href", href);
-        }
-
-        if ($(clickBtn).length == 0 || $(currPgBtn).length == 0) {
-            debug("Cant find page buttons");
-            return false;
-        }
-
-        let thisPageNum = $(currPgBtn).attr("page");
-        debug("Pages, this: ", thisPageNum, " last: ", lastPageNum,
-            "\ncurrPgBtn: ", $(currPgBtn), "\nclickBtn: ", $(clickBtn));
-
-        $(clickBtn).css("border", "1px solid green");
-        $(clickBtn).css("color", "limegreen");
-
-        if (lastPageNum == thisPageNum) return false;
-
-        // Note: this doesn't do scores!!!!
-        if (confirm("Jump to last page?")) {
-            debug("Jumping: set reloadPage to ", lastPageNum);
-            reloadPage = lastPageNum;
-            $(clickBtn)[0].click();
-            setActivePage(currPgBtn, lastPgBtn)
-            return true;
-        }
-
-        return false;
     }
 
     function doReloadPageSort() {
@@ -2380,11 +2316,6 @@
                 debug("[processResponse] exit, jumping back?");
                 return;
             }
-
-            // Handle not on last page - which is where the easiest to bust are.
-            let jumped = false;
-            if (DEV_MODE == true && optTryLastPages == true)
-                jumped = doLastPageJump();
 
             // May not be loaded yet here (playerCount == 0)! need setTimeout???
             if (playerCount == 0) {
@@ -3411,29 +3342,6 @@
 
         callOnContentLoaded(contentLoadHandler);
 
-        //callOnContentComplete(installUI);
-
-        
-
-        // Idea: start adding scores ASAP, add % as API results come in?
-        // Suppress some doc load if possib;e?
-        // Want fastest load time, least delay...
-
-        // Only query and process past busts after min one minute, or
-        // start this script on every page and just do past busts when not
-        // on jail page? Save in storage, for 72 hours?
-
-        // Install the UI
-        /*if (DEV_MODE)*/
-
-        //callOnContentComplete(installUI);
-
-        // Start by kicking off a few API calls.
-        //if (DEV_MODE) {
-        //    queryPastBusts();
-        //} else {
-        //    personalStatsQuery();
-        //}
     } // end if "jailview"
 
 })();
