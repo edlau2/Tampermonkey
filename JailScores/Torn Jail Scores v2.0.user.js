@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Jail Scores v2.0
 // @namespace    http://tampermonkey.net/
-// @version      2.39
+// @version      2.40
 // @description  Add bust chance & quick reloads to jail page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/jailview*
@@ -92,6 +92,9 @@
 
     // Stats from an API call, here to use across functions
     var personalstats;
+
+    // For the QuickBust btn
+    const doClickYes = true;
 
     // Console logging levels
     var extraExtraDebug = GM_getValue("extraExtraDebug", false);
@@ -429,20 +432,6 @@
                             <span style="display: block; width: 59px;">${scoreStr}</span>
                             <span>${maxSR} %</span>
                         </span>`;
-
-            if (DEV_MODE && autoBustOn) {
-                let bustNode = $(wrapper).siblings(".bust")[0];
-                debug("bustNode: ", $(bustNode));
-                if (maxSR >= bustMin && !busted) { // just do once
-                    log("Auto-Bust!");
-                    busted = true;
-                    $(bustNode)[0].click();
-
-                    // Now need to click "yes" ....
-                    clickYesRetries = 0;
-                    findAndClickYes(bustNode);
-                }
-            }
 
             let scoreNode = $(wrapper).find(".score.level");
             debug("[addJailScores] scoreNode: ", $(scoreNode).length);
@@ -1660,8 +1649,6 @@
             $(MAIN_DIV_SEL).css("display", tmp);
         }
 
-        setTitleColor();
-
         if (lastShowState && forceShow) {
             $(MAIN_DIV_SEL).addClass("xhide");
         }
@@ -1707,13 +1694,6 @@
         $("#xedx-reload-btn").on('click', reloadUserList);
 
         addSwapBtnHandlers();
-
-        // Add a right-click handler to the fake div, for misc custom stuff
-        $(MAIN_DIV_SEL).on('contextmenu', handleRightClick);
-        if (GM_getValue('xedx', false) == true) {
-            autoBustOn = true;
-            setTitleColor();
-        }
 
         // Swap to stats div handler
         $("#xedx-stats-btn").on('click', swapStatsOptsView);
@@ -1995,22 +1975,6 @@
     }
     // ========== End Options button and panel handlers ==========
 
-    function setTitleColor() {
-        if (autoBustOn)
-            $(MAIN_DIV_SEL + " > .xspleft").addClass("xgr");
-        else
-            $(MAIN_DIV_SEL +" > .xspleft").removeClass("xgr");
-    }
-
-    // Might just return here if
-    // GM_getValue("xtraDbgLogging", 0) is < 1
-    var rightClicks = 0;
-    function handleRightClick() {
-        autoBustOn = !autoBustOn;
-        setTitleColor();
-        return false;
-    }
-
     function updateBustsAndPenaltyText() {
         setTodaysBusts(GM_getValue("currBusts", 0));
     }
@@ -2104,7 +2068,7 @@
         return name;
     }
 
-    // ========= Handlers for Fast Reloading ========================
+    // ========= Handlers for Fast Reloading / QuickBust ========================
     //
     const targetUlSel = "#mainContainer > div.content-wrapper > div.userlist-wrapper > ul";
     const playersInJailSel = "#mainContainer > div.content-wrapper > div.userlist-wrapper >" +
@@ -2176,11 +2140,6 @@
 
     // ============= Functions used in fast reload respose processing =====================
 
-    // These are likely ILLEGAL! Do not enable!
-    var   autoBustOn = false;
-    const doClickYes = true;         // Only applicable if above option is on
-    // End ILLEGAL
-
     // After a reload, go through the returned HTML and build
     // the LI's for each player, inserting into the list.
     function insertPlayers(players) {
@@ -2250,17 +2209,6 @@
         }
 
         return false;
-    }
-
-    function doAutoBust() {
-        let bustable = $(targetUlSel).find(".xbust");
-        if (DEV_MODE && autoBustOn && $(bustable).length) {
-            let wrapper = $(bustable)[0];
-            let bustNode = $(wrapper).siblings(".bust")[0];
-            $(bustNode)[0].click();
-            clickYesRetries = 0;
-            findAndClickYes(bustNode);
-        }
     }
 
     function doReloadPageSort() {
@@ -2456,7 +2404,6 @@
             debug("Reload complete, sorted and scored yet? ", scoresCalculated);
             // Now sort...if moved pages, this won't work???
             doReloadPageSort();
-            doAutoBust(targetUl);
             updateMsgLineText();
 
             // If scores not recalculated yet, do so
