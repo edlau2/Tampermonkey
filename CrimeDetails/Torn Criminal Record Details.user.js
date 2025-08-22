@@ -5,7 +5,6 @@
 // @description  try to take over the world!
 // @author       xedx [2100735]
 // @match        https://www.torn.com/index.php
-// @connect      api.torn.com
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
