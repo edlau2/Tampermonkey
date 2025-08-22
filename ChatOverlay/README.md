@@ -1,6 +1,6 @@
 ## Torn Chat Overlay
 
-Adds support for Discord style markdown (formatting) and Emojis to Torn chat boxes.
+Adds support for Discord style markdown (formatting) and Emojis to Torn chat boxes (v 2.0 only).
 
 ### Supported markdown:
 
