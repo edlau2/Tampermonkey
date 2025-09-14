@@ -5,9 +5,9 @@
 // @description Common JS functions
 // @author      me
 // @exclude     *
-// @grant        GM_addStyle
-// @grant        GM_getValue
-// @grant        GM_setValue
+// @grant       GM_addStyle
+// @grant       GM_getValue
+// @grant       GM_setValue
 // @license     MIT
 // ==/UserScript==
 
@@ -21,19 +21,20 @@ const thisLibVer = '1.0';
 
 // Enables the debug() log function, cam be set by scripts as needed.
 var debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
-const epochTime = function() { return new Date().getTime(); }
-const log = function(...data) { console.log(GM_info.script.name + ': ', ...data);}
-const logtTime = function() { return (parseInt(epochTime()/1000) % 60) + '.' + epochTime() % 1000; }
-const logt = function(...data) { console.log(logtTime() + " " + GM_info.script.name + ': ', ...data); }
-const debug = function(...data) { if (debugLoggingEnabled) { console.log(GM_info.script.name + ': ', ...data); }}
+const epochTime = () => { return new Date().getTime(); }
 
-const logScriptStart = function () {
+const log = (...data) => { console.log(GM_info.script.name + ': ', ...data);}
+const logtTime = () => { return (parseInt(epochTime()/1000) % 60) + '.' + epochTime() % 1000; }
+const logt = (...data) => { console.log(logtTime() + " " + GM_info.script.name + ': ', ...data); }
+const debug = (...data) => { if (debugLoggingEnabled) { console.log(GM_info.script.name + ': ', ...data); }}
+
+const logScriptStart = () => {
     console.log(GM_info.script.name + ' version ' +
         GM_info.script.version + ' script started, library version ' + thisLibVer);
 }
 
 // Call the callback once page content loaded (readystate is still interactive)
-const callOnContentLoaded = function(callback) {
+const callOnContentLoaded = (callback) => {
     if (document.readyState == 'loading') {
         document.addEventListener('DOMContentLoaded', callback);
     } else {
@@ -42,7 +43,7 @@ const callOnContentLoaded = function(callback) {
 }
 
 // Call the callback once page content loading is complete (readystate is complete)
-const callOnContentComplete = function(callback) {
+const callOnContentComplete = (callback) => {
     if (document.readyState == 'complete') {
         callback();
     } else {
@@ -53,7 +54,7 @@ const callOnContentComplete = function(callback) {
 
 // Be notified if visibility changes (change tabs, for example)
 // Callback sig: cllbackFn(visible) {} // 'visible' is true if getting focus
-const callOnVisibilityChange = function(callback) {
+const callOnVisibilityChange = (callback) => {
     document.addEventListener("visibilitychange", function() {
       if (document.visibilityState === 'visible') {
         callback(true);
@@ -72,7 +73,7 @@ const callOnVisibilityChange = function(callback) {
 // Freq is how often to check for element, ms
 // max is max attempts, defaults are 5 seconds total.
 //
-const callWhenElementExists = function(selector, callback, freq=250, max=20) {
+const callWhenElementExists = (selector, callback, freq=250, max=20) => {
 
     if (!selector || !callback) return console.error("Invalid function params!");
     if ($(selector).length) {callback(true, $(selector), selector, 0); return;}
@@ -91,7 +92,7 @@ const callWhenElementExists = function(selector, callback, freq=250, max=20) {
 
 // Mutation observer method, used if you have a parent to observe
 // callback sig: callback(node)
-const callWhenElementExistsEx = function(closestRoot, selector, callback) {
+const callWhenElementExistsEx = (closestRoot, selector, callback) => {
     if (!$(closestRoot).length) {
         console.error("ERROR: observer root does not exist: ", $(closestRoot));
         if ($(selector).length > 0)
@@ -120,18 +121,18 @@ const callWhenElementExistsEx = function(closestRoot, selector, callback) {
 }
 
 // Install an event listener for hash change notifications
-const callOnHashChange = function(callback) {
+const callOnHashChange = (callback) => {
     return installHashChangeHandler(callback);
 }
 
-const installHashChangeHandler = function(callback) {
+const installHashChangeHandler = (callback) => {
     window.addEventListener('hashchange', function() {
         log('The hash has changed! new hash: ' + location.hash);
         callback();}, false);
 }
 
 // ==================== PushState handler installation ==================
-const bindEventListener = function (type) {
+const bindEventListener = (type) => {
     const historyEvent = history[type];
     return function () {
         const newEvent = historyEvent.apply(this, arguments);
@@ -142,7 +143,7 @@ const bindEventListener = function (type) {
     };
 }
 
-const installPushStateHandler = function(pushStateChangedHandler) {
+const installPushStateHandler = (pushStateChangedHandler) => {
     history.pushState = bindEventListener("pushState");
     window.addEventListener("pushState", function (e) {
         pushStateChangedHandler(e);
@@ -227,7 +228,7 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
 //
 // Get class list for an element
 //
-const  getClassList = function(element) {
+const  getClassList = (element) => {
     let classList;
     let list = $(element).attr("class");
     if (list) classList = list.split(/\s+/);
@@ -236,10 +237,10 @@ const  getClassList = function(element) {
 }
 
 // Check if a var is numeric
-const isaNumber = function(x) { return !isNaN(x); }
+const isaNumber = (x) => { return !isNaN(x); }
 
 // Format a number as currency.
-const asCurrency = function(num) {
+const asCurrency = (num) => {
     let formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
@@ -253,34 +254,30 @@ const asCurrency = function(num) {
 }
 
 // Add commas at thousand place - works with decimal numbers
-const numberWithCommas = function(x) {
+const numberWithCommas = (x) => {
     var parts = x.toString().split(".");
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return parts.join(".");
 }
 
 // Return a random int, 0 up to 'max', inclusive.
-const getRandomInt = function(max) {
-    return Math.floor(Math.random() * (max+1));
-}
+const getRandomInt = (max) => { return Math.floor(Math.random() * (max+1)); }
 
 // Return an arbitrary (not int) number between min and max, inclusive.
-const getRandomArbitrary = function(min, max) {
-    return Math.random() * (max - min) + min;
-}
+const getRandomArbitrary = (min, max) => { return Math.random() * (max - min) + min; }
 
 // Return a random int between min and max, inclusive
-const getRandomIntEx = function(min, max) {
+const getRandomIntEx = (min, max) => {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 // Function to create a hash for a string.
-String.prototype.hashCode = function(){
-    var hash = 0;
-    for (var i = 0; i < this.length; i++) {
-        var character = this.charCodeAt(i);
+String.prototype.hashCode = () => {
+    let hash = 0;
+    for (let i = 0; i < this.length; i++) {
+        let character = this.charCodeAt(i);
         hash = ((hash<<5)-hash)+character;
         hash = hash & hash; // Convert to 32bit integer
     }
@@ -288,7 +285,7 @@ String.prototype.hashCode = function(){
 }
 
 // Get any cookie value - use '$.cookie()' if JQuery available
-const getCookie = function(cname) {
+const getCookie = (cname) => {
     let name = cname + "=";
     let ca = document.cookie.split(';');
     for(let i = 0; i < ca.length; i++) {
@@ -306,7 +303,7 @@ const getCookie = function(cname) {
 // ============ Dynamically load another script ==================
 // Alternative to @require if not always needed....
 //
-const loadScript = function(file, noisy) {
+const loadScript = (file, noisy) => {
   const newScript = document.createElement('script');
   newScript.setAttribute('src', file);
   newScript.setAttribute('async', 'true');
@@ -328,14 +325,14 @@ const loadScript = function(file, noisy) {
 const openInNewTab = (url, focus=true) => {focus ? window.open(url, '_blank').focus() :
                                                    window.open(url, '_blank');}
 //--- Simulate a natural mouse-click sequence.
-const simulateMouseClick = function(targetNode) {
+const simulateMouseClick = (targetNode) => {
     triggerMouseEvent (targetNode, "mouseover");
     triggerMouseEvent (targetNode, "mousedown");
     triggerMouseEvent (targetNode, "mouseup");
     triggerMouseEvent (targetNode, "click");
 }
 
-const triggerMouseEvent = function(node, eventType) {
+const triggerMouseEvent = (node, eventType) => {
     var clickEvent = document.createEvent ('MouseEvents');
     clickEvent.initEvent (eventType, true, true);
     node.dispatchEvent (clickEvent);
@@ -351,7 +348,7 @@ const triggerMouseEvent = function(node, eventType) {
 // Inside that must be a div called <outer-id>header ...
 // See "Torn Hospital Timer" as an example.
 //
-const dragElement = function(elmnt) {
+const dragElement = (elmnt) => {
   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   if (document.getElementById(elmnt.id + "header")) {
     document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
@@ -400,7 +397,7 @@ const dragElement = function(elmnt) {
 }
 
 // See if a click is on top of an element
-const isClickInElement = function(event, elem) {
+const isClickInElement = (event, elem) => {
     let xOK = false, yOK = false;
     let xClick = event.clientX, yClick = event.clientY;
     let elemTop = $(elem).offset().top, elemLeft = $(elem).offset().left;
@@ -419,13 +416,13 @@ const isClickInElement = function(event, elem) {
 //
 // Display a 'spinner'/'spin loader'/'loader' as an indication of a lengthy process
 //
-const displaySpinner = function(target, spinnerId) {
+const displaySpinner = (target, spinnerId) => {
     addSpinLoaderStyles();
     let loaderDiv = "<div id='" + spinnerId + "' class='spinLoader'></div>"
     $(target).before(loaderDiv);
 }
 
-const removeSpinner = function(spinnerId) {
+const removeSpinner = (spinnerId) => {
     let sel = "#"+ spinnerId;
     $(sel).remove();
 }
@@ -440,7 +437,7 @@ const removeSpinner = function(spinnerId) {
 // The optional 'stayInWindow' param, if true, will try to force the window to
 // stay within the window extents.
 //
-const isInViewport = function(element) {
+const isInViewport = (element) => {
     let elementTop = $(element).offset().top;
     let elementBottom = elementTop + $(element).outerHeight();
     let viewportTop = $(window).scrollTop();
@@ -449,7 +446,7 @@ const isInViewport = function(element) {
     return elementBottom > viewportTop && elementTop < viewportBottom;
 }
 
-const isOffsetInViewport = function(element, off) {
+const isOffsetInViewport = (element, off) => {
     let elementTop = off.top;
     let elementBottom = elementTop + $(element).outerHeight();
     let viewportTop = $(window).scrollTop();
@@ -458,7 +455,7 @@ const isOffsetInViewport = function(element, off) {
   return elementBottom > viewportTop && elementTop < viewportBottom;
 }
 
-const startSavingPos = function(interval, outerDivId, stayInWindow) {
+const startSavingPos = (interval, outerDivId, stayInWindow) => {
     var posTimer = 0;
     if (!interval) return console.error("[startSavingPos] interval is required!");
     if (!outerDivId) return console.error("[startSavingPos] outerDivId is required!");
@@ -544,7 +541,7 @@ const startSavingPos = function(interval, outerDivId, stayInWindow) {
     }
 }
 
-const addDraggableStyles = function() {
+const addDraggableStyles = () => {
     GM_addStyle(`
         .x-drag {
             position: fixed;
