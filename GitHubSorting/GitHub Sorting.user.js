@@ -7,8 +7,8 @@
 // @match        https://github.com/*
 // @require      http://code.jquery.com/jquery-3.4.1.min.js
 // @require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
-// @xrequire      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/js_utils.js
-// @require      file:////Users/edlau/Documents/Documents - Ed’s MacBook Pro/Tampermonkey Scripts/Helpers/js_utils.js
+// @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/js_utils.js
+// @xrequire      file:////Users/edlau/Documents/Documents - Ed’s MacBook Pro/Tampermonkey Scripts/Helpers/js_utils.js
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
