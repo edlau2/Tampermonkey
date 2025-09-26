@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        js_utils
-// @version     1.0
+// @version     1.1
 // @namespace   https://github.com/pandemonium
 // @description Common JS functions
 // @author      me
@@ -19,7 +19,7 @@
 // Should match version above
 const thisLibVer = '1.0';
 
-// Enables the debug() log function, cam be set by scripts as needed.
+// Enables the debug() log function, can be set by scripts as needed.
 var debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
 const epochTime = () => { return new Date().getTime(); }
 
@@ -149,6 +149,7 @@ const installPushStateHandler = (pushStateChangedHandler) => {
         pushStateChangedHandler(e);
     });
 }
+
 // ============= Display an alert that can time out ==============
 
 async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
@@ -225,29 +226,19 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
 
 // ========================================================================
 
-//
 // Get class list for an element
-//
-const  getClassList = (element) => {
-    let classList;
+const getClassList = (element) => {
     let list = $(element).attr("class");
-    if (list) classList = list.split(/\s+/);
-
-    return classList;
+    if (list) return list.split(/\s+/);
 }
 
 // Check if a var is numeric
 const isaNumber = (x) => { return !isNaN(x); }
 
 // Format a number as currency.
-const asCurrency = (num) => {
-    let formatter = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-
-        // These options are needed to round to whole numbers if that's what you want.
-        //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-        maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+const asCurrency = (num, cc) => {
+    let formatter = new Intl.NumberFormat((cc ? cc : 'en-US'), {
+        style: 'currency', currency: 'USD', maximumFractionDigits: 0,
     });
 
     return formatter.format(num);
@@ -330,30 +321,25 @@ const simulateMouseClick = (targetNode) => {
     triggerMouseEvent (targetNode, "mousedown");
     triggerMouseEvent (targetNode, "mouseup");
     triggerMouseEvent (targetNode, "click");
+
+    function triggerMouseEvent(node, eventType) {
+        var clickEvent = document.createEvent ('MouseEvents');
+        clickEvent.initEvent (eventType, true, true);
+        node.dispatchEvent (clickEvent);
+    }
 }
 
-const triggerMouseEvent = (node, eventType) => {
-    var clickEvent = document.createEvent ('MouseEvents');
-    clickEvent.initEvent (eventType, true, true);
-    node.dispatchEvent (clickEvent);
-}
-
-//
-// Nifty UI stuff
-//
-
- // ========================= Draggable support =========================
+// ========================= Draggable support =========================
 //
 // Outermost div (elmt is ID of the div) must have position: absolute or fixed
-// Inside that must be a div called <outer-id>header ...
-// See "Torn Hospital Timer" as an example.
+// Inside that must be a div called <outer-id>header ... See "Torn Hospital Timer" as an example.
 //
 const dragElement = (elmnt) => {
-  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   if (document.getElementById(elmnt.id + "header")) {
-    document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
+      document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
   } else {
-    elmnt.onmousedown = dragMouseDown;
+      elmnt.onmousedown = dragMouseDown;
   }
 
   function dragMouseDown(e) {
@@ -554,4 +540,100 @@ const addDraggableStyles = () => {
         }
     `);
 }
+
+// ====================== Tooltip support =============================
+//
+// Note that the jquery-ui lib must be included:
+// at require      http://code.jquery.com/ui/1.12.1/jquery-ui.js
+//
+function displayHtmlToolTip(node, text, cl='tooltip4') {
+    let useClass = cl + " tt-ws";
+    $(document).ready(function() {
+        $(node).attr("title", "original");
+        $(node).attr("data-html", "true");
+        $(node).tooltip({
+            content: text,
+            classes: {
+                "ui-tooltip": useClass
+            }
+        });
+    })
+}
+
+// Tooltip styles, you can provide your own...
+function addToolTipStyle() {
+    GM_addStyle(`.tt-ws {white-space: pre-line;}`);
+    GM_addStyle(`
+        .tooltip4 {
+            radius: 4px !important;
+            background-color: #000000 !important;
+            filter: alpha(opacity=80);
+            opacity: 0.80;
+            padding: 5px 20px;
+            border: 2px solid gray;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 50px;
+            text-align: left;
+            font: bold 14px ;
+            font-stretch: condensed;
+            text-decoration: none;
+            color: #FFF;
+            font-size: 1em;
+            line-height: 1.5;
+            z-index: 999999;
+        }
+    `);
+
+    GM_addStyle(`
+        .tooltip5 {
+            radius: 4px !important;
+            background-color: #000000 !important;
+            filter: alpha(opacity=80);
+            opacity: 0.80;
+            padding: 5px 20px;
+            border: 2px solid gray;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 10px;
+            text-align: left;
+            font: bold 14px ;
+            font-stretch: condensed;
+            text-decoration: none;
+            color: #FFF;
+            font-size: 1em;
+            z-index: 999999;
+        }
+    `);
+
+    GM_addStyle(`
+        .tooltip6 {
+            position: relative;
+            top: 225px !important;
+            left: 480px !important;
+            transform: translateX(-110%);
+            background-color: #000000 !important;
+            filter: alpha(opacity=80);
+            opacity: 0.80;
+            padding: 5px 20px;
+            border: 2px solid gray;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 10px;
+            text-align: left;
+            font-weight: bold !important;
+            font-stretch: condensed;
+            text-decoration: none;
+            color: #FFF;
+            font-size: 13px;
+            line-height: 1.5;
+            z-index: 999;
+        }
+    `);
+}
+
+
+
+
+
 
