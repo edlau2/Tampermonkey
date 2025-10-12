@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.1
+// @version     1.3
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,9 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.0';
+const thisLibVer = '1.3';
+
+const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
 // Enables the debug() log function, can be set by scripts as needed.
 var debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
@@ -26,6 +28,7 @@ const epochTime = () => { return new Date().getTime(); }
 const log = (...data) => { console.log(GM_info.script.name + ': ', ...data);}
 const logtTime = () => { return (parseInt(epochTime()/1000) % 60) + '.' + epochTime() % 1000; }
 const logt = (...data) => { console.log(logtTime() + " " + GM_info.script.name + ': ', ...data); }
+const logtm = (...data) => { console.log(parseInt((epochTime()/1000) / 60) + '.' +logtTime() + " " + GM_info.script.name + ': ', ...data); }
 const debug = (...data) => { if (debugLoggingEnabled) { console.log(GM_info.script.name + ': ', ...data); }}
 
 const logScriptStart = () => {
@@ -181,12 +184,13 @@ function secsToClock(secsLeft) {
 }
 
 // Get a user ID from href, Cartel Empire specific
-const idFromHref = (href) => { return href.substring(href.lastIndexOf('/') + 1); }
+const idFromHref = (href) => { return href ? href.substring(href.lastIndexOf('/') + 1) : 0; }
 
 // ==================== Generic Cartel Empire API call for user stats ==============================
 // Success result callback sig: callback(response, status, xhr, id) {}
 // type is one or more of Basic, Advanced, Cooldowns, Battle Stats, Status, Attacks, Events, Graph
 function ce_getUserStats(id, type, callback) {
+    if (!id) return console.error("[ce_getUserStats] Error: id is required");
     const url = `https://cartelempire.online/api/user?id=${id}&type=${type}&key=${api_key}`;
     $.ajax({
         url: url,
