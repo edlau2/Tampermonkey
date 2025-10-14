@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.3
+// @version     1.4
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -34,6 +34,20 @@ const debug = (...data) => { if (debugLoggingEnabled) { console.log(GM_info.scri
 const logScriptStart = () => {
     console.log(GM_info.script.name + ' version ' +
         GM_info.script.version + ' script started, library version ' + thisLibVer);
+}
+
+// ============================== get user ID ===================================
+
+const initUserId = () => {
+    let id = GM_getValue("user_id", null);
+    if (!id) id = $("#userId").attr("userId");
+    if (!id) {
+        id = prompt("Please enter your User ID, I couldn't find it!");
+    }
+    if (id) {
+        GM_setValue("user_id", id);
+    }
+    return id;
 }
 
 // ======================= API Key request, if required ==========================
