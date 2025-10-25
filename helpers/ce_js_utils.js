@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.4
+// @version     1.5
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.3';
+const thisLibVer = '1.5';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -220,6 +220,23 @@ function ce_getUserStats(id, type, callback) {
     });
 }
 
+// Similar, for items
+function ce_getItemsList(type, callback) {
+    const url = `https://cartelempire.online/api/items?type=${type}&key=${api_key}`;
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function (response, status, xhr) {
+            if (response.error) { return log("ajax error: ", response); }
+            callback(response, status, xhr);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error("Error in ajax lookup: ", textStatus,
+                          "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+        }
+    });
+}
+
 // ============= Display an alert that can time out ==============
 
 async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
@@ -371,11 +388,11 @@ const loadScript = (file, noisy) => {
 
     if (noisy == true) {
       newScript.onload = () => {
-        displayMessage(`${file} loaded successfully.`, 'success');
+        debug(`${file} loaded successfully.`, 'success');
       };
 
       newScript.onerror = () => {
-        displayMessage(`Error loading script: ${file}`, 'error');
+        debug(`Error loading script: ${file}`, 'error');
       };
     }
 
