@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.5';
+const thisLibVer = '1.6';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
