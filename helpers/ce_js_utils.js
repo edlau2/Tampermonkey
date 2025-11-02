@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.5
+// @version     1.6
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -199,6 +199,26 @@ function secsToClock(secsLeft) {
 
 // Get a user ID from href, Cartel Empire specific
 const idFromHref = (href) => { return href ? href.substring(href.lastIndexOf('/') + 1) : 0; }
+
+// ==================== Generic Cartel Empire API call  ==============================
+// Success result callback sig: callback(response, status, xhr, id, param) {}
+
+function ce_executeApiCall(category, id, type, callback, param) {
+    let idParam = id ? `id=${id}&` : '';
+    const url = `https://cartelempire.online/api/${category}?${idParam}type=${type}&key=${api_key}`;
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function (response, status, xhr) {
+            if (response.error) { return log("ajax error: ", response); }
+            callback(response, status, xhr, id, param);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error("Error in ajax lookup: ", textStatus,
+                          "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+        }
+    });
+}
 
 // ==================== Generic Cartel Empire API call for user stats ==============================
 // Success result callback sig: callback(response, status, xhr, id) {}
