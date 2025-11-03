@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.6
+// @version     1.7
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -216,6 +216,7 @@ function ce_executeApiCall(category, id, type, callback, param) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
         }
     });
 }
@@ -236,6 +237,7 @@ function ce_getUserStats(id, type, callback) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
         }
     });
 }
@@ -253,6 +255,7 @@ function ce_getItemsList(type, callback) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
         }
     });
 }
