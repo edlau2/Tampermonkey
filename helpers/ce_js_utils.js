@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.7
+// @version     1.8
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.6';
+const thisLibVer = '1.8';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -203,9 +203,17 @@ const idFromHref = (href) => { return href ? href.substring(href.lastIndexOf('/'
 // ==================== Generic Cartel Empire API call  ==============================
 // Success result callback sig: callback(response, status, xhr, id, param) {}
 
-function ce_executeApiCall(category, id, type, callback, param) {
+function ce_executeApiCall(category, id, type, callback, opts=null, param=null) {
     let idParam = id ? `id=${id}&` : '';
     const url = `https://cartelempire.online/api/${category}?${idParam}type=${type}&key=${api_key}`;
+    if (opts != null) {
+        let keys = Object.keys(opts);
+        for (let idx=0; idx<keys.length; idx++) {
+            let key = keys[idx], val = opts[key];
+            url += `&${key}=${val}`;
+            //url += `&${keys[idx]}=${opts[keys[idx]]}`;
+        }
+    }
     $.ajax({
         url: url,
         type: 'GET',
