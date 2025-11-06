@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.8
+// @version     1.9
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.8';
+const thisLibVer = '1.9';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -221,10 +221,19 @@ function ce_executeApiCall(category, id, type, callback, opts=null, param=null) 
             if (response.error) { return log("ajax error: ", response); }
             callback(response, status, xhr, id, param);
         },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error("Error in ajax lookup: ", textStatus,
-                          "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
+        //error: function (jqXHR, textStatus, errorThrown) {
+        //    console.error("Error in ajax lookup: ", textStatus,
+        //                  "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
+        //    callback({error: jqXHR}, jqXHR.statusText, jqHXR, id);
+        //},
+        error: function(jqXHR, textStatus, errorThrown) {
+            console.error("AJAX Error:", textStatus, errorThrown, 
+                "\nStatus Code:", jqXHR.status, "\nResponse Text:", jqXHR.responseText);
+            // You can also access responseJSON if the server sent JSON and it failed to parse
+            if (jqXHR.responseJSON) {
+                log("Response JSON:", jqXHR.responseJSON);
+            }
+            callback({error: jqXHR}, jqXHR.statusText, jqHXR, id);
         }
     });
 }
