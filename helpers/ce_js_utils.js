@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.9
+// @version     1.10
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.9';
+const thisLibVer = '1.10';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -200,7 +200,34 @@ function secsToClock(secsLeft) {
 // Get a user ID from href, Cartel Empire specific
 const idFromHref = (href) => { return href ? href.substring(href.lastIndexOf('/') + 1) : 0; }
 
-// ==================== Generic Cartel Empire API call  ==============================
+// ========================== Hash a URL into a small one ===============================
+
+async function hashUrlToId(url, length = 7) {
+  const textEncoder = new TextEncoder();
+  const data = textEncoder.encode(url);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  let num = 0;
+  for (let i = 0; i < Math.min(length, hashArray.length); i++) {
+    num = (num * 256) + hashArray[i];
+  }
+
+  const base62Chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let result = "";
+  while (num > 0) {
+    result = base62Chars[num % 62] + result;
+    num = Math.floor(num / 62);
+  }
+
+  while (result.length < length) {
+    result = "0" + result;
+  }
+
+  return result.substring(0, length); // Ensure the final length
+}
+
+// ======================= Generic Cartel Empire API call  ==============================
 // Success result callback sig: callback(response, status, xhr, id, param) {}
 
 function ce_executeApiCall(category, id, type, callback, opts=null, param=null) {
