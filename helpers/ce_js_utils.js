@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.10
+// @version     1.11
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.10';
+const thisLibVer = '1.11';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -202,7 +202,7 @@ const idFromHref = (href) => { return href ? href.substring(href.lastIndexOf('/'
 
 // ========================== Hash a URL into a small one ===============================
 
-async function hashUrlToId(url, length = 7) {
+function hashUrlToId(url, length = 7) {
   const textEncoder = new TextEncoder();
   const data = textEncoder.encode(url);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
