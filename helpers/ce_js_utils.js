@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.12
+// @version     1.13
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.12';
+const thisLibVer = '1.13';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -260,7 +260,7 @@ function ce_executeApiCall(category, id, type, callback, opts=null, param=null) 
             if (jqXHR.responseJSON) {
                 log("Response JSON:", jqXHR.responseJSON);
             }
-            callback({error: jqXHR}, jqXHR.statusText, jqHXR, id);
+            callback({error: jqXHR}, jqHXR, jqHXR, id);
         }
     });
 }
@@ -281,7 +281,7 @@ function ce_getUserStats(id, type, callback) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
+            callback({error: jqXHR}, jqXHR, jqHXR, id);
         }
     });
 }
@@ -299,7 +299,7 @@ function ce_getItemsList(type, callback) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: jqXHR.responseText}, jqXHR.statusText, jqHXR, id);
+            callback({error: jqXHR}, jqHXR, jqHXR, id);
         }
     });
 }
