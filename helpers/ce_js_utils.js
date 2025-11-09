@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.14
+// @version     1.15
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.14';
+const thisLibVer = '1.15';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -260,12 +260,12 @@ function ce_executeApiCall(category, id, type, callback, opts=null, param=null) 
         //},
         error: function(jqXHR, textStatus, errorThrown) {
             console.error("AJAX Error:", textStatus, errorThrown, 
-                "\nStatus Code:", jqXHR.status, "\nResponse Text:", jqXHR.responseText);
+                "\nRequest obj:", jqXHR);
             // You can also access responseJSON if the server sent JSON and it failed to parse
-            if (jqXHR.responseJSON) {
-                log("Response JSON:", jqXHR.responseJSON);
-            }
-            callback({error: jqXHR}, jqHXR, jqHXR, id);
+            //if (jqXHR.responseJSON) {
+            //    log("Response JSON:", jqXHR.responseJSON);
+            //}
+            callback({error: jqXHR}, textStatus, jqXHR, id);
         }
     });
 }
@@ -285,8 +285,8 @@ function ce_getUserStats(id, type, callback) {
         },
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
-                          "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: jqXHR}, jqXHR, jqHXR, id);
+                "\nRequest obj:", jqXHR);
+            callback({error: jqXHR}, textStatus, jqHXR, id);
         }
     });
 }
@@ -304,7 +304,7 @@ function ce_getItemsList(type, callback) {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error("Error in ajax lookup: ", textStatus,
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: jqXHR}, jqHXR, jqHXR, id);
+            callback({error: jqXHR}, textStatus, jqHXR, id);
         }
     });
 }
