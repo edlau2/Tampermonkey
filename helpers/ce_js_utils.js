@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.13
+// @version     1.14
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,12 +17,17 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.13';
+const thisLibVer = '1.14';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
 // Enables the debug() log function, can be set by scripts as needed.
 var debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);
+
+const secsInMin = 60 * 60;
+const secsInHr = secsInMin * 60;
+const secsInDay = secsInHr * 24;
+
 const epochTime = () => { return new Date().getTime(); }
 
 const log = (...data) => { console.log(GM_info.script.name + ': ', ...data);}
