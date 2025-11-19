@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        ce_js_utils
-// @version     1.16
+// @version     1.17
 // @namespace   http://tampermonkey.net/
 // @description Common JS functions for Cartel Empire
 // @author      xedx
@@ -17,7 +17,7 @@
 /*eslint no-multi-spaces: 0*/
 
 // Should match version above
-const thisLibVer = '1.16';
+const thisLibVer = '1.17';
 
 const  deepCopy = (src) => { return JSON.parse(JSON.stringify(src)); }
 
@@ -259,13 +259,13 @@ function ce_executeApiCall(category, id, type, callback, opts=null, param=null) 
         //    callback({error: jqXHR}, jqXHR.statusText, jqHXR, id);
         //},
         error: function(jqXHR, textStatus, errorThrown) {
-            console.error("AJAX Error:", textStatus, errorThrown, 
+            console.error("AJAX Error:", (jqXHR ? jqXHR.responseText : 'unknown'),
                 "\nRequest obj:", jqXHR);
             // You can also access responseJSON if the server sent JSON and it failed to parse
             //if (jqXHR.responseJSON) {
             //    log("Response JSON:", jqXHR.responseJSON);
             //}
-            callback({error: textStatus});
+            callback({ req: jqXHR, error: (jqXHR ? jqXHR.responseText : 'unknown') });
         }
     });
 }
@@ -284,9 +284,9 @@ function ce_getUserStats(id, type, callback) {
             callback(response, status, xhr, id);
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            console.error("Error in ajax lookup: ", textStatus,
+            console.error("Error in ajax lookup: ", (jqXHR ? jqXHR.responseText : 'unknown'),
                 "\nRequest obj:", jqXHR);
-            callback({error: textStatus});
+            callback({ req: jqXHR, error: (jqXHR ? jqXHR.responseText : 'unknown') });
         }
     });
 }
@@ -302,9 +302,9 @@ function ce_getItemsList(type, callback) {
             callback(response, status, xhr);
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            console.error("Error in ajax lookup: ", textStatus,
+            console.error("Error in ajax lookup: ", (jqXHR ? jqXHR.responseText : 'unknown'),
                           "\nError jqXHR: ", jqXHR, "\nError thrown: ", errorThrown);
-            callback({error: textStatus});
+            callback({ req: jqXHR, error: (jqXHR ? jqXHR.responseText : 'unknown') });
         }
     });
 }
@@ -790,7 +790,6 @@ function addToolTipStyle() {
         }
     `);
 }
-
 
 
 
