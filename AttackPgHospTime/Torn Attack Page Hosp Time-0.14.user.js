@@ -56,9 +56,11 @@
     var apiTimer = null;
     function queryCb(responseText, ID, param) {
         let jsonObj = JSON.parse(responseText);
-        if (jsonObj.error) return;
-        let status = jsonObj.profile ? jsonObj.profile.status : jsonObj.status;
-        debug("json: ", JSON.stringify(status, null, 4));
+        if (jsonObj.error) {
+            debug("[queryCb] ERROR: ", jsonObj);
+            return;
+        }
+        let status = jsonObj.profile.status;
         if (!status || status.state != "Hospital") {
             $("#time-wrap").remove();
             clearInterval(apiTimer);
@@ -79,8 +81,8 @@
         if ($("#time-wrap").length > 0) return;
         let hdr = $("[class^='titleContainer_'] > h4");
         if (!$(hdr).length) {
-            if (retries++ < 50) return setTimeout(startHospTimer, 250, retries);
-            return log("[startHospTimer] timed out.");;
+            if (retries++ < 20) return setTimeout(startHospTimer, 250, retries);
+            return;
         }
         
         GM_addStyle(`
