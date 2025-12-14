@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Torn Gym Gains
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.6
 // @description  Creates new expandable DIVs on Gym page with gym gains, perks and bat stats displayed
 // @author       xedx [2100735]
 // @match        https://www.torn.com/gym.php
+// @rxequire      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @require      https://raw.githubusercontent.com/edlau2/Tampermonkey/master/helpers/Torn-JS-Helpers.js
 // @connect      api.torn.com
 // @grant        GM_addStyle
@@ -16,24 +17,56 @@
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
+/*eslint curly: 0*/
 /*eslint no-multi-spaces: 0*/
 /*eslint no-sequences: 0*/
 
 (function() {
     'use strict';
 
-    debugLoggingEnabled = false;
+    // TBD: add right-click to config?
+    //
+    // Give each div a fake class, like x-gym-g No just use outer
+    // div - "xedx-gym-gains-wrap"!
+    //
+    // Do right on insert?
+    // If hidden maybe delay some of the UI building?
+    //
+    // Get the toggle or show/hide from life bar script
+    // Try migrating to new helper lib for CSS, put gym gains
+    // CSS into helper lib also? To prevent conflicts?
+    // addGymGainStyles(), or make more 'generic'?
+    //
+    const useAnimation = false;
+    var startHidden = GM_getValue("startHidden", false);            // Need way to unhide....
+    debugLoggingEnabled = GM_getValue("debugLoggingEnabled", false);  // When enabled, 'debug(...)' is turned on
+
+    GM_setValue("startHidden", startHidden);
+    GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
+
+    log("startHidden: ", startHidden);
 
     //////////////////////////////////////////////////////////////////////
     // Build the Gym Gains div, append above the 'gymroot' div
     //////////////////////////////////////////////////////////////////////
 
+    // Clone this div first,seems to get wonky after animation
+    // notificationWrapper___jtZXo
+    //var savedNotifictionWrap;
+
     function buildGymGainsDiv() {
+        log("buildGymGainsDiv");
+
+        //savedNotifictionWrap = $("[class^='notificationWrapper__']").clone(true);
+        //log("clone: ", $(savedNotifictionWrap));
+
         let testDiv = document.getElementById('xedx-gym-gains-wrap');
         if (validPointer(testDiv)) {return;} // Only do this once
 
         let refDiv = document.getElementById('gymroot');
-        if (!validPointer(refDiv)) {return;}
+        log("buildGymGainsDiv, refDiv: ", refDiv);
+        if (!refDiv)
+            return setTimeout(buildGymGainsDiv, 200);
 
         $(torn_gym_gains_div).insertBefore(refDiv);
 
@@ -44,6 +77,9 @@
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // Function to add onClick() handlers
     ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+    const toggleClass = function(sel, classA, classB) {
+        if ($(sel).hasClass(classA)) {$(sel).removeClass(classA).addClass(classB);} else {$(sel).removeClass(classB).addClass(classA);}}
 
     function addOnClickHandlers() {
         let gymDiv = document.getElementById('gymroot');
@@ -63,6 +99,18 @@
 
             arrowDiv.addEventListener("click", function(e) {
                 debug('Click: ', e);
+
+                toggleClass(bodyDiv, "xhide", "xshow");
+                if ($(bodyDiv).hasClass("xhide"))
+                    headerDiv.className = 'title main-title title-black border-round';
+                if ($(bodyDiv).hasClass("xshow")) {
+                    headerDiv.className = 'title main-title title-black top-round active';
+                    if (headerDiv.id == 'xedx-bat-stats-hdr-div') {
+                        doUserQuery();
+                    }
+                }
+
+                /*
                 if (bodyDiv.style.display === "block") {
                     bodyDiv.style.display = "none";
                     headerDiv.className = 'title main-title title-black border-round';
@@ -73,6 +121,8 @@
                         doUserQuery();
                     }
                 }
+                */
+
             });
         }
     }
@@ -262,7 +312,9 @@
     function populateGymGainsDiv(responseText, id=null, unused=null) {
         log('[populateGymGainsDiv]');
         let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleApiError(responseText);}
+        if (jsonResp.error) {
+            return log("[fillGymDetailsDiv] JSON error: ", responseText);
+        }
 
         const ul = document.getElementById('gym-gains-list');
         resetGains(ul);
@@ -354,7 +406,9 @@
         let contentId = 'xedx-gymsum-contid';
 
         let jsonResp = JSON.parse(responseText);
-        if (jsonResp.error) {return handleApiError(responseText);}
+        if (jsonResp.error) {
+            return log("[fillGymDetailsDiv] JSON error: ", responseText);
+        }
 
         let e1 = document.getElementById(span1id);
         let e2 = document.getElementById(span2id);
@@ -393,6 +447,201 @@
         observer.observe(targetNode, config);
     }
 
+    // ==============================================================================
+
+    
+
+    // This adds a button to the title bar toshow/hide the details pane.
+    // The last state is preserved when you leave and come back.
+    function addTopBarButton() {
+        log("[addTopBarButton]");
+
+        // This style worked when it just said "click" Maybe I added t center?
+        // Try justify-content, unless need flex...
+        GM_addStyle(".xx123 {  margin-left: 3px; margin-right: 5px;}");
+        addTornButtonExStyles();
+
+        if ($("#xedx-misc-btn").length > 0) return;
+
+        let name = $("#skip-to-content");
+        let myButton = `<span style="display: flex;">
+                            <input id="xedx-misc-btn" type="submit" class="xedx-torn-btn xx123"
+                             style="display: inline-flex; justify-content: center;" value="Click">
+                        </span>`;
+        $(name).after(myButton);
+
+        $("#xedx-misc-btn").on('click', useAnimation ? showHideGymDiv : showHideGymDivOrg);
+
+        if ($("#xedx-gym-gains-wrap").hasClass("xhide")) {
+            $("#xedx-misc-btn").val("Show Detail");
+        } else {
+            $("#xedx-misc-btn").val("Hide Detail");
+        }
+    }
+
+    function gymAnimateComplete(wasHidden) {
+        log("gymAnimateComplete: ", wasHidden);
+
+        let tmp = $("#xedx-gym-gains-wrap").css("height");
+        let height = parseInt(tmp);
+
+        $("#xedx-gym-gains-ext2").css("height", 30);
+        $("#xedx-gym-gains-ext1").css("height", 30);
+        $("#xedx-gym-gains-ext3").css("height", 30);
+
+        if (height == 0) {
+            $("[class^='notificationText_']").parent().css({position: 'relative'});
+            $("[class^='notificationText_']").css({top: 0, left: 0, position:'absolute'});
+
+            $("[class^='logoWrapper__']").parent().css({position: 'relative'});
+            $("[class^='logoWrapper__']").css({top: 0, left: 664, position:'absolute'});
+
+            $("[class^='innerLogoWrapper__']").parent().css({position: 'relative'});
+            $("[class^='innerLogoWrapper__']").css({top: 0, left: 0, position:'absolute'});
+
+            toggleClass("#xedx-gym-gains-wrap", "xshow", "xhide");
+        }
+
+        //if (!wasHidden) {
+        //    toggleClass("#xedx-gym-gains-wrap", "xshow", "xhide");
+        //}
+    }
+
+    function showHideGymDiv() {
+        let isHidden = $("#xedx-gym-gains-wrap").hasClass("xhide");
+
+        // Use flag, not size? Both? Dont want child divs to automatically ALL pop up..
+        let tmp = $("#xedx-gym-gains-wrap").css("height");
+        let height = parseInt(tmp);
+        log("tmp: ", tmp, " height: ", height);
+
+        let size = "164px";
+        if (height != 0) { // && !isHidden) {
+            size = "0px";
+        } else {
+            // Can turn off xhide so can see it slide...
+            toggleClass("#xedx-gym-gains-wrap", "xshow", "xhide");
+        }
+
+        $(".xhideshow" ).animate({
+            height: size,
+        }, 1500, function() {
+            gymAnimateComplete(isHidden);
+            log("done animating");
+        });
+    }
+
+    // Using transitions...
+    function showHideGymDiv3() {
+        log("showHideGymDiv");
+
+        let divElem = document.querySelector("#xedx-gym-gains-wrap");
+        log("elem: ", divElem);
+
+        divElem.classList.toggle("showing");
+
+        log("gym wrap: ", $("#xedx-gym-gains-wrap"));
+    }
+
+    // =======================================
+
+    function addAccordianStyles() {
+        GM_addStyle(`
+            .accordion{
+              display: inline-block;
+              text-align: left;
+              margin: 1%;
+              width: 70%;
+
+              &:hover{
+                .accordion-content{
+                  max-height: 300px;
+                }
+              }
+            }
+
+            .accordion-content{
+              -webkit-transition: max-height 1s;
+              -moz-transition: max-height 1s;
+              -ms-transition: max-height 1s;
+              -o-transition: max-height 1s;
+              transition: max-height 1s;
+              background: #e5feff;
+              overflow: hidden;
+              max-height: 0;
+            }
+
+            .accordion-inner{
+              padding: 0 15px;
+            }
+
+            .accordion-toggle{
+              -webkit-transition: background .1s linear;
+              -moz-transition: background .1s linear;
+              -ms-transition: background .1s linear;
+              -o-transition: background .1s linear;
+              transition: background .1s linear;
+              background: #00b8c9;
+              border-radius: 3px;
+              color: #fff;
+              display: block;
+              font-size: 30px;
+              margin: 0 0 10px;
+              padding: 10px;
+              text-align: center;
+              text-decoration: none;
+
+              &:hover{
+                background: darken(#00b8c9, 15%);
+              }
+              `);
+    }
+
+    // ==============================================
+
+    var isHidden = false;        // Just check for class exisitng....
+    var gymDivHeight = 0;
+
+    // this works fine
+    function showHideGymDivOrg() {
+
+        // Toggle state (visible/hidden)
+        log("showHideGymDiv");
+        toggleClass("#xedx-gym-gains-wrap", "xshow", "xhide");
+
+        // Change button text appropriately
+        startHidden = $("#xedx-gym-gains-wrap").hasClass("xhide");
+        $("#xedx-misc-btn").val(startHidden ? "Show Detail" : "Hide Detail");
+
+        // Save for when page is next loaded
+        log("Set storage: ", $("#xedx-gym-gains-wrap").hasClass("xhide"));
+        log("Set storage, startHidden: ", startHidden);
+        log("Set storage: ", $("#xedx-gym-gains-wrap"));
+        GM_setValue("startHidden", startHidden);
+
+        log("[showHideGymDiv]");
+    }
+
+    // Doesn't work quire right yet...maybe need to collapse each section?
+    // Like an accordian?
+    function animateGymDiv(size) {
+        log("animateGymDiv: size: ", size);
+
+        $( "#xedx-gym-gains-wrap" ).animate({
+            height: size,
+        }, 1500, function() {
+            gymAnimateComplete();
+            log("done animating");
+        });
+    }
+
+    // #skip-to-content
+    function installContextToUnhide() {
+        let targetForUnhideBtn = "#skip-to-content";
+
+        addTopBarButton();
+    }
+
     //////////////////////////////////////////////////////////////////////
     // Main entry point. Start an observer so that we trigger when we
     // actually get to the page(s) - technically, when the page(s) change.
@@ -403,6 +652,15 @@
     validateApiKey();
     versionCheck();
 
+    loadMiscStyles();
+
+    var showDirective = "xshow";    // use "showing" for transition animation
+    if (startHidden) {
+        showDirective = "xhide";
+    }
+    installContextToUnhide();
+
+    /*
     var targetNode = document.getElementById('gymroot');
     var config = { attributes: false, childList: true, subtree: true };
     var callback = function(mutationsList, observer) {
@@ -411,6 +669,7 @@
     };
     var observer = new MutationObserver(callback);
     observer.observe(targetNode, config);
+    */
 
     GM_addStyle(`
         .xedx_mleft {margin-left: 10px;}
@@ -426,22 +685,67 @@
         return darkMode() ? `style="color: rgb(221, 221, 221);"` : `style="color: black;"`;
     }
 
+    // Experimental styles - used to be able transition from display: blobk to none and back,
+    // as opposed to 'sliding' the height - which I had probs with, will see which I like best
+    //
+    GM_addStyle(`
+        .x-opacity-wrap-org {
+             display: none;
+             opacity: 0;
+             transition:
+                 opacity 1s,
+                 display 1s;
+        }
+
+        .x-opacity-wrap {
+             height: 0;
+             opacity: 0;
+             transition:
+                 opacity 1s,
+                 height 1s;
+        }
+
+        .showing {
+            opacity: 1;
+            height: auto;
+        }
+
+        .showing-org {
+            opacity: 1;
+            display: block;
+        }
+
+        @starting-style {
+            .showing {
+                opacity: 0;
+            }
+        }
+
+    `);
+
+    // For transition animation:
+    // `<div class="x-opacity-wrap content m-top10 sortable-list ui-sortable ` + showDirective + `" id="xedx-gym-gains-wrap">
+    //
+    //  <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-gym-gains-body">
+    // <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-bat-stats-body">
+    // <div class="bottom-round" style="display: block; overflow: hidden" id="xedx-summary-body">
+
     const torn_gym_gains_div =
-          `<div class="content m-top10 sortable-list ui-sortable" id="xedx-gym-gains-wrap">
+          `<div class="xhideshow content m-top10 sortable-list ui-sortable ` + showDirective + `" id="xedx-gym-gains-wrap">
             <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext0">
                 <div class="title main-title title-black top-round" role="table" aria-level="5" id="xedx-gym-gains-hdr-div">
                     <div class="arrow-wrap sortable-list">
                         <a role="button" href="#/" class="accordion-header-arrow right"></a>
                     </div>Gym Gains (detailed)
                 </div>
-                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-gym-gains-body">
+                <div class="bottom-round xhide xhideshow" style="overflow: hidden;" id="xedx-gym-gains-body">
                     <div class="cont-gray" style="height: auto;">
                         <ul class="info-cont-wrap" id="gym-gains-list"></ul>
                     </div>
                 </div>
             </div>
             <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
-            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext2">
+            <div class="xhideshow sortable-box t-blue-cont h" id="xedx-gym-gains-ext2">
                 <div class="title main-title title-black border-round" role="table" aria-level="5" id="xedx-bat-stats-hdr-div">
                     <div class="arrow-wrap sortable-list">
                         <a role="button" href="#/" class="accordion-header-arrow right"></a>
@@ -452,7 +756,7 @@
                         <span id="xedx-stat-eff" class="xedx-stat-span">Effective:</span>
                     </div>
                 </div>
-                <div class="bottom-round" style="display: none; overflow: hidden;" id="xedx-bat-stats-body">
+                <div class="xhideshow bottom-round xhide" style="overflow: hidden;" id="xedx-bat-stats-body">
                     <div class="cont-gray" style="height: auto;" id="xedx-bat-stats">
                         <table id="xedx-bat-stat-table" style="width: 782px;">
                             <tbody>
@@ -505,9 +809,9 @@
                 </div>
             </div>
             <hr class="delimiter-999" style="margin-top: 5px; margin-bottom: 5px;">
-            <div class="sortable-box t-blue-cont h" id="xedx-gym-gains-ext1">
+            <div class="xhideshow sortable-box t-blue-cont h" id="xedx-gym-gains-ext1">
                 <div class="title main-title title-black top-round active" role="table" aria-level="5">Gym Gains (summary)</div>
-                <div class="bottom-round" style="display: block; overflow: hidden" id="xedx-summary-body">
+                <div class="bottom-round xshow" style="overflow: hidden" id="xedx-summary-body">
                     <div class="cont-gray" style="text-align: center; vertical-align: middle; line-height: 24px;" id="xedx-summary-div">
                         Strength:<span style="color: red; margin: 10px">+0%</span>
                         Defense:<span style="color: red; margin: 10px">+0%</span>
@@ -518,6 +822,17 @@
                 </div>
             </div>
         </div>`;
+
+
+    var targetNode = document.getElementById('gymroot');
+    log("targetNode: ", targetNode);
+    var config = { attributes: false, childList: true, subtree: true };
+    var callback = function(mutationsList, observer) {
+        observer.disconnect();
+        buildGymGainsDiv();
+    };
+    var observer = new MutationObserver(callback);
+    observer.observe(targetNode, config);
 
 })();
 
