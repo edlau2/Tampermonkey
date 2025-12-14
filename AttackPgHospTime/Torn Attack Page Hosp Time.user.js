@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Attack Page Hosp Time
 // @namespace    http://tampermonkey.net/
-// @version      0.13
+// @version      0.14
 // @description  Display remaining hosp time on attack loader page
 // @author       xedx [2100735]
 // @match        https://www.torn.com/loader.php?sid=attack&user2ID*
@@ -49,15 +49,19 @@
 
     validateApiKey();
     addTornButtonExStyles();
+    debug("[calling getHospTime]");
     getHospTime();
 
     var outAt = 0;
     var clockTimer = null;
     var apiTimer = null;
     function queryCb(responseText, ID, param) {
+        debug("[queryCb]: ", responseText);
         let jsonObj = JSON.parse(responseText);
-        if (jsonObj.error) return;
-        let status = jsonObj.status;
+        if (jsonObj.error) {
+            return;
+        }
+        let status = jsonObj.profile.status;
         if (!status || status.state != "Hospital") {
             $("#time-wrap").remove();
             clearInterval(apiTimer);
@@ -75,6 +79,7 @@
     }
 
     function startHospTimer(retries=0) {
+        debug("[startHospTimer]");
         if ($("#time-wrap").length > 0) return;
         let hdr = $("[class^='titleContainer_'] > h4");
         if (!$(hdr).length) {
