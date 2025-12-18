@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Shared Vault Balance
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  This script tracks your balance in a shared vault
 // @author       xedx [2100735]
 // @match        https://www.torn.com/properties.php*
@@ -46,7 +46,17 @@
     var totalWithdrawals = parseInt(GM_getValue("totalWithdrawals", 0));
     var balance = totalDeposits - totalWithdrawals; // parseInt(GM_getValue("balance", 0));
 
+    // let dt = new Date("04:27:23 12/11/25"); // Note for a JS date, swap a Torn  day/month with month/day!
+    // Divide getTime by 1000 to cvt to secs, to match the Torn date...
+    var initStartDate = GM_getValue("initStartDate", null);
+    if (initStartDate != null) {
+        GM_setValue("savedStartDate", initStartDate);
+        GM_setValue("initStartDate", null);
+        initStartDate = (new Date(initStartDate).getTime() / 1000) - 1;
+    }
+
     var resetAll = GM_getValue('resetAll', false);
+    var inResetAll = resetAll;
     if (resetAll == true) {
         lastEntry = 0;
         lastUpdate = 0;
@@ -54,7 +64,7 @@
         totalWithdrawals = 0;
         balance = 0;
     }
-
+    resetAll = false;
     GM_setValue('resetAll', false);
     GM_setValue("debugLoggingEnabled", debugLoggingEnabled);
     GM_setValue("devMode", devMode);
@@ -83,18 +93,20 @@
 
         debug("Most recent: ", (new Date(mostRecent * 1000)));
 
+        let oldestDate = mostRecent;
         logs.forEach(entry => {
             debug("Entry: ", (entry.timestamp > lastEntry), (new Date(entry.timestamp * 1000)));
-            if (entry.timestamp > lastEntry) {
+            if (entry.timestamp > lastEntry && entry.timestamp > initStartDate) {
                 if (entry.data.withdrawn) withdrawn = +withdrawn + parseInt(entry.data.withdrawn);
                 if (entry.data.deposited) deposited = +deposited + parseInt(entry.data.deposited);
                 dirty = true;
             }
+            if (entry.timestamp < oldestDate) oldestDate = entry.timestamp;
         });
 
         totalDeposits = Number(totalDeposits) + Number(deposited);
         totalWithdrawals = Number(totalWithdrawals) + Number(withdrawn);
-        balance = (totalDeposits - totalWithdrawals);
+        balance = balance + (totalDeposits - totalWithdrawals);
 
         debug("[logQueryCB] \ndeposits: ", deposited, "\nwithdrawals: ", withdrawn, "\nBalance: ", balance);
 
@@ -108,11 +120,19 @@
             GM_setValue("totalWithdrawals", totalWithdrawals);
         }
 
+        if (initStartDate && initStartDate < oldestDate && inResetAll == true) {
+            // recurse
+            updateBalance(Number(oldestDate) - 1);
+            let oldDate = new Date(Number(oldestDate) * 1000);
+            return log("Getting next log entries prior to ", oldDate);
+        }
+
+        inResetAll = false;
         if (!$("#xedx-vault-balance").length) installUI();
         updateTableData();
     }
 
-    function updateBalance() {
+    function updateBalance(to=0) {
         debug("[updateBalance]");
         let opts = {"log": "5850,5851"};
 
@@ -141,15 +161,15 @@
             for (const mutation of mutationsList) {
                 //debug(" mutation: ", mutation.type, mutation);
                 if (mutation.type === 'childList') {
-                    debug("**** childList: ", $(mutation.target), mutation.removedNodes, mutation.addedNodes);
+                    //debug("**** childList: ", $(mutation.target), mutation.removedNodes, mutation.addedNodes);
                     //mutation.addedNodes.forEach(node => {
                     for (let idx=0; idx<mutation.removedNodes.length; idx++) {
                         let node = mutation.removedNodes[idx];
-                        debug("**** Removed node: ", $(node), $(node).attr("id"));
+                        //debug("**** Removed node: ", $(node), $(node).attr("id"));
                     }
                 }
             }
-            debug("[observer] Checking table: ", $("#xedx-vault-balance").length, $("#xedx-vault-balance"));
+            //debug("[observer] Checking table: ", $("#xedx-vault-balance").length, $("#xedx-vault-balance"));
             if (!$("#xedx-vault-balance").length) installUI();
         });
 
