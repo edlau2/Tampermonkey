@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.28
+// @version     1.29
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -96,7 +96,7 @@
 
     let   xedxDevMode = GM_getValue("xedxDevMode", false);
     const enableScrollLock = GM_getValue("enableScrollLock", true);
-    const trackOkUsers = GM_getValue("trackOkUsers", true);
+    const trackOkUsers = GM_getValue("trackOkUsers", false);
     var updateUserCountsTimer;
     const updateIntervalSecs = GM_getValue("updateIntervalSecs", 3); // unused?
     const statusIntervalSecs = GM_getValue("statusIntervalSecs", 5);
@@ -150,7 +150,7 @@
             jsonObj = JSON.parse(responseText);
         } catch (e) {
             console.error("wall-batstats2 parse error: ", e, "\nresponse: ", responseText);
-            debugger;
+            //debugger;
             return;
         }
         if (jsonObj.error) return;
@@ -203,8 +203,8 @@
 
     function installExtraUiElements() {
         installTopBarLink();
-        if (trackOkUsers == true && enemyProfile == true)
-            installUsersBar(enemyID);
+        // if (trackOkUsers == true && enemyProfile == true)
+        //     installUsersBar(enemyID);
 
         function installTopBarLink(retries=0) {
             if ($("#xedx-bar").length) return;
@@ -222,6 +222,11 @@
     }
 
     function JSONparse(str) {
+        if (!str) {
+            debug("JSONParse ERROR: no str!");
+            //debugger;
+            return null;
+        }
       try {
         return JSON.parse(str);
       } catch (e) {
@@ -507,6 +512,8 @@
             if (secs <= 0) {
                 $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
                 //return false;
+
+                // ********************* If sorted by Status, re-sort! *********************
             }
             let useSecs = (secsOverride ? secsOverride : secs);
             let newTime = secsToTime(useSecs);
@@ -854,6 +861,7 @@
     }
 
     function showStats(node) {
+        debug("[showStats] node: ", $(node));
         if (!node) return;
 
         let id = node
@@ -884,6 +892,7 @@
     }
 
     function showStatsAll(node) {
+        debug("[showStatsAll]");
       if (!node)
         node = Array.from(
           document.querySelectorAll(".f-war-list .members-list, .members-list")
@@ -947,6 +956,7 @@
         factionNames.appendChild(filterNode);
 
         function filterFromTo() {
+            debug("[filterFromTo]");
           function formatInput(input) {
             let value = input.value.toLowerCase();
             let valueNum = value.replace(/[^\d]/g, "");
@@ -1190,6 +1200,8 @@
       socket.addEventListener("message", (event) => {
         let json = JSONparse(event.data);
 
+        if (!Object.keys(json).length) debug("No data in event ", event);
+
         if (
           !json?.result?.data?.data?.message?.namespaces?.users?.actions
             ?.updateStatus?.status
@@ -1297,61 +1309,13 @@
 
         return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_${entry.flag}.svg"
                 country="${entry.ctry}" alt="${entry.title}" title="${entry.title}"></li>`;
-
-        /*
-        //log("getAbroadFlag: ", country);
-        if (country == 'UK') {
-            return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_uk.svg"
-                country="united_kingdom" alt="United Kingdom" title="United Kingdom"></li>`;
-        }
-        if (country == 'Mexico') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_mexico.svg"
-                country="mexico" alt="Mexico" title="Mexico"></li>`;
-        }
-        if (country == 'Canada') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_canada.svg"
-                country="canada" alt="Canada" title="Canada"></li>`;
-        }
-        if (country == 'Argentina') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_argentina.svg"
-                country="argentina" alt="Argentina" title="Argentina"></li>`;
-        }
-        if (country == 'Hawaii') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_hawaii.svg"
-                country="hawaii" alt="Hawaii" title="Hawaii"></li>`;
-        }
-        if (country == 'Caymans') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_cayman.svg"
-                country="cayman_islands" alt="Cayman Islands" title="Cayman Islands"></li>`;
-        }
-        if (country == 'Zurich') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_switzerland.svg"
-                country="switzerland" alt="Switzerland" title="Switzerland"></li>`;
-        }
-        if (country == 'Japan') {
-            return `<li style=margin-bottom: 0px;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_japan.svg"
-                country="japan" alt="Japan" title="Japan"></li>`;
-        }
-        if (country == 'China') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_china.svg"
-                country="china" alt="China" title="China"></li>`;
-        }
-        if (country == 'UAE') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_uae.svg"
-                country="uae" alt="UAE" title="UAE"></li>`;
-        }
-        if (country == 'SA') {
-            return `<li style=margin-bottom: 0px;"><img class="flag" src="/images/v2/travel_agency/flags/fl_south_africa.svg"
-                country="south_africa" alt="South Africa" title="South Africa"></li>`;
-        }
-        */
     }
 
     function replaceDestFlag(userId, iconLi) {
         if (ourProfile == true || getPageTab() == 'info') return;
         let entry = enemyMembers[userId];
         if (!entry) {
-            return log("Error: no entry for user ID ", userId);
+            return debug("Error: no entry for user ID ", userId);
         }
         let country = getCountryFromStatus(entry.desc);
         if (country) {
@@ -1363,10 +1327,11 @@
     }
 
     // Can get this from members array!
+    // Need to handle war page if open - #faction_war_list_id > li.descriptions
     var travelTimer;
     function replaceTravelIcons(retries=0) {
         if (ourProfile == true || getPageTab() == 'info') return;
-        if (!travelTimer) travelTimer = setInterval(replaceTravelIcons, 10000);
+        if (!travelTimer) travelTimer = setInterval(replaceTravelIcons, 2000);
         let travelIcons = document.querySelectorAll("[id^='icon71___']");
 
         for (let i=0; i < $(travelIcons).length; i++) {
