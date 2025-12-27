@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.30
+// @version     1.31
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -203,8 +203,8 @@
 
     function installExtraUiElements() {
         installTopBarLink();
-        // if (trackOkUsers == true && enemyProfile == true)
-        //     installUsersBar(enemyID);
+        if (trackOkUsers == true && enemyProfile == true)
+            installUsersBar(enemyID);
 
         function installTopBarLink(retries=0) {
             if ($("#xedx-bar").length) return;
@@ -497,12 +497,19 @@
         }
         let title = $(iconNode).attr("title");
         if (userId == '1541749') log("Title: ", title);
-        if (!title) return 0;
+        if (!title) {
+            return debug("No title, return for ", $(statusNode));
+            //title = userId;
+        } else {
+            debug("Title found for ", $(statusNode), "\nTitel= ", title);
+        }
 
         if ($("#bsFakeDiv").length == 0)
             $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000px; left: -1000px;'></div>`);
-        $("#bsFakeDiv").empty();
-        $("#bsFakeDiv").html(title);
+        if (title) {
+            $("#bsFakeDiv").empty();
+            $("#bsFakeDiv").html(title);
+        }
 
         let timer = $("#bsFakeDiv > span.timer");
         let time = $(timer).text();
@@ -819,7 +826,9 @@
                     debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
             }
 
-            if(!$(statusNode).parent().parent().hasClass("bs-xhosp"))
+            if (!id) debug("No ID found for ", $(statusNode));
+
+            if (!$(statusNode).parent().parent().hasClass("bs-xhosp"))
                 $(statusNode).parent().parent().addClass("bs-xhosp");
 
             let secOverride;
@@ -868,7 +877,7 @@
     }
 
     function showStats(node) {
-        debug("[showStats] node: ", $(node));
+        //debug("[showStats] node: ", $(node));
         if (!node) return;
 
         let id = node
@@ -1833,7 +1842,7 @@
 
     GM_addStyle(`
         .blink2 {
-           color:  yellow !important;
+           color:  var(--default-orange-color) !important;
            animation: blinker 1.5s linear infinite;
        }
         .blink1 {
