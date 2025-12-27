@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.29
+// @version     1.30
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -371,6 +371,7 @@
     }
 
     function expSort(from) {
+        debug("[expSort]");
         let sortList = $(".faction-info-wrap  ul.table-body > li");
         debug("expSort, from: ", from, " ready: ", tableReady, " len: ", $(sortList).length, +bsSortOrder, sortOrders[+bsSortOrder]);
 
@@ -391,6 +392,7 @@
 
     // Get rid of other sort, where is it???
     function sortStats(node, sort) {
+        debug("[sortStats]");
       if (useCustSort) {
           if (!tableReady) return debug("Table not ready, not sorting yet!");
           return expSort('sortStats');
@@ -514,6 +516,7 @@
                 //return false;
 
                 // ********************* If sorted by Status, re-sort! *********************
+                expSort("hosp-time");
             }
             let useSecs = (secsOverride ? secsOverride : secs);
             let newTime = secsToTime(useSecs);
@@ -667,6 +670,10 @@
                 if (currState != prevState) {
                     if (noLog == false) log("***** State Change! From ", prevState, " to ", currState, " *****");
                     if (noLog == false) log("Member: ", member, "\nEntry: ", enemyMembers[member.id]);
+                    // ********** Re-sort
+                    if (currState == 'Okay') {
+                        expSort("hosp-time");
+                    }
                     logAfter = true;
                     if (currState == 'Traveling') { //started flying since last check
                         enemyMembers[member.id].estDpt = new Date().getTime();
@@ -1085,6 +1092,7 @@
           observeNode.parentNode.querySelector(".finally-bs-activeIcon")
         ) {
           mo.disconnect();
+          debug("In mutation, calling sort");
           useCustSort ? expSort('mutation') : sortStats(observeNode, observeNode.finallySort);
           prevSortCheck = Array.from(observeNode.querySelectorAll('a[href*="XID"]'))
             .map((a) => a.href)
@@ -1132,6 +1140,7 @@
       }
 
       bsNode.addEventListener("click", (e) => {
+          debug("on click, calling sort");
           useCustSort ? expSort('click') : sortStats(observeNode);
       });
       if (previousSort >= 0) {
@@ -1450,7 +1459,15 @@
         bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column;
         $(bsTableHeader).off();
 
+        debug("[initColWidths] Removing and adding click/sort handlers");
+        $(".members-list > ul.table-header > li.table-cell").off("click");
         $(".members-list > ul.table-header > li.table-cell").on("click", handleTableHeaderClick);
+
+        let list = $(".members-list > ul.table-header > li.table-cell");
+        for (let idx=0; idx<=8; idx++) {
+            debug("Add sort handler to ", $(list[idx]));
+            $(list[idx]).on("click", handleTableHeaderClick);
+        }
 
         // Make the body scrollable and header sticky
         if (enableScrollLock == true) {
@@ -1496,7 +1513,7 @@
     var detachedBs;
     var detachedother;
     function handleTableHeaderClick(e) {
-        log("handleTableHeaderClick");
+        log("handleTableHeaderClick - for sort");
         if ($(bsTableHeader).outerWidth() > 40) debugger;
         log("handleTableHeaderClick: ", $(e.currentTarget));
 
