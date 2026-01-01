@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.35
+// @version     1.36
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -132,9 +132,11 @@
 
     GM_addValueChangeListener("defSortOrder", handleStorageChange);
 
-    function saveSortOrder(order) {
-        debug("[saveSortOrder] order: ", parseInt(order), sortOrders[order]);
+    function saveSortOrder(order, index=-1) {
+        debug("[saveSortOrder] order: ", parseInt(order), sortOrders[order], " index: ", index);
         GM_setValue("defSortOrder", parseInt(order));
+        if (index > -1)
+            GM_setValue("defSortIndex", parseInt(index));
     }
 
     let bsCache = JSONparse(localStorage["finally.torn.bs"]) || {};
@@ -1630,18 +1632,20 @@
         }
     }
 
+    /*
     function adjustHdrsForFfScouter(retries=0) {
         if ($(".ff-scouter-est-hidden").length > 0 || $(".ff-scouter-ff-visible").length > 0) {
             ffScouterPresent = true;
             GM_addStyle(
                 `.d .faction-info-wrap .members-list .table-cell.position {
-                    width: 14% !important;
+                    width: 12% !important;
                  }`
             );
             debug("FFScouter present, widths adjusted");
         }
         if (ffScouterPresent == false && retries++ < 25) setTimeout(adjustHdrsForFfScouter, 5000, retries);
     }
+    */
 
     function addWarListClickHandlers() {
         let list =  $("#faction_war_list_id li.descriptions .members-cont > div > div:not(.clear):not(.attack)");
@@ -1669,6 +1673,12 @@
             return;
         }
 
+        GM_addStyle(
+            `.d .faction-info-wrap .members-list .table-cell.position {
+                width: 12% !important;
+             }`
+        );
+
         const divider = " | ";
         const tableHeader = $(".members-list > ul.table-header");
         const membersTable = $(".members-list > ul.table-body");
@@ -1682,7 +1692,7 @@
             addlFirstColWidth = parseInt($(ttIndexCol).outerWidth());
         }
 
-        adjustHdrsForFfScouter();
+        //adjustHdrsForFfScouter();
         //callOnContentComplete(adjustHdrsForFfScouter);
 
         // First row member icon cell, may be [0] or [1], depending on TT
@@ -1731,6 +1741,23 @@
             $(bsTableHeader).click();
             $(bsTableHeader).click();
         }
+
+        // Click the saved sort index, if any
+        // Set def order to opposite what we want
+        /*
+        bsSortOrder = (bsSortOrder == 0) ? 1 : 0;
+        defSortOrder = bsSortOrder;
+        currSortOrder = sortOrders[bsSortOrder];
+
+        let sortIdx = GM_getValue("defSortIndex", -1);
+        if (sortIdx > -1) {
+            bsSortOrder = (bsSortOrder == 0) ? 1 : 0;
+            defSortOrder = bsSortOrder;
+            currSortOrder = sortOrders[bsSortOrder];
+            let list = $(".members-list > ul.table-header > li.table-cell");
+            $($(list)[sortIdx]).click();
+        }
+        */
     }
 
     function getSortDirClassNames() {
@@ -1785,20 +1812,23 @@
         let node = e.currentTarget;
         let bsIconNode = $(bsTableHeader).find("[class*='activeIcon']"); // "BS" col sort flag
         let thisIconNode = $(node).find("[class*='activeIcon']")[0];     // Same on this node (mat be BS column also)
+        let nodeIndex = $(node).index();
 
         // log("activeSortIcon: ", $(activeSortIcon));
         // log("bs-sort-ico: ", $("#bs-sort-ico"));
         // log("bsIconNode: ", $(bsIconNode));
         // log("bsIconNode0: ", $($(bsIconNode)[0]));
 
-        debug("handleTableHeaderClick, defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder, " currSortOrder: ", currSortOrder);
+        debug("handleTableHeaderClick, defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder,
+              " currSortOrder: ", currSortOrder, " index: ", nodeIndex);
         bsSortOrder = (bsSortOrder == 0) ? 1 : 0;
         defSortOrder = bsSortOrder;
         currSortOrder = sortOrders[bsSortOrder];
 
         debug("(3) Setting defSortOrder to: ", defSortOrder);
         //GM_setValue("defSortOrder", defSortOrder);
-        saveSortOrder(bsSortOrder);
+
+        saveSortOrder(bsSortOrder, nodeIndex);
         debug("New defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder, " currSortOrder: ", currSortOrder);
 
         if (!$(node).hasClass("bs")) {
@@ -1843,210 +1873,6 @@
             log("bsIconNode: ", $(bsIconNode));
         }
     }
-
-    // ====================== Track OK/Online/Offline/Idle users =======================
-
-    /*
-    // === API call to get fac member IDs ===
-    var newFacMembersArray = {};
-    var statusTimer;
-
-    // Status/state vars
-    var online = 0;
-    var offline = 0;
-    var idle = 0;
-    var userCount = 0;
-
-    var totalFallen = 0;
-    var totalRecruit = 0;
-
-    var lastCountOnline = 0;
-    var thisCountOnline = 0;
-    var thisCountOffline = 0;
-    var thisCountIdle = 0;
-
-    function getFacStatus(ID) {
-        getStatusForUserArray(newFacMembersArray[ID], statusReqCb, ID);
-    }
-
-    function facMemberCb(responseText, ID, options) {
-        log("[facMemberCb]");
-        let jsonObj = JSON.parse(responseText);
-        let membersArray = jsonObj.members;
-
-        if (jsonObj.error) {
-            console.error("Error: code ", jsonObj.error.code, jsonObj.error.error);
-            return;
-        }
-
-        if (!newFacMembersArray[ID]) newFacMembersArray[ID] = [];
-        membersArray.forEach(function (member, index) {
-            if (member.id) {
-                let state = member.status.state;
-                if (state.toLowerCase() != "fallen") {
-                    newFacMembersArray[ID].push(member.id);
-                    //facMembersJson[member.id] = member.name;
-                }
-            }
-        });
-
-        getFacStatus(ID);
-
-        clearInterval(statusTimer);
-        statusTimer = setInterval(getUpdatedUserStatus,
-                                  (atWar ? statusIntervalSecs*1000 : updateIntervalSecs*1000), ID);
-
-        //pushPredictionOn = true;
-        $("#xedx-startp-btn").val("Stop");
-    }
-
-    function statusReqCb(response, ID) {
-        if (!response) return log("Error: no response!");
-
-        lastCountOnline = thisCountOnline;
-        thisCountOnline = 0;
-        thisCountOffline = 0;
-        thisCountIdle = 0;
-        online = 0;
-        offline = 0;
-        idle = 0;
-
-        let keys = Object.keys(response);
-        for (let idx=0; idx < keys.length; idx++) {
-            let userId = keys[idx];
-            let status = response[userId];
-
-            if (status == 'online') {thisCountOnline++; online++;}
-            if (status == 'offline') {thisCountOffline++; offline++;}
-            if (status == 'idle') {thisCountIdle++; idle++;}
-        }
-
-        idle -= totalFallen;
-        updateUserCountUI(ID);
-    }
-
-    function getFacMembers(facId, options) {
-        if (ourProfile == true || !facId || getPageTab() == 'info')
-            return log("Not on enemy page, don't need members:\n", location.href);
-        logApiCall(("fac members: " + facId));
-        xedx_TornFactionQueryv2(facId, "members", facMemberCb, options);
-    }
-
-    function updateUserCountUI(facId) {
-        $(`#xcnt-online-${facId}`).text(online);
-        $(`#xcnt-offline-${facId}`).text(offline);
-        $(`#xcnt-idle-${facId}`).text(idle);
-        $(`#xcnt-ok-${facId}`).text(usersOk());
-        $(`#xcnt-away-${facId}`).text(usersAway());
-        $(`#xcnt-hosp-${facId}`).text(usersInHosp());
-        $(`#xcnt-time-${facId}`).text(shortTimeStamp());
-    }
-
-    // Updates stats from user icons on fac page
-    function updateUserCounts(retries=0) {
-        let userIconList = $(iconSel);
-        let len = $(userIconList).length;
-        if (userIconList && len > 0) {
-            online = offline = idle = userCount = 0;
-            for (let idx=0; idx<len; idx++) {
-                let node = userIconList[idx];
-                userCount++;
-                let fill = $(node).attr('fill');
-                if (fill) {
-                    if (fill.indexOf('offline') > -1) offline++;
-                    else if (fill.indexOf('online') > -1) online++;
-                    else if (fill.indexOf('idle') > -1) idle++;
-                }
-            }
-            if (idle > 0) idle = idle - usersFallen();
-
-            updateUserCountUI(enemyID);
-        } else {
-            if (retries++ < 20) return setTimeout(updateUserCounts, 500, retries);
-        }
-    }
-
-    // Two ways to get user status - 'updateUserCounts', which is from the page,
-    // or 'getFacStatus', which is a fetch. The second is more accurate, but
-    // uses network resources, so just used during war.
-    function getUpdatedUserStatus() {
-        if (atWar == true)
-            getFacStatus(enemyID);
-        else
-            updateUserCounts(999);
-    }
-
-    function installUsersBar(facId, retries=0) {
-        if ($(`#xonline-title-${facId}`).length != 0) return;
-
-        //if (onOurMainFacPage()) return log("Not installing on our main page");
-        if (ourProfile == true || getPageTab() == 'info')
-            return log("Not installing bar on our fac pages");
-
-        let target = $(".faction-info-wrap .f-war-list");
-        if ($(target).length == 0) {
-            if (retries++ < 20) return setTimeout(installUsersBar, 250, facId, retries);
-            return log("[installUsersBar] timeout.");
-        }
-
-        // ======== TBD TBD ==========
-        $(target).before(getTitleBarDiv(facId));                       // Right after title bar delimiter
-        $("#xedx-refresh-btn").on('click', getUpdatedUserStatus);
-
-        // Don't need this if we do periodic queries...
-        updateUserCounts();
-        getFacMembers(facId);
-    }
-
-    function getTitleBarDiv(ID) {
-        let titleBarDiv = `
-            <div id="xonline-title-${ID}" class="title-black m-top10">
-                <div class="counts-wrap">
-                    <div class="counts-wrap xmr20">
-                        <span class="count-span xmr20">
-                            <span class="xmr5">Online: </span>
-                            <span id="xcnt-online-${ID}" class="count-text"></span>
-                        </span>
-                        <span class="count-span xmr20">
-                            <span class="xmr5">Offline: </span>
-                            <span id="xcnt-offline-${ID}" class="count-text"></span>
-                        </span>
-                        <span class="count-span xmr20">
-                            <span class="xmr5">Idle: </span>
-                            <span id="xcnt-idle-${ID}" class="count-text"></span>
-                        </span>
-                    </div>
-
-                    <div class="counts-wrap xml20">
-                        <span class="count-span xmr20">
-                            <span class="xmr5">OK: </span>
-                            <span id="xcnt-ok-${ID}" class="count-text"></span>
-                        </span>
-                        <span class="count-span xmr20">
-                            <span class="xmr5">Hosp: </span>
-                            <span id="xcnt-hosp-${ID}" class="count-text"></span>
-                        </span>
-                        <span class="count-span xmr20">
-                            <span class="xmr5">Away: </span>
-                            <span id="xcnt-away-${ID}" class="count-text"></span>
-                        </span>
-                    </div>
-
-                        <span class="count-span" style="margin-left: auto;">
-                            <span class="xmr5">Updated: </span>
-                            <span id="xcnt-time-${ID}"></span>
-                        </span>
-                        <input id="xedx-refresh-btn" data-id="-${ID}" type="submit" class="xedx-torn-btn xmr10 xmt3" value="Refresh">
-                        <!-- input id="xedx-startp-btn" data-id="-${ID}" type="submit" class="xedx-torn-btn xmr10 xmt3 xhide" value="Start" -->
-                    </div>
-                </div>
-            </div>
-        `;
-
-        return titleBarDiv;
-    }
-
-    */
 
     //================================ Styles, misc ui ===========================================
 
