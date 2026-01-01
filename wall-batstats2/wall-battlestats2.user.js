@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.36
+// @version     1.37
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -531,23 +531,17 @@
             $(statusNode).closest('li').addClass("bs-xhosp");
 
         let entry = enemyMembers[id];
-
-        // TBD: we don't always get our fac statsu
         if (!entry) {
             debug("[processWarListStatus] missing entry, try our fac for ", id, myFacMembers);
             entry = myFacMembers[id];
         }
 
         if (!entry) {
-        //if (!enemyMembers[id]) {
             debug("[processWarListStatus] no entry for id ", id);
             return;
         } else {
-            debug("[processWarListStatus] entry for id ", id, ": ", entry); //enemyMembers[id]);
+            debug("[processWarListStatus] entry for id ", id, ": ", entry);
         }
-
-        //let secsUntil = enemyMembers[id].until ? parseInt(getSecsUntilOut(enemyMembers[id].until)) : 0;
-        //let dispTime = (secsUntil <= 0) ? enemyMembers[id].state : secondsToHHMMSS(secsUntil);
 
         let secsUntil = entry.until ? parseInt(getSecsUntilOut(entry.until)) : 0;
         let dispTime = (secsUntil <= 0) ? entry.state : secondsToHHMMSS(secsUntil);
@@ -556,7 +550,7 @@
         $(statusNode).text(dispTime);
         return;
 
-        // --------
+        /*/ --------
 
         let secOverride = 0;
         if (enemyMembers[id]) {
@@ -584,7 +578,7 @@
 
         //setTimeout(updateHospTimers, 1000);
 
-        // ====================
+        */
     }
 
     function updateNodeTime(statusNode, userId, secsOverride, isWarList) {
@@ -603,6 +597,8 @@
         $(statusNode).text(dispTime);
         return;
 
+
+        /*
         let time;
         //if (isWarList == true) {
         //    if (secsOverride) {
@@ -680,6 +676,7 @@
                 $(statusNode).parent().parent().removeClass("bs-xhosp");
             }
         }
+        */
     }
 
     function secsToTime(totalSeconds) {
@@ -1543,6 +1540,19 @@
         }
     }
 
+    function replaceDestText(userId, textNode) {
+        //if (ourProfile == true || getPageTab() == 'info') return;
+        let entry = enemyMembers[userId];
+        if (!entry) entry = myFacMembers[userId];
+        if (!entry) {
+            return debug("Error: no entry for user ID ", userId);
+        }
+        let country = getCountryFromStatus(entry.desc);
+        if (country) {
+            $(textNode).text(country);
+        }
+    }
+
     // Can get this from members array!
     // Need to handle war page if open - #faction_war_list_id > li.descriptions
     var travelTimer;
@@ -1554,13 +1564,28 @@
         for (let i=0; i < $(travelIcons).length; i++) {
             let iconLi = $(travelIcons)[i];
             let memberRow = $(iconLi).closest("li.table-row");
-            let honorWrap = $(memberRow).find("[class^='honorWrap'] > a");
+            let honorWrap = $(memberRow).find("[class*='honorWrap'] > a");
             let fullId = $(honorWrap).prop("href");
             if (!fullId) {log("no fullId!"); continue;}
 
             let id = fullId.match(/\d+/)[0];
             replaceDestFlag(id, iconLi);
         }
+
+        // War page view, textt only
+        let warPgTravel = $("#faction_war_list_id > li.descriptions .traveling");
+        let warPgAbroad = $("#faction_war_list_id > li.descriptions .abroad");
+
+        const combinedArray = $(warPgTravel).add($(warPgAbroad));
+        for (let i=0; i < $(combinedArray).length; i++) {
+            let div = combinedArray[i];
+            let a = $(div).closest('li').find("[class*='honorWrap_'] > a");
+            let href = $(a).attr("href");
+            if (!href) continue;
+            let id = href.match(/\d+/)[0];
+            replaceDestText(id, div);
+        }
+
     }
 
     // ====================== Fix up column widths ========================
