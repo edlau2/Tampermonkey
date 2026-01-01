@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.34
+// @version     1.35
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -94,6 +94,7 @@
     const myUserId = thisUser.id;  // Use to get fac id, then war status
     var myFacId;
     var atWar;
+    var myFacMembers = {};
 
     xedx_TornUserQueryv2('', "profile", userProfileQueryCb); // get fac ID
 
@@ -218,8 +219,8 @@
 
     function installExtraUiElements() {
         installTopBarLink();
-        if (trackOkUsers == true && enemyProfile == true)
-            installUsersBar(enemyID);
+        // if (trackOkUsers == true && enemyProfile == true)
+        //     installUsersBar(enemyID);
 
         function installTopBarLink(retries=0) {
             if ($("#xedx-bar").length) return;
@@ -528,9 +529,11 @@
             $(statusNode).closest('li').addClass("bs-xhosp");
 
         let entry = enemyMembers[id];
+
+        // TBD: we don't always get our fac statsu
         if (!entry) {
-            debug("[processWarListStatus] missing entry, try our fac for ", id, newFacMembersArray);
-            entry = newFacMembersArray[id];
+            debug("[processWarListStatus] missing entry, try our fac for ", id, myFacMembers);
+            entry = myFacMembers[id];
         }
 
         if (!entry) {
@@ -761,6 +764,7 @@
     function memberStatusRefresh() {
         logApiCall("fac members: " + enemyID);
         xedx_TornFactionQueryv2(enemyID, 'members', memberRefreshCb);
+        xedx_TornFactionQueryv2(myFacId, 'members', memberRefreshCb);
 
         // ====================================================
 
@@ -776,8 +780,8 @@
             enemyMembers[id].estArr = parseInt(enemyMembers[id].estDpt) + durationSecs * 1000;
 
             let arrDate = new Date(enemyMembers[id].estArr);
-            log(id, " started flying to ", ctry, " at ", shortTimeStamp());
-            log("Est arrival: ", shortTimeStamp(arrDate), arrDate.toString());
+            debug(id, " started flying to ", ctry, " at ", shortTimeStamp());
+            debug("Est arrival: ", shortTimeStamp(arrDate), arrDate.toString());
         }
 
         function memberRefreshCb(responseText, ID, param) {
@@ -785,25 +789,30 @@
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
 
-            let membersArray = jsonObj.members;
-            enemyMembers.lastUpdate = (new Date().getTime());
+            let useArray = enemyMembers;           // Copy-to array (actually a JSON object of arrays)
+            if (ID == myFacId)
+                useArray = myFacMembers;
+
+            let membersArray = jsonObj.members;    // Copy-from array, from server
+
+            useArray.lastUpdate = (new Date().getTime());
             membersArray.forEach(member => {
                 let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
                 let currState = member.status.state;
-                let prevState = enemyMembers[member.id].prevState;
+                let prevState = useArray[member.id].prevState;
 
-                enemyMembers[member.id].id = member.id;
-                enemyMembers[member.id].name = member.name;
-                enemyMembers[member.id].status = member.last_action.status;
-                enemyMembers[member.id].state = member.status.state;
-                enemyMembers[member.id].desc = member.status.description;
-                enemyMembers[member.id].until = member.status.until;
-                enemyMembers[member.id].revivable = member.is_revivable;
-                enemyMembers[member.id].ed = member.has_early_discharge;
-                enemyMembers[member.id].secsUntil = secsUntil;
-                enemyMembers[member.id].prevState = currState;
+                useArray[member.id].id = member.id;
+                useArray[member.id].name = member.name;
+                useArray[member.id].status = member.last_action.status;
+                useArray[member.id].state = member.status.state;
+                useArray[member.id].desc = member.status.description;
+                useArray[member.id].until = member.status.until;
+                useArray[member.id].revivable = member.is_revivable;
+                useArray[member.id].ed = member.has_early_discharge;
+                useArray[member.id].secsUntil = secsUntil;
+                useArray[member.id].prevState = currState;
 
-                debug("Member refresh, id: ", member.id, " secsUntil: ", secsUntil);
+                //debug("Member refresh, id: ", member.id, " secsUntil: ", secsUntil);
 
                 let logAfter = false;
                 let noLog = (!prevState || prevState == '') ? true : false;
@@ -811,7 +820,7 @@
                     if (noLog == false) {
                         debug("***** State Change! From ", prevState, " to ", currState, " *****");
                         debug("Member: ", member);
-                        debug("Entry: ", enemyMembers[member.id]);
+                        debug("Entry: ", useArray[member.id]);
                     }
                     // ********** Re-sort
                     if (currState == 'Okay') {
@@ -820,7 +829,7 @@
                     }
                     logAfter = true;
                     if (currState == 'Traveling') { //started flying since last check
-                        enemyMembers[member.id].estDpt = new Date().getTime();
+                        useArray[member.id].estDpt = new Date().getTime();
                         updateArrTime(member.id);
                     } else if (prevState == 'traveling') { // landed
                         //clear times, notify?
@@ -828,13 +837,13 @@
                 }
 
                 if (currState != 'Traveling') {
-                    enemyMembers[member.id].estDpt = 0;
-                    enemyMembers[member.id].estArr = 0;
-                    enemyMembers[member.id].tFirstSeen = 0;
+                    useArray[member.id].estDpt = 0;
+                    useArray[member.id].estArr = 0;
+                    useArray[member.id].tFirstSeen = 0;
                 }
 
                 if (logAfter == true && noLog == false)
-                    log("New Entry: ", enemyMembers[member.id]);
+                    debug("New Entry: ", useArray[member.id]);
 
                 // Sync status text with state if they disagree
                 if (currState == 'Traveling' ||
@@ -900,19 +909,23 @@
 
     function getEnemyId() {
         let link = $("#faction_war_list_id > li[class*='warListItem_'] > div > div > div > a[class*='opponentFactionName_']");
+        //debug("[getEnemyId] link: ", $(link));
         let href =$(link).attr("href");
         let id = href ? href.split("ID=")[1] : null;
-        debug("[getEnemyId] href: ", href, " parts: ", (href ? href.split("ID=") : 'NA'), " id: ", id);
+        //debug("[getEnemyId] href: ", href, " parts: ", (href ? href.split("ID=") : 'NA'), " id: ", id);
         return id;
     }
 
     // Build our own private members object, for easier lookups
     var refreshTimer = 0;
     var refreshTimerDelay = 5000;    // 12 per minute
-    function startRefreshTimer() {
+    function startRefreshTimer(retries=0) {
         debug("[startRefreshTimer] enemyID: ", enemyID);
         if (!enemyID) {
             enemyID = getEnemyId();
+        }
+        if (!enemyID && retries++ < 25) {
+            return setTimeout(startRefreshTimer, 250, retries);
         }
         if ( /*ourProfile == true ||*/ !enemyID || getPageTab() == 'info') {
             debug("[startRefreshTimer] ourprofile: ", ourProfile, " enemyID: ", enemyID, " page: ", getPageTab());
@@ -921,6 +934,7 @@
 
         logApiCall("fac members: " + enemyID);
         xedx_TornFactionQueryv2(enemyID, 'members', startRefreshCb);
+        xedx_TornFactionQueryv2(myFacId, 'members', startRefreshCb);
 
         function startRefreshCb(responseText, ID, param) {
             debug("[startRefreshCb] ID: ", ID);
@@ -928,35 +942,41 @@
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
 
-            let key = "enemyMembers-" + enemyID;
-            let savedArray = JSON.parse(GM_getValue(key, JSON.stringify({})));
+            let savedArray = null;
+            if (ID != myFacId) {
+                let key = "enemyMembers-" + enemyID;
+                savedArray = JSON.parse(GM_getValue(key, JSON.stringify({})));
+            }
 
+            let useArray = (ID != myFacId) ? enemyMembers : myFacMembers;;
             let membersArray = jsonObj.members;
-            enemyMembers.lastUpdate = (new Date().getTime());
+            useArray.lastUpdate = (new Date().getTime());
             membersArray.forEach(member => {
                 let secsUntil = member.status.until ? getSecsUntilOut(member.status.until) : 0;
-                enemyMembers[member.id] =
+                useArray[member.id] =
                     { id: member.id, name: member.name, status: member.last_action.status,  state: member.status.state,
                      desc: member.status.description, prevState: '', loadedAt: (new Date().getTime()),
-                     estDpt: 0, estArr: 0, dur: 0, tFirstSeen: (member.status.state == 'Traveling' ? enemyMembers.lastUpdate : 0),
+                     estDpt: 0, estArr: 0, dur: 0, tFirstSeen: (member.status.state == 'Traveling' ? useArray.lastUpdate : 0),
                      until: member.status.until, revivable: member.is_revivable, ed: member.has_early_discharge, secsUntil: secsUntil };
 
-                if (savedArray[member.id]) {
+                if (savedArray && savedArray[member.id]) {
                     let before = savedArray[member.id];
-                    if ((before.estArr && before.estArr > enemyMembers.lastUpdate)  || member.status.state == 'Traveling') {
-                        enemyMembers[member.id].dur = before.dur;
+                    if ((before.estArr && before.estArr > useArray.lastUpdate)  || member.status.state == 'Traveling') {
+                        useArray[member.id].dur = before.dur;
                         if (!before.dur) {
                             let ctry = getCountryFromStatus(member.status.description);
-                            enemyMembers[member.id].dur = gettravelTimeSecsForCtry(ctry);
+                            useArray[member.id].dur = gettravelTimeSecsForCtry(ctry);
                         }
-                        enemyMembers[member.id].estDpt = before.estDpt;
-                        enemyMembers[member.id].estArr = before.estArr ? before.estArr :
-                                                         (before.estDpt && enemyMembers[member.id].dur) ?
-                                                         (parseInt(before.estDpt) + enemyMembers[member.id].dur * 1000) : 0;
-                        enemyMembers[member.id].tFirstSeen = before.tFirstSeen;
+                        useArray[member.id].estDpt = before.estDpt;
+                        useArray[member.id].estArr = before.estArr ? before.estArr :
+                                                         (before.estDpt && useArray[member.id].dur) ?
+                                                         (parseInt(before.estDpt) + useArray[member.id].dur * 1000) : 0;
+                        useArray[member.id].tFirstSeen = before.tFirstSeen;
                     }
                 }
             });
+
+            if (ID == myFacId) return;
 
             if (refreshTimer) clearInterval(refreshTimer);
             refreshTimer = setInterval(memberStatusRefresh, refreshTimerDelay);
@@ -1479,7 +1499,7 @@
         let timeStr = entry ? entry[type] : null;
         let secs = timeStr ? travelTimeStrToSec(timeStr) : -1;
 
-        log("Travel time for ", ctry, " [", type, "] ", secs, timeStr, entry);
+        //debug("Travel time for ", ctry, " [", type, "] ", secs, timeStr, entry);
         return secs;
 
         function travelTimeStrToSec(timeStr) {
@@ -1826,6 +1846,7 @@
 
     // ====================== Track OK/Online/Offline/Idle users =======================
 
+    /*
     // === API call to get fac member IDs ===
     var newFacMembersArray = {};
     var statusTimer;
@@ -2024,6 +2045,8 @@
 
         return titleBarDiv;
     }
+
+    */
 
     //================================ Styles, misc ui ===========================================
 
