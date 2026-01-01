@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        wall-battlestats2
 // @namespace   http://tampermonkey.net/
-// @version     1.31
+// @version     1.34
 // @description show tornstats spies on faction wall page
 // @author      xedx [2100735], finally [2060206], seintz [2460991]
 // @license     GNU GPLv3
@@ -14,6 +14,7 @@
 // @grant       GM_addStyle
 // @grant       GM_getValue
 // @grant       GM_setValue
+// @grant       GM_addValueChangeListener
 // @connect     tornstats.com
 // ==/UserScript==
 
@@ -44,6 +45,8 @@
     var enemyProfile = true;
     var ourProfile = false;
     var enemyID, step, facTab;
+
+    // $("#faction_war_list_id > li[class*='warListItem_'] > div > div > div > a[class*='opponentFactionName_']")
     function checkPageParams() {
         let params = new URLSearchParams(location.search);
         step = params.get('step');
@@ -117,9 +120,21 @@
     const sortOrders = ['desc', 'asc'];
     const useCustSort = true;
     var   tableReady = false;
-    const defSortOrder = 0;
+    var   defSortOrder = GM_getValue("defSortOrder", 0);
     var   currSortOrder = sortOrders[defSortOrder];
     var   bsSortOrder = defSortOrder;
+
+    debug("Loaded defSortOrder: ", defSortOrder, currSortOrder);
+    function handleStorageChange(name, oldVal, newVal, remote) {
+        debug("[handleStorageChange] ", name, oldVal, newVal, remote);
+    }
+
+    GM_addValueChangeListener("defSortOrder", handleStorageChange);
+
+    function saveSortOrder(order) {
+        debug("[saveSortOrder] order: ", parseInt(order), sortOrders[order]);
+        GM_setValue("defSortOrder", parseInt(order));
+    }
 
     let bsCache = JSONparse(localStorage["finally.torn.bs"]) || {};
     let hospTime = {};
@@ -230,8 +245,8 @@
       try {
         return JSON.parse(str);
       } catch (e) {
-          if (debugLoggingEnabled) log(e);
-          log("Error parsing '", str, "'");
+          debug("JSON parse error: ", e);
+          debug("result string: '", str, "'");
 
           if (xedxDevMode == true) {
               //var newWindow = window.open("", "new window", "width=400, height=200");
@@ -286,7 +301,7 @@
         url: URL,
         onload: (r) => {
             debug("loadTSFactions - response: ", id);
-          let j = JSONparse(r.responseText, id);
+            let j = JSONparse(r.responseText, id);
 
             if (j && !j.status) {
                 debug("Spy resp text: (id=", id, ") ", r.responseText);
@@ -297,8 +312,7 @@
 
             if (j && !j.status) {
                 GM_setValue("LastErrURL", URL);
-                log("Error loading fac spies (1): ", j);
-                log("Attempts: ", loadAttempts);
+                log("Error loading fac spies (1): ", j, " id: ", id, " attempt #", loadAttempts);
 
                 if (loadAttempts > 3) {
                     if (j.message) {
@@ -334,8 +348,7 @@
             }
 
           if (!j || !j.status || !j.faction) {
-            log("Error loading fac spies (2): ", j);
-            log("Attempts: ", loadAttempts);
+            log("Error loading fac spies (2): ", j, " id: ", id, " attempt #", loadAttempts);
             loadTSFactionsDone();
             return;
           }
@@ -373,21 +386,30 @@
     function expSort(from) {
         debug("[expSort]");
         let sortList = $(".faction-info-wrap  ul.table-body > li");
-        debug("expSort, from: ", from, " ready: ", tableReady, " len: ", $(sortList).length, +bsSortOrder, sortOrders[+bsSortOrder]);
+        debug("expSort, from: ", from, " ready: ", tableReady, " len: ", $(sortList).length,
+              "bsSortOrder: ", +bsSortOrder, sortOrders[+bsSortOrder], " key: ", bsSortKey);
 
-        if (!$(sortList).length || !tableReady) return log("Not ready or no items");
+        if (!$(sortList).length || !tableReady) return; // log("Not ready (", tableReady, ") or no items (", $(sortList).length, ")");
 
         if (from == 'tableReady') {
             bsSortOrder = defSortOrder;
             currSortOrder = sortOrders[+bsSortOrder];
             tinysort($(sortList), {attr: bsSortKey, order: sortOrders[+bsSortOrder]});
+
+            debug("(1) Setting defSortOrder to: ", bsSortOrder);
+            saveSortOrder(bsSortOrder);
             return;
         }
 
         currSortOrder = sortOrders[+bsSortOrder];
 
         tinysort($(sortList), {attr: bsSortKey, order: sortOrders[+bsSortOrder]});
-        bsSortOrder = bsSortOrder ? 0 : 1;
+        if (from != 'hosp-time') {
+            bsSortOrder = bsSortOrder ? 0 : 1;
+        }
+
+        debug("(2) Setting defSortOrder to: ", bsSortOrder);
+        saveSortOrder(bsSortOrder);
     }
 
     // Get rid of other sort, where is it???
@@ -486,47 +508,151 @@
         debug("Saved enemyMembers as ", key);
     });
 
-    function updateNodeTime(statusNode, userId, secsOverride) {
-        //if (userId == '1541749')
-        //    log("xxx updateNodeTime: ", userId);
-        let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
-        if (!$(iconNode).length)
-            iconNode = $(statusNode).parent().parent().find("[id^='icon82_']");
-        if (!$(iconNode).length) {
-            debug("No icon found for id ", userId, " status node: ", $(statusNode));
+    function secondsToHHMMSS(secs) {
+        const hours = Math.floor(secs / 3600);
+        const minutes = Math.floor((secs % 3600) / 60);
+        const seconds = secs % 60;
+
+        const fh = hours.toString().padStart(2, '0');
+        const fm = minutes.toString().padStart(2, '0');
+        const fs = seconds.toString().padStart(2, '0');
+
+        return `${fh}:${fm}:${fs}`;
+    }
+
+    function processWarListStatus(statusNode, id) {
+        debug("[processWarListStatus] ", id, $(statusNode));
+
+        // Process hosp times
+        if (!$(statusNode).closest('li').hasClass("bs-xhosp"))
+            $(statusNode).closest('li').addClass("bs-xhosp");
+
+        let entry = enemyMembers[id];
+        if (!entry) {
+            debug("[processWarListStatus] missing entry, try our fac for ", id, newFacMembersArray);
+            entry = newFacMembersArray[id];
         }
-        let title = $(iconNode).attr("title");
-        if (userId == '1541749') log("Title: ", title);
-        if (!title) {
-            return debug("No title, return for ", $(statusNode));
-            //title = userId;
+
+        if (!entry) {
+        //if (!enemyMembers[id]) {
+            debug("[processWarListStatus] no entry for id ", id);
+            return;
         } else {
-            debug("Title found for ", $(statusNode), "\nTitel= ", title);
+            debug("[processWarListStatus] entry for id ", id, ": ", entry); //enemyMembers[id]);
         }
 
-        if ($("#bsFakeDiv").length == 0)
-            $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000px; left: -1000px;'></div>`);
-        if (title) {
-            $("#bsFakeDiv").empty();
-            $("#bsFakeDiv").html(title);
+        //let secsUntil = enemyMembers[id].until ? parseInt(getSecsUntilOut(enemyMembers[id].until)) : 0;
+        //let dispTime = (secsUntil <= 0) ? enemyMembers[id].state : secondsToHHMMSS(secsUntil);
+
+        let secsUntil = entry.until ? parseInt(getSecsUntilOut(entry.until)) : 0;
+        let dispTime = (secsUntil <= 0) ? entry.state : secondsToHHMMSS(secsUntil);
+
+        debug("[processWarListStatus] secs: ", dispTime, secsUntil);
+        $(statusNode).text(dispTime);
+        return;
+
+        // --------
+
+        let secOverride = 0;
+        if (enemyMembers[id]) {
+            secOverride = enemyMembers[id].secsUntil;
+        }
+        debug("[processWarListStatus] sec override: ", id, secOverride, enemyMembers[id]);
+        if (!secOverride) {
+            log("[processWarListStatus]ERROR: No over-ride for ", id);
         }
 
-        let timer = $("#bsFakeDiv > span.timer");
-        let time = $(timer).text();
+        if (updateNodeTime(statusNode, id, secOverride, true) == 0) {
+            //debug("Updated time for ", id, " successfully");
+            if (id && enemyMembers[id])
+               fixStatusText(id, enemyMembers[id].state);
+            setClassForStatSpan(getStatusFromId(id));
+        }
 
+        // Test: get actual time
+        //enemyMembers[id].secsUntil;
+        $(statusNode).text(id);
+
+        // doExpiredCleanup();
+        // useArrHospTimes = false;
+        // inUpdate = false;
+
+        //setTimeout(updateHospTimers, 1000);
+
+        // ====================
+    }
+
+    function updateNodeTime(statusNode, userId, secsOverride, isWarList) {
+
+        if (!enemyMembers[userId]) {
+            debug("[updateNodeTime] no entry for id ", userId);
+            return;
+        } else {
+            debug("[updateNodeTime] entry for id ", userId, ": ", enemyMembers[userId]);
+        }
+
+        let secsUntil = enemyMembers[userId].until ? parseInt(getSecsUntilOut(enemyMembers[userId].until)) : 0;
+        let dispTime = secondsToHHMMSS(secsUntil);
+
+        debug("[updateNodeTime] secs: ", dispTime, secsUntil);
+        $(statusNode).text(dispTime);
+        return;
+
+        let time;
+        //if (isWarList == true) {
+        //    if (secsOverride) {
+        //        time = secondsToHHMMSS(secsOverride);
+        //    } else {
+        //        return debug("[updateNodeTime] no secsOverride: ", $(statusNode), userId, secsOverride);
+        //    }
+        //} else {
+            let iconNode = $(statusNode).parent().parent().find("[id^='icon15_']");
+            if (!$(iconNode).length)
+                iconNode = $(statusNode).parent().parent().find("[id^='icon82_']");
+            // if (!$(iconNode).length) {
+            //     debug("No icon found for id ", userId, " status node: ", $(statusNode));
+            // }
+            let title = $(iconNode).attr("title");
+
+            // ******* TBD use "until" from fac member saved data *****
+            if (!title) {
+                return debug("No title, war page view, return for ", $(statusNode));
+            } else {
+                //debug("Title found for ", $(statusNode), "\nTitel= ", title);
+            }
+
+            if ($("#bsFakeDiv").length == 0)
+                $("body").after(`<div id='bsFakeDiv' style='position:absolute; top: -1000px; left: -1000px;'></div>`);
+            if (title) {
+                $("#bsFakeDiv").empty();
+                $("#bsFakeDiv").html(title);
+            }
+
+            let timer = $("#bsFakeDiv > span.timer");
+            time = $(timer).text();
+        //}
+
+        let secs;
         if (time) {
-            let id = $(statusNode).parent().parent().data("id");
+            //let id = $(statusNode).parent().parent().data("id");
+            let id = $(statusNode).closest('li').attr("data-id");
+
             let parts = time.split(":");
-            let secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
+            secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]) - 1;
             if (secs <= 0) {
                 $(statusNode).removeClass("blink30").removeClass("blink2").removeClass("blink1");
                 //return false;
 
                 // ********************* If sorted by Status, re-sort! *********************
+                debug("Re-sorting, hosp-time: ", bsSortOrder, currSortOrder, defSortOrder);
                 expSort("hosp-time");
             }
-            let useSecs = (secsOverride ? secsOverride : secs);
+
+            let useSecs = (secsOverride && !time) ? secsOverride : secs;
             let newTime = secsToTime(useSecs);
+
+            //debug("useSecs: ", secsOverride, time, secs, useSecs, newTime);
+
             if (newTime == 'err') {
                 debug("*** Time error for ", userId, "! Try to fix...");
                 if (secsOverride)
@@ -535,12 +661,10 @@
                     newTime = '';
             }
 
-            //if (userId == '2187764' || userId == '1541749')
-            //    log("xxx updateNodeTime: ", userId, newTime, secs, secsOverride);
-            //if (secsOverride) debug(id, ": old time: ", time, " new time: ", newTime,
-            //    (secsOverride ? (" (Using override, time w/o: " + secsToTime(secs)) : ""));
-            $(timer).text(newTime);
-            $(iconNode).attr("title", $("#bsFakeDiv").html());
+            //if (!isWarList || isWarList == false) {
+                $(timer).text(newTime);
+                $(iconNode).attr("title", $("#bsFakeDiv").html());
+            //}
             $(statusNode).text(newTime);
 
             if (useSecs < 120 && useSecs > 60) $(statusNode).addClass("blink2").removeClass("blink30");
@@ -570,15 +694,22 @@
         return timeStr;
     }
 
-    function getIdFromStatus(statusNode) {
-        let li = $(statusNode).parent().parent();
+    function getIdFromStatus(statusNode, warNode) {
+        let id;
+        //let li = warNode ? $(statusNode).closest("li") : $(statusNode).parent().parent();
+        let li = $(statusNode).closest("li");
         let wrap = $(li).find("[class^='honorWrap_'] > a");
+        if (!$(wrap).length) {
+            li = $(statusNode).closest('li');
+            wrap = $(li).find("[class^='honorWrap_'] > a");
+        }
         if ($(wrap).length > 0) {
             let href = $(wrap).attr("href");
             let idx = href ? href.indexOf("XID=") : 0;
-            let id = idx ? href.slice(idx+4) : 0;
-            return id;
+            id = idx ? href.slice(idx+4) : 0;
         }
+        //debug("[getIdFromStatus] id: ", id);
+        return id;
     }
 
     function getLiFromId(id) {
@@ -672,13 +803,19 @@
                 enemyMembers[member.id].secsUntil = secsUntil;
                 enemyMembers[member.id].prevState = currState;
 
+                debug("Member refresh, id: ", member.id, " secsUntil: ", secsUntil);
+
                 let logAfter = false;
                 let noLog = (!prevState || prevState == '') ? true : false;
                 if (currState != prevState) {
-                    if (noLog == false) log("***** State Change! From ", prevState, " to ", currState, " *****");
-                    if (noLog == false) log("Member: ", member, "\nEntry: ", enemyMembers[member.id]);
+                    if (noLog == false) {
+                        debug("***** State Change! From ", prevState, " to ", currState, " *****");
+                        debug("Member: ", member);
+                        debug("Entry: ", enemyMembers[member.id]);
+                    }
                     // ********** Re-sort
                     if (currState == 'Okay') {
+                        debug("Calling sort: ", bsSortOrder, currSortOrder, defSortOrder);
                         expSort("hosp-time");
                     }
                     logAfter = true;
@@ -761,18 +898,32 @@
         }
     }
 
+    function getEnemyId() {
+        let link = $("#faction_war_list_id > li[class*='warListItem_'] > div > div > div > a[class*='opponentFactionName_']");
+        let href =$(link).attr("href");
+        let id = href ? href.split("ID=")[1] : null;
+        debug("[getEnemyId] href: ", href, " parts: ", (href ? href.split("ID=") : 'NA'), " id: ", id);
+        return id;
+    }
+
     // Build our own private members object, for easier lookups
     var refreshTimer = 0;
     var refreshTimerDelay = 5000;    // 12 per minute
     function startRefreshTimer() {
-        if (ourProfile == true || !enemyID || getPageTab() == 'info')
+        debug("[startRefreshTimer] enemyID: ", enemyID);
+        if (!enemyID) {
+            enemyID = getEnemyId();
+        }
+        if ( /*ourProfile == true ||*/ !enemyID || getPageTab() == 'info') {
+            debug("[startRefreshTimer] ourprofile: ", ourProfile, " enemyID: ", enemyID, " page: ", getPageTab());
             return log("Not on enemy page, not starting timer:\n", location.href);
+        }
 
         logApiCall("fac members: " + enemyID);
         xedx_TornFactionQueryv2(enemyID, 'members', startRefreshCb);
 
         function startRefreshCb(responseText, ID, param) {
-            //log("startRefreshCb: ", ID);
+            debug("[startRefreshCb] ID: ", ID);
             let jsonObj = JSON.parse(responseText);
             if (jsonObj.error)
                 return log("ERROR: Bad result for startRefreshTimer: ", responseText);
@@ -813,40 +964,61 @@
     }
 
     var verifyCounter = 0;
+    var inUpdate = false;
     function updateHospTimers() {
-        debug("xxx updateHospTimers");
+        let haveWarList = false;
         let usersInHosp = $(".hospital.not-ok");
+        debug("[updateHospTimers] list: ", $(usersInHosp).length, inUpdate);
+        if (inUpdate == true) return debug("[updateHospTimers] already inUpdate");
+        inUpdate = true;
+
+        // There are two 'classes' of the nodes with a hosp status, the smaller ones in
+        // the 'war page' view, two columns side-by side, with no status icons, and thje
+        // full page views. The full page views can directly copy hosp time left from the
+        // hosp icon, the other needs to grap the "until" (released? forgot the name0.
         for (let idx=0; idx < $(usersInHosp).length; idx++) {
             let statusNode = $(usersInHosp)[idx];
-            let id = $(statusNode).parent().parent().data("id");
+
+            let isWarList = $($(statusNode).closest("li.descriptions")).length > 0;
+            haveWarList = haveWarList || isWarList;
+            if (haveWarList && !refreshTimer) {
+                debug("[updateHospTimers] starting refresh timer");
+                startRefreshTimer();
+            }
+
+            let id = $(statusNode).closest('li').attr("data-id");
+
+            //debug("[updateHospTimers] node: ", $(statusNode), " warList: ", isWarList, " id: ", id);
             if (!id) {
-                id = getIdFromStatus(statusNode);
-                $(statusNode).parent().parent().data("id", id);
-                if (ourProfile == false)
-                    debug("No id, saving ", id, " data: ", $(statusNode).parent().parent().data("id"));
+                id = getIdFromStatus(statusNode, isWarList);
+                $(statusNode).closest('li').attr("data-id", id);
             }
 
-            if (!id) debug("No ID found for ", $(statusNode));
+            if (!id) debug("ERROR: No ID found for ", $(statusNode));
 
-            if (!$(statusNode).parent().parent().hasClass("bs-xhosp"))
-                $(statusNode).parent().parent().addClass("bs-xhosp");
-
-            let secOverride;
-            if (useArrHospTimes == true) {
-                secOverride = enemyMembers[id].secsUntil;
-                //log("using sec override: ", id, secOverride);
+            let done = false;
+            if (isWarList == true && id) {
+                debug("processing war view node: ", $(statusNode));
+                processWarListStatus(statusNode, id);
+                done = true;
+                //return;
             }
 
-            if (updateNodeTime(statusNode, id, secOverride) == 0) {
-                //debug("Updated time for ", id, " successfully");
-                if (id && enemyMembers[id])
-                   fixStatusText(id, enemyMembers[id].state);
-                setClassForStatSpan(getStatusFromId(id));
+            if (done == false) {
+                if (!$(statusNode).parent().parent().hasClass("bs-xhosp"))
+                    $(statusNode).parent().parent().addClass("bs-xhosp");
+
+                if (updateNodeTime(statusNode, id, 0, false) == 0) {
+                    if (id && enemyMembers[id])
+                       fixStatusText(id, enemyMembers[id].state);
+                    setClassForStatSpan(getStatusFromId(id));
+                }
             }
         }
 
         doExpiredCleanup();
         useArrHospTimes = false;
+        inUpdate = false;
 
         setTimeout(updateHospTimers, 1000);
     }
@@ -1124,6 +1296,8 @@
           for (const node of mutation.addedNodes) {
             node.querySelector &&
               node.querySelectorAll(".members-list").forEach((w) => watchWall(w));
+
+              if ($(node).hasClass("descriptions")) addWarListClickHandlers();
           }
         });
       }).observe(observeNode, { childList: true, subtree: true });
@@ -1166,6 +1340,7 @@
 
     setTimeout(updateHospTimers, 1000);
     startRefreshTimer();
+    //var hospTimer = setInterval(updateHospTimers, 1000);
 
     // ================================================================================
 
@@ -1218,19 +1393,21 @@
       socket.addEventListener("message", (event) => {
         let json = JSONparse(event.data);
 
-        if (!Object.keys(json).length) debug("No data in event ", event);
+        // if (!Object.keys(json).length) {
+        //     debug("No data in event ", event);
+        //     //debug("data() ", event.target.data());
+        // } else {
+        //     debug("Event data keys: ", Object.keys(json), "\nEvent: ", event);
+        // }
 
-        if (
-          !json?.result?.data?.data?.message?.namespaces?.users?.actions
-            ?.updateStatus?.status
-        )
+        if (!json?.result?.data?.data?.message?.namespaces?.users?.actions?.updateStatus?.status)
           return;
+
         let id =
-          json.result.data.data.message.namespaces.users.actions.updateStatus
-            .userId;
+          json.result.data.data.message.namespaces.users.actions.updateStatus.userId;
         let status =
-          json.result.data.data.message.namespaces.users.actions.updateStatus
-            .status;
+          json.result.data.data.message.namespaces.users.actions.updateStatus.status;
+
         if (status.text == "Hospital") hospTime[id] = status.updateAt;
         else delete hospTime[id];
 
@@ -1371,6 +1548,7 @@
     // correct place.
     //
     var tornToolsPresent = false;  // Has TT columns
+    var ffScouterPresent = false;
     var addlFirstColWidth = 0;     // with TT installed, may have div.tt-member-index column
     const sortIconSel = "div[class^='sortIcon_']";
 
@@ -1396,11 +1574,13 @@
                 if (classList[idx].indexOf('active') > -1) {
                     activeClass = classList[idx];
                     found = true;
+                    debug("[findActiveIconClasses] activeClass: ", activeClass, " list: ", classList);
                     break;
                 }
             }
 
             currSortDirClassName = getAscDescClassName(classList);
+            debug("[findActiveIconClasses] currSortDirClassName: ", currSortDirClassName);
             getSortDirClassNames();
         }
 
@@ -1409,14 +1589,57 @@
             return log("ERROR: Didn't find active icons!");
         }
 
-        //log("Appending sort icon: ", $(activeSortIcon), $(bsTableHeader));
-        $(bsTableHeader).append($(activeSortIcon).clone());
+        debug("Appending sort icon: ", $(activeSortIcon), " table hdr: ", $(bsTableHeader),
+              " activeClass: ", activeClass);
+        debug("cust sort: ", useCustSort, " currSortOrder: ", currSortOrder, " defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder);
+
+        let clone = $(activeSortIcon).clone();
+        if (currSortOrder == 'asc')
+            $(clone).addClass(ascSortClassName).removeClass(descSortClassName);
+        else
+            $(clone).addClass(descSortClassName).removeClass(ascSortClassName);
+
+        debug("clone: ", $(clone), " hdr: ", $(bsTableHeader));
+        $(bsTableHeader).append($(clone));
         $(activeSortIcon).removeClass(activeClass);
 
         // Is this to sort twice??
         if (!useCustSort) {
             $(bsTableHeader).click();
             $(bsTableHeader).click();
+        }
+    }
+
+    function adjustHdrsForFfScouter(retries=0) {
+        if ($(".ff-scouter-est-hidden").length > 0 || $(".ff-scouter-ff-visible").length > 0) {
+            ffScouterPresent = true;
+            GM_addStyle(
+                `.d .faction-info-wrap .members-list .table-cell.position {
+                    width: 14% !important;
+                 }`
+            );
+            debug("FFScouter present, widths adjusted");
+        }
+        if (ffScouterPresent == false && retries++ < 25) setTimeout(adjustHdrsForFfScouter, 5000, retries);
+    }
+
+    function addWarListClickHandlers() {
+        let list =  $("#faction_war_list_id li.descriptions .members-cont > div > div:not(.clear):not(.attack)");
+        debug("[addWarListClickHandlers] ", $(list));
+        for (let idx=0; idx<$(list).length; idx++) {
+            //debug("Add war list sort handler to ", $(list[idx]));
+            $(list[idx]).off("click.xedx");
+            $(list[idx]).on("click.xedx", handleTableHeaderClick);
+        }
+    }
+
+    function addWallClickHandlers() {
+        let list = $(".members-list > ul.table-header > li.table-cell");
+        debug("[addWallClickHandlers] ", $(list));
+        for (let idx=0; idx<=8; idx++) {
+            //debug("Add wall list sort handler to ", $(list[idx]));
+            $(list[idx]).off("click.xedx");
+            $(list[idx]).on("click.xedx", handleTableHeaderClick);
         }
     }
 
@@ -1438,6 +1661,9 @@
             tornToolsPresent = true;
             addlFirstColWidth = parseInt($(ttIndexCol).outerWidth());
         }
+
+        adjustHdrsForFfScouter();
+        //callOnContentComplete(adjustHdrsForFfScouter);
 
         // First row member icon cell, may be [0] or [1], depending on TT
         let memberIconCol = $(".members-list > ul.table-body > li > div.table-cell.member.icons")[0];
@@ -1468,15 +1694,12 @@
         bsTableHeader = $(headerColumnList)[2];  // In header row, the 'BS' column;
         $(bsTableHeader).off();
 
-        debug("[initColWidths] Removing and adding click/sort handlers");
-        $(".members-list > ul.table-header > li.table-cell").off("click");
+        //debug("[initColWidths] Removing and adding click/sort handlers");
+        //$(".members-list > ul.table-header > li.table-cell").off("click");
         $(".members-list > ul.table-header > li.table-cell").on("click", handleTableHeaderClick);
 
-        let list = $(".members-list > ul.table-header > li.table-cell");
-        for (let idx=0; idx<=8; idx++) {
-            debug("Add sort handler to ", $(list[idx]));
-            $(list[idx]).on("click", handleTableHeaderClick);
-        }
+        addWallClickHandlers();
+        addWarListClickHandlers();
 
         // Make the body scrollable and header sticky
         if (enableScrollLock == true) {
@@ -1521,12 +1744,21 @@
     // Note: there are two class for asc/desc....
     var detachedBs;
     var detachedother;
+    var inHdrClick = false;
+    const resetHdrClick = function () { inHdrClick = false; }
+
     function handleTableHeaderClick(e) {
-        log("handleTableHeaderClick - for sort");
+        log("handleTableHeaderClick - for defSortOrder. inHdrClick: ", inHdrClick);
+        if (inHdrClick == true) return;
+        inHdrClick = true;
+        setTimeout(resetHdrClick, 500);
+
         if ($(bsTableHeader).outerWidth() > 40) debugger;
         log("handleTableHeaderClick: ", $(e.currentTarget));
 
         const tableHeader = $(".members-list > ul.table-header");
+        //const tableHeader = $(this).parent();
+
         //bsTableHeader = $(headerColumnList)[2];
         let activeSortIcon = $(tableHeader).find("[class*='activeIcon']");
 
@@ -1534,10 +1766,20 @@
         let bsIconNode = $(bsTableHeader).find("[class*='activeIcon']"); // "BS" col sort flag
         let thisIconNode = $(node).find("[class*='activeIcon']")[0];     // Same on this node (mat be BS column also)
 
-        log("activeSortIcon: ", $(activeSortIcon));
-        log("bs-sort-ico: ", $("#bs-sort-ico"));
-        log("bsIconNode: ", $(bsIconNode));
-        log("bsIconNode0: ", $($(bsIconNode)[0]));
+        // log("activeSortIcon: ", $(activeSortIcon));
+        // log("bs-sort-ico: ", $("#bs-sort-ico"));
+        // log("bsIconNode: ", $(bsIconNode));
+        // log("bsIconNode0: ", $($(bsIconNode)[0]));
+
+        debug("handleTableHeaderClick, defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder, " currSortOrder: ", currSortOrder);
+        bsSortOrder = (bsSortOrder == 0) ? 1 : 0;
+        defSortOrder = bsSortOrder;
+        currSortOrder = sortOrders[bsSortOrder];
+
+        debug("(3) Setting defSortOrder to: ", defSortOrder);
+        //GM_setValue("defSortOrder", defSortOrder);
+        saveSortOrder(bsSortOrder);
+        debug("New defSortOrder: ", defSortOrder, " bsSortOrder: ", bsSortOrder, " currSortOrder: ", currSortOrder);
 
         if (!$(node).hasClass("bs")) {
             debug("Making BS node inactive");
@@ -1571,6 +1813,7 @@
                 $(bsIconNode).removeClass(descSortClassName).addClass(ascSortClassName);
 
             } else {
+                log("Making bsIconNode 'desc'");
                 $(bsIconNode).removeClass("finally-bs-asc").addClass("finally-bs-desc");
                 $(bsIconNode).removeClass(ascSortClassName).addClass(descSortClassName);
             }
@@ -1661,11 +1904,11 @@
         updateUserCountUI(ID);
     }
 
-    function getFacMembers(facId) {
+    function getFacMembers(facId, options) {
         if (ourProfile == true || !facId || getPageTab() == 'info')
             return log("Not on enemy page, don't need members:\n", location.href);
         logApiCall(("fac members: " + facId));
-        xedx_TornFactionQueryv2(facId, "members", facMemberCb);
+        xedx_TornFactionQueryv2(facId, "members", facMemberCb, options);
     }
 
     function updateUserCountUI(facId) {
@@ -1842,8 +2085,8 @@
 
     GM_addStyle(`
         .blink2 {
-           color:  var(--default-orange-color) !important;
-           animation: blinker 1.5s linear infinite;
+           /*color:  var(--default-orange-color) !important;*/
+           animation: blinker2 1.5s linear infinite;
        }
         .blink1 {
            color:  green !important;
@@ -1853,6 +2096,12 @@
            color:  limegreen !important;
            animation: blinker 0.5s linear infinite;
        }
+
+       --user-status-red-color
+       @keyframes blinker2 {
+           0%, 100% {color:  var(--default-orange-color) !important;}
+           50%, 70% {color:  var(--user-status-red-color) !important;}
+        }
 
        @keyframes blinker {
            0%, 100% {opacity: 1;}
@@ -1998,6 +2247,12 @@
             overflow-y: auto;
             top: 0px;
             position: sticky;
+
+            /*-ms-overflow-style: none;*/
+            scrollbar-width: none;
+        }
+        .sticky-wrap::-webkit-scrollbar {
+            display: none;
         }
     `);
 
