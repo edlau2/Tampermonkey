@@ -265,7 +265,12 @@
 
     // Add any styles here
     function addStyles() {
-
+        GM_addStyle(`
+            ul.chain-attacks-list li:has(i.chain-arrow-icon.enemy) {
+                background-color: rgba(0, 0, 245, .5);
+                filter: bightness(1.4);
+            }
+        `);
     }
 
 })();
