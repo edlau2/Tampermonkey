@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Sorting
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Allows sorting the displayed repo table by columns
 // @author       xedx [2100735]
 // @match        https://github.com/*
@@ -25,8 +25,8 @@
 
     GM_addStyle('@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css");');
 
-    debugLoggingEnabled =
-        GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
+    debugLoggingEnabled = true;
+        //GM_getValue("debugLoggingEnabled", false);    // Extra debug logging
 
     function hashChangeHandler() {
         debug("[hashChangeHandler]: ", location.href);
@@ -113,6 +113,8 @@
             return log("[installObserver] timed out");
         }
 
+        $(target).addClass("t100");
+
         const config = { childList: true, subtree: true };
         const handleAddedNodes = function(mutationsList, observer) {
             let update = false;
@@ -132,9 +134,9 @@
 
     function insertHeaderRow() {
         const toggleBtn = `<span class="sort-btn"><i class="fa fa-caret-down"></i></span>`;
-        let target = $('tbody > tr[class^="DirectoryContent-module"]');
+        let target = $('tbody > tr[class*="DirectoryContent-module"]');
         let row = `
-            <tr class="react-directory-row undefined" id="xhdr-row" style="height: 32px; order: -9998;">
+            <tr class="react-directory-row" id="xhdr-row" style="height: 32px; order: -9998;">
                 <td class="react-directory-row-name-cell-small-screen" colspan="2"></td>
                 <td class="react-directory-row-name-cell-large-screen sortable sort-name" colspan="1">Name: ${toggleBtn} </td>
                 <td class="react-directory-row-commit-cell">Commit: </td>
@@ -146,12 +148,14 @@
         $(target).after($(row));
         $(".sort-btn").on("click", handleSortClick);
 
+        debug("[insertHeaderRow] ", $("#xhdr-row"));
+
         addSortAttrs();
         installObserver();
     }
 
     function handlePageLoad(retries=0) {
-        let target = $('tbody > tr[class^="DirectoryContent-module"]');
+        let target = $('tbody > tr[class*="DirectoryContent-module"]');
         if (!$(target).length) {
             if (retries++ < 50) return setTimeout(handlePageLoad, 250, retries);
             log("[handlePageLoad] timed out.");
@@ -178,10 +182,11 @@
     //    return console.log("Wrong page: ", location.href);
 
     addStyles();
+    addStyles2();
     callOnContentLoaded(handlePageLoad);
 
     // Add any styles here
-    function addStyles() {
+    function addStyles2() {
         GM_addStyle(`
             .trow, #xhdr-row {
                 display: flex;
@@ -204,8 +209,19 @@
                 display: flex;
                 flex-flow: row wrap;
             }
+            [class^='table-module'] tbody {
+                width: 100%;
+            }
+            .t100 {
+                width: 100%;
+            }
+            tr.react-directory-row.trow {
+                width: 100%;
+            }
         `);
+    }
 
+    function addStyles() {
         GM_addStyle(`
             .sort-btn {
                 /*position: absolute;*/
