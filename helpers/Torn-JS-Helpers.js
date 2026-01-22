@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.47.8
+// @version     2.47.9
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.47.3";
+const thisLibVer = "2.47.9";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -218,62 +218,30 @@ function queryUserId(callback, retries=0) {
     }, callback);
 }
 
-// Get status of users, online, offline, idle...
-// expects an array of user IDs:
-// userIds = [1234, 5678, ....];
-// callback sig: myCallback(jsonData)
-// jsonData, for example: {1446944: 'offline', 2100735: 'online', 2603798: 'offline'}
-function getStatusForUserArray(userIds, callback, options) {
-    const statusURL = "https://www.torn.com/chat/online-status";
-    var reqCb = callback;
-    function localCb(response, status, xhr) {
-        if (reqCb) reqCb(response, options);
-    }
-
-    function doPost(URL, postData, optCallback) {
-        $.ajax({url: URL, type: 'POST', data: postData,
-            processData: false,
-            success: optCallback ? optCallback : processJSONPostResponse,
-            error: function(err){console.error("ajax error: ", err);}
-        });
-    }
-
-    let err;
-    if (!userIds || !userIds.length) err = "Missing userIDs!";
-    if (!err) if (!Array.isArray(userIds)) err = "userIds must be an array!";
-    if (!err) if (!callback) err = "Must provide a callback!"
-    if (err) {console.error(err); return err;}
-
-    let reqData = '{"userIds":[';
-    for (let idx=0; idx<userIds.length; idx++)
-        reqData = reqData + (idx==0 ? '"' : ',"') + userIds[idx] + '"';
-    reqData = reqData + ']}';
-    doPost(statusURL, reqData, localCb);
-}
-
 // This is used so that any one of my scripts can tell if another
-// one is running.
+// one is running. ** Never finished so commentedd out...there's
+// a better way
 function registerWithScriptDb() {
-    const dbDiv = "<div id='xedx-loaded-scripts' style='display: none;opacity: 0;'><ul></ul></div>";
-    const thisScriptLi = "<li data-name='" + GM_info.script.name +
-          "' data-ver='" + GM_info.script.version + "'></li>";
+//     const dbDiv = "<div id='xedx-loaded-scripts' style='display: none;opacity: 0;'><ul></ul></div>";
+//     const thisScriptLi = "<li data-name='" + GM_info.script.name +
+//           "' data-ver='" + GM_info.script.version + "'></li>";
 
-    // Fix with just JS, for now, don't crash
-    if (typeof $ != 'function') return;
-    if (!$("#xedx-loaded-scripts").length) $("body").after(dbDiv);
-    $("#xedx-loaded-scripts > ul").append(thisScriptLi);
+//     // Fix with just JS, for now, don't crash
+//     if (typeof $ != 'function') return;
+//     if (!$("#xedx-loaded-scripts").length) $("body").after(dbDiv);
+//     $("#xedx-loaded-scripts > ul").append(thisScriptLi);
 }
 
 function logScriptDb() {
-    let registeredScripts = $("#xedx-loaded-scripts > ul > li");
-    if ($(registeredScripts).length > 0)
-        console.log("Registered scripts:");
-    else
-        console.log("No registered scripts!");
-    for (let idx=0; idx < $(registeredScripts).length; idx++) {
-        console.log("    Name: ", $($(registeredScripts)[idx]).attr('name'),
-                    " Version: ", $($(registeredScripts)[idx]).attr('version'));
-    }
+    // let registeredScripts = $("#xedx-loaded-scripts > ul > li");
+    // if ($(registeredScripts).length > 0)
+    //     console.log("Registered scripts:");
+    // else
+    //     console.log("No registered scripts!");
+    // for (let idx=0; idx < $(registeredScripts).length; idx++) {
+    //     console.log("    Name: ", $($(registeredScripts)[idx]).attr('name'),
+    //                 " Version: ", $($(registeredScripts)[idx]).attr('version'));
+    // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -288,6 +256,7 @@ const logScriptStart = function (register=true) {
 }
 
 // See if cloudflare is challenging - do I have to wait for page load?
+// Don't bother running if it is.
 function checkCloudFlare() {
     //if ($("#challenge-form").length > 0) {
     let active = false;
@@ -1351,61 +1320,6 @@ function decodeAjaxError(jqXHR, textStatus, errorThrown) {
     log("errorThrown: ", errorThrown);
 }
 
-//--- Simulate a natural mouse-click sequence.
-function simulateMouseClick(targetNode) {
-    triggerMouseEvent (targetNode, "mouseover");
-    triggerMouseEvent (targetNode, "mousedown");
-    triggerMouseEvent (targetNode, "mouseup");
-    triggerMouseEvent (targetNode, "click");
-}
-
-function triggerMouseEvent (node, eventType) {
-    var clickEvent = document.createEvent ('MouseEvents');
-    clickEvent.initEvent (eventType, true, true);
-    node.dispatchEvent (clickEvent);
-}
-
-// Just a nifty little helper so I can see the status of the page load.
-// For development stuff...
-function addLoadingLights() {
-    if (document.querySelector("xedx-lights")) return;
-    const targetSel = "#topHeaderBanner > div.header-wrapper-top > div";
-    GM_addStyle(`
-     .topcorner {position:absolute; top: 0px; right: 0px; width: 117px; height: 39px; color: #a7b9ca;}
-     .icon-enabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
-                    background: url(/images/v2/chat/tab_icons.svg) left top;
-                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
-     .icon-disabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
-                    background: url(/images/v2/chat/tab_icons.svg) -68px top;
-                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
-    `);
-    const miniUI = '<div id="xedx-lights" class="topcorner">' +
-          '<i id="xloading" class="icon-disabled"></i>' +
-          '<i id="xinteractive" class="icon-disabled"></i>' +
-          '<i id="xcomplete" class="icon-disabled"></i>' +
-          '</div>';
-    const toggleLightIcon = function (id) {
-        let node = document.getElementById('x' + id);
-        $(node).removeClass('icon-disabled');
-        $(node).addClass('icon-enabled');
-    }
-
-    document.onreadystatechange = function () {toggleLightIcon(document.readyState);}
-    let target = document.querySelector(targetSel);
-    if (!target) return setTimeout(addLoadingLights, 50);
-    if (!document.querySelector("xedx-lights")) $(target).after(miniUI);
-
-    if (document.readyState == 'loading') toggleLightIcon('loading');
-    if (document.readyState == 'interactive') {
-        toggleLightIcon('loading');
-        toggleLightIcon('interactive');
-    }
-    if (document.readyState == 'complete') {
-        toggleLightIcon('loading');
-        toggleLightIcon('interactive');
-        toggleLightIcon('complete');
-    }
-}
 
 //
 // Nifty UI stuff
@@ -1480,54 +1394,6 @@ function isClickInElement(event, elem) {
     if (yClick >= pos.top && yClick <= (pos.top + $(elem).height())) yOK = true;
 
     return (xOK && yOK);
-}
-
-// Determines the current crimes available - display name, internal name,and ID
-// Keeps a cached version
-var gCrimeList = undefined;
-var gDataSet = undefined;
-function doCrimeLoad(callback, full=false) {
-    let dataVal = {
-        sid: "crimesData",
-        step: "crimesList",
-        //typeID: whichCrime,
-        rfcv: "669d64dc9000a"
-    };
-
-    if (gCrimeList != undefined && callback) {
-        //callback((full == true) ? gDataSet : gCrimeList);
-        callback(gDataSet);
-        return;
-    }
-
-    const crimeURL = "https://www.torn.com/page.php?sid=crimes";
-    $.ajax({
-        url: crimeURL,
-        type: 'GET',
-        data: dataVal,
-        success: function (response, status, xhr) {
-            var ct = xhr.getResponseHeader("content-type") || "";
-            if (ct.indexOf('html') > -1) {
-                log("Uniques, response: ", response);
-                log("Uniques, $response: ", $(response)[0]);
-
-                gDataSet = $(response)[0] ? $(response)[0].dataset : undefined;
-                gCrimeList = gDataSet? gDataSet.availableCrimes : undefined;
-                if (callback) {
-                    //callback((full == true) ? gDataSet : gCrimeList);
-                    callback(gDataSet);
-                }
-                //processCrimeLoadHTMLResponse(response, status, xhr);
-            } else {
-                let jsonResp = JSON.parse(response);
-                callback(jsonResp);
-                //log("error: unexpected content type: ", response);
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            log("Error in crimeLoad: ", textStatus);
-        }
-    });
 }
 
 //
