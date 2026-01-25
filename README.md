@@ -94,20 +94,6 @@ Images:
 
 This script allows you to drag and drop your enlisted race cars into any order you like. Saving this order will allow them to automatically appear in this order when starting a race. Or, you can reset to the Torn default.
 
-#### **_Torn Latest Attacks Extender_**
-
-- [Torn Latest Attacks Extender.user.js](https://github.com/edlau2/Tampermonkey/raw/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.user.js)
-
-Images:
-
-![Torn Latest Attacks Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender.png)
-![Torn Latest Attacks Extender 2.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%202.png)
-![Torn Latest Attacks Extender 3.png](https://github.com/edlau2/Tampermonkey/blob/master/AttacksExtender/Torn%20Latest%20Attacks%20Extender%203.png)
-
-This script adds an extended 'latest attacks' screen to your home page. It is configurable and allows you to display up to 100 of the latest attacks, and adds attacking (or attacked) faction name and respect earned. Your API Key is required, as this uses the Torn API so is completely legal. You key is never shared. Before first use, the configuration dialog should appear asking for your key.
-
-As of 03/03/2020, you can now click the attack to get the full attack log (version 0.2). This is thanks to Chedburn adding the log ID to both the 'attacks' queries under user and faction.
-
 #### **_Torn Gym Gains_**
 
 - [Torn Gym Gains.user.js](https://github.com/edlau2/Tampermonkey/raw/master/GymGains/Torn%20Gym%20Gains.user.js)
@@ -128,30 +114,5 @@ Images:
 - [Torn User List Extender.png](https://github.com/edlau2/Tampermonkey/blob/master/UserListExtender/Torn%20User%20List%20Extender.png)
 
 This script adds rank next to the level in the User List, as seen when searching for users. The goal was to make it easier to more quickly decide what targets to attack, without having to inspect the user individually. It helps to quickly determine who may be level holding. Of course, you may want to still look at things such as Xanax or SE's used, that is up to you (see 'Torn Adv Mini Profile'!).
-
-#### **_Torn Crime Tooltips_**
-
-- [Torn Crime Tooltips.user.js](https://github.com/edlau2/Tampermonkey/raw/master/CrimeTooltips/Torn%20Crime%20Tooltips.user.js)
-
-Images:
-
-![Torn Crime Tooltips-1.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-1.png)
-![Torn Crime Tooltips-2.png](https://github.com/edlau2/Tampermonkey/blob/master/CrimeTooltips/Torn%20Crime%20Tooltips-2.png)
-
-Adds Tool Tips to the Criminal Offences display on your home page. Useful for merit hunting.
-
-#### **_Torn Drug Stats_**
-
-- [Torn Drug Stats.user.js](https://github.com/edlau2/Tampermonkey/raw/master/DrugStats/Torn%20Drug%20Stats.user.js)
-
-Images:
-
-![Torn Drug Stats-1.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-1.png)
-![Torn Drug Stats-2.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-2.png)
-![Torn Drug Stats-3.png](https://github.com/edlau2/Tampermonkey/blob/master/DrugStats/Torn%20Drug%20Stats-3.png)
-
-This script adds a new section to your Home page, and display beneath the faction perks section a new section, similar to the Crimes section, displaying your drug usage (individual and total), ODs, Rehabs and money spent on rehab in total. Can be used towards monitoring your progress towards the drug merits, comes with tool tips to display merit progress.
-
-
 
 
