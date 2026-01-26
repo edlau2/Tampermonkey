@@ -60,26 +60,46 @@
     var enemyMembers = {};
     var enemyProfile = true;
     var ourProfile = false;
-    var enemyID, step, facTab;
+    var enemyID, step, facTab, tabType;
+    var isValidFacPage = true;
+
 
     // $("#faction_war_list_id > li[class*='warListItem_'] > div > div > div > a[class*='opponentFactionName_']")
     function checkPageParams() {
         let params = new URLSearchParams(location.search);
+
+        for (const [key, value] of params) {
+            debug(`params ${key}: ${value}`);
+        }
+
         step = params.get('step');
         enemyProfile = (step == 'profile');
         if (enemyProfile) enemyID = params.get("ID");
         params = location.hash.length ? new URLSearchParams(location.hash.replace("#/", "?")) : null;
         if (params) facTab = params.get('tab');
         ourProfile = (step == 'your' || facTab == 'info');
+        tabType = params ? params.get('type') : null;
 
-        debug("[checkPageParams] step: ", step, " us: ", ourProfile, " them: ", enemyProfile, " ID: ", enemyID, " facTab: ", facTab);
+        let hash = location.hash;
+        debug("location.hash: ", hash);
+
+        debug("[checkPageParams] step: ", step, " us: ", ourProfile, " type: ", tabType, " them: ", enemyProfile,
+              " ID: ", enemyID, " facTab: ", facTab, "\nHash: ", hash);
     }
 
     function validFacPage() {
+        const facTabList = ['territory', 'rank', 'crimes', 'upgrades', 'armory', 'controls'];
         checkPageParams();
-        return (enemyProfile == true ||
-            (ourProfile == true && facTab == "info") ||
-            enemyID);
+        if (facTab && facTabList.includes(facTab)) {
+            debug("Tab is incorrect: ", facTab);
+            isValidFacPage = false;
+            return false;
+        }
+        if (enemyProfile == true || (ourProfile == true && (!facTab || facTab == "info")) || enemyID)
+            isValidFacPage = true;
+
+        debug("[validFacPage] ", isValidFacPage);
+        return isValidFacPage;
     }
 
     function getPageTab() {
@@ -98,6 +118,12 @@
         let currTab = getPageTab();
         if (lastHashTab == 'controls' || currTab == 'controls')
             location.reload();
+
+        checkPageParams();
+        isValidFacPage = validFacPage();
+        debug("[hashChangeHandler] isValid fac page: ", isValidFacPage);
+
+        // Need to stop all timers and such if not valid.
 
         setTimeout(addWarListClickHandlers, 250);
     }
@@ -838,6 +864,43 @@
 
     // Add right-click  handler (experimental) to show status, est flight info,,
     // etc TBD..kinda like mini-profile
+
+    function handleStatusContext(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        let target = $(e.currentTarget);
+        let statusNode = $(target).find('span')[0];
+        let id = getIdFromStatus(statusNode);
+        let entry = enemyMembers[id];
+        //let pos = $(target).position();
+        let pos = getAbsPos(target);
+
+        debug("target: ", $(target));
+        debug("pos: ", pos);
+        debug("entry: ", entry);
+
+        let txt1, txt2, txt3, txt4;
+        if (entry.state=='Traveling') {
+            txt1 = 'Estimated departure: ' + shortTimeStamp((new Date(entry.estDpt)));
+            txt2 = 'Estimated arrival: ' + shortTimeStamp((new Date(entry.estArr)));
+        }
+
+        let updated = shortTimeStamp(enemyMembers.lastUpdate);
+        let msg = `<span style="display: flex; flex-direction: column; justify-content: center;">
+                       <span class="msg-box-sp">${entry.name} [${entry.id}]</span>
+                       <span class="msg-box-sp">${entry.desc}</span>` +
+                       (txt1 ? `<span class="msg-box-sp">${txt1}</span>` : ``) +
+                       (txt2 ? `<span class="msg-box-sp">${txt2}</span>` : ``) +
+                       `<span class="msg-box-sp">Last updated: ${updated}</span>
+                   </span>`;
+
+        let usePos = {left: pos.left + 'px', top: pos.top + 'px'};
+        messageBox(msg, usePos);
+
+        return false;
+    }
+
     function addDbgContextHandlers(retries=0) {
         // For debugging: add handler to status cells in the table
         if (!$("ul > li .table-cell.status").length) {
@@ -846,42 +909,6 @@
         }
 
         $("ul > li .table-cell.status").on('contextmenu', handleStatusContext);
-
-        function handleStatusContext(e) {
-            e.stopPropagation();
-            e.preventDefault();
-
-            let target = $(e.currentTarget);
-            let statusNode = $(target).find('span')[0];
-            let id = getIdFromStatus(statusNode);
-            let entry = enemyMembers[id];
-            //let pos = $(target).position();
-            let pos = getAbsPos(target);
-
-            debug("target: ", $(target));
-            debug("pos: ", pos);
-            debug("entry: ", entry);
-
-            let txt1, txt2, txt3, txt4;
-            if (entry.state=='Traveling') {
-                txt1 = 'Estimated departure: ' + shortTimeStamp((new Date(entry.estDpt)));
-                txt2 = 'Estimated arrival: ' + shortTimeStamp((new Date(entry.estArr)));
-            }
-
-            let updated = shortTimeStamp(enemyMembers.lastUpdate);
-            let msg = `<span style="display: flex; flex-direction: column; justify-content: center;">
-                           <span class="msg-box-sp">${entry.name} [${entry.id}]</span>
-                           <span class="msg-box-sp">${entry.desc}</span>` +
-                           (txt1 ? `<span class="msg-box-sp">${txt1}</span>` : ``) +
-                           (txt2 ? `<span class="msg-box-sp">${txt2}</span>` : ``) +
-                           `<span class="msg-box-sp">Last updated: ${updated}</span>
-                       </span>`;
-
-            let usePos = {left: pos.left + 'px', top: pos.top + 'px'};
-            messageBox(msg, usePos);
-
-            return false;
-        }
     }
 
     function getEnemyId() {
@@ -1408,11 +1435,16 @@
         .forEach((e) => showStats(e));
     }
 
-    // ======================== Updated methods =======================================
+    // ======================== Main entry point? Updated methods =======================================
 
     // FIX ME !!!!
 
     // Don't do this on any pages but main fac tab! (on our face page) !!!!!!
+
+
+    isValidFacPage = validFacPage();
+    debug("[Updated methods] isValid fac page: ", isValidFacPage);
+
     setTimeout(updateHospTimers, 1000);
     startRefreshTimer();
     //var hospTimer = setInterval(updateHospTimers, 1000);
@@ -1462,6 +1494,8 @@
       return response;
     };
 
+    // We shouldn't need to do this? Page state will change by itself, an observer
+    // should catch it or poll..or create a selector/filter to find all OK/hosp/abroad/travelling...
     const oldWebSocket = unsafeWindow.WebSocket;
     unsafeWindow.WebSocket = function (...args) {
       const socket = new oldWebSocket(...args);
@@ -1491,13 +1525,14 @@
       return socket;
     };
 
-    //=======================================================================
+    //=============================================================================================================================
+    //
     // The 'Travel Icons' part of this script taken from another of mine.
-    // If travelling or abroad, replaces the generic globe with country
-    // icon so can easily see where they are going.
-    //=======================================================================
+    // If travelling or abroad, replaces the generic globe with country  icon so can easily see where they are going.
+    //
+    //=============================================================================================================================
 
-    // Uses the description from User->basic, status.description
+    // Uses the description from User->basic, status.description and maps it to a short country code.
     function getCountryFromStatus(desc) {
         if (desc.indexOf("United Kingdom") > -1) return 'UK';
         if (desc.indexOf("Mexico") > -1) return 'Mexico';
@@ -1516,11 +1551,8 @@
         return null;
     }
 
-    // Images for country flags
-    function getTornFlag() {
-        return `<li style=margin-bottom: 0px;"><img class="flag selected bs2" src="/images/v2/travel_agency/flags/fl_torn.svg"
+    const tornFlag = `<li style=margin-bottom: 0px;"><img class="flag selected bs2" src="/images/v2/travel_agency/flags/fl_torn.svg"
                 country="torn" alt="Torn" title="Torn"></li>`;
-    }
 
     const ctryMap = { "UK": { flag: "uk", ctry: "united_kingdom", title: "United Kingdom" },
                       "Mexico": { flag: "mexico", ctry: "mexico", title: "Mexico" },
@@ -1536,6 +1568,7 @@
                     };
 
     // type: 'std', 'pi', 'wlt', 'bct'
+    // Called from a couple of fns, needs to be available...
     function gettravelTimeSecsForCtry(ctry, type='pi') {
         const travelTime = { "Mexico": {std: "26min", pi: "18min", wlt: "13min", bct: "8min"},
                            "Caymans": {std: "35min", pi: "25min", wlt: "18min", bct: "11min"},
@@ -1572,82 +1605,9 @@
         }
     }
 
-
-    function getAbroadFlag(country) {
-        let entry = ctryMap[country];
-        if (!entry) return;
-
-        return `<li class="bs2" style="margin-bottom: 0px; z-index: 9999;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_${entry.flag}.svg"
-                country="${entry.ctry}" alt="${entry.title}" title="${entry.title}"></li>`;
-    }
-
-    function replaceDestFlag(userId, iconLi) {
-        if (ourProfile == true || getPageTab() == 'info') return;
-        if (!enemyMembers || !Object.keys(enemyMembers).length) {
-            return debug("No enemy member list yet");
-        }
-        let entry = enemyMembers[userId];
-        if (!entry) {
-            return debug("Error: no entry for user ID ", userId);
-        }
-        let country = getCountryFromStatus(entry.desc);
-        if (country) {
-            if (entry.desc.indexOf('eturning') > -1)
-                $(iconLi).replaceWith($(getTornFlag()));
-            else {
-                //const targetPos = $(iconLi).position();
-                //$(iconLi).parent().css("position", "relative");
-                $(iconLi).css("display", "none");
-
-                //$(iconLi).replaceWith($(getAbroadFlag(country)));
-
-                //let cell = $(iconLi).closest(".table-cell");
-
-                //if (!$(iconLi).parent().next().hasClass("bs2")) {
-                //if (!$(iconLi).closest("ul").parent().next().hasClass("bs2")) {
-
-                    //debug("[replaceDestFlag] add new flag, pos: ", targetPos);
-
-                if (!$(iconLi).next().hasClass("bs2")) {
-                    let newNode = getAbroadFlag(country);
-                    //$(newNode).css({ top: targetPos.top, left: targetPos.left });
-                    $(newNode).addClass("tmp-new-flag");
-                    $(iconLi).after($(newNode));
-
-                    debug("[replaceDestFlag] new node: ", $(newNode));
-
-
-                    // $(iconLi).closest("ul").parent().after($(newNode));
-                    // let el = $(iconLi).closest("ul").parent().next();
-                    // debug("[replaceDestFlag] el: ", $(el));
-                }
-            }
-        }
-    }
-
-    function replaceDestText(userId, textNode) {
-        if (!enemyMembers || !Object.keys(enemyMembers).length) {
-            return debug("No enemy member list yet");
-        }
-        if (!myFacMembers || Object.keys(myFacMembers).length < 10) {
-            return debug("No fac member list yet");
-        }
-
-        //if (ourProfile == true || getPageTab() == 'info') return;
-        let entry = enemyMembers[userId];
-        if (!entry) entry = myFacMembers[userId];
-
-        if (!entry) {
-            return debug("Error: no entry for user ID ", userId);
-        }
-        let country = getCountryFromStatus(entry.desc);
-        if (country) {
-            $(textNode).text(country);
-        }
-    }
-
     // Can get this from members array!
     // Need to handle war page if open - #faction_war_list_id > li.descriptions
+    // Called as a callback on page load
     var travelTimer;
     var flagStyleAdded = false;
     function replaceTravelIcons(retries=0) {
@@ -1701,7 +1661,118 @@
             replaceDestText(id, div);
         }
 
+        function replaceDestText(userId, textNode) {
+            if (!enemyMembers || !Object.keys(enemyMembers).length) {
+                return debug("No enemy member list yet");
+            }
+            if (!myFacMembers || Object.keys(myFacMembers).length < 10) {
+                return debug("No fac member list yet");
+            }
+
+            //if (ourProfile == true || getPageTab() == 'info') return;
+            let entry = enemyMembers[userId];
+            if (!entry) entry = myFacMembers[userId];
+
+            if (!entry) {
+                return debug("Error: no entry for user ID ", userId);
+            }
+            let country = getCountryFromStatus(entry.desc);
+            if (country) {
+                $(textNode).text(country);
+            }
+        }
+
+        function replaceDestFlag(userId, iconLi) {
+            if (ourProfile == true || getPageTab() == 'info') return;
+            if (!enemyMembers || !Object.keys(enemyMembers).length) {
+                return debug("No enemy member list yet");
+            }
+            let entry = enemyMembers[userId];
+            if (!entry) {
+                return debug("Error: no entry for user ID ", userId);
+            }
+            let country = getCountryFromStatus(entry.desc);
+            if (country) {
+                if (entry.desc.indexOf('eturning') > -1) {
+                    $(iconLi).replaceWith($(tornFlag));
+                    //$(iconLi).replaceWith($(getTornFlag()));
+                } else {
+                    $(iconLi).css("display", "none");
+
+                    if (!$(iconLi).next().hasClass("bs2")) {
+                        let newNode = getAbroadFlag(country);
+                        $(newNode).addClass("tmp-new-flag");
+                        $(iconLi).after($(newNode));
+
+                        debug("[replaceDestFlag] new node: ", $(newNode));
+
+                        //
+                        // New - put country into status field??
+                        //
+                        let row = $(iconLi).closest("li.table-row");
+                        debug("Closest row: ", $(row));
+
+                        let stat = $(row).find("div.table-cell.status");
+                        let statTxt = $(stat).text();
+                        log("Status cell: ", $(stat));
+                        log("Status cell text: ", $(stat).text());  // 'Abroad' or 'Traveling'
+
+                        let traveling = false;
+                        let abroad = false;
+                        log("check row: ", $(row));
+                        if ($(row).hasClass("traveling"))
+                            traveling = true;
+                        else if ($(row).hasClass("abroad"))
+                            abroad = true;
+                        else {
+                            let span = $(stat).find("span");
+                            travelling = statTxt == 'Traveling'; //$(span).hasClass("traveling");
+                            abroad = statTxt == "Abroad";
+                            log("[replaceDestFlag] traveling: ", travelling, "abroad: ", abroad, " span: ", $(span));
+                            if (traveling == true) $(row).addClass("traveling");
+                            if (abroad == true) $(row).addClass("abroad");
+                            log("Add row class: ", $(row));
+                        }
+
+                        $(stat).css("justify-content", "center");
+
+                        let msg = country;
+                        if (travelling == true) {
+                            //msg = "to: " + country;
+                            $(stat).css("color", "var(--user-status-blue-color)");
+                        } else {
+                            //msg = "at: " + country;
+                            $(stat).css("color", "var(--default-blue-dark-color)");
+                        }
+
+                        $(stat).text(msg);
+
+                        $(stat).on('contextmenu', handleStatusContext);
+
+                        // End new....
+
+
+                        // $(iconLi).closest("ul").parent().after($(newNode));
+                        // let el = $(iconLi).closest("ul").parent().next();
+                        // debug("[replaceDestFlag] el: ", $(el));
+                    }
+                }
+            }
+
+            function getAbroadFlag(country) {
+                let entry = ctryMap[country];
+                if (!entry) return;
+
+                return `<li class="bs2" style="margin-bottom: 0px; z-index: 9999;"><img class="flag selected" src="/images/v2/travel_agency/flags/fl_${entry.flag}.svg"
+                        country="${entry.ctry}" alt="${entry.title}" title="${entry.title}"></li>`;
+            }
+        }
+
     }
+
+    //=============================================================================================================================
+    //========================================== End travel icons =================================================================
+    //=============================================================================================================================
 
     // ====================== Fix up column widths ========================
     //
