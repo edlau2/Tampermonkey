@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         HoverTip
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  This script provides custom tooltips for any element on a page
 // @author       xedx [2100735]
 // ==/UserScript==
@@ -138,9 +138,6 @@ class HoverTip {
     this._onLeave = this._onLeave.bind(this);
     this._onMove  = this._onMove.bind(this);
     this._onScrollResize = this._onScrollResize.bind(this);
-
-
-      console.log("[HoverTip] c-tor: ", this);
   }
 
   install(root = document) {
@@ -253,7 +250,6 @@ class HoverTip {
   }
 
   _onEnter(e) {
-      console.log("[HoverTip] onEnter");
     clearTimeout(this._hideTimer); this._hideTimer = null;
     clearTimeout(this._showTimer); this._showTimer = null;
 
@@ -267,7 +263,6 @@ class HoverTip {
   }
 
   _onLeave(e) {
-      console.log("[HoverTip] onLeave");
     if (this.opts.persist) return; // user will call hide() manually
     const $el = $(e.currentTarget);
     // only hide if leaving the current anchor
