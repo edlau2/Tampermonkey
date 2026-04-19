@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.48.2
+// @version     2.47.7
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.48.2";
+const thisLibVer = "2.47.7";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -49,7 +49,7 @@ if (abortOnAttackPage) {
 
 var debugLoggingEnabled = false;
 var loggingEnabled = true;
-//var alertOnRetry = false;
+var alertOnRetry = false;
 var alertOnError = false;
 var Torn_JS_Helpers_Installed = true;
 var xedxDevMode = GM_getValue("xedxDevMode", false);
@@ -63,10 +63,10 @@ var xedxDevMode = GM_getValue("xedxDevMode", false);
 //}
 
 alertOnError = GM_getValue("alertOnError", alertOnError);
-//alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
+alertOnRetry = GM_getValue("alertOnRetry", alertOnRetry);
 
 GM_setValue("alertOnError", alertOnError);
-//GM_setValue("alertOnRetry", alertOnRetry);
+GM_setValue("alertOnRetry", alertOnRetry);
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Validate an API key and prompt if misssing
@@ -90,7 +90,7 @@ async function validateApiKey(type = null, optText=null) {
         text += '\n\n' + optText;
     }
 
-    if (!api_key || typeof api_key === 'undefined' || api_key == '') {
+    if (api_key == null || api_key == 'undefined' || typeof api_key === 'undefined' || api_key == '') {
         api_key = prompt(text, "");
         GM_setValue('gm_api_key', api_key);
     } else {
@@ -201,7 +201,7 @@ function queryUserId(callback, retries=0) {
         if (jsonResp.error) {
             if (jsonResp.error.code == 17) {
                 if (retries++ < 5) {
-                    //if (alertOnRetry) alert("Retrying error 17!");
+                    if (alertOnRetry) alert("Retrying error 17!");
                     return queryUserId(callback, retries);
                 } else {
                     return handleError(responseText);
@@ -218,30 +218,62 @@ function queryUserId(callback, retries=0) {
     }, callback);
 }
 
-// This is used so that any one of my scripts can tell if another
-// one is running. ** Never finished so commentedd out...there's
-// a better way
-function registerWithScriptDb() {
-//     const dbDiv = "<div id='xedx-loaded-scripts' style='display: none;opacity: 0;'><ul></ul></div>";
-//     const thisScriptLi = "<li data-name='" + GM_info.script.name +
-//           "' data-ver='" + GM_info.script.version + "'></li>";
+// Get status of users, online, offline, idle...
+// expects an array of user IDs:
+// userIds = [1234, 5678, ....];
+// callback sig: myCallback(jsonData)
+// jsonData, for example: {1446944: 'offline', 2100735: 'online', 2603798: 'offline'}
+function getStatusForUserArray(userIds, callback, options) {
+    const statusURL = "https://www.torn.com/chat/online-status";
+    var reqCb = callback;
+    function localCb(response, status, xhr) {
+        if (reqCb) reqCb(response, options);
+    }
 
-//     // Fix with just JS, for now, don't crash
-//     if (typeof $ != 'function') return;
-//     if (!$("#xedx-loaded-scripts").length) $("body").after(dbDiv);
-//     $("#xedx-loaded-scripts > ul").append(thisScriptLi);
+    function doPost(URL, postData, optCallback) {
+        $.ajax({url: URL, type: 'POST', data: postData,
+            processData: false,
+            success: optCallback ? optCallback : processJSONPostResponse,
+            error: function(err){console.error("ajax error: ", err);}
+        });
+    }
+
+    let err;
+    if (!userIds || !userIds.length) err = "Missing userIDs!";
+    if (!err) if (!Array.isArray(userIds)) err = "userIds must be an array!";
+    if (!err) if (!callback) err = "Must provide a callback!"
+    if (err) {console.error(err); return err;}
+
+    let reqData = '{"userIds":[';
+    for (let idx=0; idx<userIds.length; idx++)
+        reqData = reqData + (idx==0 ? '"' : ',"') + userIds[idx] + '"';
+    reqData = reqData + ']}';
+    doPost(statusURL, reqData, localCb);
+}
+
+// This is used so that any one of my scripts can tell if another
+// one is running.
+function registerWithScriptDb() {
+    const dbDiv = "<div id='xedx-loaded-scripts' style='display: none;opacity: 0;'><ul></ul></div>";
+    const thisScriptLi = "<li data-name='" + GM_info.script.name +
+          "' data-ver='" + GM_info.script.version + "'></li>";
+
+    // Fix with just JS, for now, don't crash
+    if (typeof $ != 'function') return;
+    if (!$("#xedx-loaded-scripts").length) $("body").after(dbDiv);
+    $("#xedx-loaded-scripts > ul").append(thisScriptLi);
 }
 
 function logScriptDb() {
-    // let registeredScripts = $("#xedx-loaded-scripts > ul > li");
-    // if ($(registeredScripts).length > 0)
-    //     console.log("Registered scripts:");
-    // else
-    //     console.log("No registered scripts!");
-    // for (let idx=0; idx < $(registeredScripts).length; idx++) {
-    //     console.log("    Name: ", $($(registeredScripts)[idx]).attr('name'),
-    //                 " Version: ", $($(registeredScripts)[idx]).attr('version'));
-    // }
+    let registeredScripts = $("#xedx-loaded-scripts > ul > li");
+    if ($(registeredScripts).length > 0)
+        console.log("Registered scripts:");
+    else
+        console.log("No registered scripts!");
+    for (let idx=0; idx < $(registeredScripts).length; idx++) {
+        console.log("    Name: ", $($(registeredScripts)[idx]).attr('name'),
+                    " Version: ", $($(registeredScripts)[idx]).attr('version'));
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -256,8 +288,7 @@ const logScriptStart = function (register=true) {
 }
 
 // See if cloudflare is challenging - do I have to wait for page load?
-// Don't bother running if it is.
-function checkCloudFlare() {
+function checkCloudFlare(clickIt) {
     //if ($("#challenge-form").length > 0) {
     let active = false;
     if (document.querySelector("#challenge-form")) {
@@ -408,26 +439,27 @@ function installPushStateHandler(pushStateChangedHandler) {
 // ============= Display an alert that can time out ==============
 
 async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
+    let id = "xalert-" + getRandomIntEx(10000, 99999);
     addAlertStyles();
-    addAlertDiv();
+    addAlertDiv(id);
 
-    $("#xalert .mainMsg").text(mainMsg);
+    $(`#${id} .mainMsg`).text(mainMsg);
     if (btnMsg) $("#xalert button").text(btnMsg);
-    return await openModelessAlert(timeoutSecs);
+    return await openModelessAlert(id, timeoutSecs);
 
-    async function openModelessAlert(timeoutSecs) {
+    async function openModelessAlert(id, timeoutSecs) {
         $("#xalert").css("display", "block");
-        if (timeoutSecs) setTimeout(function() {$("#xalert").remove();}, timeoutSecs*1000);
+        if (timeoutSecs) setTimeout(function() {$(`#${id}`).remove();}, timeoutSecs*1000);
         return new Promise(resolve => {
-            $("#xalert-ok-btn").on('click', (e) => {resolve($("#xalert").remove())});
+            $("#xalert-ok-btn").on('click', (e) =>  {resolve($(`#${id}`).remove())}); //{resolve($(this).closest(".xalert-wrap").remove())}); // {resolve($("#xalert").remove())});
         });
     }
 
      var alertStylesAdded = false;
-     function addAlertDiv() {
-         if ($("#xalert").length > 0) return;
+     function addAlertDiv(id) {
+         if ($(`#${id}`).length > 0) return;
          let newDiv = `
-             <div id="xalert"><div class="alert-content">
+             <div id="${id}" class="xalert-wrap"><div class="alert-content">
                  <p class='mainMsg'></p>
                  <span class="xbtn-wrap"><button id="xalert-ok-btn" class="xedx-torn-btn" data-ret="true">OK</button></span>
              </div></div>`;
@@ -436,7 +468,7 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
      function addAlertStyles() {
          if (alertStylesAdded) return;
          GM_addStyle(`
-             #xalert {
+             .xalert-wrap {
                  display: none;
                  position: fixed;
                  top: 50%;
@@ -453,7 +485,7 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
                  font-family: arial;
                  z-index: 9999999;
             }
-            #xalert button {
+            .xalert-wrap button {
                  margin: 10px 25px 10px 25px;
             }
             .mainMsg {
@@ -545,9 +577,9 @@ function isIndexPage() {return (location.href.indexOf("index.php") > -1)}
 function isItemPage() {return (location.href.indexOf("item.php") > -1)}
 function isFactionPage() {return (location.href.indexOf("factions.php") > -1)}
 function isGymPage() {return (location.href.indexOf("gym.php") > -1)}
-function isAttackPage() {return (location.href.indexOf(".php?sid=attack&user2ID") > -1)}
+function isAttackPage() {return (location.href.indexOf("loader.php?sid=attack&user2ID") > -1)}
 function isStocksPage() {return (location.href.indexOf("page.php?sid=stocks") > -1)}
-function isRacePage() {return (location.href.indexOf(".php?sid=racing") > -1)}
+function isRacePage() {return (location.href.indexOf("loader.php?sid=racing") > -1)}
 function isBazaarPage() {return (location.href.indexOf("bazaar.php") > -1)}
 function isHospPage() {return (location.href.indexOf("hospital.php") > -1)}
 function isJailPage() {return (location.href.indexOf("jailview.php") > -1)}
@@ -1094,7 +1126,7 @@ function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('company', ID, selection, callback, param);
 }
 function xedx_TornCompanyQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('company', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('company', ID, selection, callback, param);
 }
 
 function xedx_TornCompanyQueryDbg(ID, selection, callback, param=null) {
@@ -1106,7 +1138,7 @@ function xedx_TornMarketQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('market', ID, selection, callback, param);
 }
 function xedx_TornMarketQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('market', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('market', ID, selection, callback, param);
 }
 
 function xedx_TornMarketQueryDbg(ID, selection, callback, param=null) {
@@ -1118,7 +1150,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('torn', ID, selection, callback, param);
 }
 function xedx_TornTornQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('torn', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('torn', ID, selection, callback, param);
 }
 
 function xedx_TornTornQueryDbg(ID, selection, callback, param=null) {
@@ -1320,6 +1352,147 @@ function decodeAjaxError(jqXHR, textStatus, errorThrown) {
     log("errorThrown: ", errorThrown);
 }
 
+//--- Simulate a natural mouse-click sequence.
+function simulateMouseClick(targetNode) {
+    triggerMouseEvent (targetNode, "mouseover");
+    triggerMouseEvent (targetNode, "mousedown");
+    triggerMouseEvent (targetNode, "mouseup");
+    triggerMouseEvent (targetNode, "click");
+}
+
+function triggerMouseEvent (node, eventType) {
+    var clickEvent = document.createEvent ('MouseEvents');
+    clickEvent.initEvent (eventType, true, true);
+    node.dispatchEvent (clickEvent);
+}
+
+// Just a nifty little helper so I can see the status of the page load.
+// For development stuff...
+function addLoadingLights() {
+    if (document.querySelector("xedx-lights")) return;
+    const targetSel = "#topHeaderBanner > div.header-wrapper-top > div";
+    GM_addStyle(`
+     .topcorner {position:absolute; top: 0px; right: 0px; width: 117px; height: 39px; color: #a7b9ca;}
+     .icon-enabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
+                    background: url(/images/v2/chat/tab_icons.svg) left top;
+                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
+     .icon-disabled {display: inline-block; vertical-align: middle; height: 34px; width: 34px;
+                    background: url(/images/v2/chat/tab_icons.svg) -68px top;
+                    filter: drop-shadow(0px 0px 1px rgba(17,17,17,0.678431));}
+    `);
+    const miniUI = '<div id="xedx-lights" class="topcorner">' +
+          '<i id="xloading" class="icon-disabled"></i>' +
+          '<i id="xinteractive" class="icon-disabled"></i>' +
+          '<i id="xcomplete" class="icon-disabled"></i>' +
+          '</div>';
+    const toggleLightIcon = function (id) {
+        let node = document.getElementById('x' + id);
+        $(node).removeClass('icon-disabled');
+        $(node).addClass('icon-enabled');
+    }
+
+    document.onreadystatechange = function () {toggleLightIcon(document.readyState);}
+    let target = document.querySelector(targetSel);
+    if (!target) return setTimeout(addLoadingLights, 50);
+    if (!document.querySelector("xedx-lights")) $(target).after(miniUI);
+
+    if (document.readyState == 'loading') toggleLightIcon('loading');
+    if (document.readyState == 'interactive') {
+        toggleLightIcon('loading');
+        toggleLightIcon('interactive');
+    }
+    if (document.readyState == 'complete') {
+        toggleLightIcon('loading');
+        toggleLightIcon('interactive');
+        toggleLightIcon('complete');
+    }
+}
+
+
+/**
+ * @auther SM@K<smali.kazmi@hotmail.com>
+ * @description website: smak.pk
+ * usage: alert(SmartPhone.isAny());
+ * if (SmartPhone.isAny()) {...}
+ */
+(function() { // SmartPhone = function(obj) {
+    var root = this;
+    var SmartPhone = function(obj) {
+        if (obj instanceof SmartPhone) return obj;
+        if (!(this instanceof SmartPhone)) return new SmartPhone(obj);
+        this._wrapped = obj;
+    };
+
+    SmartPhone.userAgent = null;
+    SmartPhone.getUserAgent = function() {return this.userAgent;};
+    SmartPhone.setUserAgent = function(userAgent) {this.userAgent = userAgent;};
+    SmartPhone.isAndroid = function() {return this.getUserAgent().match(/Android/i);};
+    SmartPhone.isBlackBerry = function() {return this.getUserAgent().match(/BlackBerry/i);};
+    SmartPhone.isBlackBerryPlayBook = function() {return this.getUserAgent().match(/PlayBook/i);};
+    SmartPhone.isBlackBerry10 = function() {return this.getUserAgent().match(/BB10/i);};
+    SmartPhone.isIOS = function() {this.isIPhone() || this.isIPad() || this.isIPod();};
+    SmartPhone.isIPhone = function() {return this.getUserAgent().match(/iPhone/i);};
+    SmartPhone.isIPad = function() {return this.getUserAgent().match(/iPad/i);};
+    SmartPhone.isIPod = function() {return this.getUserAgent().match(/iPod/i);};
+    SmartPhone.isOpera = function() {return this.getUserAgent().match(/Opera Mini/i);};
+    SmartPhone.isWindows = function() {return this.isWindowsDesktop() || this.isWindowsMobile();};
+    SmartPhone.isWindowsMobile = function() {return this.getUserAgent().match(/IEMobile/i);};
+    SmartPhone.isWindowsDesktop = function() {return this.getUserAgent().match(/WPDesktop/i);};
+    SmartPhone.isFireFox = function() {return this.getUserAgent().match(/Firefox/i);};
+    SmartPhone.isNexus = function() {return this.getUserAgent().match(/Nexus/i);};
+    SmartPhone.isKindleFire = function() {return this.getUserAgent().match(/Kindle Fire/i);};
+    SmartPhone.isPalm = function() {return this.getUserAgent().match(/PalmSource|Palm/i);};
+    SmartPhone.isAny = function() {
+        var foundAny = false;
+        var getAllMethods = Object.getOwnPropertyNames(SmartPhone).filter(function(property) {
+            return typeof SmartPhone[property] == 'function';
+        });
+
+        for (var index in getAllMethods) {
+            if (getAllMethods[index] === 'setUserAgent' || getAllMethods[index] === 'getUserAgent' ||
+                getAllMethods[index] === 'isAny' || getAllMethods[index] === 'isWindows' ||
+                getAllMethods[index] === 'isIOS') {
+                continue;
+            }
+            if (SmartPhone[getAllMethods[index]]()) {
+                foundAny = true;
+                break;
+            }
+        }
+        return foundAny;
+    };
+
+    if(typeof window === 'function' || typeof window === 'object') {
+        SmartPhone.setUserAgent(navigator.userAgent);
+    }
+
+    if (typeof exports !== 'undefined') {
+        var middleware = function(isMiddleware) {
+            isMiddleware = isMiddleware === (void 0) ? true : isMiddleware;
+            if(isMiddleware) {
+                return function(req, res, next) {
+                    var userAgent = req.headers['user-agent'] || '';
+                    SmartPhone.setUserAgent(userAgent);
+                    req.SmartPhone = SmartPhone;
+                    if ('function' === typeof res.locals) {
+                        res.locals({SmartPhone: SmartPhone});
+                    } else {
+                        res.locals.SmartPhone = SmartPhone;
+                    }
+                    next();
+                };
+            } else {
+                return SmartPhone;
+            }
+        };
+        if (typeof module !== 'undefined' && module.exports) {
+            var exports = module.exports = middleware;
+        }
+        exports = middleware;
+    } else {
+        root.SmartPhone = SmartPhone;
+    }
+}.call(this));
 
 //
 // Nifty UI stuff
@@ -1394,6 +1567,54 @@ function isClickInElement(event, elem) {
     if (yClick >= pos.top && yClick <= (pos.top + $(elem).height())) yOK = true;
 
     return (xOK && yOK);
+}
+
+// Determines the current crimes available - display name, internal name,and ID
+// Keeps a cached version
+var gCrimeList = undefined;
+var gDataSet = undefined;
+function doCrimeLoad(callback, full=false) {
+    let dataVal = {
+        sid: "crimesData",
+        step: "crimesList",
+        //typeID: whichCrime,
+        rfcv: "669d64dc9000a"
+    };
+
+    if (gCrimeList != undefined && callback) {
+        //callback((full == true) ? gDataSet : gCrimeList);
+        callback(gDataSet);
+        return;
+    }
+
+    const crimeURL = "https://www.torn.com/page.php?sid=crimes";
+    $.ajax({
+        url: crimeURL,
+        type: 'GET',
+        data: dataVal,
+        success: function (response, status, xhr) {
+            var ct = xhr.getResponseHeader("content-type") || "";
+            if (ct.indexOf('html') > -1) {
+                log("Uniques, response: ", response);
+                log("Uniques, $response: ", $(response)[0]);
+
+                gDataSet = $(response)[0] ? $(response)[0].dataset : undefined;
+                gCrimeList = gDataSet? gDataSet.availableCrimes : undefined;
+                if (callback) {
+                    //callback((full == true) ? gDataSet : gCrimeList);
+                    callback(gDataSet);
+                }
+                //processCrimeLoadHTMLResponse(response, status, xhr);
+            } else {
+                let jsonResp = JSON.parse(response);
+                callback(jsonResp);
+                //log("error: unexpected content type: ", response);
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            log("Error in crimeLoad: ", textStatus);
+        }
+    });
 }
 
 //
@@ -2114,7 +2335,7 @@ function addSortBtnStyles() {
 //
 function addToolTipStyle() {
     toolTipStylesAdded = true;
-    GM_addStyle(`.ui-helper-hidden-accessible {display: none !important;}`);
+    GM_addStyle(`.ui-helper-hidden-accessible {display: none;}`);
     GM_addStyle(`.tt-ws {white-space: pre-line;}`);
     GM_addStyle(".tooltip2 {" +
                 "radius: 4px !important;" +
@@ -2148,48 +2369,44 @@ function addToolTipStyle() {
                 "font-size: 1em;" +
                 "}");
 
-    GM_addStyle(`
-        .tooltip4 {
-            radius: 4px !important;
-            background-color: #000000 !important;
-            filter: alpha(opacity=80);
-            opacity: 0.80;
-            padding: 5px 20px;
-            border: 2px solid gray;
-            border-radius: 10px;
-            width: fit-content;
-            margin: 50px;
-            text-align: left;
-            font: bold 14px ;
-            font-stretch: condensed;
-            text-decoration: none;
-            color: #FFF;
-            font-size: 1em;
-            line-height: 1.5;
-            z-index: 999999;
-        }
-    `);
+    GM_addStyle(".tooltip4 {" +
+                "radius: 4px !important;" +
+                "background-color: #000000 !important;" +
+                "filter: alpha(opacity=80);" +
+                "opacity: 0.80;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid gray;" +
+                "border-radius: 10px;" +
+                "width: fit-content;" +
+                "margin: 50px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "color: #FFF;" +
+                "font-size: 1em;" +
+                "line-height: 1.5;" +
+                "z-index: 999999;" +
+                "}");
 
-    GM_addStyle(`
-        .tooltip5 {
-            radius: 4px !important;
-            background-color: #000000 !important;
-            filter: alpha(opacity=80);
-            opacity: 0.80;
-            padding: 5px 20px;
-            border: 2px solid gray;
-            border-radius: 10px;
-            width: fit-content;
-            margin: 10px;
-            text-align: left;
-            font: bold 14px ;
-            font-stretch: condensed;
-            text-decoration: none;
-            color: #FFF;
-            font-size: 1em;
-            z-index: 999999;
-        }
-    `);
+    GM_addStyle(".tooltip5 {" +
+                "radius: 4px !important;" +
+                "background-color: #000000 !important;" +
+                "filter: alpha(opacity=80);" +
+                "opacity: 0.80;" +
+                "padding: 5px 20px;" +
+                "border: 2px solid gray;" +
+                "border-radius: 10px;" +
+                "width: fit-content;" +
+                "margin: 10px;" +
+                "text-align: left;" +
+                "font: bold 14px ;" +
+                "font-stretch: condensed;" +
+                "text-decoration: none;" +
+                "color: #FFF;" +
+                "font-size: 1em;" +
+                "z-index: 999999;" +
+                "}");
 
     GM_addStyle(`
         .tooltip6 {
@@ -2879,5 +3096,4 @@ function addDraggableStyles() {
         }
     `);
 }
-
 
