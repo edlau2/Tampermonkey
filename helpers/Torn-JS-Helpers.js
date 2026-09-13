@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.48.4
+// @version     2.48.8
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.48.4";
+const thisLibVer = "2.48.8";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -280,6 +280,18 @@ function enableDebugLogging(enable=true) {
     debugLoggingEnabled = enable;
 }
 
+// Retry finding an element...
+// Usage:
+// function someFunc(retries=0) {
+//     let element = $(selector);
+//     if (!$(element).length) return retry(someFuction, retries);
+//     .. code to run on success (element found)
+//
+function retry(callback, retries, maxRetries=25, interval=250) {
+    if (++retries > maxRetries) return debug("Timed out for ", callback.name);
+    setTimeout(callback, interval, retries);
+}
+
 // non-blocking (async) delay, use with 'await' in an async function
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -423,14 +435,95 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
         });
     }
 
+    var alertStylesAdded = false;
+    function addAlertDiv() {
+         if ($("#xalert").length > 0) return;
+         let newDiv = `
+             <div id="xalert">
+                 <div class="alert-content">
+                     <span><p class='mainMsg'></p></span>
+                     <span class="xalertbtn-wrap">
+                         <button id="xalert-ok-btn" class="xedx-torn-btn" data-ret="true">OK</button>
+                     </span>
+                 </div>
+             </div>`;
+         $("body").append(newDiv);
+     }
+    function addAlertStyles() {
+         if (alertStylesAdded) return;
+         GM_addStyle(`
+             #xalert {
+                 display: none;
+                 position: fixed;
+                 top: 50%;
+                 left: 50%;
+                 width: 300px;
+                 /* height: 150px; */
+                 transform: translate(-50%, -50%);
+                 background-color: var(--default-white-color);
+                 padding: 20px 20px 0px 20px;
+                 border-radius: 10px;
+                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+                 color: var(--default-black-color);
+                 font-size: 14px;
+                 font-family: arial;
+                 z-index: 9999999;
+            }
+            #xalert button {
+                 margin: 10px 25px 10px 25px;
+            }
+            .mainMsg {
+                 padding: 20px 0px 20px 0px;
+                 font-size: 16px;
+                 white-space: pre-line;
+            }
+            .alert-content {
+                 position: relative;
+                 display: flex;
+                 flex-flow: column wrap;
+                 align-content: center;
+                 height: 100%;
+            }
+            .xalertbtn-wrap {
+                 display: flex;
+                 flex-flow: row wrap;
+                 justify-content: center;
+                 width: 100%;
+                 align-content: center;
+            }
+        `);
+    alertStylesAdded = true;
+    }
+}
+
+async function alertWithTimeout_old(mainMsg, timeoutSecs, btnMsg) {
+    addAlertStyles();
+    addAlertDiv();
+
+    $("#xalert .mainMsg").text(mainMsg);
+    if (btnMsg) $("#xalert button").text(btnMsg);
+    return await openModelessAlert(timeoutSecs);
+
+    async function openModelessAlert(timeoutSecs) {
+        $("#xalert").css("display", "block");
+        if (timeoutSecs) setTimeout(function() {$("#xalert").remove();}, timeoutSecs*1000);
+        return new Promise(resolve => {
+            $("#xalert-ok-btn").on('click', (e) => {resolve($("#xalert").remove())});
+        });
+    }
+
      var alertStylesAdded = false;
      function addAlertDiv() {
          if ($("#xalert").length > 0) return;
          let newDiv = `
-             <div id="xalert"><div class="alert-content">
-                 <p class='mainMsg'></p>
-                 <span class="xbtn-wrap"><button id="xalert-ok-btn" class="xedx-torn-btn" data-ret="true">OK</button></span>
-             </div></div>`;
+             <div id="xalert">
+                 <div class="alert-content">
+                     <span><p class='mainMsg'></p></span>
+                     <span class="xalertbtn-wrap">
+                         <button id="xalert-ok-btn" class="xedx-torn-btn" data-ret="true">OK</button>
+                     </span>
+                 </div>
+             </div>`;
          $("body").append(newDiv);
      }
      function addAlertStyles() {
@@ -468,16 +561,12 @@ async function alertWithTimeout(mainMsg, timeoutSecs, btnMsg) {
                  align-content: center;
                  height: 100%;
             }
-            .xbtn-wrap {
+            .xalertbtn-wrap {
                  display: flex;
                  flex-flow: row wrap;
                  justify-content: center;
-                 /* position: absolute; */
                  width: 100%;
                  align-content: center;
-                 /* bottom: 10%;
-                 left: 50%;
-                 transform: translate(-50%); */
             }
         `);
     alertStylesAdded = true;
@@ -2249,7 +2338,7 @@ function displayToolTip(node, text, cl) {
     })
 }
 
-// $().tooltip seems to be a JQuery UI function. There are lots of attributes:
+// $().tooltip is a JQuery UI function. There are lots of attributes:
 // {
 //   content:
 //   disabled:
@@ -2273,7 +2362,8 @@ function displayToolTip(node, text, cl) {
 var toolTipStylesAdded = false;
 function displayHtmlToolTip(node, text, cl) {
     if (toolTipStylesAdded == false) {
-        debugger;
+        //debugger;
+        addToolTipStyle();
     }
 
     $(document).ready(function() {
