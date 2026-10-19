@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.48.8
+// @version     2.48.9
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.48.8";
+const thisLibVer = "2.48.9";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -1184,7 +1184,7 @@ function xedx_TornCompanyQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('company', ID, selection, callback, param);
 }
 function xedx_TornCompanyQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('company', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('company', ID, selection, callback, param);
 }
 
 function xedx_TornCompanyQueryDbg(ID, selection, callback, param=null) {
@@ -1196,7 +1196,7 @@ function xedx_TornMarketQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('market', ID, selection, callback, param);
 }
 function xedx_TornMarketQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('market', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('market', ID, selection, callback, param);
 }
 
 function xedx_TornMarketQueryDbg(ID, selection, callback, param=null) {
@@ -1208,7 +1208,7 @@ function xedx_TornTornQuery(ID, selection, callback, param=null) {
     xedx_TornGenericQuery('torn', ID, selection, callback, param);
 }
 function xedx_TornTornQueryv2(ID, selection, callback, param=null) {
-    xedx_TornGenericQuery('torn', ID, selection, callback, param);
+    xedx_TornGenericQueryv2('torn', ID, selection, callback, param);
 }
 
 function xedx_TornTornQueryDbg(ID, selection, callback, param=null) {
