@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name        Torn-JS-Helpers
-// @version     2.48.9
+// @version     2.49.0
 // @namespace   https://github.com/edlau2
 // @description Commonly used functions in my Torn scripts.
 // @author      xedx [2100735]
@@ -17,7 +17,7 @@
 // Until I figure out how to grab the metadata from this lib,
 // it's not available via GM_info, this should be the same as
 // the @version above
-const thisLibVer = "2.48.9";
+const thisLibVer = "2.49.0";
 
 /*eslint no-unused-vars: 0*/
 /*eslint no-undef: 0*/
@@ -1421,7 +1421,7 @@ function decodeAjaxError(jqXHR, textStatus, errorThrown) {
 // Inside that must be a div called <outer-id>header ...
 // See "Torn Hospital Timer" as an example.
 //
-function dragElement(elmnt) {
+function dragElement(elmnt, onDragEnd=null) {
   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
   if (document.getElementById(elmnt.id + "header")) {
     document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
@@ -1462,6 +1462,9 @@ function dragElement(elmnt) {
   function closeDragElement() {
     document.onmouseup = null;
     document.onmousemove = null;
+
+      if (onDragEnd)
+          onDragEnd(elmnt);
 
     //GM_setValue("lastPosition", $("#x-hosp-watch").position());
     let curPos = {top: elmnt.style.top, left: elmnt.style.left};
